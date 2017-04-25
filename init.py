@@ -24,9 +24,9 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 import sys
 from os.path import expanduser
-home = expanduser("~")
-sys.path.append(home + '/python/decorators/')
-sys.path.append(home + '/python/modules')
+#home = expanduser("~")
+#sys.path.append(home + '/python/decorators/')
+sys.path.append('modules/')
 #from deco_util import timing_function
 import numpy as np
 import time
