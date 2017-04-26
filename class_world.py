@@ -30,6 +30,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import tqdm
 import time
+import os
+
 ###### Enums ################
 #connections
 _tll = 1 # loc - loc
@@ -48,9 +50,13 @@ class World(SynEarth):
         self.time     = 0
         self.nSteps   = nSteps
         self.reporter = list()
-        self.nAgents = 0
+        self.nAgents  = 0
         self.brandDict = dict()
         self.brands   = list()
+        if not os.path.isdir('output'):
+            os.mkdir('output')
+        if not os.path.isdir('output/rec'):
+            os.mkdir('output/rec')
         #self.writer = self.Writer(self,'agRecord')
         
     def registerRecord(self, name, title, colLables, style ='plot')    :

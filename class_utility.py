@@ -130,5 +130,5 @@ class Record():
         
     def saveCSV(self):
         df = pd.DataFrame(self.rec, columns=self.columns)
-        df.to_csv('output/' + self.name + '.csv')
+        df.to_csv('output/rec/' + self.name + '.csv')
         
