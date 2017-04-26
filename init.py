@@ -35,13 +35,9 @@ import numpy as np
 import time
 import mod_geotiff as gt
 from class_agents import Household, Reporter, Cell
-<<<<<<< HEAD
 from class_world import Earth
-=======
-from class_world import World
 import matplotlib
 matplotlib.use('TKAgg')
->>>>>>> origin/master
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 import matplotlib.pyplot as plt
