@@ -102,7 +102,8 @@ elif scenario == 2: # Niedersachsen
     assert np.sum(np.isnan(population[landLayer==1])) == 0
     print nAgents
 
-
+    df = pd.read_csv('resources_nie/hh_niedersachsen.csv')
+    hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 
 
 #%% INITIALIZATION ##########################   
@@ -139,11 +140,9 @@ ww.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  60000),80)   #suv
 ww.addBrand('green',(1500, 450,  2.0,   4,    130,  40000),90)
     
 ww.nPrefTypes = [0,0,0]
-ww.record.loc[0] = 0
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
-df = pd.read_csv('resources_nie/hh_niedersachsen.csv')
-hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
+
 
 
 #%% Init records
@@ -278,14 +277,15 @@ import pandas as pd
 #prefUtil = pd.DataFrame([],columns= ["prSaf", "prEco", "prCon"] )    
 #prefUtil.loc[0] = 0
 for agent in ww.iterNode(_hh):
-    if agent.nID == 13:
-        print 1
     agent.buyCar(ww,np.random.choice(ww.market.brandProp.keys()))
     agent.car['age'] = np.random.randint(0,15)
     agent.util = agent.evalUtility(ww)
     agent.utilList.append(agent.util)
     agent.shareExperience(ww)
-
+    
+for cell in ww.iterNode(_cell):
+    cell.step()
+    
 #ww.record.loc[ww.time, ww.rec["avgUtilPref"][1]] /= ww.nPrefTypes
 ww.globalRec['avgUtil'].div(ww.time, [ww.nAgents] + ww.nPrefTypes)
 
@@ -313,6 +313,7 @@ ww.avgDegree = [np.mean(ww.graph.vs[ww.nodeList[2]].degree())]
 
 tt = time.time()
 ww.initAgentFile(typ = _hh)
+ww.initAgentFile(typ = _cell)
 print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
 ww.writeAgentFile()
 #%% Simulation 

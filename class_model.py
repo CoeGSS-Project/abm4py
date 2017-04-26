@@ -328,7 +328,7 @@ class Location(Entity):
         Entity.__init__(self,world,nodeType)
         self.x = xPos
         self.y = yPos
-        self.graph.vs[self.nID]['pos']= [xPos,yPos]
+        self.graph.vs[self.nID]['pos']= (xPos,yPos)
         
     def register(self,world):
         world.registerLocation(self)

@@ -570,3 +570,12 @@ class Cell(Location):
             self.obsMemory.remMeme(obsID)         # removes the obs from memory
         #self.obsDf.drop(delList,inplace=True)     # removes the obs from memory
         self.currDelList = list()                 # restarts the list for the next step
+        
+        #write cell traffic to graph
+        self.setValue('carsInCell', tuple(self.traffic.values()))
+        
+        
+        
+        
+        
+        

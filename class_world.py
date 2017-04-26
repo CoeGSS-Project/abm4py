@@ -256,33 +256,39 @@ class World(SynEarth):
 
 
     def writeAgentFile(self):
-        for attr in self.attributes:
-            if len(self.attrIdx[attr]) == 1:
-                self.agentMat[self.time][:,self.attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.ag2FileIdx][attr],1)
-            else:
-                #for idx in self.ag2FileIdx:
-                #    print attr
-                #    print len(self.graph.vs[idx][attr])
-                self.agentMat[self.time][:,self.attrIdx[attr]] =  self.graph.vs[self.ag2FileIdx][attr]
+        for typ in self.agentRec.keys():
+            print typ
+            for attr in self.agentRec[typ].attributes:
+                if len(self.agentRec[typ].attrIdx[attr]) == 1:
+                    self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.agentRec[typ].ag2FileIdx][attr],1)
+                else:
+                    self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  self.graph.vs[self.agentRec[typ].ag2FileIdx][attr]
     
     def initAgentFile(self, typ=1):
-        self.ag2FileIdx = self.nodeList[typ]
-        self.attributes = list()
+        
+        class Record():
+            def __init(self):
+                pass
+            
+        self.agentRec[typ] = Record()
+        self.agentRec[typ].ag2FileIdx = self.nodeList[typ]
+        nAgents = len(self.nodeList[typ])
+        self.agentRec[typ].attributes = list()
         attributes = self.graph.vs.attribute_names()
-        self.nAttr = 0
-        self.attrIdx = dict()
+        self.agentRec[typ].nAttr = 0
+        self.agentRec[typ].attrIdx = dict()
         for attr in attributes:
-            if self.graph.vs[self.ag2FileIdx[0]][attr] is not None and not isinstance(self.graph.vs[self.ag2FileIdx[0]][attr],str):
-                self.attributes.append(attr)
-                if isinstance(self.graph.vs[self.ag2FileIdx[0]][attr],tuple):
-                    nProp = len(self.graph.vs[self.ag2FileIdx[0]][attr])
-                    self.attrIdx[attr] = range(self.nAttr, self.nAttr+nProp)
+            if self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr] is not None and not isinstance(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr],str):
+                self.agentRec[typ].attributes.append(attr)
+                if isinstance(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr],(list,tuple)) :
+                    nProp = len(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr])
+                    self.agentRec[typ].attrIdx[attr] = range(self.agentRec[typ].nAttr, self.agentRec[typ].nAttr+nProp)
                 else:
                     nProp = 1
-                    self.attrIdx[attr] = [self.nAttr]
-                self.nAttr += nProp
+                    self.agentRec[typ].attrIdx[attr] = [self.agentRec[typ].nAttr]
+                self.agentRec[typ].nAttr += nProp
         
-        self.agentRec = np.zeros([self.nSteps, self.nAgents,self.nAttr ])
+        self.agentRec[typ].record = np.zeros([self.nSteps, nAgents,self.agentRec[typ].nAttr ])
         #print self.agentMat.shape            
     
     
@@ -305,10 +311,12 @@ class World(SynEarth):
         for key in self.globalRec:
             self.globalRec[key].plot()
             
-        # saving agent file
-        np.save('output/agentFile', self.agentMat, allow_pickle=True)
-        
-        saveObj(self.attrIdx, 'output/attributeList')
+        # saving agent files
+        for typ in self.agentRec.keys():
+            np.save('output/agentFile_type' + str(typ), self.agentRec[typ].record, allow_pickle=True)
+            saveObj(self.agentRec[typ].attrIdx, 'output/attributeList_type' + str(typ))
+            
+        # saving enumerations            
         saveObj(self.enums, 'output/enumerations')
         
 class Market():
