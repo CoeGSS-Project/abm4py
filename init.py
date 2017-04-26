@@ -5,6 +5,9 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
+CAR INNOVATION MARKET MODEL
+Init file
+
 This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
@@ -57,13 +60,13 @@ randomAgents  = 1 # 0: prefrences dependent on agent properties - 1: random dist
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
 
-nSteps     = 20 # number of simulation steps
+nSteps     = 300 # number of simulation steps
 initPhase = 20
 properties = ['weig','range','consum','vol','speed', 'price']
-randomCarPropDeviationSTD = 0
+randomCarPropDeviationSTD = 0.01
 minFriends = 30  # number of desired friends
-memoryTime  = 10  # length of the periode for which memories are stored
-
+memoryTime  = 15  # length of the periode for which memories are stored
+carNewPeriod = 5
 recAgent   = [5,10,15]   # reporter agents that return a diary
 
 tt = time.time()
@@ -113,9 +116,10 @@ ww.initMarket(properties, randomCarPropDeviationSTD)
 ww.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(10000,30000),convIncomeFraction=25000)
 ww.scenario = scenario
 ww.radicality = radicality
+ww.carNewPeriod = carNewPeriod
 #init location memory
 
-
+ww.enums = dict()
  
 ww.initMemory(properties + ['utility','label','hhID'], memoryTime)
 
@@ -123,7 +127,7 @@ ww.initMemory(properties + ['utility','label','hhID'], memoryTime)
 #                           weig range consum vol   speed price']
 #ww.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
 #ww.addBrand('city', (1500, 600,  4.5,   4.7,  140,  35000))   #city car 
-ww.addBrand('medium',(2000, 600,  5.5,   5.0,  140,  25000), 0)   #small car 
+ww.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  25000), 0)   #small car 
 ww.addBrand('family',(2400, 800,  6.5,   8.0,  140,  30000), 0)   #family car
 
 ww.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  45000), 0)   #Diesels 
@@ -147,11 +151,21 @@ hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 ww.registerRecord('avgUtil', 'Average utility',["overall", "prefSafety", "prefEcology", "prefConvinience"])
 ww.registerRecord('carStock', 'Cars per label', ww.market.brandsToInit, style='stackedBar')
 ww.registerRecord('sales', 'Sales per Preference',["salesSaf", "salesEco", "salesCon"])
-
+ww.registerRecord('maxSpeedStat', 'statistical distribution for max speeed',["mean", "mean+STD", "mean-STD"])
 
 #%% Init of Households
 nAgents = 0
 nHH     = 0
+
+ww.enums['prefTypes'] = dict()
+ww.enums['prefTypes'][0] = 'safety'
+ww.enums['prefTypes'][1] = 'ecology'
+ww.enums['prefTypes'][2] = 'convinience'
+
+ww.enums['nodeTypes'] = dict()
+ww.enums['nodeTypes'][1] = 'cell'
+ww.enums['nodeTypes'][2] = 'household'
+
 if randomAgents:
     idx = 0
     for x,y in tqdm.tqdm(ww.locDict.keys()):
@@ -166,10 +180,10 @@ if randomAgents:
             hh.tolerance = tolerance
             hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon = ww.generateHH()
             #hhSize = int(np.ceil(np.abs(np.random.randn(1)*2)))
-            hh.setValue('hhSize', hhSize)
-            hh.setValue('age',ageList)         
-            hh.setValue('income',income)
-            hh.setValue('nKids', nKids)
+            #hh.setValue('hhSize', hhSize)
+            #hh.setValue('age',ageList)         
+            #hh.setValue('income',income)
+            #hh.setValue('nKids', nKids)
             
             
             # normal 
@@ -190,6 +204,7 @@ if randomAgents:
             
             hh.setValue('preferences', (prSaf, prEco, prCon))
             hh.prefTyp = np.argmax((prSaf, prEco, prCon))
+            hh.setValue('prefTyp',hh.prefTyp)
             
             hh.registerAgent(ww,_tlh)
             ww.nPrefTypes[hh.prefTyp] += 1
@@ -231,8 +246,9 @@ else:
             prSaf, prEco, prCon = ww.og.getPref(age[idxAdult],sex[idxAdult],nKids,income,radicality)
             # normal 
             hh.setValue('preferences', (prSaf, prEco, prCon))
-            hh.prefTyp = np.argmax((prSaf, prEco, prCon))
             
+            hh.prefTyp = np.argmax((prSaf, prEco, prCon))
+            hh.setValue('prefTyp',hh.prefTyp)
             # test
             #hh.setValue('preferences', (0,0,1))
             #hh.prefTyp = 0
@@ -262,6 +278,8 @@ import pandas as pd
 #prefUtil = pd.DataFrame([],columns= ["prSaf", "prEco", "prCon"] )    
 #prefUtil.loc[0] = 0
 for agent in ww.iterNode(_hh):
+    if agent.nID == 13:
+        print 1
     agent.buyCar(ww,np.random.choice(ww.market.brandProp.keys()))
     agent.car['age'] = np.random.randint(0,15)
     agent.util = agent.evalUtility(ww)
@@ -293,16 +311,24 @@ for key in ww.market.obsDict.keys():
     
 ww.avgDegree = [np.mean(ww.graph.vs[ww.nodeList[2]].degree())]
 
+tt = time.time()
+ww.initAgentFile(typ = _hh)
+print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
+ww.writeAgentFile()
 #%% Simulation 
 for step in xrange(1,nSteps):
-    tt = time.time()
+    
     ww.step()
+    
 #    for x in ww.nodeList[2]:
 #        agent = ww.agDict[x]
         
         #agent.socialize(ww)
     
-    print 'step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s'
+    print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s'
+    tt = time.time()
+    ww.writeAgentFile()
+    print 'Agent file written in ' +  str(time.time()-tt) + ' s'
     util = np.asarray(ww.graph.vs[ww.nodeList[2]]['util'])
     # plot utility per brand
     for key in ww.market.obsDict[ww.time].keys():
@@ -317,10 +343,9 @@ for step in xrange(1,nSteps):
         plt.hist(util,30)
         plt.xlim([0,1])   
     
-        
+ww.finalize()        
 
-for writer in ww.reporter:        
-    writer.close()        
+       
 #%% post processing
 legLabels = [ww.market.brandLabels[x] for x in ww.market.stockbyBrand.columns]
 if False:
@@ -390,22 +415,16 @@ if False:
 #    plt.title(ww.rec[key][0])
 #    plt.savefig(key + '.png')
 
-for key in ww.globRec:    
-    ww.globRec[key].saveCSV()
-
-for key in ww.globRec:
-    ww.globRec[key].plot()
-
-
 
 #%% correlation testing of weights and deviation in preferences
 
 preDiff = list()
 weights = list()
 
-
+pref = np.zeros([ww.graph.vcount(), 3])
+pref[-ww.nAgents:,:] = np.array(ww.graph.vs[-ww.nAgents:]['preferences'])
 for edge in ww.iterEdges(_thh):
-    preDiff.append(np.sum(np.abs(df.ix[edge.target, :-1] - df.ix[edge.source,:-1])))
+    preDiff.append(np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:])))
     weights.append(edge['weig'])
 plt.figure()
 plt.scatter(preDiff,weights)

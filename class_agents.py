@@ -288,7 +288,8 @@ class Household(Agent):
         normalizedDeviation = world.market.statistics[1] - world.market.statistics[0]
         normalizedDeviation[normalizedDeviation==0] = 1 # prevent division by zero
         
-        x = 0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation)
+        x = tuple(0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation))
+        self.setValue('preceivedProps',x)
         
         util = world.og.getUtililty(x,self.getValue('preferences'))         
         self.graph.vs[self.nID]['util'] = util #TODO change to lib-cal
@@ -346,7 +347,7 @@ class Household(Agent):
     def step(self, world):
         self.car['age']  +=1
         utilUpdated = False
-        if self.car['age'] > 5 and np.random.rand(1)>.5: 
+        if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
                     
             choice = self.optimalChoice(world)  
             
@@ -391,7 +392,7 @@ class Reporter(Household):
         normalizedDeviation = world.market.statistics[1] - world.market.statistics[0]
         normalizedDeviation[normalizedDeviation==0] = 1 # prevent division by zero
         x = 0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation)
-
+        self.setValue('preceivedProps',x)
         
         util = world.og.getUtililty(x,self.getValue('preferences'))         
         self.graph.vs[self.nID]['util'] = util

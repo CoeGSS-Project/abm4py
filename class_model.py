@@ -213,7 +213,7 @@ class Entity():
         for i, liTyp in enumerate(Earth.types):
             if liTyp == nodeType :
                 break
-        self.graph.add_vertex(nodeType + str(self.nID), type=i)
+        self.graph.add_vertex(self.nID, type=i)
         self.type= nodeType      
         #self.node = self.graph.vs[self.nID]
         #Earth.registerNode(self,nodeType)

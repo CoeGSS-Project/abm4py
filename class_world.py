@@ -74,8 +74,12 @@ class World(SynEarth):
     
     def addBrand(self, label, propertyTuple, initTimeStep):
         brandID = self.market.addBrand(label, propertyTuple, initTimeStep)
+        
         for cell in self.iterNode(_cell):
             cell.traffic[brandID] = 0
+        if 'brands' not in self.enums.keys():
+            self.enums['brands'] = dict()
+        self.enums['brands'][brandID] = label
         
     # init opinion class        
     def initOpinionGen(self,indiRatio = 0.33, ecoIncomeRange=(1000,4000),convIncomeFraction=7000):
@@ -241,8 +245,68 @@ class World(SynEarth):
     
         self.globRec['avgUtil'].div(self.time, [self.nAgents] + self.nPrefTypes)
         self.globRec['carStock'].setIdx(self.time, self.market.carsPerLabel, xrange(len(self.market.carsPerLabel)))
+        maxSpeedMean = self.market.statistics[0,4]
+        maxSpeedSTD  = self.market.statistics[1,4]
+        self.globRec['maxSpeedStat'].set(self.time, [maxSpeedMean, maxSpeedMean+maxSpeedSTD, maxSpeedMean-maxSpeedSTD])
 
 
+
+    def writeAgentFile(self):
+        for attr in self.attributes:
+            if len(self.attrIdx[attr]) == 1:
+                self.agentMat[self.time][:,self.attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.ag2FileIdx][attr],1)
+            else:
+                #for idx in self.ag2FileIdx:
+                #    print attr
+                #    print len(self.graph.vs[idx][attr])
+                self.agentMat[self.time][:,self.attrIdx[attr]] =  self.graph.vs[self.ag2FileIdx][attr]
+    
+    def initAgentFile(self, typ=1):
+        self.ag2FileIdx = self.nodeList[typ]
+        self.attributes = list()
+        attributes = self.graph.vs.attribute_names()
+        self.nAttr = 0
+        self.attrIdx = dict()
+        for attr in attributes:
+            if self.graph.vs[self.ag2FileIdx[0]][attr] is not None and not isinstance(self.graph.vs[self.ag2FileIdx[0]][attr],str):
+                self.attributes.append(attr)
+                if isinstance(self.graph.vs[self.ag2FileIdx[0]][attr],tuple):
+                    nProp = len(self.graph.vs[self.ag2FileIdx[0]][attr])
+                    self.attrIdx[attr] = range(self.nAttr, self.nAttr+nProp)
+                else:
+                    nProp = 1
+                    self.attrIdx[attr] = [self.nAttr]
+                self.nAttr += nProp
+        
+        self.agentMat = np.zeros([self.nSteps, self.nAgents,self.nAttr ])
+        #print self.agentMat.shape            
+    
+    
+    def finalize(self):
+        
+        import pickle
+        def saveObj(obj, name ):
+            with open( name + '.pkl', 'wb') as f:
+                pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        
+        # finishing reporter files
+        for writer in self.reporter:        
+            writer.close() 
+        
+        # writing global records to file
+        for key in self.globRec:    
+            self.globRec[key].saveCSV()
+        
+        # plotting and saving figures
+        for key in self.globRec:
+            self.globRec[key].plot()
+            
+        # saving agent file
+        np.save('output/agentFile', self.agentMat, allow_pickle=True)
+        
+        saveObj(self.attrIdx, 'output/attributeList')
+        saveObj(self.enums, 'output/enumerations')
+        
 class Market():
 
     def __init__(self, properties, propRelDev=0.01, time = 0):
