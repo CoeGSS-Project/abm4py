@@ -304,7 +304,7 @@ class Household(Agent):
         """
         # add sale to record
         #world.record.loc[world.time, world.rec["sales"][1][self.prefTyp]] += 1
-        world.globRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
+        world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
         carID, properties = world.market.buyCar(label, self.nID)
         self.loc.addToTraffic(label)
         self.car['ID']    = carID
@@ -324,7 +324,7 @@ class Household(Agent):
         #world.record.loc[world.time,world.rec["avgUtilPref"][1][self.prefTyp]] += self.graph.vs[self.nID]['util']
         
         
-        world.globRec['avgUtil'].addIdx(world.time, self.graph.vs[self.nID]['util'] ,[0, self.prefTyp+1]) 
+        world.globalRec['avgUtil'].addIdx(world.time, self.graph.vs[self.nID]['util'] ,[0, self.prefTyp+1]) 
         
         #self.utilList.append(util)
         #print 'agent' + str(self.nID)

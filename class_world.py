@@ -45,14 +45,14 @@ class World(SynEarth):
     
     def __init__(self, nSteps, spatial):
         SynEarth.__init__(self, spatial)
-        self.record   = pd.DataFrame([],columns=["timespend"])
-        self.globRec  = dict()
-        self.time     = 0
-        self.nSteps   = nSteps
-        self.reporter = list()
-        self.nAgents  = 0
-        self.brandDict = dict()
-        self.brands   = list()
+        self.agentRec   = dict()   
+        self.globalRec  = dict()
+        self.time       = 0
+        self.nSteps     = nSteps
+        self.reporter   = list()
+        self.nAgents    = 0
+        self.brandDict  = dict()
+        self.brands     = list()
         if not os.path.isdir('output'):
             os.mkdir('output')
         if not os.path.isdir('output/rec'):
@@ -60,7 +60,7 @@ class World(SynEarth):
         #self.writer = self.Writer(self,'agRecord')
         
     def registerRecord(self, name, title, colLables, style ='plot')    :
-        self.globRec[name] = Record(name, colLables, self.nSteps, title, style)
+        self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
         
     # init car market    
@@ -222,8 +222,6 @@ class World(SynEarth):
         
         # proceed step
         self.time += 1
-        # add new recode row 
-        self.record.loc[self.time] = 0
         
         # proceed market in time
         self.market.step()
@@ -249,11 +247,11 @@ class World(SynEarth):
                 
         # process some records
     
-        self.globRec['avgUtil'].div(self.time, [self.nAgents] + self.nPrefTypes)
-        self.globRec['carStock'].setIdx(self.time, self.market.carsPerLabel, xrange(len(self.market.carsPerLabel)))
+        self.globalRec['avgUtil'].div(self.time, [self.nAgents] + self.nPrefTypes)
+        self.globalRec['carStock'].setIdx(self.time, self.market.carsPerLabel, xrange(len(self.market.carsPerLabel)))
         maxSpeedMean = self.market.statistics[0,4]
         maxSpeedSTD  = self.market.statistics[1,4]
-        self.globRec['maxSpeedStat'].set(self.time, [maxSpeedMean, maxSpeedMean+maxSpeedSTD, maxSpeedMean-maxSpeedSTD])
+        self.globalRec['maxSpeedStat'].set(self.time, [maxSpeedMean, maxSpeedMean+maxSpeedSTD, maxSpeedMean-maxSpeedSTD])
 
 
 
@@ -284,7 +282,7 @@ class World(SynEarth):
                     self.attrIdx[attr] = [self.nAttr]
                 self.nAttr += nProp
         
-        self.agentMat = np.zeros([self.nSteps, self.nAgents,self.nAttr ])
+        self.agentRec = np.zeros([self.nSteps, self.nAgents,self.nAttr ])
         #print self.agentMat.shape            
     
     
@@ -300,12 +298,12 @@ class World(SynEarth):
             writer.close() 
         
         # writing global records to file
-        for key in self.globRec:    
-            self.globRec[key].saveCSV()
+        for key in self.globalRec:    
+            self.globalRec[key].saveCSV()
         
         # plotting and saving figures
-        for key in self.globRec:
-            self.globRec[key].plot()
+        for key in self.globalRec:
+            self.globalRec[key].plot()
             
         # saving agent file
         np.save('output/agentFile', self.agentMat, allow_pickle=True)

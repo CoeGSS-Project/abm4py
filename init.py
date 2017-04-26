@@ -287,7 +287,7 @@ for agent in ww.iterNode(_hh):
     agent.shareExperience(ww)
 
 #ww.record.loc[ww.time, ww.rec["avgUtilPref"][1]] /= ww.nPrefTypes
-ww.globRec['avgUtil'].div(ww.time, [ww.nAgents] + ww.nPrefTypes)
+ww.globalRec['avgUtil'].div(ww.time, [ww.nAgents] + ww.nPrefTypes)
 
 #ww.view()
 util = np.asarray(ww.graph.vs[ww.nodeList[2]]['util'])
