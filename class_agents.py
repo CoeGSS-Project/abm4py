@@ -197,6 +197,7 @@ class Household(Agent):
             world.setEdgeValues(edgeIDs,'weig',post)
         
     def connectGeoNode(self, world):
+        # todo: change to access world.queueEdge   
         # connect agent to its spatial location
         geoNodeID = int(self.graph.IdArray[int(self.x),int(self.y)])
         self.queueConnection(geoNodeID,_tlh)         

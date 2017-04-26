@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from class_model import SynEarth
+from lib_gcfabm import World
 from class_utility import Record
 import igraph as ig
 import numpy as np
@@ -41,10 +41,10 @@ _thh = 3 # household, household
 _cell = 1
 _hh   = 2
 
-class World(SynEarth):
+class Earth(World):
     
     def __init__(self, nSteps, spatial):
-        SynEarth.__init__(self, spatial)
+        World.__init__(self, spatial)
         self.agentRec   = dict()   
         self.globalRec  = dict()
         self.time       = 0
@@ -230,7 +230,7 @@ class World(SynEarth):
         for cell in self.iterNode(_cell):
             cell.step()
         
-        self.avgDegree.append(np.mean(self.graph.vs[self.nodeList[2]].degree()))
+        #self.avgDegree.append(np.mean(self.graph.vs[self.nodeList[2]].degree()))
         self.market.stockbyBrand.loc[len(self.market.stockbyBrand)] = self.market.stockbyBrand.loc[len(self.market.stockbyBrand)-1]
 
         # get number of new cars
@@ -240,8 +240,8 @@ class World(SynEarth):
         #loop over buyers
 #        markerlist = ['s', 'o', 'd', 'x', '*', '^','p','d','8','_']
 #        colors = sns.color_palette("Set1", n_colors=9, desat=.5)
-        for agID in tqdm.tqdm(self.nodeList[2]):
-            agent = self.agDict[agID]
+        for agent in tqdm.tqdm(self.iterNode(_hh)):
+            #agent = self.agDict[agID]
             agent.step(self)
 
                 
@@ -257,7 +257,6 @@ class World(SynEarth):
 
     def writeAgentFile(self):
         for typ in self.agentRec.keys():
-            print typ
             for attr in self.agentRec[typ].attributes:
                 if len(self.agentRec[typ].attrIdx[attr]) == 1:
                     self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.agentRec[typ].ag2FileIdx][attr],1)
