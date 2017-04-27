@@ -140,7 +140,7 @@ if __name__ == '__main__':
     
                 # choose one agent from the cell that buys a car
                 agID = np.random.choice(agList)
-                agent = earth.agDict[agID]
+                agent = earth.entDict[agID]
                 gdp = agent.getEnvValue('gdp')
                 print 'gdp: ' + str(),
                 ownedCars = agent.getValue('nCars')
@@ -242,7 +242,7 @@ if __name__ == '__main__':
             agID = np.random.choice(agList)
             
             assert  earth.graph.vs[agID]['type'] == _agent
-            agent = earth.agDict[agID]
+            agent = earth.entDict[agID]
             #agent.setValue('nCars',agent.getValue('nCars')+1)
             car = Agent(earth,'car', x, y)
             carList.append(car)

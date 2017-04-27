@@ -37,8 +37,8 @@ class World:
         self.types    = list()
         self.nodeList = dict()
                 
-        self.agList   = list()
-        self.agDict   = dict()
+        self.entList   = list()
+        self.entDict   = dict()
         
         # init of spatial layer if spatial domain is set
         if spatial:
@@ -59,13 +59,13 @@ class World:
         return self.graph.es[edgeIDs][prop]    
     
     def registerNode(self, agent, typ):
-        self.agList.append(agent)
-        self.agDict[agent.nID] = agent
+        self.entList.append(agent)
+        self.entDict[agent.nID] = agent
         self.nodeList[typ].append(agent.nID)
     
     def iterNode(self,nodeType):
         nodeList = self.nodeList[nodeType]
-        return  iter([self.agList[i] for i in nodeList])
+        return  iter([self.entList[i] for i in nodeList])
     
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):
@@ -74,14 +74,14 @@ class World:
     
     def iterNodeAndID(self,nodeType):
         nodeList = self.nodeList[nodeType]
-        return  iter([(self.agList[i], i) for i in nodeList]) 
+        return  iter([(self.entList[i], i) for i in nodeList]) 
     
     def registerLocation(self, location):
         
         self.locDict[location.x,location.y] = location
         
     def getNode(self,nodeID):
-        return self.agDict[nodeID]
+        return self.entDict[nodeID]
     
     def nodeDegreeHist(self,nodeType,nbars=20):
         import matplotlib.pyplot as plt
@@ -390,13 +390,13 @@ class Location(Entity):
         self.world = world
         
     def getAgentOfCell(self,edgeType):
-        #agList= []            
+        #entList= []            
 #        esSeq = self.graph.es.select(_target=self.nID,type=edgeType).indices
 #        return map(self.getSource,esSeq)
         #return [self.graph.es[x].source for x in esSeq]
 #        for edge in esSeq:
-#            agList.append(self.graph.es[edge].source)
-#        return agList
+#            entList.append(self.graph.es[edge].source)
+#        return entList
         agList= []    
         eList = self.graph.incident(self.nID,mode="IN")
         for es in eList:
@@ -429,7 +429,7 @@ class Agent(Entity):
         self.graph.add_edge(self.nID,locationID, type=2)         
         #eID = self.graph.get_eid(self.nID,geoNodeID)
         #self.graph.es[eID]['type'] = 2
-        self.loc = world.agDict[locationID]
+        self.loc = world.entDict[locationID]
 
         
 #    def getNeighNodeValues(self, prop,edge_Type=0):
