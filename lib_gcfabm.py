@@ -419,7 +419,13 @@ class World:
         iType = len(self.types)
         self.types.append(typeStr)
         self.nodeList[iType]= list()
-        
+    
+    def dequeueEdges(self):
+        eStart = self.graph.ecount()
+        self.graph.add_edges(self.graph.edgeQueue[0])
+        self.graph.es[eStart:]['type'] = self.graph.edgeQueue[1]
+    
+    
     def view(self,filename = 'none', vertexProp='none'):
         """
         Very basic visualization method. Only works for small graphs, since layouting large graph

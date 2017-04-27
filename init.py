@@ -57,7 +57,7 @@ flgSpatial = True
 connRadius = 2.1  # radíus of cells that get an connection
 tolerance  = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 
-scenario      = 0
+scenario      = 1
 randomAgents  = 1 # 0: prefrences dependent on agent properties - 1: random distribution
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences

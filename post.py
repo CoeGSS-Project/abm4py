@@ -17,10 +17,10 @@ sns.set_color_codes("dark")
 
 plotRecords     = False
 plotCarStockBar = False
-prefPerLabel    = True
-utilPerLabel    = True
-meanPrefPerLabel= True
-printCellMaps   = False
+prefPerLabel    = False
+utilPerLabel    = False
+meanPrefPerLabel= False
+printCellMaps   = True
 
 path = 'output/'
 #%% init
@@ -128,7 +128,7 @@ if meanPrefPerLabel:
         plt.legend(legStr,loc=0)
         plt.xlim([0,nSteps])
 
-plt.show()
+
 
 #%% loading cell agent file
 
@@ -139,6 +139,25 @@ if printCellMaps:
     
     #get extend 
     step = 0
-    min_ = np.min(agMat[step,:,propDic['pos']],axis=1)
-    max_ = np.max(agMat[step,:,propDic['pos']],axis=1)
+    min_ = [int(x) for x in np.min(agMat[step,:,propDic['pos']],axis=1)]
+    max_ = [int(x+1) for x in np.max(agMat[step,:,propDic['pos']],axis=1)]
     cellMap = np.zeros(max_)
+    for agID in range(agMat.shape[1]):
+        x,y = agMat[step,agID,propDic['pos']]
+        cellMap[int(x),int(y)] = 1
+        cellIdx = np.where(cellMap)
+
+step = 45
+max_ = np.max(agMat[step,:,propDic['carsInCell']])
+min_ = np.min(agMat[step,:,propDic['carsInCell']])
+for carLabel in range(0,8):
+    plt.subplot(2,4,carLabel+1)   
+    cellMap[cellIdx] = agMat[step,:,propDic['carsInCell'][carLabel]]
+    plt.pcolor(cellMap)
+    plt.clim([min_, max_])
+plt.colorbar()
+
+
+
+#%%
+plt.show()

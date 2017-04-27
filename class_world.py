@@ -213,11 +213,7 @@ class Earth(World):
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
-    def dequeueEdges(self):
-        eStart = self.graph.ecount()
-        self.graph.add_edges(self.graph.edgeQueue[0])
-        self.graph.es[eStart:]['type'] = self.graph.edgeQueue[1]
-    
+
     def step(self):
         """ 
         Method to proceed the next time step
