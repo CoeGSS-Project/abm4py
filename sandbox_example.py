@@ -24,7 +24,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 """
 
-from lib_gcfabm import World, Agent, Location
+from lib_gcfabm import World, Agent
 import numpy as np
 
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     #%% ######################### INITIALIZATION ##########################   
     earth = World(spatial=flgSpatial)
     connList= earth.computeConnectionList(connRadius)
-    earth.initSpatialLayerNew(landLayer, connList, Location)
+    earth.initSpatialLayerNew(landLayer, connList)
     
     # init agents
     for ag in range(nAgents):

@@ -25,7 +25,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from lib_gcfabm import World
-from class_utility import Record
+from class_auxiliary import Record
 import igraph as ig
 import numpy as np
 import pandas as pd

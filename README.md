@@ -13,6 +13,7 @@
 - pandas (tested with 0.19.1)
 - matplotlib (tested with 1.5.1)
 - seaborn (tested with 0.7.1)
+- sklearn
 
 optional (for scenario 2)
 - osgeo

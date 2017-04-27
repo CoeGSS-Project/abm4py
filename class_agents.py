@@ -25,7 +25,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from lib_gcfabm import Agent, Location
-from class_utility import Memory, Writer
+from class_auxiliary import Memory, Writer
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
