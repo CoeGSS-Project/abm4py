@@ -57,7 +57,7 @@ class Earth(World):
             os.mkdir('output')
         if not os.path.isdir('output/rec'):
             os.mkdir('output/rec')
-        #self.writer = self.Writer(self,'agRecord')
+
         
     def registerRecord(self, name, title, colLables, style ='plot')    :
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)

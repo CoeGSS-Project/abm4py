@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from class_model import Agent, Location
+from lib_gcfabm import Agent, Location
 from class_utility import Memory, Writer
 import numpy as np
 import pandas as pd
@@ -44,9 +44,9 @@ class Household(Agent):
         self.car = dict()
 
 
-    def registerAgent(self, world, agentType):
+    def registerAgent(self, world):
 
-        self.register(world, agentType)    
+        self.register(world)    
         world.nAgents += 1
 #    def getObservations(self, world, labelList, mat = False):
 #        """

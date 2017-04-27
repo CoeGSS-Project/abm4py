@@ -62,7 +62,7 @@ randomAgents  = 1 # 0: prefrences dependent on agent properties - 1: random dist
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
 
-nSteps     = 300 # number of simulation steps
+nSteps     = 50 # number of simulation steps
 initPhase = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
@@ -207,7 +207,7 @@ if randomAgents:
             hh.prefTyp = np.argmax((prSaf, prEco, prCon))
             hh.setValue('prefTyp',hh.prefTyp)
             
-            hh.registerAgent(earth,_tlh)
+            hh.registerAgent(earth)
             earth.nPrefTypes[hh.prefTyp] += 1
             nPers       = hhSize
             nAgentsCell -= nPers
