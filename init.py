@@ -58,11 +58,11 @@ connRadius = 2.1  # radíus of cells that get an connection
 tolerance  = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 
 scenario      = 1
-randomAgents  = 1 # 0: prefrences dependent on agent properties - 1: random distribution
+randomAgents  = 0 # 0: prefrences dependent on agent properties - 1: random distribution
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
 
-nSteps     = 50 # number of simulation steps
+nSteps     = 100 # number of simulation steps
 initPhase = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
@@ -104,6 +104,7 @@ elif scenario == 2: # Niedersachsen
     assert np.sum(np.isnan(population[landLayer==1])) == 0
     print nAgents
 
+if not randomAgents:
     df = pd.read_csv('resources_nie/hh_niedersachsen.csv')
     hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 
@@ -130,18 +131,18 @@ earth.initMemory(properties + ['utility','label','hhID'], memoryTime)
 #                           weig range consum vol   speed price']
 #earth.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
 #earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  35000))   #city car 
-earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  25000), 0)   #small car 
-earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  30000), 0)   #family car
+earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
+earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
 
-earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  45000), 0)   #Diesels 
-earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  35000), 0)   #sports 
-earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  25000),50)   #small car 
-earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  45000),60) 
-earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  35000),70)
-earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  60000),80)   #suv 
-earth.addBrand('green',(1500, 450,  2.0,   4,    130,  40000),90)
+earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
+earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
+earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
+earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
+earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
+earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
+earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
     
-earth.nPrefTypes = [0,0,0]
+
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
 
@@ -149,10 +150,10 @@ tt = time.time()
 
 #%% Init records
 
-earth.registerRecord('avgUtil', 'Average utility',["overall", "prefSafety", "prefEcology", "prefConvinience"])
+earth.registerRecord('avgUtil', 'Average utility',["overall", "prefSafety", "prefEcology", "prefConvinience","prefMoney"])
 earth.registerRecord('carStock', 'Cars per label', earth.market.brandsToInit, style='stackedBar')
-earth.registerRecord('sales', 'Sales per Preference',["salesSaf", "salesEco", "salesCon"])
-earth.registerRecord('maxSpeedStat', 'statistical distribution for max speeed',["mean", "mean+STD", "mean-STD"])
+earth.registerRecord('sales', 'Sales per Preference',["salesSaf", "salesEco", "salesCon", "salesMoney"])
+earth.registerRecord('maxSpeedStat', 'statistical distribution for max speed',["mean", "mean+STD", "mean-STD"])
 
 #%% Init of Households
 nAgents = 0
@@ -162,6 +163,9 @@ earth.enums['prefTypes'] = dict()
 earth.enums['prefTypes'][0] = 'safety'
 earth.enums['prefTypes'][1] = 'ecology'
 earth.enums['prefTypes'][2] = 'convinience'
+earth.enums['prefTypes'][3] = 'money'
+earth.nPref = len(earth.enums['prefTypes'])
+earth.nPrefTypes = [0]* earth.nPref
 
 earth.enums['nodeTypes'] = dict()
 earth.enums['nodeTypes'][1] = 'cell'
@@ -179,11 +183,11 @@ if randomAgents:
                 hh = Household(earth,'hh', x, y)
             hh.connectGeoNode(earth)
             hh.tolerance = tolerance
-            hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon = earth.generateHH()
+            hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon ,prMon= earth.generateHH()
             #hhSize = int(np.ceil(np.abs(np.random.randn(1)*2)))
             #hh.setValue('hhSize', hhSize)
             #hh.setValue('age',ageList)         
-            #hh.setValue('income',income)
+            hh.setValue('income',income)
             #hh.setValue('nKids', nKids)
             
             
@@ -193,18 +197,18 @@ if randomAgents:
             
             # test
             if randPref == 0:
-                xx = np.zeros(3)
-                xx[np.random.randint(0,3)] = 1
+                preferences = np.zeros(earth.nPref)
+                preferences[np.random.randint(0,earth.nPref)] = 1
                 #xx = xx / sum(xx)
-                prSaf, prEco, prCon = xx
+                #prSaf, prEco, prCon = xx
             elif randPref == 1:
-                xx = np.random.random(3)** radicality
-                xx = xx / sum(xx)
-                prSaf, prEco, prCon = xx
+                preferences = np.random.random(earth.nPref)** radicality
+                preferences = preferences / sum(preferences)
+                #prSaf, prEco, prCon, prMon = xx
                 
             
-            hh.setValue('preferences', (prSaf, prEco, prCon))
-            hh.prefTyp = np.argmax((prSaf, prEco, prCon))
+            hh.setValue('preferences', tuple(preferences))
+            hh.prefTyp = np.argmax((preferences))
             hh.setValue('prefTyp',hh.prefTyp)
             
             hh.registerAgent(earth)
@@ -232,9 +236,9 @@ else:
             nPers = hhMat[idx,4]
             hh.setValue('hhSize',nPers)
             age= hhMat[idx:idx+nPers,12]
-            hh.setValue('age',list(age))
+            #hh.setValue('age',list(age))
             sex= hhMat[idx:idx+nPers,12]
-            hh.setValue('sex',list(sex))
+            #hh.setValue('sex',list(sex))
             
             nKids = np.sum(age<18)
             hh.setValue('nKids', nKids)
@@ -244,17 +248,17 @@ else:
                 idxAdult = np.random.choice(np.where(age>=18)[0])
             else:
                 idxAdult = 0
-            prSaf, prEco, prCon = earth.og.getPref(age[idxAdult],sex[idxAdult],nKids,income,radicality)
+            prSaf, prEco, prCon, prMon = earth.og.getPref(age[idxAdult],sex[idxAdult],nKids,income,radicality)
             # normal 
-            hh.setValue('preferences', (prSaf, prEco, prCon))
+            hh.setValue('preferences', (prSaf, prEco, prCon, prMon))
             
-            hh.prefTyp = np.argmax((prSaf, prEco, prCon))
+            hh.prefTyp = np.argmax((prSaf, prEco, prCon, prMon))
             hh.setValue('prefTyp',hh.prefTyp)
             # test
             #hh.setValue('preferences', (0,0,1))
             #hh.prefTyp = 0
 
-            hh.registerAgent(earth,_tlh)
+            hh.registerAgent(earth)
             earth.nPrefTypes[hh.prefTyp] += 1
             nAgentsCell -= nPers
             nAgents     += nPers

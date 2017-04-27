@@ -292,8 +292,11 @@ class Household(Agent):
         normalizedDeviation = world.market.statistics[1] - world.market.statistics[0]
         normalizedDeviation[normalizedDeviation==0] = 1 # prevent division by zero
         
-        x = tuple(0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation))
-        self.setValue('preceivedProps',x)
+        x = 0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation)
+        #overwrite money precivedProps
+        x[-1] =  1- props[-1] / self.getValue('income')  
+        self.setValue('preceivedProps',tuple(x))
+        
         
         util = world.og.getUtililty(x,self.getValue('preferences'))         
         self.graph.vs[self.nID]['util'] = util #TODO change to lib-cal

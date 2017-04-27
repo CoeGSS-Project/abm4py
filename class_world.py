@@ -133,9 +133,9 @@ class Earth(World):
         #print ageList
         idxAdult = [ n for n,i in enumerate(ageList) if i>17 ]
         idx = np.random.choice(idxAdult)
-        prSaf, prEco, prCon = self.og.getPref(ageList[idx],sexList[idx],nKids,income, self.radicality)
+        prSaf, prEco, prCon, prMon = self.og.getPref(ageList[idx],sexList[idx],nKids,income, self.radicality)
         
-        return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon
+        return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon
     
     def view(self,filename = 'none', vertexProp='none'):
         import matplotlib.cm as cm
@@ -434,11 +434,12 @@ class OpinionGenerator():
         self.ecoIncomeRange = ecoIncomeRange
         self.convIncomeFraction = convIncomeFraction
         
-        self.feList = ['saf','eco','con']
+        self.feList = ['saf','eco','con', 'mon']
         self.feDict= dict()
         self.feDict['saf'] = ([0,3], [4])
         self.feDict['eco'] = ([],[0,2, 4])
         self.feDict['con'] = ([1,3,4],[])
+        self.feDict['mon'] = ([],[5])
 
 #        self.feDict['saf'] = ([0], [])
 #        self.feDict['eco'] = ([],[2])
@@ -502,12 +503,13 @@ class OpinionGenerator():
         csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
+        cmAll = np.random.rand(1) # only random component
         
-        pref = np.asarray([csAll, ceAll, ccAll])
+        pref = np.asarray([csAll, ceAll, ccAll, cmAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
-        (csAll, ceAll, ccAll) = pref
-        return (csAll, ceAll, ccAll)
+        
+        return tuple(pref)
     
     def getUtililty(self,prop,pref):
         #print 1
