@@ -3,10 +3,10 @@
 """
 Copyright (c) 2017
 Global Climate Forum e.V.
-http://earthw.globalclimateforum.org
+http://wwww.globalclimateforum.org
 
 CAR INNOVATION MARKET MODEL
-Init file
+-- INIT FILE --
 
 This file is part of GCFABM.
 

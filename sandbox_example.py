@@ -1,9 +1,27 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 26 14:56:28 2017
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://wwww.globalclimateforum.org
 
-@author: gcf
+SAND BOX EXAMPLE
+-- INIT FILE --
+
+This file is part of GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 """
 
 from lib_gcfabm import World, Agent, Location

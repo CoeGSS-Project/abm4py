@@ -5,6 +5,9 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
+CAR INNOVATION MARKET MODEL
+-- WORLD CLASS FILE --
+
 This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
