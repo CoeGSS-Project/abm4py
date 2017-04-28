@@ -5,6 +5,9 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
+CAR INNOVATION MARKET MODEL
+-- WORLD CLASS FILE --
+
 This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
@@ -22,7 +25,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from lib_gcfabm import World
-from class_utility import Record
+from class_auxiliary import Record
 import igraph as ig
 import numpy as np
 import pandas as pd
@@ -57,7 +60,7 @@ class Earth(World):
             os.mkdir('output')
         if not os.path.isdir('output/rec'):
             os.mkdir('output/rec')
-        #self.writer = self.Writer(self,'agRecord')
+
         
     def registerRecord(self, name, title, colLables, style ='plot')    :
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)

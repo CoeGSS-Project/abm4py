@@ -5,6 +5,9 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
+CAR INNOVATION MARKET MODEL
+-- AGENT CLASS FILE --
+
 This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
@@ -21,8 +24,8 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from class_model import Agent, Location
-from class_utility import Memory, Writer
+from lib_gcfabm import Agent, Location
+from class_auxiliary import Memory, Writer
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -44,9 +47,9 @@ class Household(Agent):
         self.car = dict()
 
 
-    def registerAgent(self, world, agentType):
+    def registerAgent(self, world):
 
-        self.register(world, agentType)    
+        self.register(world)    
         world.nAgents += 1
 #    def getObservations(self, world, labelList, mat = False):
 #        """
@@ -62,8 +65,8 @@ class Household(Agent):
 #        obsDf = pd.DataFrame(columns=labelList)
 #        for key in self.obs.keys():
 #            idx = self.obs[key]
-#            obsDf = obsDf.append(world.agDict[key].obsDf.ix[idx,labelList])
-#            #obsDf = pd.concat([obsDf, world.agDict[key].obsDf.ix[idx][labelList]])
+#            obsDf = obsDf.append(world.entDict[key].obsDf.ix[idx,labelList])
+#            #obsDf = pd.concat([obsDf, world.entDict[key].obsDf.ix[idx][labelList]])
 #        return obsDf
     
     def getObservationsMat(self, world, labelList):
@@ -75,7 +78,7 @@ class Household(Agent):
             idxList = [x for x,y in zip(idxList,timeList) if world.time - y < world.memoryTime  ]
             timeList = [x for x in timeList if world.time - x< world.memoryTime  ]
             self.obs[key] = idxList, timeList
-            mat = np.vstack(( mat, world.agDict[key].obsMemory.getMeme(idxList,labelList)))
+            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
         return mat
     
     def learnConsequences(self):
@@ -203,7 +206,7 @@ class Household(Agent):
         self.queueConnection(geoNodeID,_tlh)         
         #eID = self.graph.get_eid(self.nID,geoNodeID)
         #self.graph.es[eID]['type'] = _tlh
-        self.loc = world.agDict[geoNodeID]        
+        self.loc = world.entDict[geoNodeID]        
         self.loc.agList.append(self.nID)
         
     def socialize(self,world):
@@ -219,8 +222,8 @@ class Household(Agent):
 
         #eList   = self.loc.getConnLoc()
         cellID = CellList[idx]
-        #agList = world.agDict[cellID].getAgentOfCell(2)
-        agList = world.agDict[cellID].getAgents()
+        #agList = world.entDict[cellID].getAgentOfCell(2)
+        agList = world.entDict[cellID].getAgents()
         if len(agList) > 0:
             newFrID = np.random.choice(agList)
             diff = 0
@@ -253,8 +256,8 @@ class Household(Agent):
             #eList   = self.loc.getConnLoc()
             cellID = CellList[idx]
             #print cellID
-            #agList = world.agDict[cellID].getAgentOfCell(2)
-            agList = world.agDict[cellID].getAgents()
+            #agList = world.entDict[cellID].getAgentOfCell(2)
+            agList = world.entDict[cellID].getAgents()
             if len(agList) > 0:
 
                 newFrID = np.random.choice(agList)
@@ -330,7 +333,7 @@ class Household(Agent):
         #self.utilList.append(util)
         #print 'agent' + str(self.nID)
         for neig in self.getOutNeighNodes(_thh):
-            agent = world.agDict[neig]
+            agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.car['obsID'], world.time)
             #print neig, self.loc.nID,obsID
     
@@ -411,7 +414,7 @@ class Reporter(Household):
             idxList = [x for x,y in zip(idxList,timeList) if world.time - y < world.memoryTime  ]
             timeList = [x for x in timeList if world.time - x< world.memoryTime  ]
             self.obs[key] = idxList, timeList
-            mat = np.vstack(( mat, world.agDict[key].obsMemory.getMeme(idxList,labelList)))
+            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
             
         self.writer.write('Observation: ')
         if 'label' in labelList:

@@ -16,11 +16,13 @@ import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
 plotRecords     = False
-plotCarStockBar = True
-prefPerLabel    = False
-utilPerLabel    = False
+plotCarStockBar = False
+prefPerLabel    = True
+utilPerLabel    = True
 meanPrefPerLabel= True
+printCellMaps   = False
 
+path = 'output/'
 #%% init
     
 def loadObj(name ):
@@ -28,10 +30,11 @@ def loadObj(name ):
         return pickle.load(f)
 
 #%% plotting of the records
-path = 'output/rec/'
-files = os.listdir(path)
-
 if plotRecords:
+    path = path + 'rec/'
+    files = os.listdir(path)
+
+
     for filename in files:
         if filename.endswith('.csv'):
             df = pd.read_csv(path + filename, index_col=0)
@@ -43,7 +46,7 @@ if plotRecords:
 #%%  plot car stock as bar plot
 legStr = list()
 if plotCarStockBar:
-    enums   = loadObj('output/enumerations')
+    enums   = loadObj(path + 'enumerations')
     df = pd.read_csv(path + 'carStock.csv', index_col=0)
     nSteps = df.shape[0]
     nCars = np.zeros(nSteps)
@@ -53,11 +56,11 @@ if plotCarStockBar:
        nCars += df.ix[:,i]
        legStr.append(brand)
 plt.legend(legStr)
-#%% loading agent file
+#%% loading household agent file
 
-agMat = np.load('output/agentFile.npy')
-propDic = loadObj('output/attributeList')
-enums   = loadObj('output/enumerations')
+agMat   = np.load(path + 'agentFile_type2.npy')
+propDic = loadObj(path + 'attributeList_type2')
+enums   = loadObj(path + 'enumerations')
 
 nSteps, nAgents, nProp = agMat.shape
 
@@ -126,3 +129,16 @@ if meanPrefPerLabel:
         plt.xlim([0,nSteps])
 
 plt.show()
+
+#%% loading cell agent file
+
+if printCellMaps:
+    agMat   = np.load(path + 'agentFile_type1.npy')
+    propDic = loadObj(path + 'attributeList_type1')
+    enums   = loadObj(path + 'enumerations')
+    
+    #get extend 
+    step = 0
+    min_ = np.min(agMat[step,:,propDic['pos']],axis=1)
+    max_ = np.max(agMat[step,:,propDic['pos']],axis=1)
+    cellMap = np.zeros(max_)
