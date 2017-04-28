@@ -227,12 +227,17 @@ class Earth(World):
         self.time += 1
         
         # proceed market in time
-        self.market.step()
+        self.market.step() # Statistics are computed here
+        # The utility of a single agent depends on the whole market
+        # if you want a fast car, you are not as happy if everyone
+        # else has a fast car same for ecology, etc.
         
         #loop over cells
         for cell in self.iterNode(_cell):
             cell.step()
-        
+        # Update observations (remove old ones)
+        # Compute the number of cars in each cell
+
         #self.avgDegree.append(np.mean(self.graph.vs[self.nodeList[2]].degree()))
         self.market.stockbyBrand.loc[len(self.market.stockbyBrand)] = self.market.stockbyBrand.loc[len(self.market.stockbyBrand)-1]
 
@@ -243,6 +248,7 @@ class Earth(World):
         #loop over buyers
 #        markerlist = ['s', 'o', 'd', 'x', '*', '^','p','d','8','_']
 #        colors = sns.color_palette("Set1", n_colors=9, desat=.5)
+        # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNode(_hh)):
             #agent = self.agDict[agID]
             agent.step(self)

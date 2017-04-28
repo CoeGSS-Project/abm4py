@@ -321,7 +321,8 @@ earth.writeAgentFile()
 #%% Simulation 
 for step in xrange(1,nSteps):
     
-    earth.step()
+    earth.step() # looping over all cells
+                 # and agents
     
 #    for x in earth.nodeList[2]:
 #        agent = earth.agDict[x]
