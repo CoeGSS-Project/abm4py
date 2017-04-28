@@ -466,15 +466,15 @@ class OpinionGenerator():
         cs = float(cs)**2
         
         #ecology
-        ce = 1
+        ce = 3
         if sex == 2:
             ce +=2
         if income>self.ecoIncomeRange[0] and income<self.ecoIncomeRange[1]:
             rn = np.random.rand(1)
             if rn > 0.9:
-                ce += 4
+                ce += 5
             elif rn > 0.5:
-                ce += 2
+                ce += 3
             else:
                 ce +=1
         ce = float(ce)**2

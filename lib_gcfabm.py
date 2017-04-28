@@ -91,13 +91,13 @@ class Entity():
             self.graph.edgeQueue[0].append((self.nID,friendID))
             self.graph.edgeQueue[1].append(edgeType)
     
-    def addConnection(self, friendID,edgeType=0):
+    def addConnection(self, friendID, edgeType=0):
         if not self.graph.are_connected(self.nID,friendID):
             self.graph.add_edge(self.nID,friendID, type=edgeType)         
             #eID = self.graph.get_eid(self.nID,friendID)
             #self.graph.es[eID]['type'] = edgeType
             
-    def remConnection(self, fiendID,edgeType=0):
+    def remConnection(self, friendID,edgeType=0):
         eID = self.graph.get_eid(self.nID,friendID)
         self.graph.delete_edges(eID)
 

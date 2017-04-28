@@ -15,12 +15,13 @@ import pickle
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
-plotRecords     = False
-plotCarStockBar = False
-prefPerLabel    = False
-utilPerLabel    = False
-meanPrefPerLabel= False
-printCellMaps   = True
+plotRecords     = True
+plotCarStockBar = True
+prefPerLabel    = True
+utilPerLabel    = True
+incomePerLabel  = True
+meanPrefPerLabel= True
+printCellMaps   = False
 
 path = 'output/'
 #%% init
@@ -31,13 +32,13 @@ def loadObj(name ):
 
 #%% plotting of the records
 if plotRecords:
-    path = path + 'rec/'
+    #path = path 
     files = os.listdir(path)
 
 
     for filename in files:
         if filename.endswith('.csv'):
-            df = pd.read_csv(path + filename, index_col=0)
+            df = pd.read_csv(path + 'rec/' + filename, index_col=0)
             plt.figure()
             plt.plot(df)
             plt.title(filename)
@@ -73,23 +74,24 @@ nSteps, nAgents, nProp = agMat.shape
 if prefPerLabel:
     res = dict()
     for carLabel in range(0,8):
-        res[carLabel] = np.zeros([nSteps,3])
+        res[carLabel] = np.zeros([nSteps,4])
     
     for step in range(0,nSteps):
         for carLabel in range(0,8):
             idx = agMat[step,:,propDic['label'][0]] == carLabel
-            for prefType in range(0,3):
+            for prefType in range(0,4):
                 res[carLabel][step,prefType] = np.sum(agMat[step,idx,propDic['prefTyp'][0]] == prefType)
     
     legStr = list()
-    for prefType in range(0,3):
+    for prefType in range(0,4):
         legStr.append(enums['prefTypes'][prefType])
     for carLabel in range(0,8):
-        plt.figure()
+        fig = plt.figure()
         plt.plot(res[carLabel])
         plt.title(enums['brands'][carLabel])
         plt.legend(legStr,loc=0)
     
+    fig.suptitle('n preference types per car label')
 print 1
 
 #%% utiilty per car label
@@ -102,24 +104,41 @@ if utilPerLabel:
     legStr = list()
     for label in range(0,8):
         legStr.append(enums['brands'][label])        
-    plt.figure()
+    fig = plt.figure()
     plt.plot(res)
     plt.title('Average utility by brand')
     plt.legend(legStr,loc=0)
 
+#%% income per car label
+if incomePerLabel:
+    res = np.zeros([nSteps,8])
+    for step in range(0,nSteps):
+        for carLabel in range(0,8):
+            idx = agMat[step,:,propDic['label'][0]] == carLabel
+            res[step, carLabel] = np.mean(agMat[step,idx,propDic['income'][0]])
+    legStr = list()
+    for label in range(0,8):
+        legStr.append(enums['brands'][label])        
+    fig = plt.figure()
+    plt.plot(res)
+    plt.title('Average income by brand')
+    plt.legend(legStr,loc=0)    
+
 #%% mean preference per car label
+ensembleAverage = np.mean(agMat[0,:,propDic['preferences']], axis = 1)
 if meanPrefPerLabel:
+    fig = plt.figure()
     res = dict()
     for carLabel in range(0,8):
-        res[carLabel] = np.zeros([nSteps,3])
+        res[carLabel] = np.zeros([nSteps,4])
     for step in range(0,nSteps):
         for carLabel in range(0,8):
             idx = np.where(agMat[step,:,propDic['label'][0]] == carLabel)[0]
-            res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1)
+            res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1) / ensembleAverage
     legStr = list()
-    for prefType in range(0,3):
+    for prefType in range(0,4):
         legStr.append(enums['prefTypes'][prefType])
-    plt.figure()
+    
     
     for carLabel in range(0,8):
         plt.subplot(2,4,carLabel+1)    
@@ -128,7 +147,7 @@ if meanPrefPerLabel:
         plt.legend(legStr,loc=0)
         plt.xlim([0,nSteps])
 
-
+    fig.suptitle('mean preference per car label')
 
 #%% loading cell agent file
 
@@ -147,15 +166,15 @@ if printCellMaps:
         cellMap[int(x),int(y)] = 1
         cellIdx = np.where(cellMap)
 
-step = 45
-max_ = np.max(agMat[step,:,propDic['carsInCell']])
-min_ = np.min(agMat[step,:,propDic['carsInCell']])
-for carLabel in range(0,8):
-    plt.subplot(2,4,carLabel+1)   
-    cellMap[cellIdx] = agMat[step,:,propDic['carsInCell'][carLabel]]
-    plt.pcolor(cellMap)
-    plt.clim([min_, max_])
-plt.colorbar()
+    step = 45
+    max_ = np.max(agMat[step,:,propDic['carsInCell']])
+    min_ = np.min(agMat[step,:,propDic['carsInCell']])
+    for carLabel in range(0,8):
+        plt.subplot(2,4,carLabel+1)   
+        cellMap[cellIdx] = agMat[step,:,propDic['carsInCell'][carLabel]]
+        plt.pcolor(cellMap)
+        plt.clim([min_, max_])
+    plt.colorbar()
 
 
 

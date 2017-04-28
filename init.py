@@ -59,11 +59,15 @@ tolerance  = 1.   # tolerance of friends when connecting to others (deviation in
 
 scenario      = 1
 randomAgents  = 0 # 0: prefrences dependent on agent properties - 1: random distribution
+if randomAgents == 1:
+    incomeMean = 18000
+    incomeSTD = 10000
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
+incomeShareForMobility = 0.5
 
 nSteps     = 100 # number of simulation steps
-initPhase = 20
+initPhase  = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
 minFriends = 30  # number of desired friends
@@ -105,7 +109,7 @@ elif scenario == 2: # Niedersachsen
     print nAgents
 
 if not randomAgents:
-    df = pd.read_csv('resources_nie/hh_niedersachsen.csv')
+    dfSynPop = pd.read_csv('resources_nie/hh_niedersachsen.csv')
     hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 
 
@@ -117,7 +121,13 @@ earth.initSpatialLayerNew(landLayer, connList, Cell)
 earth.props = properties
 earth.initMarket(properties, randomCarPropDeviationSTD)
 #earth.initObsAtLoc(properties)
-earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(10000,30000),convIncomeFraction=25000)
+if randomAgents == 0:
+    ecoMin = np.percentile(dfSynPop['INCTOT']*incomeShareForMobility,20)
+    ecoMax = np.percentile(dfSynPop['INCTOT']*incomeShareForMobility,90)
+    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMin),convIncomeFraction=10000)
+else:
+    
+    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(incomeMean- incomeSTD,incomeMean + incomeSTD),convIncomeFraction=25000)
 earth.scenario = scenario
 earth.radicality = radicality
 earth.carNewPeriod = carNewPeriod
@@ -186,7 +196,11 @@ if randomAgents:
             hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon ,prMon= earth.generateHH()
             #hhSize = int(np.ceil(np.abs(np.random.randn(1)*2)))
             #hh.setValue('hhSize', hhSize)
-            #hh.setValue('age',ageList)         
+            #hh.setValue('age',ageList)   
+            income = income  = np.random.randn(1)* 10000 + 18000 #niedersachsen mean + std
+            if income < 4500:
+                income = 4500
+            income *= incomeShareForMobility                
             hh.setValue('income',income)
             #hh.setValue('nKids', nKids)
             
@@ -243,6 +257,7 @@ else:
             nKids = np.sum(age<18)
             hh.setValue('nKids', nKids)
             income = hhMat[idx,16]
+            income *= incomeShareForMobility
             hh.setValue('income',income)   
             if len(np.where(age>=18)[0]) > 0:
                 idxAdult = np.random.choice(np.where(age>=18)[0])
@@ -275,7 +290,7 @@ print 'Agents created in -- ' + str( time.time() - tt) + ' s'
 earth.genFriendNetwork(minFriends)
 earth.market.initCars()
 if scenario == 0:
-    earth.view()
+    earth.view('output/graph.png')
 
 tt = time.time()
    
@@ -390,8 +405,8 @@ plt.savefig('utilityPerBrand.png')
 #plt.savefig('carsPerBrand.png')
 
 #%%
-if False:
-    df = pd.DataFrame([],columns=['prSaf','prEco','prCon'])
+if True:
+    df = pd.DataFrame([],columns=['prSaf','prEco','prCon','prMon'])
     for agID in earth.nodeList[2]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     
@@ -402,7 +417,7 @@ if False:
     print df.std()
     
     print 'Preferences - standart deviation within friends'
-    avgStd= np.zeros([1,3])    
+    avgStd= np.zeros([1,4])    
     for agent in earth.iterNode(_hh): 
         friendList = agent.getOutNeighNodes(_thh)
         if len(friendList)> 1:
@@ -413,6 +428,7 @@ if False:
     #for i, agent in enumerate(earth.iterNode(_hh)):
     #    print agent.prefTyp, prfType[i]
     df['ref'] = prfType
+
 
 #%%
 #for key in earth.rec:
@@ -429,7 +445,7 @@ if False:
 preDiff = list()
 weights = list()
 
-pref = np.zeros([earth.graph.vcount(), 3])
+pref = np.zeros([earth.graph.vcount(), 4])
 pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
 for edge in earth.iterEdges(_thh):
     preDiff.append(np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:])))

@@ -294,14 +294,14 @@ class Household(Agent):
         
         x = 0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation)
         #overwrite money precivedProps
-        x[-1] =  1- props[-1] / self.getValue('income')  
+        x[-1] =  min(1, props[-1] / self.getValue('income')  )
         self.setValue('preceivedProps',tuple(x))
         
         
         util = world.og.getUtililty(x,self.getValue('preferences'))         
         self.graph.vs[self.nID]['util'] = util #TODO change to lib-cal
-        if np.isnan(util):
-            print 1
+        assert not( np.isnan(util) or np.isinf(util))
+            
         return util      
                         
     def buyCar(self,world, label):
@@ -327,6 +327,7 @@ class Household(Agent):
         # save util based on label
         world.market.obsDict[world.time][self.car['label']].append(self.util)
         #self.setValue('util',util)
+        #assert and( not(np.isnan(self.car['prop'])))
         self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], self.util, self.car['label'])
         #world.record.loc[world.time,world.rec["avgUtilPref"][1][self.prefTyp]] += self.graph.vs[self.nID]['util']
         
@@ -357,7 +358,6 @@ class Household(Agent):
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
         if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
-                    
             # Check what cars are owned by my friends, and what are their utilities,
             # and make a choice based on that.
             choice = self.optimalChoice(world)  
@@ -365,6 +365,7 @@ class Household(Agent):
             if choice is not None:
                 # If the utility of the new choice is higher than
                 # the current utility times 1.2, we perform a transaction
+
                 if choice[1] > self.utilList[-1] *1.2:
                     self.sellCar(world, self.car['ID'])
                     self.buyCar(world, choice[0])
@@ -372,8 +373,10 @@ class Household(Agent):
                 # of cars owned by friends, and perform linear sensitivity
                 # analysis based on the utility of your friends.
                 elif np.random.rand(1)>.75:
-                    regr = self.linearReg(world) # Regression coefficients for
-                    # the car properties
+
+                    # more complex search
+                    regr = self.linearReg(world)
+                    
                     if regr is not None:
                         # Then you look at properties of all the cars on
                         # the market, and select the most promising one.
@@ -559,6 +562,7 @@ class Cell(Location):
         #prop.append(util)
         #obsID = self.currID
         meme = prop + [util, label, hhID]
+        assert not any(np.isnan(meme))
         obsID = self.obsMemory.addMeme(meme)
         self.currDelList.append(obsID)
         
