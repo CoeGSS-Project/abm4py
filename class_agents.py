@@ -354,17 +354,29 @@ class Household(Agent):
     def step(self, world):
         self.car['age']  +=1
         utilUpdated = False
+        # If the car is older than a constant, we have a 50% of searching
+        # for a new car.
         if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
                     
+            # Check what cars are owned by my friends, and what are their utilities,
+            # and make a choice based on that.
             choice = self.optimalChoice(world)  
             
             if choice is not None:
+                # If the utility of the new choice is higher than
+                # the current utility times 1.2, we perform a transaction
                 if choice[1] > self.utilList[-1] *1.2:
                     self.sellCar(world, self.car['ID'])
                     self.buyCar(world, choice[0])
+                # Otherwise, we have a 25% chance of looking at properties
+                # of cars owned by friends, and perform linear sensitivity
+                # analysis based on the utility of your friends.
                 elif np.random.rand(1)>.75:
-                    regr = self.linearReg(world)
+                    regr = self.linearReg(world) # Regression coefficients for
+                    # the car properties
                     if regr is not None:
+                        # Then you look at properties of all the cars on
+                        # the market, and select the most promising one.
                         df = pd.DataFrame.from_dict(world.market.brandProp)
                         extUtil = regr.predict(df.values.T)
                         
