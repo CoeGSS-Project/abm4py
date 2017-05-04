@@ -47,7 +47,7 @@ class Entity():
         neigbours = []
         for neigID in neigIDList:
             neigbours.append(self.graph.vs[neigID])
-        return neigbours
+        return neigbours, neigIDList
         
         
     def getAllNeighNodes(self):

@@ -46,8 +46,9 @@ _hh   = 2
 
 class Earth(World):
     
-    def __init__(self, nSteps, spatial):
+    def __init__(self, nSteps, simNo, spatial):
         World.__init__(self, spatial)
+        self.simNo      = simNo
         self.agentRec   = dict()   
         self.globalRec  = dict()
         self.time       = 0
@@ -56,12 +57,14 @@ class Earth(World):
         self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
+        self.outPath    = 'output/sim' + str(simNo).zfill(4)
         if not os.path.isdir('output'):
             os.mkdir('output')
-        if not os.path.isdir('output/rec'):
-            os.mkdir('output/rec')
-
-        
+        if not os.path.isdir(self.outPath):
+            os.mkdir(self.outPath)
+        if not os.path.isdir(self.outPath + '/rec'):
+            os.mkdir(self.outPath + '/rec')
+            
     def registerRecord(self, name, title, colLables, style ='plot')    :
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
@@ -309,19 +312,23 @@ class Earth(World):
         
         # writing global records to file
         for key in self.globalRec:    
-            self.globalRec[key].saveCSV()
-        
-        # plotting and saving figures
-        for key in self.globalRec:
-            self.globalRec[key].plot()
-            
+            self.globalRec[key].saveCSV(self.outPath + '/rec')
+
         # saving agent files
         for typ in self.agentRec.keys():
-            np.save('output/agentFile_type' + str(typ), self.agentRec[typ].record, allow_pickle=True)
-            saveObj(self.agentRec[typ].attrIdx, 'output/attributeList_type' + str(typ))
+            np.save(self.outPath + '/agentFile_type' + str(typ), self.agentRec[typ].record, allow_pickle=True)
+            saveObj(self.agentRec[typ].attrIdx, self.outPath + '/attributeList_type' + str(typ))
             
         # saving enumerations            
-        saveObj(self.enums, 'output/enumerations')
+        saveObj(self.enums, self.outPath + '/enumerations')
+        
+        try:
+            # plotting and saving figures
+            for key in self.globalRec:
+                self.globalRec[key].plot(self.outPath + '/rec')
+        except:
+            pass
+
         
 class Market():
 
@@ -357,7 +364,7 @@ class Market():
         #print self.percentiles
         self.statistics      = np.zeros([2,self.nProp])
         self.statistics[0,:] = np.mean(self.stock[:,1:],axis=0)
-        self.statistics[1,:] = self.statistics[0,:] + 2* np.std(self.stock[:,1:],axis=0) 
+        self.statistics[1,:] = self.statistics[0,:] + np.std(self.stock[:,1:],axis=0) 
         
     def step(self):
         self.time +=1 
@@ -443,9 +450,9 @@ class OpinionGenerator():
         self.feList = ['saf','eco','con', 'mon']
         self.feDict= dict()
         self.feDict['saf'] = ([0,3], [4])
-        self.feDict['eco'] = ([],[0,2, 4])
+        self.feDict['eco'] = ([],[0,2,4])
         self.feDict['con'] = ([1,3,4],[])
-        self.feDict['mon'] = ([],[5])
+        self.feDict['mon'] = ([],[2,5])
 
 #        self.feDict['saf'] = ([0], [])
 #        self.feDict['eco'] = ([],[2])

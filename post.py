@@ -15,15 +15,15 @@ import pickle
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
-plotRecords     = True
-plotCarStockBar = True
-prefPerLabel    = True
-utilPerLabel    = True
-incomePerLabel  = True
-meanPrefPerLabel= True
+plotRecords     = False
+plotCarStockBar = False
+prefPerLabel    = False
+utilPerLabel    = False
+incomePerLabel  = False
+meanPrefPerLabel= False
 printCellMaps   = False
-
-path = 'output/'
+printPredMeth   = True
+path = 'output/sim0053/'
 #%% init
     
 def loadObj(name ):
@@ -33,7 +33,7 @@ def loadObj(name ):
 #%% plotting of the records
 if plotRecords:
     #path = path 
-    files = os.listdir(path)
+    files = os.listdir(path + 'rec/')
 
 
     for filename in files:
@@ -47,8 +47,9 @@ if plotRecords:
 #%%  plot car stock as bar plot
 legStr = list()
 if plotCarStockBar:
+    plt.figure()
     enums   = loadObj(path + 'enumerations')
-    df = pd.read_csv(path + 'carStock.csv', index_col=0)
+    df = pd.read_csv(path +  'rec/' + 'carStock.csv', index_col=0)
     nSteps = df.shape[0]
     nCars = np.zeros(nSteps)
     colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
@@ -66,7 +67,12 @@ enums   = loadObj(path + 'enumerations')
 nSteps, nAgents, nProp = agMat.shape
 
 #%%
-#df = pd.DataFrame(agMat[0])
+step = 20
+columns= ['']*agMat.shape[2]
+for key in propDic.keys():
+    for i in propDic[key]:
+        columns[i] = key
+df = pd.DataFrame(agMat[step],columns=columns)
 #ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
 
 
@@ -148,7 +154,18 @@ if meanPrefPerLabel:
         plt.xlim([0,nSteps])
 
     fig.suptitle('mean preference per car label')
+#%%
+if printPredMeth:
+   sumAvergUtil = np.sum(agMat[:,:,propDic['predMeth']]==1, axis = 1) 
+   sumLinRef = np.sum(agMat[:,:,propDic['predMeth']]==2, axis = 1) 
+   plt.plot(sumAvergUtil)
+   plt.plot(sumLinRef)
+   plt.title('Prediction that lead to car buy')
+   plt.legend(['Cond Util','Lin. Reg.'],loc=0)
+   plt.xlim([0,nSteps])
 
+
+plt.show()
 #%% loading cell agent file
 
 if printCellMaps:
@@ -175,6 +192,7 @@ if printCellMaps:
         plt.pcolor(cellMap)
         plt.clim([min_, max_])
     plt.colorbar()
+
 
 
 

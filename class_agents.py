@@ -29,7 +29,7 @@ from class_auxiliary import Memory, Writer
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+#import pdb
 # Enum
 _tll = 1 # loc - loc
 _tlh = 2 # loc - household
@@ -76,7 +76,7 @@ class Household(Agent):
         for key in self.obs.keys():
             idxList, timeList = self.obs[key]
             idxList = [x for x,y in zip(idxList,timeList) if world.time - y < world.memoryTime  ]
-            timeList = [x for x in timeList if world.time - x< world.memoryTime  ]
+            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
             self.obs[key] = idxList, timeList
             mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
         return mat
@@ -99,15 +99,22 @@ class Household(Agent):
         if obsMat.shape[0] == 0:
             return None
         
+        if np.any(np.isnan(obsMat)) or np.any(np.isinf(obsMat)):
+            np.save('output/obsMat.npy',obsMat)
         from sklearn import linear_model
         
-        
-        regr = linear_model.LinearRegression()
+        try:
+            regr = linear_model.LinearRegression()
+        except:
+            np.save('output/obsMatError.npy',obsMat)
+                
         
         weighted = True
         if weighted:
                 
             weights, edges = self.getConnProp('weig',_thh,mode='IN')
+            if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
+                np.save('output/weightsError.npy',weights)
             sources = [self.graph.es[edge].source for edge in edges]
             srcDict =  dict(zip(sources,weights))
             
@@ -179,9 +186,10 @@ class Household(Agent):
             post = prior * prop 
             sumPrior = np.sum(prior)
             post = post / np.sum(post) * sumPrior
-            world.setEdgeValues(indexedEdges,'weig',post)
-            neig = [self.graph.es[x].target for x in indexedEdges]
-            diff = [np.sum(np.abs(np.asarray(self.graph.vs[x]['preferences']) - np.asarray(self.graph.vs[self.nID]['preferences']))) for x in neig]
+            if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
+                world.setEdgeValues(indexedEdges,'weig',post)
+            #neig = [self.graph.es[x].target for x in indexedEdges]
+            #diff = [np.sum(np.abs(np.asarray(self.graph.vs[x]['preferences']) - np.asarray(self.graph.vs[self.nID]['preferences']))) for x in neig]
 #            plt.scatter(diff,prop)
 #            for y,z in zip(diff,prop):
 #                if y > .5 and z > .8:
@@ -244,7 +252,7 @@ class Household(Agent):
         friendList = list()
         connList   = list()
         ownPref = world.graph.vs[self.nID]['preferences'] #TODO change to lib-cal
-        weights, eList, CellList = self.loc.getConnCellsPlus()
+        weights, eList, cellList = self.loc.getConnCellsPlus()
         cumWeights = np.cumsum(weights)
         #print sum(weights)
         iFriend = 0
@@ -254,7 +262,7 @@ class Household(Agent):
             idx = np.argmax(cumWeights > np.random.random(1)) 
     
             #eList   = self.loc.getConnLoc()
-            cellID = CellList[idx]
+            cellID = cellList[idx]
             #print cellID
             #agList = world.entDict[cellID].getAgentOfCell(2)
             agList = world.entDict[cellID].getAgents()
@@ -299,7 +307,8 @@ class Household(Agent):
         
         
         util = world.og.getUtililty(x,self.getValue('preferences'))         
-        self.graph.vs[self.nID]['util'] = util #TODO change to lib-cal
+        #pdb.set_trace() 
+        self.setValue('util',util)
         assert not( np.isnan(util) or np.isinf(util))
             
         return util      
@@ -355,6 +364,7 @@ class Household(Agent):
     def step(self, world):
         self.car['age']  +=1
         utilUpdated = False
+        self.setValue('predMeth',0)
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
         if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
@@ -367,6 +377,8 @@ class Household(Agent):
                 # the current utility times 1.2, we perform a transaction
 
                 if choice[1] > self.utilList[-1] *1.2:
+                    self.setValue('predMeth',1) # predition method
+                    self.setValue('expUtil',choice[1]) # expected utility
                     self.sellCar(world, self.car['ID'])
                     self.buyCar(world, choice[0])
                 # Otherwise, we have a 25% chance of looking at properties
@@ -375,15 +387,19 @@ class Household(Agent):
                 elif np.random.rand(1)>.75:
 
                     # more complex search
+                    
                     regr = self.linearReg(world)
                     
+                        
                     if regr is not None:
                         # Then you look at properties of all the cars on
                         # the market, and select the most promising one.
                         df = pd.DataFrame.from_dict(world.market.brandProp)
                         extUtil = regr.predict(df.values.T)
                         
-                        if extUtil[extUtil.argmax()] > self.utilList[-1]:
+                        if extUtil[extUtil.argmax()] > self.utilList[-1]*1.2:
+                            self.setValue('predMeth',2) # predition method
+                            self.setValue('expUtil',extUtil[extUtil.argmax()])
                             label = df.columns[extUtil.argmax()]
                             self.sellCar(world, self.car['ID'])
                             self.buyCar(world, label)
@@ -393,6 +409,7 @@ class Household(Agent):
                             # update prior expectations of observation
                             self.weightFriendExperience(world)
         if not utilUpdated:
+            self.setValue('expUtil',0)
             util = self.evalUtility(world)
             self.utilList.append(util)
         self.shareExperience(world)
@@ -536,11 +553,11 @@ class Cell(Location):
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         
         #remap function to only return the values 
-        self.getConnCellsPlus = self.returnConnWeights
+        #self.getConnCellsPlus = self.returnConnWeights #TODO reconsider this - not very clear and only if graph does not change
         return self.weights, self.eIDs, self.connNodeList
     
-    def returnConnWeights(self):
-        return self.weights, self.eIDs, self.connNodeList
+    #def returnConnWeights(self):
+    #    return self.weights, self.eIDs, self.connNodeList
     
     def getAgents(self):
         #return self.getAgentOfCell(edgeType=1)

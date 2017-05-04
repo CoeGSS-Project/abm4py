@@ -116,7 +116,7 @@ class Record():
     def divIdx(self, time, data, idx):
         self.rec[time,idx] /= data
         
-    def plot(self):
+    def plot(self, path):
         plt.figure()
         if self.style == 'plot':
             plt.plot(self.rec)
@@ -129,9 +129,9 @@ class Record():
             
         plt.legend(self.columns)
         plt.title(self.title)
-        plt.savefig('output/' + self.name + '.png')
+        plt.savefig(path +'/' + self.name + '.png')
         
-    def saveCSV(self):
+    def saveCSV(self, path):
         df = pd.DataFrame(self.rec, columns=self.columns)
-        df.to_csv('output/rec/' + self.name + '.csv')
+        df.to_csv(path +'/' + self.name + '.csv')
         

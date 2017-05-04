@@ -24,6 +24,9 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 """
 
+#%%
+#TODO
+# random iteration (even pairs of agents)
 from __future__ import division
 import sys
 from os.path import expanduser
@@ -44,6 +47,7 @@ import matplotlib.pyplot as plt
 import tqdm
 import pandas as pd
 
+overallTime = time.time()
 ###### Enums ################
 #connections
 _tll = 1 # loc - loc
@@ -52,7 +56,15 @@ _thh = 3 # household, household
 #nodes
 _cell = 1
 _hh   = 2
+
+# get simulation number
+fid = open("simNumber","r")
+simNo = int(fid.readline())
+fid = open("simNumber","w")
+fid.writelines(str(simNo+1))
+fid.close()
 #%% INIT
+
 flgSpatial = True
 connRadius = 2.1  # radíus of cells that get an connection
 tolerance  = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -64,16 +76,16 @@ if randomAgents == 1:
     incomeSTD = 10000
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-incomeShareForMobility = 0.5
+incomeShareForMobility = 0.3
 
-nSteps     = 100 # number of simulation steps
+nSteps     = 200 # number of simulation steps
 initPhase  = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
-minFriends = 30  # number of desired friends
+minFriends = 50  # number of desired friends
 memoryTime  = 15  # length of the periode for which memories are stored
 carNewPeriod = 5
-recAgent   = [5,10,15]   # reporter agents that return a diary
+recAgent   = []   # reporter agents that return a diary
 
 tt = time.time()
 
@@ -114,7 +126,7 @@ if not randomAgents:
 
 
 #%% INITIALIZATION ##########################   
-earth = Earth(nSteps, spatial=flgSpatial)
+earth = Earth(nSteps, simNo, spatial=flgSpatial)
 connList= earth.computeConnectionList(connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
 #
@@ -134,7 +146,7 @@ earth.carNewPeriod = carNewPeriod
 #init location memory
 
 earth.enums = dict()
- 
+earth.simNo = simNo
 earth.initMemory(properties + ['utility','label','hhID'], memoryTime)
 
 
@@ -224,7 +236,8 @@ if randomAgents:
             hh.setValue('preferences', tuple(preferences))
             hh.prefTyp = np.argmax((preferences))
             hh.setValue('prefTyp',hh.prefTyp)
-            
+            hh.setValue('expUtil',0)
+            hh.setValue('predMeth',0)
             hh.registerAgent(earth)
             earth.nPrefTypes[hh.prefTyp] += 1
             nPers       = hhSize
@@ -269,6 +282,8 @@ else:
             
             hh.prefTyp = np.argmax((prSaf, prEco, prCon, prMon))
             hh.setValue('prefTyp',hh.prefTyp)
+            hh.setValue('expUtil',0)
+            hh.setValue('predMeth',0)
             # test
             #hh.setValue('preferences', (0,0,1))
             #hh.prefTyp = 0
@@ -459,3 +474,4 @@ plt.show()
 
 print np.corrcoef(preDiff,weights)
 
+print 'Simulation finished after -- ' + str( time.time() - overallTime) + ' s'
