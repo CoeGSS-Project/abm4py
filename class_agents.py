@@ -42,9 +42,9 @@ class Household(Agent):
 
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Agent.__init__(self, world, nodeType,  xPos, yPos)
-        self.obs = dict()
-        self.utilList =list()
-        self.car = dict()
+        self.obs  = dict()
+        self.car  = dict()
+        self.util = 0
 
 
     def registerAgent(self, world):
@@ -116,9 +116,9 @@ class Household(Agent):
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
                 np.save('output/weightsError.npy',weights)
             sources = [self.graph.es[edge].source for edge in edges]
-            srcDict =  dict(zip(sources,weights))
+            srcWeightDict =  dict(zip(sources,weights))
             
-            regr.fit(obsMat[:,1:-1], obsMat[:,-1],map(srcDict.__getitem__,obsMat[:,0].tolist()))
+            regr.fit(obsMat[:,1:-1], obsMat[:,-1],map(srcWeightDict.__getitem__,obsMat[:,0].tolist()))
         else:
             regr.fit(obsMat[:,1:-1], obsMat[:,-1])
             
@@ -172,10 +172,11 @@ class Household(Agent):
         idxT = np.where(carLabels==ownLabel)[0]
         indexedEdges = [ edgeIDs[x] for x in idxT]
         
-        
+        if len(indexedEdges) <= 1:
+            return
         
         diff = np.asarray(friendUtil)[idxT] - ownUtil
-        prop = np.exp(-(diff**2) / 0.001)
+        prop = np.exp(-(diff**2) / 2)
         prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
         
@@ -187,7 +188,10 @@ class Household(Agent):
             sumPrior = np.sum(prior)
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
-                world.setEdgeValues(indexedEdges,'weig',post)
+                if np.sum(post) > 0:
+                    world.setEdgeValues(indexedEdges,'weig',post)
+                else:
+                    print 'updating failed, sum of weights are zero'
             #neig = [self.graph.es[x].target for x in indexedEdges]
             #diff = [np.sum(np.abs(np.asarray(self.graph.vs[x]['preferences']) - np.asarray(self.graph.vs[self.nID]['preferences']))) for x in neig]
 #            plt.scatter(diff,prop)
@@ -331,13 +335,13 @@ class Household(Agent):
         self.setValue('label',label)
         
     def shareExperience(self, world):
-        #util = self.evalUtility(world, self.car['prop'])
+        util = self.getValue('util')
         
         # save util based on label
-        world.market.obsDict[world.time][self.car['label']].append(self.util)
+        world.market.obsDict[world.time][self.car['label']].append(util)
         #self.setValue('util',util)
         #assert and( not(np.isnan(self.car['prop'])))
-        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], self.util, self.car['label'])
+        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], util, self.car['label'])
         #world.record.loc[world.time,world.rec["avgUtilPref"][1][self.prefTyp]] += self.graph.vs[self.nID]['util']
         
         
@@ -363,8 +367,9 @@ class Household(Agent):
 
     def step(self, world):
         self.car['age']  +=1
-        utilUpdated = False
+        carBought = False
         self.setValue('predMeth',0)
+        self.setValue('expUtil',0)
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
         if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
@@ -376,11 +381,12 @@ class Household(Agent):
                 # If the utility of the new choice is higher than
                 # the current utility times 1.2, we perform a transaction
 
-                if choice[1] > self.utilList[-1] *1.2:
+                if choice[1] > self.util *1.2:
                     self.setValue('predMeth',1) # predition method
                     self.setValue('expUtil',choice[1]) # expected utility
                     self.sellCar(world, self.car['ID'])
                     self.buyCar(world, choice[0])
+                    carBought = True
                 # Otherwise, we have a 25% chance of looking at properties
                 # of cars owned by friends, and perform linear sensitivity
                 # analysis based on the utility of your friends.
@@ -397,21 +403,18 @@ class Household(Agent):
                         df = pd.DataFrame.from_dict(world.market.brandProp)
                         extUtil = regr.predict(df.values.T)
                         
-                        if extUtil[extUtil.argmax()] > self.utilList[-1]*1.2:
+                        if extUtil[extUtil.argmax()] > self.util*1.2:
                             self.setValue('predMeth',2) # predition method
                             self.setValue('expUtil',extUtil[extUtil.argmax()])
                             label = df.columns[extUtil.argmax()]
                             self.sellCar(world, self.car['ID'])
                             self.buyCar(world, label)
-                            util = self.evalUtility(world)
-                            self.utilList.append(util)
-                            utilUpdated = True
+                            carBought = True
                             # update prior expectations of observation
-                            self.weightFriendExperience(world)
-        if not utilUpdated:
-            self.setValue('expUtil',0)
-            util = self.evalUtility(world)
-            self.utilList.append(util)
+        
+        self.util = self.evalUtility(world)                 
+        if carBought:
+            self.weightFriendExperience(world)
         self.shareExperience(world)
 
 class Reporter(Household):
@@ -419,7 +422,7 @@ class Reporter(Household):
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Household.__init__(self, world, nodeType , xPos, yPos)
         self.writer = Writer(world, str(self.nID) + '_diary')
-
+        raise('do not use - or update')
     def evalUtility(self, world, props =None):
         if props is None:
             props = self.car['prop']
@@ -472,6 +475,7 @@ class Reporter(Household):
         expected utility
         return a_opt = arg_max (E(u(a)))
         """
+        error('do not use - or update')
         import time 
         if len(self.obs) == 0:
             return None

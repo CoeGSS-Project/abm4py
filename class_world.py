@@ -521,7 +521,6 @@ class OpinionGenerator():
         pref = np.asarray([csAll, ceAll, ccAll, cmAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
-        
         return tuple(pref)
     
     def getUtililty(self,prop,pref):
@@ -533,11 +532,11 @@ class OpinionGenerator():
             xCum = []
             #pos factors
             for x in self.feDict[fe][0]:
-                xCum.append(prop[x])
+                xCum.append(prop[x]*100)
                 
             #neg factors
             for x in self.feDict[fe][1]:
-                xCum.append(1-prop[x])
+                xCum.append((1-prop[x])*100)
             util *= np.mean(xCum)**pref[i]
         return util
 

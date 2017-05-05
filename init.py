@@ -76,9 +76,9 @@ if randomAgents == 1:
     incomeSTD = 10000
 randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-incomeShareForMobility = 0.3
+incomeShareForMobility = 0.5
 
-nSteps     = 200 # number of simulation steps
+nSteps     = 500 # number of simulation steps
 initPhase  = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
@@ -316,7 +316,6 @@ for household in earth.iterNode(_hh):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
     household.car['age'] = np.random.randint(0,15)
     household.util = household.evalUtility(earth)
-    household.utilList.append(household.util)
     household.shareExperience(earth)
     
 for cell in earth.iterNode(_cell):

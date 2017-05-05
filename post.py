@@ -15,15 +15,15 @@ import pickle
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
-plotRecords     = False
-plotCarStockBar = False
-prefPerLabel    = False
-utilPerLabel    = False
-incomePerLabel  = False
-meanPrefPerLabel= False
-printCellMaps   = False
+plotRecords     = 1
+plotCarStockBar = 1
+prefPerLabel    = 1
+utilPerLabel    = 1
+incomePerLabel  = 1
+meanPrefPerLabel= 1
+printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0053/'
+path = 'output/sim0092/'
 #%% init
     
 def loadObj(name ):
@@ -67,7 +67,7 @@ enums   = loadObj(path + 'enumerations')
 nSteps, nAgents, nProp = agMat.shape
 
 #%%
-step = 20
+step = 50
 columns= ['']*agMat.shape[2]
 for key in propDic.keys():
     for i in propDic[key]:
@@ -77,6 +77,10 @@ df = pd.DataFrame(agMat[step],columns=columns)
 
 
 #%% preference types per car label
+prefTypes = np.zeros(4)
+for prefTyp in range(0,4):
+    prefTypes[prefTyp] = np.sum(agMat[0,:,propDic['prefTyp'][0]] == prefTyp)
+
 if prefPerLabel:
     res = dict()
     for carLabel in range(0,8):
@@ -86,7 +90,7 @@ if prefPerLabel:
         for carLabel in range(0,8):
             idx = agMat[step,:,propDic['label'][0]] == carLabel
             for prefType in range(0,4):
-                res[carLabel][step,prefType] = np.sum(agMat[step,idx,propDic['prefTyp'][0]] == prefType)
+                res[carLabel][step,prefType] = np.sum(agMat[step,idx,propDic['prefTyp'][0]] == prefType) / prefTypes[prefType]
     
     legStr = list()
     for prefType in range(0,4):
@@ -102,13 +106,13 @@ print 1
 
 #%% utiilty per car label
 if utilPerLabel:
-    res = np.zeros([nSteps,8])
+    res = np.zeros([nSteps,9])
     for step in range(0,nSteps):
-        for carLabel in range(0,8):
+        for carLabel in range(0,9):
             idx = agMat[step,:,propDic['label'][0]] == carLabel
             res[step, carLabel] = np.mean(agMat[step,idx,propDic['util'][0]])
     legStr = list()
-    for label in range(0,8):
+    for label in range(0,9):
         legStr.append(enums['brands'][label])        
     fig = plt.figure()
     plt.plot(res)
@@ -135,10 +139,10 @@ ensembleAverage = np.mean(agMat[0,:,propDic['preferences']], axis = 1)
 if meanPrefPerLabel:
     fig = plt.figure()
     res = dict()
-    for carLabel in range(0,8):
+    for carLabel in range(0,9):
         res[carLabel] = np.zeros([nSteps,4])
     for step in range(0,nSteps):
-        for carLabel in range(0,8):
+        for carLabel in range(0,9):
             idx = np.where(agMat[step,:,propDic['label'][0]] == carLabel)[0]
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1) / ensembleAverage
     legStr = list()
@@ -146,18 +150,21 @@ if meanPrefPerLabel:
         legStr.append(enums['prefTypes'][prefType])
     
     
-    for carLabel in range(0,8):
-        plt.subplot(2,4,carLabel+1)    
+    for carLabel in range(0,9):
+        plt.subplot(2,5,carLabel+1)    
         plt.plot(res[carLabel])
         plt.title(enums['brands'][carLabel])
         plt.legend(legStr,loc=0)
         plt.xlim([0,nSteps])
 
     fig.suptitle('mean preference per car label')
-#%%
+
+#%% print predition method
+
 if printPredMeth:
    sumAvergUtil = np.sum(agMat[:,:,propDic['predMeth']]==1, axis = 1) 
    sumLinRef = np.sum(agMat[:,:,propDic['predMeth']]==2, axis = 1) 
+   plt.figure()
    plt.plot(sumAvergUtil)
    plt.plot(sumLinRef)
    plt.title('Prediction that lead to car buy')
