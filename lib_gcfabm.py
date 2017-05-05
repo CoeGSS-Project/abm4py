@@ -274,7 +274,7 @@ class World:
     
     def iterNode(self,nodeType):
         nodeList = self.nodeList[nodeType]
-        return  iter([self.entList[i] for i in nodeList])
+        return  [self.entList[i] for i in nodeList]
     
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):
