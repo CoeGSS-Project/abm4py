@@ -112,10 +112,10 @@ class Household(Agent):
         weighted = True
         if weighted:
                 
-            weights, edges = self.getConnProp('weig',_thh,mode='IN')
+            weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
                 np.save('output/weightsError.npy',weights)
-            sources = [self.graph.es[edge].source for edge in edges]
+            sources = [self.graph.es[edge].target for edge in edges]
             srcWeightDict =  dict(zip(sources,weights))
             
             regr.fit(obsMat[:,1:-1], obsMat[:,-1],map(srcWeightDict.__getitem__,obsMat[:,0].tolist()))
@@ -146,11 +146,11 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getConnProp('weig',_thh,mode='IN')
-            sources = [self.graph.es[edge].source for edge in edges]
+            weights, edges = self.getConnProp('weig',_thh,mode='OUT')
+            target = [self.graph.es[edge].target for edge in edges]
             #targDict = {self.graph.es[edge].target: edge for edge in edges}
             #targDict = dict((self.graph.es[edge].target, edge) for edge in edges)
-            srcDict =  dict(zip(sources,weights))
+            srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
                 
                 tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
@@ -163,8 +163,8 @@ class Household(Agent):
         return carIDs[maxid], avgUtil[maxid]
     
     def weightFriendExperience(self, world):
-        friendUtil, edgeIDs = self.getNeighNodeValues( 'util' ,edgeType= _thh)
-        carLabels, _        = self.getNeighNodeValues( 'label' ,edgeType= _thh)
+        friendUtil, edgeIDs = self.getNeighNodeValues( 'util' ,edgeType= _thh, mode='OUT')
+        carLabels, _        = self.getNeighNodeValues( 'label' ,edgeType= _thh, mode='OUT')
         #friendID            = self.getOutNeighNodes(edgeType=_thh)
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
@@ -349,7 +349,9 @@ class Household(Agent):
         
         #self.utilList.append(util)
         #print 'agent' + str(self.nID)
-        for neig in self.getOutNeighNodes(_thh):
+        
+        # tell agents that are friends with you - not your friends ("IN")
+        for neig in self.getNeighNodes(_thh,mode="IN"):
             agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.car['obsID'], world.time)
             #print neig, self.loc.nID,obsID

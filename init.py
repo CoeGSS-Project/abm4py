@@ -83,8 +83,8 @@ initPhase  = 20
 properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
 minFriends = 50  # number of desired friends
-memoryTime  = 15  # length of the periode for which memories are stored
-carNewPeriod = 5
+memoryTime  = 10  # length of the periode for which memories are stored
+carNewPeriod = 6
 recAgent   = []   # reporter agents that return a diary
 
 tt = time.time()
@@ -152,7 +152,6 @@ earth.initMemory(properties + ['utility','label','hhID'], memoryTime)
 
 #                           weig range consum vol   speed price']
 #earth.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
-#earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  35000))   #city car 
 earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
 earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
 

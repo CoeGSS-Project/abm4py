@@ -57,15 +57,21 @@ class Entity():
             neigbours.append(self.graph.vs[neigID])
         return neigbours
           
+    def getNeighNodes(self, edgeType=None, mode="OUT"):
+        if mode == "OUT":
+            neigbours = self.getOutNeighNodes(edgeType)
+        elif mode == "IN":
+            neigbours = self.getInNeighNodes(edgeType)
+        return neigbours
+    
     def getOutNeighNodes(self, edgeType=None):
-        neigbours = []
+        neigbours = [] 
         eList = self.graph.incident(self.nID,mode="OUT")
 
         if edgeType is not None:
             for edge in eList:
                 if self.graph.es[edge]['type'] == edgeType:
-                    neigbours.append(self.graph.es[edge].target)  
-                    
+                    neigbours.append(self.graph.es[edge].target)     
         else:
             for edge in eList:
                 neigbours.append(self.graph.es[edge].target)     
@@ -74,7 +80,7 @@ class Entity():
     
     def getInNeighNodes(self, edgeType=None):
         neigbours = [] 
-        eList = self.graph.incident(self.nID,mode="OUT")
+        eList = self.graph.incident(self.nID,mode="IN")
 
         if edgeType is not None:
             for edge in eList:
@@ -205,10 +211,10 @@ class Agent(Entity):
 #        #    if self.graph.es[es]['type'] == edgeType:
 #        return values
     
-    def getNeighNodeValues(self, prop, edgeType=0):
+    def getNeighNodeValues(self, prop, edgeType=0, mode="OUT"):
         neigbours = [] 
         edges     = []
-        eList = self.graph.incident(self.nID,mode="OUT")
+        eList = self.graph.incident(self.nID,mode)
 
         if edgeType is not None:
             for edge in eList:
