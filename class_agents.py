@@ -176,7 +176,7 @@ class Household(Agent):
             return
         
         diff = np.asarray(friendUtil)[idxT] - ownUtil
-        prop = np.exp(-(diff**2) / (2* world.utilObsError**2))
+        prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
         
@@ -265,7 +265,7 @@ class Household(Agent):
         #print sum(weights)
         iFriend = 0
         i = 0
-        if world.addYourself:
+        if world.para['addYourself']:
             friendList.append(self.nID)
             connList.append((self.nID,self.nID))
         while iFriend < nFriends:
@@ -345,7 +345,7 @@ class Household(Agent):
         
         
         # adding noise to the observations
-        noisyUtil = self.getValue('util') + np.random.randn(1)* world.utilObsError*0
+        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']*0
         self.setValue('noisyUtil',noisyUtil[0])
         
         # save util based on label
@@ -385,7 +385,7 @@ class Household(Agent):
         self.setValue('expUtil',0)
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
-        if self.car['age'] > world.carNewPeriod and np.random.rand(1)>.5: 
+        if self.car['age'] > world.para['carNewPeriod'] and np.random.rand(1)>.5: 
             # Check what cars are owned by my friends, and what are their utilities,
             # and make a choice based on that.
             choice = self.optimalChoice(world)  

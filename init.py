@@ -46,6 +46,7 @@ sns.set_color_codes("dark")
 import matplotlib.pyplot as plt
 import tqdm
 import pandas as pd
+from bunch import Bunch
 
 overallTime = time.time()
 ###### Enums ################
@@ -59,47 +60,53 @@ _hh   = 2
 
 
 #%% INIT
+para = Bunch()
 
-flgSpatial = True
-connRadius = 2.1  # radíus of cells that get an connection
-tolerance  = 1.   # tolerance of friends when connecting to others (deviation in preferences)
+#global parameter
+para.scenario       = 1
+para.nSteps         = 200 # number of simulation steps
+para.flgSpatial     = True
+para.connRadius     = 2.1  # radíus of cells that get an connection
+para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 
-scenario      = 0
-randomAgents  = 0 # 0: prefrences dependent on agent properties - 1: random distribution
-if randomAgents == 1:
-    incomeMean = 18000
-    incomeSTD = 10000
-randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
-radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-incomeShareForMobility = 0.5
+para.initPhase      = 20
+para.properties     = ['weig','range','consum','vol','speed', 'price']
+para.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
+para.randomCarPropDeviationSTD = 0.01
 
-nSteps     = 500 # number of simulation steps
-initPhase  = 20
-properties = ['weig','range','consum','vol','speed', 'price']
-randomCarPropDeviationSTD = 0.01
-minFriends = 50  # number of desired friends
-memoryTime  = 10  # length of the periode for which memories are stored
-addYourself = True
-carNewPeriod = 6
-recAgent   = []   # reporter agents that return a diary
-writeOutput = True
 
-utilObsError = 1
+# agent parameter
+
+if para.randomAgents == 1:
+    para.incomeMean = 18000
+    para.incomeSTD = 10000
+para.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
+para.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
+para.incomeShareForMobility = 0.5
+para.minFriends = 50  # number of desired friends
+para.memoryTime  = 10  # length of the periode for which memories are stored
+para.addYourself = True
+para.carNewPeriod = 6
+
+para.utilObsError = 1
+para.recAgent   = []   # reporter agents that return a diary
+
+para.writeOutput = True
+para.writeNPY    = True
+para.writeCSV    = False
 
 tt = time.time()
 
 ## Scenario definition ###################################################################
-if scenario == 0: #small
-    writeOutput = False
-    minFriends = 10
-    nAgents    = 100
+if para.scenario == 0: #small
+    para.writeOutput = False
+    para.minFriends = 10
     landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
     population = landLayer*20
     
-elif scenario == 1: # medium
-    nAgents    = 1000
+elif para.scenario == 1: # medium
     landLayer   = np.asarray([[0, 0, 0, 0, 0, 1, 1, 1], 
                               [1, 1, 1, 0, 0, 1, 1, 1],
                               [1, 1, 1, 0, 0, 1, 0, 0],
@@ -107,7 +114,7 @@ elif scenario == 1: # medium
                               [1, 1, 1, 1, 1, 1, 0, 0]])    
     population = landLayer*100
     
-elif scenario == 2: # Niedersachsen
+elif para.scenario == 2: # Niedersachsen
     reductionFactor = 100
     landLayer= gt.load_array_from_tiff('resources_nie/land_layer_3432x8640.tiff')
     landLayer[np.isnan(landLayer)] = 0
@@ -115,58 +122,58 @@ elif scenario == 2: # Niedersachsen
     plt.imshow(landLayer)
     population = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_3432x8640.tiff') / reductionFactor
     plt.imshow(population)
-    nAgents    = np.nansum(population)
-    landLayer[landLayer == 1 & np.isnan(population)] =0
-    assert np.sum(np.isnan(population[landLayer==1])) == 0
-    print nAgents
 
-if not randomAgents:
-    dfSynPop = pd.read_csv('resources_nie/hh_niedersachsen.csv')
+    landLayer[landLayer == 1 & np.isnan(population)] =0
+
+nAgents    = np.nansum(population)
+assert np.sum(np.isnan(population[landLayer==1])) == 0
+print 'Running with ' + str(nAgents) + ' agents'
+
+if not para.randomAgents:
+    para.synPopPath = 'resources_nie/hh_niedersachsen.csv'
+    dfSynPop = pd.read_csv(para.synPopPath)
     hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 
 
 #%% INITIALIZATION ##########################   
-if writeOutput:
+if para.writeOutput:
     # get simulation number
     fid = open("simNumber","r")
-    simNo = int(fid.readline())
+    para.simNo = int(fid.readline())
     fid = open("simNumber","w")
-    fid.writelines(str(simNo+1))
+    fid.writelines(str(para.simNo+1))
     fid.close()
 else:
-    simNo = None
+    para.simNo = None
 
-earth = Earth(nSteps, simNo, spatial=flgSpatial)
-connList= earth.computeConnectionList(connRadius)
+earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
+connList= earth.computeConnectionList(para.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
 #
-earth.props = properties
-earth.initMarket(properties, randomCarPropDeviationSTD)
+earth.props = para.properties
+earth.initMarket(para.properties, para.randomCarPropDeviationSTD)
 #earth.initObsAtLoc(properties)
-if randomAgents == 0:
-    ecoMin = np.percentile(dfSynPop['INCTOT']*incomeShareForMobility,20)
-    ecoMax = np.percentile(dfSynPop['INCTOT']*incomeShareForMobility,90)
+if para.randomAgents == 0:
+    ecoMin = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,20)
+    ecoMax = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,90)
     earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMin),convIncomeFraction=10000)
 else:
     
-    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(incomeMean- incomeSTD,incomeMean + incomeSTD),convIncomeFraction=25000)
-earth.scenario = scenario
-earth.radicality = radicality
-earth.carNewPeriod = carNewPeriod
-earth.addYourself = addYourself
-earth.writeOutput = writeOutput
-earth.utilObsError = utilObsError
-#init location memory
+    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(para.incomeMean- para.incomeSTD,para.incomeMean + para.incomeSTD),convIncomeFraction=25000)
 
+# transfer all parameters to earth
+earth.setParameters(Bunch.toDict(para)) 
+
+#init location memory
 earth.enums = dict()
-earth.simNo = simNo
-earth.initMemory(properties + ['utility','label','hhID'], memoryTime)
+earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
 
 
 #                           weig range consum vol   speed price']
 #earth.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
 earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
-earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
+earth.addBrand('mediumMirror',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
+#earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
 #
 #earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
 #earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
@@ -205,18 +212,18 @@ earth.enums['nodeTypes'] = dict()
 earth.enums['nodeTypes'][1] = 'cell'
 earth.enums['nodeTypes'][2] = 'household'
 
-if randomAgents:
+if para.randomAgents:
     idx = 0
     for x,y in tqdm.tqdm(earth.locDict.keys()):
         nAgentsCell = int(population[x,y])
         while True:
             
-            if nHH in recAgent:
+            if nHH in para.recAgent:
                 hh = Reporter(earth,'hh', x, y)
             else:
                 hh = Household(earth,'hh', x, y)
             hh.connectGeoNode(earth)
-            hh.tolerance = tolerance
+            hh.tolerance = para.tolerance
             hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon ,prMon= earth.generateHH()
             #hhSize = int(np.ceil(np.abs(np.random.randn(1)*2)))
             #hh.setValue('hhSize', hhSize)
@@ -224,7 +231,7 @@ if randomAgents:
             income = income  = np.random.randn(1)* 10000 + 18000 #niedersachsen mean + std
             if income < 4500:
                 income = 4500
-            income *= incomeShareForMobility                
+            income *= para.incomeShareForMobility                
             hh.setValue('income',income)
             #hh.setValue('nKids', nKids)
             
@@ -234,13 +241,13 @@ if randomAgents:
             #hh.prefTyp = np.argmax((prSaf, prEco, prCon))
             
             # test
-            if randPref == 0:
+            if para.randPref == 0:
                 preferences = np.zeros(earth.nPref)
                 preferences[np.random.randint(0,earth.nPref)] = 1
                 #xx = xx / sum(xx)
                 #prSaf, prEco, prCon = xx
-            elif randPref == 1:
-                preferences = np.random.random(earth.nPref)** radicality
+            elif para.randPref == 1:
+                preferences = np.random.random(earth.nPref)** para.radicality
                 preferences = preferences / sum(preferences)
                 #prSaf, prEco, prCon, prMon = xx
                 
@@ -267,12 +274,12 @@ else:
         #print x,y
         nAgentsCell = int(population[x,y])
         while True:
-            if nHH in recAgent:
+            if nHH in para.recAgent:
                 hh = Reporter(earth,'hh', x, y)
             else:
                 hh = Household(earth,'hh', x, y)
             hh.connectGeoNode(earth)
-            hh.tolerance = tolerance
+            hh.tolerance = para.tolerance
             nPers = hhMat[idx,4]
             hh.setValue('hhSize',nPers)
             age= hhMat[idx:idx+nPers,12]
@@ -283,13 +290,13 @@ else:
             nKids = np.sum(age<18)
             hh.setValue('nKids', nKids)
             income = hhMat[idx,16]
-            income *= incomeShareForMobility
+            income *= para.incomeShareForMobility
             hh.setValue('income',income)   
             if len(np.where(age>=18)[0]) > 0:
                 idxAdult = np.random.choice(np.where(age>=18)[0])
             else:
                 idxAdult = 0
-            prSaf, prEco, prCon, prMon = earth.og.getPref(age[idxAdult],sex[idxAdult],nKids,income,radicality)
+            prSaf, prEco, prCon, prMon = earth.og.getPref(age[idxAdult],sex[idxAdult],nKids,income,para.radicality)
             # normal 
             hh.setValue('preferences', (prSaf, prEco, prCon, prMon))
             
@@ -316,9 +323,9 @@ earth.dequeueEdges()
             
 print 'Agents created in -- ' + str( time.time() - tt) + ' s'
 
-earth.genFriendNetwork(minFriends)
+earth.genFriendNetwork(para.minFriends)
 earth.market.initCars()
-if scenario == 0:
+if para.scenario == 0:
     earth.view('output/graph.png')
 
 tt = time.time()
@@ -366,7 +373,7 @@ earth.initAgentFile(typ = _cell)
 print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
 earth.writeAgentFile()
 #%% Simulation 
-for step in xrange(1,nSteps):
+for step in xrange(1,para.nSteps):
     
     earth.step() # looping over all cells
                  # and agents
@@ -394,7 +401,7 @@ for step in xrange(1,nSteps):
         plt.hist(util,30)
         plt.xlim([0,1])   
    
-if writeOutput:
+if para.writeOutput:
     earth.finalize()        
 
        
@@ -409,7 +416,7 @@ if False:
 plt.figure()
 for key in brandDict.keys():
     with sns.color_palette("Set3", n_colors=9, desat=.8):
-        plt.plot(range(nSteps-len(brandDict[key]),nSteps), brandDict[key])
+        plt.plot(range(para.nSteps-len(brandDict[key]),para.nSteps), brandDict[key])
 plt.legend(legLabels, loc=3)
 plt.title('Utility per brand')
 plt.savefig('utilityPerBrand.png')
