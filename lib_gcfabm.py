@@ -39,7 +39,8 @@ class Entity():
         nodeType = world.getNodeType(nodeStr)
         self.graph.add_vertex(self.nID, type=nodeType)
         self.type= nodeType      
-
+        
+            
     
     def getNeigbourhood(self, order):
         
@@ -260,7 +261,14 @@ class World:
             self.locDict = dict()
 
         self.types.append('inactiv')
-
+        self.para     = dict()
+        
+        
+    def setParameters(self, parameterDict):
+        for key in parameterDict.keys():
+            self.para[key] = parameterDict[key]
+            
+            
     def setNodeValues(self,nodeID, prop,value):
         self.graph.vs[nodeID][prop] = value
         
@@ -403,10 +411,10 @@ class World:
     
     def getCellAgents(self,x,y,agType=0):
         print 'old version - do not use'
-        spNodeID = synEarth.graph.vs.select(pos=[x,y],type=0).indices[0]
-        eIDSeq = synEarth.graph.es.select(_source=spNodeID,type=1).indices
+        spNodeID = self.graph.vs.select(pos=[x,y],type=0).indices[0]
+        eIDSeq = self.graph.es.select(_source=spNodeID,type=1).indices
         cellAgents= []            
-        for edge in synEarth.graph.es[eIDSeq]:
+        for edge in self.graph.es[eIDSeq]:
             cellAgents.append(edge.target)
         return cellAgents
 #            return synEarth.graph.vs.select(pos=[x,y],type=agType).indices
