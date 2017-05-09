@@ -57,14 +57,17 @@ class Earth(World):
         self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
-        self.outPath    = 'output/sim' + str(simNo).zfill(4)
+        
         if not os.path.isdir('output'):
             os.mkdir('output')
-        if not os.path.isdir(self.outPath):
-            os.mkdir(self.outPath)
-        if not os.path.isdir(self.outPath + '/rec'):
-            os.mkdir(self.outPath + '/rec')
-            
+        
+        if not simNo is None:
+            self.outPath    = 'output/sim' + str(simNo).zfill(4)
+            if not os.path.isdir(self.outPath):
+                os.mkdir(self.outPath)
+            if not os.path.isdir(self.outPath + '/rec'):
+                os.mkdir(self.outPath + '/rec')
+                
     def registerRecord(self, name, title, colLables, style ='plot')    :
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
@@ -516,7 +519,7 @@ class OpinionGenerator():
         csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
-        cmAll = np.random.rand(1) # only random component
+        cmAll = np.random.rand(1) *0# only random component
         
         pref = np.asarray([csAll, ceAll, ccAll, cmAll])
         pref = pref ** radicality

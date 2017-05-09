@@ -23,12 +23,13 @@ incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0092/'
+path = 'output/sim0112/'
 #%% init
     
 def loadObj(name ):
     with open(name + '.pkl', 'rb') as f:
         return pickle.load(f)
+
 
 #%% plotting of the records
 if plotRecords:
@@ -57,7 +58,8 @@ if plotCarStockBar:
        plt.bar(np.arange(nSteps), df.ix[:,i],bottom=nCars, color =colorPal[i], width=1)
        nCars += df.ix[:,i]
        legStr.append(brand)
-plt.legend(legStr)
+#plt.legend(legStr)
+plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 #%% loading household agent file
 
 agMat   = np.load(path + 'agentFile_type2.npy')
@@ -66,14 +68,54 @@ enums   = loadObj(path + 'enumerations')
 
 nSteps, nAgents, nProp = agMat.shape
 
-#%%
-step = 50
-columns= ['']*agMat.shape[2]
-for key in propDic.keys():
-    for i in propDic[key]:
-        columns[i] = key
-df = pd.DataFrame(agMat[step],columns=columns)
+#%% number of different car per agent:
+nUniqueCars = list()
+for i in range(agMat.shape[1]):
+    nUniqueCars.append(len(np.unique(agMat[:,i,propDic['label'][0]])))
+
+print np.mean(nUniqueCars)
+
+for prefTyp in range(4):
+    nUniqueCars = list()
+    idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
+    for i in np.where(idx)[0]:
+        nUniqueCars.append(len(np.unique(agMat[:,i,propDic['label'][0]])))
+    print 'Pref Type = ' + enums['prefTypes'][prefTyp] + ' ownes ' + str(np.mean(nUniqueCars)) +'different cars'
+
+#%% number of buys
+
+x = np.diff(agMat,axis=0)
+#x = x[:,:,propDic['label']] != 0
+carBuys =np.sum(x[:,:,propDic['label']] > 0,axis = 0)
+np.mean(carBuys)
+np.max(carBuys)
+np.min(carBuys)
+for prefTyp in range(4):
+    idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
+    
+    print 'Pref Type "' + enums['prefTypes'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
+    
+    
+print 1
+#%% df for one timestep
+if False:
+    step = 50
+    columns= ['']*agMat.shape[2]
+    for key in propDic.keys():
+        for i in propDic[key]:
+            columns[i] = key
+    df = pd.DataFrame(agMat[step],columns=columns)
 #ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
+
+#%% df for one timestep
+if False:
+    agent = 0
+    columns= ['']*agMat.shape[2]
+    for key in propDic.keys():
+        for i in propDic[key]:
+            columns[i] = key
+    df = pd.DataFrame(agMat[:,agent,:],columns=columns)
+    #ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
 
 
 #%% preference types per car label
@@ -149,16 +191,18 @@ if meanPrefPerLabel:
     for prefType in range(0,4):
         legStr.append(enums['prefTypes'][prefType])
     
-    
+    h = list()
     for carLabel in range(0,9):
         plt.subplot(2,5,carLabel+1)    
-        plt.plot(res[carLabel])
+        h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
-        plt.legend(legStr,loc=0)
+        #plt.legend(legStr,loc=0)
         plt.xlim([0,nSteps])
-
-    fig.suptitle('mean preference per car label')
-
+    plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #fig.legend(h, legStr, loc = (1,1,0,0))
+    plt.tight_layout()
+    #fig.suptitle('mean preference per car label')
+print 1
 #%% print predition method
 
 if printPredMeth:

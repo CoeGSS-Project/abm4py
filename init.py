@@ -57,19 +57,14 @@ _thh = 3 # household, household
 _cell = 1
 _hh   = 2
 
-# get simulation number
-fid = open("simNumber","r")
-simNo = int(fid.readline())
-fid = open("simNumber","w")
-fid.writelines(str(simNo+1))
-fid.close()
+
 #%% INIT
 
 flgSpatial = True
 connRadius = 2.1  # radíus of cells that get an connection
 tolerance  = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 
-scenario      = 1
+scenario      = 0
 randomAgents  = 0 # 0: prefrences dependent on agent properties - 1: random distribution
 if randomAgents == 1:
     incomeMean = 18000
@@ -84,19 +79,24 @@ properties = ['weig','range','consum','vol','speed', 'price']
 randomCarPropDeviationSTD = 0.01
 minFriends = 50  # number of desired friends
 memoryTime  = 10  # length of the periode for which memories are stored
+addYourself = True
 carNewPeriod = 6
 recAgent   = []   # reporter agents that return a diary
+writeOutput = True
+
+utilObsError = 1
 
 tt = time.time()
 
 ## Scenario definition ###################################################################
 if scenario == 0: #small
-    minFriends = 5
+    writeOutput = False
+    minFriends = 10
     nAgents    = 100
     landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
-    population = landLayer*10
+    population = landLayer*20
     
 elif scenario == 1: # medium
     nAgents    = 1000
@@ -126,6 +126,16 @@ if not randomAgents:
 
 
 #%% INITIALIZATION ##########################   
+if writeOutput:
+    # get simulation number
+    fid = open("simNumber","r")
+    simNo = int(fid.readline())
+    fid = open("simNumber","w")
+    fid.writelines(str(simNo+1))
+    fid.close()
+else:
+    simNo = None
+
 earth = Earth(nSteps, simNo, spatial=flgSpatial)
 connList= earth.computeConnectionList(connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
@@ -143,6 +153,9 @@ else:
 earth.scenario = scenario
 earth.radicality = radicality
 earth.carNewPeriod = carNewPeriod
+earth.addYourself = addYourself
+earth.writeOutput = writeOutput
+earth.utilObsError = utilObsError
 #init location memory
 
 earth.enums = dict()
@@ -154,14 +167,14 @@ earth.initMemory(properties + ['utility','label','hhID'], memoryTime)
 #earth.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
 earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
 earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
-
-earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
-earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
-earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
-earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
-earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
-earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
-earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
+#
+#earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
+#earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
+#earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
+#earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
+#earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
+#earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
+#earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
     
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
@@ -237,6 +250,7 @@ if randomAgents:
             hh.setValue('prefTyp',hh.prefTyp)
             hh.setValue('expUtil',0)
             hh.setValue('predMeth',0)
+            hh.setValue('noisyUtil',0)
             hh.registerAgent(earth)
             earth.nPrefTypes[hh.prefTyp] += 1
             nPers       = hhSize
@@ -283,6 +297,7 @@ else:
             hh.setValue('prefTyp',hh.prefTyp)
             hh.setValue('expUtil',0)
             hh.setValue('predMeth',0)
+            hh.setValue('noisyUtil',0)
             # test
             #hh.setValue('preferences', (0,0,1))
             #hh.prefTyp = 0
@@ -378,8 +393,9 @@ for step in xrange(1,nSteps):
         plt.subplot(2,5,step)
         plt.hist(util,30)
         plt.xlim([0,1])   
-    
-earth.finalize()        
+   
+if writeOutput:
+    earth.finalize()        
 
        
 #%% post processing
@@ -460,16 +476,20 @@ weights = list()
 
 pref = np.zeros([earth.graph.vcount(), 4])
 pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
+idx = list()
 for edge in earth.iterEdges(_thh):
-    preDiff.append(np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:])))
-    weights.append(edge['weig'])
+    edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
+    idx.append(edge.index)
+    
+    
 plt.figure()
-plt.scatter(preDiff,weights)
+plt.scatter(earth.graph.es['prefDiff'],earth.graph.es['weig'])
 plt.xlabel('difference in preferences')
 plt.ylabel('connections weight')
 
 plt.show()
-
-print np.corrcoef(preDiff,weights)
+x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
+y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
+print np.corrcoef(x,y)
 
 print 'Simulation finished after -- ' + str( time.time() - overallTime) + ' s'

@@ -163,7 +163,7 @@ class Household(Agent):
         return carIDs[maxid], avgUtil[maxid]
     
     def weightFriendExperience(self, world):
-        friendUtil, edgeIDs = self.getNeighNodeValues( 'util' ,edgeType= _thh, mode='OUT')
+        friendUtil, edgeIDs = self.getNeighNodeValues( 'noisyUtil' ,edgeType= _thh, mode='OUT')
         carLabels, _        = self.getNeighNodeValues( 'label' ,edgeType= _thh, mode='OUT')
         #friendID            = self.getOutNeighNodes(edgeType=_thh)
         ownLabel = self.getValue('label')
@@ -172,11 +172,11 @@ class Household(Agent):
         idxT = np.where(carLabels==ownLabel)[0]
         indexedEdges = [ edgeIDs[x] for x in idxT]
         
-        if len(indexedEdges) <= 1:
+        if len(indexedEdges) <= 4:
             return
         
         diff = np.asarray(friendUtil)[idxT] - ownUtil
-        prop = np.exp(-(diff**2) / 2)
+        prop = np.exp(-(diff**2) / (2* world.utilObsError**2))
         prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
         
@@ -207,10 +207,14 @@ class Household(Agent):
             post = prior
             sumPrior = np.sum(prior)
             post[idxT] = prior[idxT] * prop 
-            post[idxF] = prior[idxT] * .99
+            post[idxF] = prior[idxF] * .999
             post = post / np.sum(post) * sumPrior
-            world.setEdgeValues(edgeIDs,'weig',post)
-        
+            if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
+                if np.sum(post) > 0:
+                    world.setEdgeValues(edgeIDs,'weig',post)
+                else:
+                    print 'updating failed, sum of weights are zero'
+                    
     def connectGeoNode(self, world):
         # todo: change to access world.queueEdge   
         # connect agent to its spatial location
@@ -261,6 +265,9 @@ class Household(Agent):
         #print sum(weights)
         iFriend = 0
         i = 0
+        if world.addYourself:
+            friendList.append(self.nID)
+            connList.append((self.nID,self.nID))
         while iFriend < nFriends:
             
             idx = np.argmax(cumWeights > np.random.random(1)) 
@@ -335,17 +342,21 @@ class Household(Agent):
         self.setValue('label',label)
         
     def shareExperience(self, world):
-        util = self.getValue('util')
+        
+        
+        # adding noise to the observations
+        noisyUtil = self.getValue('util') + np.random.randn(1)* world.utilObsError*0
+        self.setValue('noisyUtil',noisyUtil[0])
         
         # save util based on label
-        world.market.obsDict[world.time][self.car['label']].append(util)
+        world.market.obsDict[world.time][self.car['label']].append(noisyUtil)
         #self.setValue('util',util)
         #assert and( not(np.isnan(self.car['prop'])))
-        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], util, self.car['label'])
+        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], noisyUtil, self.car['label'])
         #world.record.loc[world.time,world.rec["avgUtilPref"][1][self.prefTyp]] += self.graph.vs[self.nID]['util']
         
         
-        world.globalRec['avgUtil'].addIdx(world.time, self.graph.vs[self.nID]['util'] ,[0, self.prefTyp+1]) 
+        world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
         
         #self.utilList.append(util)
         #print 'agent' + str(self.nID)
