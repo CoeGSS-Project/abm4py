@@ -11,7 +11,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pickle
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
@@ -26,10 +25,7 @@ printPredMeth   = True
 path = 'output/sim0139/'
 #%% init
     
-def loadObj(name ):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-
+from class_auxiliary import loadObj
 
 #%% plotting of the records
 if plotRecords:

@@ -403,6 +403,7 @@ for step in xrange(1,para.nSteps):
         plt.xlim([0,1])   
    
 if para.writeOutput:
+    earth.finalizeAgentFile()
     earth.finalize()        
 
        

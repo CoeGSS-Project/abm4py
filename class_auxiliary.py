@@ -29,6 +29,16 @@ import itertools
 import matplotlib.pyplot as plt
 import pandas as pd 
 import seaborn as sns
+import pickle
+
+def saveObj(obj, name ):
+    with open( name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def loadObj(name ):
+    with open(name + '.pkl', 'rb') as f:
+        return pickle.load(f)
+
 
 class Writer():
     

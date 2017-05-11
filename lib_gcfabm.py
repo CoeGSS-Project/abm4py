@@ -528,7 +528,77 @@ class World:
         else:
             ig.plot(self.graph, filename, **visual_style)        
             
+    # %% Agent file ###
+    def initAgentFile(self, typ=1):
+        from csv import writer
+        class Record():
+            def __init(self):
+                pass
+            
+        self.agentRec[typ] = Record()
+        self.agentRec[typ].ag2FileIdx = self.nodeList[typ]
+        nAgents = len(self.nodeList[typ])
+        self.agentRec[typ].attributes = list()
+        attributes = self.graph.vs.attribute_names()
+        self.agentRec[typ].nAttr = 0
+        self.agentRec[typ].attrIdx = dict()
+        self.agentRec[typ].header = list()
+        
+        #adding global time
+        self.agentRec[typ].attrIdx['time'] = [0]
+        self.agentRec[typ].nAttr += 1
+        self.agentRec[typ].header += ['time']
+        
+        for attr in attributes:
+            if self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr] is not None and not isinstance(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr],str):
+                self.agentRec[typ].attributes.append(attr)
+                if isinstance(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr],(list,tuple)) :
+                    nProp = len(self.graph.vs[self.agentRec[typ].ag2FileIdx[0]][attr])
+                    self.agentRec[typ].attrIdx[attr] = range(self.agentRec[typ].nAttr, self.agentRec[typ].nAttr+nProp)
+                else:
+                    nProp = 1
+                    self.agentRec[typ].attrIdx[attr] = [self.agentRec[typ].nAttr]
+                self.agentRec[typ].nAttr += nProp
+                self.agentRec[typ].header += [attr]*nProp
+        
+        if self.para['writeNPY']:
+            self.agentRec[typ].recordNPY = np.zeros([self.nSteps, nAgents,self.agentRec[typ].nAttr ])
+        if self.para['writeCSV']:
+            self.agentRec[typ].recordCSV = np.zeros([nAgents,self.agentRec[typ].nAttr ])
+            self.agentRec[typ].csvFile   = open(self.para['outPath'] + '/agentFile_type' + str(typ) + '.csv','w')
+            self.agentRec[typ].writer = writer(self.agentRec[typ].csvFile, delimiter=',')
+            self.agentRec[typ].writer.writerow(self.agentRec[typ].header)
+            
+        #print self.agentMat.shape            
+        self.agentRec[typ].currRecord = np.zeros([nAgents, self.agentRec[typ].nAttr])
     
+    def writeAgentFile(self):
+        for typ in self.agentRec.keys():
+            
+            self.agentRec[typ].currRecord[:,0] = self.time
+            for attr in self.agentRec[typ].attributes:
+                if len(self.agentRec[typ].attrIdx[attr]) == 1:
+                    self.agentRec[typ].currRecord[:,self.agentRec[typ].attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.agentRec[typ].ag2FileIdx][attr],1)
+                    #self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  np.expand_dims(self.graph.vs[self.agentRec[typ].ag2FileIdx][attr],1)
+                else:
+                    self.agentRec[typ].currRecord[:,self.agentRec[typ].attrIdx[attr]] = self.graph.vs[self.agentRec[typ].ag2FileIdx][attr]
+                    #self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  self.graph.vs[self.agentRec[typ].ag2FileIdx][attr]
+            if self.para['writeNPY']: 
+                self.agentRec[typ].recordNPY[self.time] = self.agentRec[typ].currRecord
+            if self.para['writeCSV']:
+                for record in self.agentRec[typ].currRecord:
+                    #print record
+                    self.agentRec[typ].writer.writerow(record)
+    
+    def finalizeAgentFile(self):
+        # saving agent files
+        from class_auxiliary import saveObj
+        for typ in self.agentRec.keys():
+            if self.para['writeNPY']:
+                np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
+                saveObj(self.agentRec[typ].attrIdx, (self.para['outPath'] + '/attributeList_type' + str(typ)))
+            if self.para['writeCSV']:
+                self.agentRec[typ].csvFile.close()
 ########################################################################################
 #  END OF CLASS DESCRIPTION
 ########################################################################################
