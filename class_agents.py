@@ -94,7 +94,7 @@ class Household(Agent):
         if nObs < 10:
             return None
         #obsDf    = self.getObservations(world, world.props + ['utility'])
-        obsMat    = self.getObservationsMat(world, ['hhID'] + world.props + ['utility'])
+        obsMat    = self.getObservationsMat(world, ['hhID'] + world.para['properties'] + ['utility'])
         
         if obsMat.shape[0] == 0:
             return None
@@ -169,10 +169,13 @@ class Household(Agent):
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
         
-        idxT = np.where(carLabels==ownLabel)[0]
+        idxT = list()
+        for i, label in enumerate(carLabels):
+            if label == ownLabel:
+                idxT.append(i)
         indexedEdges = [ edgeIDs[x] for x in idxT]
         
-        if len(indexedEdges) <= 4:
+        if len(indexedEdges) < 2:
             return
         
         diff = np.asarray(friendUtil)[idxT] - ownUtil
@@ -310,8 +313,9 @@ class Household(Agent):
         #alternative b (tanh)
         normalizedDeviation = world.market.statistics[1] - world.market.statistics[0]
         normalizedDeviation[normalizedDeviation==0] = 1 # prevent division by zero
-        
+        #normalizedDeviation *=20
         x = 0.5 + 0.5 * np.tanh((props - world.market.statistics[0]) / normalizedDeviation)
+        
         #overwrite money precivedProps
         x[-1] =  min(1, props[-1] / self.getValue('income')  )
         self.setValue('preceivedProps',tuple(x))
@@ -331,7 +335,8 @@ class Household(Agent):
         """
         # add sale to record
         #world.record.loc[world.time, world.rec["sales"][1][self.prefTyp]] += 1
-        world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
+        if hasattr(world, 'globalRec'):
+            world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
         carID, properties = world.market.buyCar(label, self.nID)
         self.loc.addToTraffic(label)
         self.car['ID']    = carID
@@ -345,7 +350,7 @@ class Household(Agent):
         
         
         # adding noise to the observations
-        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']*0
+        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']
         self.setValue('noisyUtil',noisyUtil[0])
         
         # save util based on label
@@ -355,8 +360,8 @@ class Household(Agent):
         self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], noisyUtil, self.car['label'])
         #world.record.loc[world.time,world.rec["avgUtilPref"][1][self.prefTyp]] += self.graph.vs[self.nID]['util']
         
-        
-        world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
+        if hasattr(world, 'globalRec'):
+            world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
         
         #self.utilList.append(util)
         #print 'agent' + str(self.nID)
@@ -629,7 +634,10 @@ class Cell(Location):
         self.currDelList = list()                 # restarts the list for the next step
         
         #write cell traffic to graph
-        self.setValue('carsInCell', tuple(self.traffic.values()))
+        if len(self.traffic.values()) > 1:
+            self.setValue('carsInCell', tuple(self.traffic.values()))
+        else:
+            self.setValue('carsInCell', self.traffic.values()[0])
         
         
         

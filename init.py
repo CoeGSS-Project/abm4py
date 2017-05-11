@@ -63,7 +63,7 @@ _hh   = 2
 para = Bunch()
 
 #global parameter
-para.scenario       = 1
+para.scenario       = 0
 para.nSteps         = 200 # number of simulation steps
 para.flgSpatial     = True
 para.connRadius     = 2.1  # radíus of cells that get an connection
@@ -91,7 +91,7 @@ para.carNewPeriod = 6
 para.utilObsError = 1
 para.recAgent   = []   # reporter agents that return a diary
 
-para.writeOutput = True
+para.writeOutput = False
 para.writeNPY    = True
 para.writeCSV    = False
 
@@ -149,20 +149,21 @@ else:
 earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
 connList= earth.computeConnectionList(para.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
-#
-earth.props = para.properties
+
+# transfer all parameters to earth
+earth.setParameters(Bunch.toDict(para)) 
+
 earth.initMarket(para.properties, para.randomCarPropDeviationSTD)
 #earth.initObsAtLoc(properties)
 if para.randomAgents == 0:
     ecoMin = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,20)
     ecoMax = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,90)
-    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMin),convIncomeFraction=10000)
+    earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 else:
     
     earth.initOpinionGen(indiRatio = 0.33, ecoIncomeRange=(para.incomeMean- para.incomeSTD,para.incomeMean + para.incomeSTD),convIncomeFraction=25000)
 
-# transfer all parameters to earth
-earth.setParameters(Bunch.toDict(para)) 
+
 
 #init location memory
 earth.enums = dict()
@@ -172,16 +173,16 @@ earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
 #                           weig range consum vol   speed price']
 #earth.market.addBrand('green',      (1500,300,  3.0,   4,    130,  40000))    
 earth.addBrand('medium',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
-earth.addBrand('mediumMirror',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
-#earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
+#earth.addBrand('mediumMirror',(2000, 600,  5.5,   5.5,  170,  180*12), 0)   #small car 
+earth.addBrand('family',(2400, 800,  6.5,   8.0,  140,  220*12), 0)   #family car
 #
-#earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
-#earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
-#earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
-#earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
-#earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
-#earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
-#earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
+earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels 
+earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
+earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
+earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
+earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
+earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
+earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
     
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
@@ -229,8 +230,8 @@ if para.randomAgents:
             #hh.setValue('hhSize', hhSize)
             #hh.setValue('age',ageList)   
             income = income  = np.random.randn(1)* 10000 + 18000 #niedersachsen mean + std
-            if income < 4500:
-                income = 4500
+#            if income < 4500:
+#                income = 4500
             income *= para.incomeShareForMobility                
             hh.setValue('income',income)
             #hh.setValue('nKids', nKids)
@@ -333,13 +334,13 @@ tt = time.time()
 import pandas as pd
 #prefUtil = pd.DataFrame([],columns= ["prSaf", "prEco", "prCon"] )    
 #prefUtil.loc[0] = 0
-for household in earth.iterNode(_hh):
+for household in earth.iterNodes(_hh):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
     household.car['age'] = np.random.randint(0,15)
     household.util = household.evalUtility(earth)
     household.shareExperience(earth)
     
-for cell in earth.iterNode(_cell):
+for cell in earth.iterNodes(_cell):
     cell.step()
     
 #earth.record.loc[earth.time, earth.rec["avgUtilPref"][1]] /= earth.nPrefTypes
@@ -410,7 +411,7 @@ legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.colu
 if False:
     #plot individual utilities
     plt.figure()
-    for agent in earth.iterNode(_hh):
+    for agent in earth.iterNodes(_hh):
         plt.plot(agent.utilList)    
 
 plt.figure()
@@ -454,7 +455,7 @@ if True:
     
     print 'Preferences - standart deviation within friends'
     avgStd= np.zeros([1,4])    
-    for agent in earth.iterNode(_hh): 
+    for agent in earth.iterNodes(_hh): 
         friendList = agent.getOutNeighNodes(_thh)
         if len(friendList)> 1:
             #print df.ix[friendList].std()

@@ -50,7 +50,6 @@ class Earth(World):
         World.__init__(self, spatial)
         self.simNo      = simNo
         self.agentRec   = dict()   
-        self.globalRec  = dict()
         self.time       = 0
         self.nSteps     = nSteps
         self.reporter   = list()
@@ -68,7 +67,9 @@ class Earth(World):
             if not os.path.isdir(self.para['outPath'] + '/rec'):
                 os.mkdir(self.para['outPath'] + '/rec')
                 
-    def registerRecord(self, name, title, colLables, style ='plot')    :
+    def registerRecord(self, name, title, colLables, style ='plot'):
+        if not hasattr(self, 'globalRec'):
+            self.globalRec  = dict()
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
         
@@ -78,7 +79,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in tqdm.tqdm(self.iterNode(_cell)):
+        for location in tqdm.tqdm(self.iterNodes(_cell)):
             location.initCellMemory(memoryTime, memeLabels)
     
 #    def initObsAtLoc(self,properties):
@@ -90,7 +91,7 @@ class Earth(World):
     def addBrand(self, label, propertyTuple, initTimeStep):
         brandID = self.market.addBrand(label, propertyTuple, initTimeStep)
         
-        for cell in self.iterNode(_cell):
+        for cell in self.iterNodes(_cell):
             cell.traffic[brandID] = 0
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
@@ -114,7 +115,7 @@ class Earth(World):
         if label in self.market.brandLabels.itervalues():
             brandID = self.market.brandLabels.keys()[self.market.brandLabels.values().index(label)]
             
-            for cell in self.iterNode(_cell):
+            for cell in self.iterNodes(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
         #Zm = ma.masked_invalid(traffic)
         plt.clf()
@@ -235,7 +236,7 @@ class Earth(World):
         # else has a fast car same for ecology, etc.
         
         #loop over cells
-        for cell in self.iterNode(_cell):
+        for cell in self.iterNodes(_cell):
             cell.step()
         # Update observations (remove old ones)
         # Compute the number of cars in each cell
@@ -251,7 +252,7 @@ class Earth(World):
 #        markerlist = ['s', 'o', 'd', 'x', '*', '^','p','d','8','_']
 #        colors = sns.color_palette("Set1", n_colors=9, desat=.5)
         # Iterate over households with a progress bar
-        for agent in tqdm.tqdm(self.iterNode(_hh)):
+        for agent in tqdm.tqdm(self.randomIterNodes(_hh)):
             #agent = self.agDict[agID]
             agent.step(self)
 
@@ -547,14 +548,14 @@ class OpinionGenerator():
         csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
-        cmAll = np.random.rand(1) *0# only random component
+        cmAll = np.random.rand(1) # only random component
         
         pref = np.asarray([csAll, ceAll, ccAll, cmAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
         return tuple(pref)
     
-    def getUtililty(self,prop,pref):
+    def getUtililty(self, prop, pref):
         #print 1
         #safety
         util = 1

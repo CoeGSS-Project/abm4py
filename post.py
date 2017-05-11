@@ -23,7 +23,7 @@ incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0112/'
+path = 'output/sim0139/'
 #%% init
     
 def loadObj(name ):
@@ -107,7 +107,7 @@ if False:
     df = pd.DataFrame(agMat[step],columns=columns)
 #ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
 
-#%% df for one timestep
+#%% df for one agent
 if False:
     agent = 0
     columns= ['']*agMat.shape[2]
@@ -137,7 +137,7 @@ if prefPerLabel:
     legStr = list()
     for prefType in range(0,4):
         legStr.append(enums['prefTypes'][prefType])
-    for carLabel in range(0,8):
+    for carLabel in range(0,len(enums['brands'])):
         fig = plt.figure()
         plt.plot(res[carLabel])
         plt.title(enums['brands'][carLabel])
@@ -148,13 +148,13 @@ print 1
 
 #%% utiilty per car label
 if utilPerLabel:
-    res = np.zeros([nSteps,9])
+    res = np.zeros([nSteps,len(enums['brands'])])
     for step in range(0,nSteps):
-        for carLabel in range(0,9):
+        for carLabel in range(0,len(enums['brands'])):
             idx = agMat[step,:,propDic['label'][0]] == carLabel
             res[step, carLabel] = np.mean(agMat[step,idx,propDic['util'][0]])
     legStr = list()
-    for label in range(0,9):
+    for label in range(0,len(enums['brands'])):
         legStr.append(enums['brands'][label])        
     fig = plt.figure()
     plt.plot(res)
@@ -163,13 +163,13 @@ if utilPerLabel:
 
 #%% income per car label
 if incomePerLabel:
-    res = np.zeros([nSteps,8])
+    res = np.zeros([nSteps,len(enums['brands'])])
     for step in range(0,nSteps):
-        for carLabel in range(0,8):
+        for carLabel in range(0,len(enums['brands'])):
             idx = agMat[step,:,propDic['label'][0]] == carLabel
             res[step, carLabel] = np.mean(agMat[step,idx,propDic['income'][0]])
     legStr = list()
-    for label in range(0,8):
+    for label in range(0,len(enums['brands'])):
         legStr.append(enums['brands'][label])        
     fig = plt.figure()
     plt.plot(res)
@@ -181,10 +181,10 @@ ensembleAverage = np.mean(agMat[0,:,propDic['preferences']], axis = 1)
 if meanPrefPerLabel:
     fig = plt.figure()
     res = dict()
-    for carLabel in range(0,9):
+    for carLabel in range(0,len(enums['brands'])):
         res[carLabel] = np.zeros([nSteps,4])
     for step in range(0,nSteps):
-        for carLabel in range(0,9):
+        for carLabel in range(0,len(enums['brands'])):
             idx = np.where(agMat[step,:,propDic['label'][0]] == carLabel)[0]
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1) / ensembleAverage
     legStr = list()
@@ -192,7 +192,7 @@ if meanPrefPerLabel:
         legStr.append(enums['prefTypes'][prefType])
     
     h = list()
-    for carLabel in range(0,9):
+    for carLabel in range(0,len(enums['brands'])):
         plt.subplot(2,5,carLabel+1)    
         h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
@@ -201,7 +201,7 @@ if meanPrefPerLabel:
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr, loc = (1,1,0,0))
     plt.tight_layout()
-    #fig.suptitle('mean preference per car label')
+    fig.suptitle('mean preference per car label')
 print 1
 #%% print predition method
 
