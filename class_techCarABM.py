@@ -24,7 +24,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from lib_gcfabm import Worldm  Agent, Location
+from lib_gcfabm import World, Agent, Location
 from class_auxiliary import Record, Memory, Writer
 import igraph as ig
 import numpy as np
@@ -68,7 +68,10 @@ class Earth(World):
             if not os.path.isdir(self.para['outPath'] + '/rec'):
                 os.mkdir(self.para['outPath'] + '/rec')
                 
-
+    def registerRecord(self, name, title, colLables, style ='plot'):
+        if not hasattr(self, 'globalRec'):
+            self.globalRec  = dict()
+        self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
     def initMarket(self, properties, propRelDev=0.01, time = 0):
