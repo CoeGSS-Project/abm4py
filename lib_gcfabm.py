@@ -286,18 +286,38 @@ class World:
         self.entDict[agent.nID] = agent
         self.nodeList[typ].append(agent.nID)
     
-    def iterNode(self,nodeType):
+    
+    def iterNodes(self,nodeType):
+        if isinstance(nodeType,str):
+            nodeType = self.types.index(nodeType)
         nodeList = self.nodeList[nodeType]
         return  [self.entList[i] for i in nodeList]
     
+    def randomIterNodes(self,nodeType):
+        if isinstance(nodeType,str):
+            nodeType = self.types.index(nodeType)
+        nodeList = self.nodeList[nodeType]
+        shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+        return [self.entList[i] for i in shuffled_list]
+    
+    def iterNodeAndID(self,nodeType):
+        if isinstance(nodeType,str):
+            nodeType = self.types.index(nodeType)
+        nodeList = self.nodeList[nodeType]
+        return  [(self.entList[i], i) for i in nodeList]
+
+    def randomIterNodeAndID(self,nodeType):
+        if isinstance(nodeType,str):
+            nodeType = self.types.index(nodeType)
+        nodeList = self.nodeList[nodeType]
+        shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+        return  [(self.entList[i], i) for i in shuffled_list]
+
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):
             if self.graph.es[i]['type'] == edgeType:
                 yield self.graph.es[i]
     
-    def iterNodeAndID(self,nodeType):
-        nodeList = self.nodeList[nodeType]
-        return  iter([(self.entList[i], i) for i in nodeList]) 
     
     def registerLocation(self, location):
         
@@ -311,7 +331,10 @@ class World:
         plt.hist(self.graph.vs[self.nodeList[nodeType]].degree().nbars)
         
  
-    def computeConnectionList(self,radius=1):
+    def computeConnectionList(self,radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
+        """
+        Method for easy computing a connections list of regular grids
+        """
         connList = []  
         
         intRad = int(radius)
@@ -319,13 +342,18 @@ class World:
             for y in range(-intRad,intRad+1):
                 if (x**2 +y**2)**.5 < radius:
                     if x**2 +y**2 > 0:
-                        weig  = 1/((x**2 +y**2)**.5)
+                        weig  = weightingFunc(x,y)
                     else:
-                        weig = 2
+                        weig = ownWeight
                     connList.append((x,y,weig))
         return connList
     
     def initSpatialLayerNew(self, nodeArray, connList, LocClassObject=Location):
+        """
+        Auiliary function to contruct a simple connected layer of spatial locations.
+        Use with  the previously generated connection list (see computeConnnectionList)
+        
+        """
         self.graph.IdArray = nodeArray * np.nan
         self.graph.IdArray[nodeArray == 1] = xrange(np.sum(nodeArray))
         IDArray = self.graph.IdArray
