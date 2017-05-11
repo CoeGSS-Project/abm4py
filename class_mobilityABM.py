@@ -313,9 +313,8 @@ class Market():
         #    self.percentiles[item] = np.percentile
         #self.percentiles = np.percentile(self.stock[:,1:],self.prctValues,axis=0)
         #print self.percentiles
-        self.statistics      = np.zeros([2,self.nProp])
         self.mean = np.mean(self.stock[:,1:],axis=0)
-        self.std = self.statistics[0,:] + np.std(self.stock[:,1:],axis=0) 
+        self.std  = np.std(self.stock[:,1:],axis=0) 
         
     def step(self):
         self.time +=1 
@@ -523,7 +522,14 @@ class Household(Agent):
 
             
     def evalUtility(self, world, props =None):
-        pass
+        # do something
+        
+        util = 1.
+        assert not( np.isnan(util) or np.isinf(util))
+        self.setValue('util',util)
+        
+            
+        return util
                         
     def buyCar(self,world, label):
         """
@@ -544,10 +550,10 @@ class Household(Agent):
         # adding noise to the observations
         noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']
         self.setValue('noisyUtil',noisyUtil[0])
-        
+        mobility = self.getValue('mobility')
         # save util based on label
-        world.market.obsDict[world.time][self.car['label']].append(noisyUtil)
-        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], noisyUtil, self.car['label'])
+        world.market.obsDict[world.time][mobility].append(noisyUtil)
+        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], noisyUtil, mobility)
         if hasattr(world, 'globalRec'):
             world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
 
