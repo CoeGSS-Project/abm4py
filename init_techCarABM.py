@@ -37,8 +37,7 @@ sys.path.append('modules/')
 import numpy as np
 import time
 import mod_geotiff as gt
-from class_agents import Household, Reporter, Cell
-from class_world import Earth
+from class_techCarABM import Household, Reporter, Cell,  Earth
 import matplotlib
 matplotlib.use('TKAgg')
 import seaborn as sns; sns.set()
