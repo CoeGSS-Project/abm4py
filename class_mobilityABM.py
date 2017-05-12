@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 import tqdm
 import time
 import os
+import math
 
 #%% --- ENUMERATIONS ---
 #connections
@@ -285,24 +286,25 @@ class Market():
 
     def __init__(self, properties, propRelDev=0.01, time = 0):
 
-        self.time        = time
-        self.properties = properties
-        self.brandProp  = dict()
-        self.nProp      = len(properties)
-        self.stock      = np.zeros([0,self.nProp+1]) # first row gives the brandID
-        self.owners     = list()
-        self.propRelDev = propRelDev # relative deviation of the actual car propeties
-        self.obsDict    = dict()
-        self.obsDict[self.time] = dict()
-        self.freeSlots  = list()
-        self.stockbyBrand = pd.DataFrame([])
-        self.nBrands     = 0
-        self.brandLabels = dict()
-        #self.prctValues = [50,80]
-        
+        self.time          = time
+        self.properties    = properties
+        self.brandProp     = dict()                     # brandID -> [properties]
+        self.nProp         = len(properties)
+        self.stock         = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
+        self.owners        = list()                     # List of (ownerID, brandID) index: carID
+        self.propRelDev    = propRelDev                 # relative deviation of the actual car propeties
+        self.obsDict       = dict()                     # time -> other dictionary (see next line)
+        self.obsDict[self.time] = dict()                # (used by agents, observations (=utilities) also saved in locations)
+        self.freeSlots     = list()
+        self.stockbyBrand  = pd.DataFrame([])           # stock by brands 
+        self.nBrands       = 0
+        self.brandLabels   = dict()                     # brandID -> label
+        #self.prctValues = [50,80]        
         self.brandInitDict = dict()
-        self.brandsToInit = list()
-        
+        self.brandsToInit  = list()
+        self.etaG          = 0.7
+        self.etaB          = 1.
+       
     def initCars(self):
         for label, propertyTuple, _, brandID in  self.brandInitDict[0]:
              self.initBrand(label, propertyTuple, brandID)
@@ -313,8 +315,8 @@ class Market():
         #    self.percentiles[item] = np.percentile
         #self.percentiles = np.percentile(self.stock[:,1:],self.prctValues,axis=0)
         #print self.percentiles
-        self.mean = np.mean(self.stock[:,1:],axis=0)
-        self.std  = np.std(self.stock[:,1:],axis=0) 
+        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means, index properties?
+        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std?
         
     def step(self):
         self.time +=1 
@@ -322,7 +324,7 @@ class Market():
         #re-init key for next dict in new timestep
         for key in self.obsDict[self.time-1]:
             self.obsDict[self.time][key] = list()
-        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))    
+        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))           # das ist was ist brauche 
         
         if self.time in self.brandInitDict.keys():
             
@@ -643,6 +645,9 @@ class Cell(Location):
         self.deleteQueue =1
         self.currID = 0
         self.traffic = dict()
+        self.sigmaEps = 1.
+        self.muEps = 1.               
+        self.cellSize = 1.
     
     def getConnCellsPlus(self):
         self.weights, self.eIDs = self.getConnProp('weig')
@@ -666,9 +671,45 @@ class Cell(Location):
     def remFromTraffic(self,label):
         self.traffic[label] -= 1
         
+    def ecology(self, emissions):
+        ecology = 1/(1+math.exp(self.sigmaEps*(emissions-self.muEps)))
+        return ecology        
+        
+    def updateR(self):
+        # convenience parameters:        
+        a, b, c, d = 1., 0.05, 1., 0.1
+        kappa = 0.
+
+        popT = 100   # population threshold for urban area
+        popDensity = len(self.agList)/self.cellSize
+        
+        # calculate conveniences
+        convenienceG = a - b*(popDensity - popT)**2 + kappa
+        if popDensity<popT:
+            convenienceB = a
+        else:
+            convenienceB = a - b*(popDensity - popT)**2
+        convenienceN = c/(1+math.exp((-d)*(popDensity-popT)))
+        
+        # calculate ecologies
+        epsG = 10
+        epsB = 10                
+        ecologyG = self.ecology(epsG)
+        ecologyB = self.ecology(epsB)
+        ecologyN = 0.99
+        
+        # calculate prices
+        
+        greenCons = [convenienceG, ecologyG]
+        brownCons = [convenienceB, ecologyB]
+        noneCons  = [convenienceN, ecologyN]
+        
+        return greenCons, brownCons, noneCons
+        
+        
     def step(self):
         """
-        Manages the deletion og obersvation after a while
+        Manages the deletion og observation after a while
         """
         
         self.deleteQueue.append(self.currDelList) # add current list to the queue for later
