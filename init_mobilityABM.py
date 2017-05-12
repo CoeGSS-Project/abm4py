@@ -158,7 +158,7 @@ earth.enums = dict()
 #earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
 
 
-#                           weig range consum vol   speed price']
+#                       emmisions price']
 earth.addBrand('green',(10,220*12), 0)   # green tech car
 earth.addBrand('brown',(20, 100*12), 0)  # combustion car
 earth.addBrand('none',(3, 150*12), 0)    # none or other

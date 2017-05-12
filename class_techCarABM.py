@@ -144,62 +144,6 @@ class Earth(World):
         
         return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon
     
-    def view(self,filename = 'none', vertexProp='none'):
-        import matplotlib.cm as cm
-        
-        
-        # Nodes        
-        if vertexProp=='none':
-            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))   
-            colorDictNode = {}
-            for i in range(len(self.types)+1):
-                hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
-        else:
-            maxCars = max(self.graph.vs[vertexProp])
-            colors = iter(cm.rainbow(np.linspace(0, 1, maxCars+1)))
-            colorDictNode = {}
-            for i in range(maxCars+1):
-                hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
-        # nodeValues[np.isnan(nodeValues)] = 0
-        # Edges            
-        colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))              
-        colorDictEdge = {}  
-        for i in range(len(self.types)+1):
-            hsv =  next(colors)[0:3]
-            colorDictEdge[i] = hsv.tolist()
-        
-        self.graph.vs["label"] = self.graph.vs["name"]
-        edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
-        
-        visual_style = {}
-        visual_style["vertex_color"] = [colorDictNode[typ] for typ in nodeValues]
-        visual_style["vertex_shape"] = list()        
-        for vert in self.graph.vs['type']:
-            if vert == 0:
-                visual_style["vertex_shape"].append('hidden')                
-            elif vert == 1:
-                    
-                visual_style["vertex_shape"].append('rectangle')                
-            else:
-                visual_style["vertex_shape"].append('circle')     
-        visual_style["vertex_size"] = list()  
-        for vert in self.graph.vs['type']:
-            if vert >= 3:
-                visual_style["vertex_size"].append(4)  
-            else:
-                visual_style["vertex_size"].append(15)  
-        visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
-        visual_style["edge_arrow_size"]   = [.5]*len(visual_style["edge_color"])
-        visual_style["bbox"] = (900, 900)
-        if filename  == 'none':
-            ig.plot(self.graph,**visual_style)    
-        else:
-            ig.plot(self.graph, filename, **visual_style)     
-    
     def genFriendNetwork(self, nFriendsPerPerson):
         """ 
         Function for the generation of a simple network that regards the 
@@ -217,6 +161,8 @@ class Earth(World):
         self.graph.es[eStart:]['type'] = _thh
         self.graph.es[eStart:]['weig'] = weigList
         
+        for node in self.entList:
+            node.updateEdges()
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
@@ -577,14 +523,14 @@ class Household(Agent):
         
         weighted = True
         if weighted:
-                
-            weights, edges = self.getConnProp('weig',_thh,mode='OUT')
+            weights, edges = self.getEdgeValues('weig', edgeType=_thh)    
+            #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
                 np.save('output/weightsError.npy',weights)
-            sources = [self.graph.es[edge].target for edge in edges]
-            srcWeightDict =  dict(zip(sources,weights))
+            target = [edge.target for edge in edges]
+            trgWeightDict =  dict(zip(target,weights))
             
-            regr.fit(obsMat[:,1:-1], obsMat[:,-1],map(srcWeightDict.__getitem__,obsMat[:,0].tolist()))
+            regr.fit(obsMat[:,1:-1], obsMat[:,-1],map(trgWeightDict.__getitem__,obsMat[:,0].tolist()))
         else:
             regr.fit(obsMat[:,1:-1], obsMat[:,-1])
             
@@ -612,10 +558,8 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getConnProp('weig',_thh,mode='OUT')
-            target = [self.graph.es[edge].target for edge in edges]
-            #targDict = {self.graph.es[edge].target: edge for edge in edges}
-            #targDict = dict((self.graph.es[edge].target, edge) for edge in edges)
+            weights, edges = self.getEdgeValues('weig', edgeType=_thh) 
+            target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
                 
@@ -629,19 +573,21 @@ class Household(Agent):
         return carIDs[maxid], avgUtil[maxid]
     
     def weightFriendExperience(self, world):
-        friendUtil, edgeIDs = self.getNeighNodeValues( 'noisyUtil' ,edgeType= _thh, mode='OUT')
-        carLabels, _        = self.getNeighNodeValues( 'label' ,edgeType= _thh, mode='OUT')
+        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _hh)
+        carLabels, _        = self.getConnNodeValues( 'label' ,nodeType= _hh)
         #friendID            = self.getOutNeighNodes(edgeType=_thh)
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
+        
+        edges = self.getEdges(_thh)
         
         idxT = list()
         for i, label in enumerate(carLabels):
             if label == ownLabel:
                 idxT.append(i)
-        indexedEdges = [ edgeIDs[x] for x in idxT]
+        #indexedEdges = [ edges[x].index for x in idxT]
         
-        if len(indexedEdges) < 2:
+        if len(idxT) < 2:
             return
         
         diff = np.asarray(friendUtil)[idxT] - ownUtil
@@ -652,13 +598,13 @@ class Household(Agent):
         onlyEqualCars = True
         if onlyEqualCars:
         #### only weighting agents with same cars
-            prior = np.asarray(world.getEdgeValues(indexedEdges,'weig'))
+            prior = np.asarray(edges[idxT]['weig'])
             post = prior * prop 
             sumPrior = np.sum(prior)
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
                 if np.sum(post) > 0:
-                    world.setEdgeValues(indexedEdges,'weig',post)
+                    edges[idxT]['weig'] = post
                 else:
                     print 'updating failed, sum of weights are zero'
             #neig = [self.graph.es[x].target for x in indexedEdges]
@@ -833,7 +779,7 @@ class Household(Agent):
         #print 'agent' + str(self.nID)
         
         # tell agents that are friends with you - not your friends ("IN")
-        for neig in self.getNeighNodes(_thh,mode="IN"):
+        for neig in self.getConnNodeIDs( _hh, 'in'):
             agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.car['obsID'], world.time)
             #print neig, self.loc.nID,obsID

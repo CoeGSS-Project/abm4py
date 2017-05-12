@@ -63,7 +63,7 @@ para = Bunch()
 
 #global parameter
 para.scenario       = 0
-para.nSteps         = 200 # number of simulation steps
+para.nSteps         = 10 # number of simulation steps
 para.flgSpatial     = True
 para.connRadius     = 2.1  # radíus of cells that get an connection
 para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -146,6 +146,9 @@ else:
     para.simNo = None
 
 earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
+earth.registerEdgeType('cell-cell')
+earth.registerEdgeType('cell-hh')
+earth.registerEdgeType('hh-hh')
 connList= earth.computeConnectionList(para.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
 
@@ -456,7 +459,7 @@ if True:
     print 'Preferences - standart deviation within friends'
     avgStd= np.zeros([1,4])    
     for agent in earth.iterNodes(_hh): 
-        friendList = agent.getOutNeighNodes(_thh)
+        friendList = agent.getConnNodeIDs(_hh,mode='out')
         if len(friendList)> 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values

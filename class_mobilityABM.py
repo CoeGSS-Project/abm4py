@@ -302,8 +302,10 @@ class Market():
         #self.prctValues = [50,80]        
         self.brandInitDict = dict()
         self.brandsToInit  = list()
+        self.labelStats    = dict()                     # labelID -> [number, growth rate]
         self.etaG          = 0.7
         self.etaB          = 1.
+
        
     def initCars(self):
         for label, propertyTuple, _, brandID in  self.brandInitDict[0]:
@@ -324,6 +326,7 @@ class Market():
         #re-init key for next dict in new timestep
         for key in self.obsDict[self.time-1]:
             self.obsDict[self.time][key] = list()
+            
         self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))           # das ist was ist brauche 
         
         if self.time in self.brandInitDict.keys():

@@ -38,8 +38,9 @@ class Entity():
         self.nID = len(self.graph.vs)
         nodeType = world.getNodeType(nodeStr)
         self.graph.add_vertex(self.nID, type=nodeType)
-        self.type= nodeType      
-        
+        self.type = nodeType     
+        self.node = self.graph.vs[self.nID]
+        self.edges = dict()
             
     
     def getNeigbourhood(self, order):
@@ -50,48 +51,6 @@ class Entity():
             neigbours.append(self.graph.vs[neigID])
         return neigbours, neigIDList
         
-        
-    def getAllNeighNodes(self):
-        neigIDList = self.graph.neighbors(self.nID)
-        neigbours = []
-        for neigID in neigIDList:
-            neigbours.append(self.graph.vs[neigID])
-        return neigbours
-          
-    def getNeighNodes(self, edgeType=None, mode="OUT"):
-        if mode == "OUT":
-            neigbours = self.getOutNeighNodes(edgeType)
-        elif mode == "IN":
-            neigbours = self.getInNeighNodes(edgeType)
-        return neigbours
-    
-    def getOutNeighNodes(self, edgeType=None):
-        neigbours = [] 
-        eList = self.graph.incident(self.nID,mode="OUT")
-
-        if edgeType is not None:
-            for edge in eList:
-                if self.graph.es[edge]['type'] == edgeType:
-                    neigbours.append(self.graph.es[edge].target)     
-        else:
-            for edge in eList:
-                neigbours.append(self.graph.es[edge].target)     
-
-        return neigbours
-    
-    def getInNeighNodes(self, edgeType=None):
-        neigbours = [] 
-        eList = self.graph.incident(self.nID,mode="IN")
-
-        if edgeType is not None:
-            for edge in eList:
-                if self.graph.es[edge]['type'] == edgeType:
-                    neigbours.append(self.graph.es[edge].source)     
-        else:
-            for edge in eList:
-                neigbours.append(self.graph.es[edge].source)     
-
-        return neigbours
     
     def queueConnection(self, friendID,edgeType=0):
         if not self.graph.are_connected(self.nID,friendID) and (self.nID,friendID) not in self.graph.edgeQueue[0]:
@@ -101,21 +60,33 @@ class Entity():
     def addConnection(self, friendID, edgeType=0):
         if not self.graph.are_connected(self.nID,friendID):
             self.graph.add_edge(self.nID,friendID, type=edgeType)         
-            #eID = self.graph.get_eid(self.nID,friendID)
-            #self.graph.es[eID]['type'] = edgeType
+            self.updateEdges()
             
     def remConnection(self, friendID,edgeType=0):
         eID = self.graph.get_eid(self.nID,friendID)
         self.graph.delete_edges(eID)
+        self.updateEdges()
 
-    def setValue(self,prop,value):
+    def updateEdges(self):
+            
+        for typ in self.graph.edgeTypes:
+            self.edges[typ] = self.graph.es[self.graph.incident(self.nID,'out')].select(type=typ)
+        self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
+    
+    def _old1_setValue(self,prop,value):
         self.graph.vs[self.nID][prop] = value
         
-    def getValue(self,prop):
+    def _old1_getValue(self,prop):
         return self.graph.vs[self.nID][prop]
     
+    def setValue(self,prop,value):
+        self.node[prop] = value
+        
+    def getValue(self,prop):
+        return self.node[prop]
+    
     def addValue(self,prop,value):
-        self.graph.vs[self.nID][prop] += value
+        self.node[prop] += value
 
     def delete(self,Earth):
         nID = self.nID
@@ -199,20 +170,101 @@ class Agent(Entity):
         #eID = self.graph.get_eid(self.nID,geoNodeID)
         #self.graph.es[eID]['type'] = 2
         self.loc = world.entDict[locationID]
-
+        self.updateEdges()
         
-#    def getNeighNodeValues(self, prop,edge_Type=0):
-#        eIDSeq = self.graph.es.select(_target=self.nID,type=edge_Type).indices
-#        values = []            
-#        for edge in self.graph.es[eIDSeq]:
-#            values.append(self.graph.vs[edge.source][prop])
-#        # TODO replace by 
-#        #eList = self.graph.incident(self.nID,mode="IN")
-#        #for es in eList:
-#        #    if self.graph.es[es]['type'] == edgeType:
-#        return values
+
+    def getEdges(self, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges
     
-    def getNeighNodeValues(self, prop, edgeType=0, mode="OUT"):
+    def getEdgeValues(self, prop, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges[prop], edges
+
+    def _old3_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
+        if edgeType is not None:
+            edges = self.graph.es[self.graph.incident(self.nID,mode)]
+        else:
+            edges = self.graph.es[self.graph.incident(self.nID,mode)].select(type=edgeType)
+        values = edges[prop]
+        return values, edges
+    
+    def _old2_getEdgeValues(self, prop, edgeType=0):
+        values = [] 
+        edges     = []
+        
+        if edgeType is not None:
+            for edge in self.edgesAll:
+                if edge['type'] == edgeType:
+                    values.append(edge[prop])   
+                    edges.append(edge)
+        else:
+            for edge in self.edgesAll:
+                if edge['type'] == edgeType:
+                    values.append(edge[prop])   
+                    edges.append(edge)
+        return values, edges
+
+    def _old1_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
+        values = [] 
+        edges     = []
+        eList = self.graph.incident(self.nID,mode)
+
+        if edgeType is not None:
+            for edge in eList:
+                if self.graph.es[edge]['type'] == edgeType:
+                    values.append(self.graph.es[edge][prop])   
+                    edges.append(edge)
+        else:
+            for edge in eList:
+                values.append(self.graph.es[edge][prop])        
+                edges.append(edge)
+        return values, edges
+    
+    def getConnNodes(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x for x in neigbours if x['type'] == nodeType]
+
+    def getConnNodeIDs(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x['name'] for x in neigbours if x['type'] == nodeType]
+        
+    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
+        nodeList = self.node.neighbors(mode)
+        neighbourIDs     = list()
+        values          = list()
+
+        for node in nodeList:
+            if node['type'] == nodeType:
+                neighbourIDs.append(node['name'])   
+                values.append(node[prop])
+        
+        return values, neighbourIDs
+    
+    def _old2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
+        neighIDs = self.graph.neighborhood(self.nID)
+        
+           
+        if nodeType is not None:
+            neigbors = self.graph.vs[neighIDs].select(type=nodeType)
+        else:
+            neigbors = self.graph.vs[neighIDs]
+            
+        values = neigbors[prop]
+        
+        return values, neighIDs
+    
+
+    
+    def _old1_getConnNodeValues(self, prop, edgeType=None, mode="OUT"):
         neigbours = [] 
         edges     = []
         eList = self.graph.incident(self.nID,mode)
@@ -226,7 +278,7 @@ class Agent(Entity):
             for edge in eList:
                 neigbours.append(self.graph.es[edge].target)     
                 edges.append(edge)
-        return self.graph.vs[neigbours][prop], edges
+        return self.graph.vs[neigbours][prop], edges    
     
     def getEnvValue(self,prop):
         # TODO replace by 
@@ -251,16 +303,22 @@ class World:
         self.graph.edgeQueue   = (list(),list()) #(nodetuple list, typelist)
         self.graph.vertexQueue = (list(),list()) #(nodelist, typelist)
         self.types    = list()
-        self.nodeList = dict()
-                
+        self.nodeList = dict()        
         self.entList   = list()
         self.entDict   = dict()
         
+        # dict of types
+        self.graph.nodeTypes    = dict()
+        self.graph.edgeTypes    = dict()
+        
+        # inactive is used to virtually remove nodes
+        self.registerNodeType('inactiv')
+        self.registerEdgeType('inactiv')
         # init of spatial layer if spatial domain is set
         if spatial:
             self.locDict = dict()
 
-        self.types.append('inactiv')
+        
         self.para     = dict()
         
         
@@ -448,39 +506,41 @@ class World:
 #            return synEarth.graph.vs.select(pos=[x,y],type=agType).indices
     
     def getNodeType(self, typeStr):
-        if typeStr not in self.types:
-            self.registerType(typeStr)
+        if typeStr not in self.graph.nodeTypes.values():
+            self.registerNodeType(typeStr)
                 
-        for iType, liTyp in enumerate(self.types):
+        for iType, liTyp in enumerate(self.graph.nodeTypes.iteritems()):
             if liTyp == typeStr :
                 break
         
         return iType
     
-    def registerType(self, typeStr):
-        iType = len(self.types)
-        self.types.append(typeStr)
+    def registerNodeType(self, typeStr):
+        iType = len(self.graph.nodeTypes)
+        self.graph.nodeTypes[iType] = typeStr
         self.nodeList[iType]= list()
     
+    def registerEdgeType(self, typeStr):
+        iType = len(self.graph.edgeTypes)
+        self.graph.edgeTypes[iType] = typeStr
+        
     def dequeueEdges(self):
         eStart = self.graph.ecount()
         self.graph.add_edges(self.graph.edgeQueue[0])
         self.graph.es[eStart:]['type'] = self.graph.edgeQueue[1]
-    
-    
+        
+        for node in self.entList:
+            node.updateEdges()
+
     def view(self,filename = 'none', vertexProp='none'):
-        """
-        Very basic visualization method. Only works for small graphs, since layouting large graph
-        takes time forever. Not tested very well
-        """
         import matplotlib.cm as cm
         
         
         # Nodes        
         if vertexProp=='none':
-            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))   
+            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.nodeTypes)+1)))   
             colorDictNode = {}
-            for i in range(len(self.types)+1):
+            for i in range(len(self.graph.nodeTypes)+1):
                 hsv =  next(colors)[0:3]
                 colorDictNode[i] = hsv.tolist()
             nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
@@ -494,9 +554,9 @@ class World:
             nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
         # nodeValues[np.isnan(nodeValues)] = 0
         # Edges            
-        colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))              
+        colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.edgeTypes))))              
         colorDictEdge = {}  
-        for i in range(len(self.types)+1):
+        for i in range(len(self.graph.edgeTypes)):
             hsv =  next(colors)[0:3]
             colorDictEdge[i] = hsv.tolist()
         
@@ -526,8 +586,7 @@ class World:
         if filename  == 'none':
             ig.plot(self.graph,**visual_style)    
         else:
-            ig.plot(self.graph, filename, **visual_style)        
-            
+            ig.plot(self.graph, filename, **visual_style)           
     # %% Agent file ###
     def initAgentFile(self, typ=1):
         from csv import writer
