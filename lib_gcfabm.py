@@ -102,7 +102,7 @@ class Entity():
         eIDSeq = self.graph.es.select(_source=self.nID).indices        
         self.graph.delete_edges(eIDSeq)
 
-    def getConnProp(self,label, edgeType = 1,mode ='OUT'):
+    def getEdgeValues(self, prop, edgeType = None,mode ='OUT'):
         #esSeq = self.graph.es.select(_source=self.nID,type=conTyp).indices
         #return self.graph.es[esSeq][label]
         eList = self.graph.incident(self.nID,mode=mode) 
@@ -111,10 +111,116 @@ class Entity():
             for edge in eList:
                  if self.graph.es[edge]['type'] == edgeType:
                       edges.append(edge)
-            return self.graph.es[edges][label], edges
+            return self.graph.es[edges][prop], edges
         else:
-            return self.graph.es[eList][label], eList
+            return self.graph.es[eList][prop], eList
+        
+    def getEdges(self, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges
     
+    def getEdgeValuesFast(self, prop, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges[prop], edges
+
+    def _old3_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
+        if edgeType is not None:
+            edges = self.graph.es[self.graph.incident(self.nID,mode)]
+        else:
+            edges = self.graph.es[self.graph.incident(self.nID,mode)].select(type=edgeType)
+        values = edges[prop]
+        return values, edges
+    
+    def _old2_getEdgeValues(self, prop, edgeType=0):
+        values = [] 
+        edges     = []
+        
+        if edgeType is not None:
+            for edge in self.edgesAll:
+                if edge['type'] == edgeType:
+                    values.append(edge[prop])   
+                    edges.append(edge)
+        else:
+            for edge in self.edgesAll:
+                if edge['type'] == edgeType:
+                    values.append(edge[prop])   
+                    edges.append(edge)
+        return values, edges
+
+    def _old1_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
+        values = [] 
+        edges     = []
+        eList = self.graph.incident(self.nID,mode)
+
+        if edgeType is not None:
+            for edge in eList:
+                if self.graph.es[edge]['type'] == edgeType:
+                    values.append(self.graph.es[edge][prop])   
+                    edges.append(edge)
+        else:
+            for edge in eList:
+                values.append(self.graph.es[edge][prop])        
+                edges.append(edge)
+        return values, edges
+    
+    def getConnNodes(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x for x in neigbours if x['type'] == nodeType]
+
+    def getConnNodeIDs(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x['name'] for x in neigbours if x['type'] == nodeType]
+        
+    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
+        nodeList = self.node.neighbors(mode)
+        neighbourIDs     = list()
+        values          = list()
+
+        for node in nodeList:
+            if node['type'] == nodeType:
+                neighbourIDs.append(node['name'])   
+                values.append(node[prop])
+        
+        return values, neighbourIDs
+    
+    def _old2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
+        neighIDs = self.graph.neighborhood(self.nID)
+        
+           
+        if nodeType is not None:
+            neigbors = self.graph.vs[neighIDs].select(type=nodeType)
+        else:
+            neigbors = self.graph.vs[neighIDs]
+            
+        values = neigbors[prop]
+        
+        return values, neighIDs
+    
+
+    
+    def _old1_getConnNodeValues(self, prop, edgeType=None, mode="OUT"):
+        neigbours = [] 
+        edges     = []
+        eList = self.graph.incident(self.nID,mode)
+
+        if edgeType is not None:
+            for edge in eList:
+                if self.graph.es[edge]['type'] == edgeType:
+                    neigbours.append(self.graph.es[edge].target)   
+                    edges.append(edge)
+        else:
+            for edge in eList:
+                neigbours.append(self.graph.es[edge].target)     
+                edges.append(edge)
+        return self.graph.vs[neigbours][prop], edges       
 ################ LOCATION CLASS #########################################      
 class Location(Entity):
 
@@ -130,23 +236,8 @@ class Location(Entity):
         self.world = world
         
     def getAgentOfCell(self,edgeType):
-        #entList= []            
-#        esSeq = self.graph.es.select(_target=self.nID,type=edgeType).indices
-#        return map(self.getSource,esSeq)
-        #return [self.graph.es[x].source for x in esSeq]
-#        for edge in esSeq:
-#            entList.append(self.graph.es[edge].source)
-#        return entList
-        agList= []    
-        eList = self.graph.incident(self.nID,mode="IN")
-        for es in eList:
-            if self.graph.es[es]['type'] == edgeType:
-                agList.append(self.graph.es[es].source)
-        return agList       
-        #return map(self.getSource,eList)
-    def getSource(self,eID):
+        return self.getConnNodeIDs( nodeType=2, mode='in')
         
-            return self.graph.es[eID].source
         
     
 ################ AGENT CLASS #########################################
@@ -170,8 +261,7 @@ class Agent(Entity):
         #eID = self.graph.get_eid(self.nID,geoNodeID)
         #self.graph.es[eID]['type'] = 2
         self.loc = world.entDict[locationID]
-        self.updateEdges()
-        
+        self.updateEdges()  
 
     def getEdges(self, edgeType=0):
         edges = self.edges[edgeType]

@@ -208,18 +208,23 @@ class Earth(World):
         distance between the agents and their similarity in their preferences
         """
         tt = time.time()
-        edges = list()
-        
+        edgeList = list()
+        weigList  = list()
         for agent, x in tqdm.tqdm(self.iterNodeAndID(_hh)):
             
-            frList, connList, weigList = agent.generateFriends(self,nFriendsPerPerson)
-            edges += connList
+            frList, edges, weights = agent.generateFriends(self,nFriendsPerPerson)
+            edgeList += edges
+            weigList += weights
         eStart = self.graph.ecount()
-        self.graph.add_edges(edges)
+        self.graph.add_edges(edgeList)
         self.graph.es[eStart:]['type'] = _thh
         self.graph.es[eStart:]['weig'] = weigList
-        
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
+        
+        tt = time.time()
+        for node in tqdm.tqdm(self.entList):
+            node.updateEdges()
+        print 'Edges upated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
 
@@ -525,7 +530,7 @@ class Household(Agent):
         self.loc = world.entDict[geoNodeID]        
         self.loc.agList.append(self.nID)
         
-  
+    
     def generateFriends(self,world, nFriends):
         """
         Method to make/delete or alter the agents social connections

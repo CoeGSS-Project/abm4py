@@ -150,20 +150,27 @@ class Earth(World):
         distance between the agents and their similarity in their preferences
         """
         tt = time.time()
-        edges = list()
-        
+        edgeList = list()
+        weigList  = list()
         for agent, x in tqdm.tqdm(self.iterNodeAndID(_hh)):
             
-            frList, connList, weigList = agent.generateFriends(self,nFriendsPerPerson)
-            edges += connList
+            frList, edges, weights = agent.generateFriends(self,nFriendsPerPerson)
+            edgeList += edges
+            weigList += weights
         eStart = self.graph.ecount()
-        self.graph.add_edges(edges)
+        self.graph.add_edges(edgeList)
         self.graph.es[eStart:]['type'] = _thh
         self.graph.es[eStart:]['weig'] = weigList
         
         for node in self.entList:
             node.updateEdges()
+
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
+        
+        tt = time.time()
+        for node in tqdm.tqdm(self.entList):
+            node.updateEdges()
+        print 'Edges upated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
 
@@ -523,7 +530,8 @@ class Household(Agent):
         
         weighted = True
         if weighted:
-            weights, edges = self.getEdgeValues('weig', edgeType=_thh)    
+
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh)    
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
                 np.save('output/weightsError.npy',weights)
@@ -558,7 +566,8 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getEdgeValues('weig', edgeType=_thh) 
+
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
@@ -667,6 +676,7 @@ class Household(Agent):
             else:
                 return False
     
+    
     def generateFriends(self,world, nFriends):
         """
         Method to make/delete or alter the agents social connections
@@ -674,7 +684,7 @@ class Household(Agent):
         """
         friendList = list()
         connList   = list()
-        ownPref = world.graph.vs[self.nID]['preferences'] #TODO change to lib-cal
+        ownPref = self.getValue('preferences')
         weights, eList, cellList = self.loc.getConnCellsPlus()
         cumWeights = np.cumsum(weights)
         #print sum(weights)
@@ -983,7 +993,7 @@ class Cell(Location):
         self.obsMemory   = Memory(memeLabels)
     
     def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getConnProp('weig')
+        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_tll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         
         #remap function to only return the values 

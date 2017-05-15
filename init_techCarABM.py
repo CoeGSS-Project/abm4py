@@ -349,26 +349,26 @@ for cell in earth.iterNodes(_cell):
 earth.globalRec['avgUtil'].div(earth.time, [earth.nAgents] + earth.nPrefTypes)
 
 #earth.view()
-util = np.asarray(earth.graph.vs[earth.nodeList[2]]['util'])
-import matplotlib.pyplot as plt
-
-if False:
-    plt.figure()
-    plt.subplot(2,5,1)
-    plt.hist(util,30)
-    plt.xlim([0,1])
-
-brandDict = dict()
-for key in earth.market.obsDict.keys():
-    brandDict[key] = [np.mean(earth.market.obsDict[earth.time][key])]
-#for es in earth.graph.es:
-#    print (es.source, es.target)
-#for x in xrange(3,21):
-#    print earth.agDict[x].obs
-    
-    #choice = earth.agDict[x].optimalChoice(earth)  
-    
-earth.avgDegree = [np.mean(earth.graph.vs[earth.nodeList[2]].degree())]
+#util = np.asarray(earth.graph.vs[earth.nodeList[2]]['util'])
+#import matplotlib.pyplot as plt
+#
+#if False:
+#    plt.figure()
+#    plt.subplot(2,5,1)
+#    plt.hist(util,30)
+#    plt.xlim([0,1])
+#
+#brandDict = dict()
+#for key in earth.market.obsDict.keys():
+#    brandDict[key] = [np.mean(earth.market.obsDict[earth.time][key])]
+##for es in earth.graph.es:
+##    print (es.source, es.target)
+##for x in xrange(3,21):
+##    print earth.agDict[x].obs
+#    
+#    #choice = earth.agDict[x].optimalChoice(earth)  
+#    
+#earth.avgDegree = [np.mean(earth.graph.vs[earth.nodeList[2]].degree())]
 
 tt = time.time()
 earth.initAgentFile(typ = _hh)
@@ -392,11 +392,11 @@ for step in xrange(1,para.nSteps):
     print 'Agent file written in ' +  str(time.time()-tt) + ' s'
     util = np.asarray(earth.graph.vs[earth.nodeList[2]]['util'])
     # plot utility per brand
-    for key in earth.market.obsDict[earth.time].keys():
-        if key in brandDict:
-            brandDict[key].append(np.mean(earth.market.obsDict[earth.time][key]))
-        else:
-            brandDict[key] = [np.mean(earth.market.obsDict[earth.time][key])]
+#    for key in earth.market.obsDict[earth.time].keys():
+#        if key in brandDict:
+#            brandDict[key].append(np.mean(earth.market.obsDict[earth.time][key]))
+#        else:
+#            brandDict[key] = [np.mean(earth.market.obsDict[earth.time][key])]
     
             
     if False:  
@@ -410,20 +410,20 @@ if para.writeOutput:
 
        
 #%% post processing
-legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.columns]
-if False:
-    #plot individual utilities
-    plt.figure()
-    for agent in earth.iterNodes(_hh):
-        plt.plot(agent.utilList)    
+#legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.columns]
+#if False:
+#    #plot individual utilities
+#    plt.figure()
+#    for agent in earth.iterNodes(_hh):
+#        plt.plot(agent.utilList)    
 
-plt.figure()
-for key in brandDict.keys():
-    with sns.color_palette("Set3", n_colors=9, desat=.8):
-        plt.plot(range(para.nSteps-len(brandDict[key]),para.nSteps), brandDict[key])
-plt.legend(legLabels, loc=3)
-plt.title('Utility per brand')
-plt.savefig('utilityPerBrand.png')
+#plt.figure()
+#for key in brandDict.keys():
+#    with sns.color_palette("Set3", n_colors=9, desat=.8):
+#        plt.plot(range(para.nSteps-len(brandDict[key]),para.nSteps), brandDict[key])
+#plt.legend(legLabels, loc=3)
+#plt.title('Utility per brand')
+#plt.savefig('utilityPerBrand.png')
 #plt.figure()
 #with sns.color_palette("Set3", n_colors=9, desat=.8):
 #    plt.plot(earth.market.stockbyBrand)
