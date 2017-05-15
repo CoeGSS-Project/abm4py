@@ -63,7 +63,7 @@ para = Bunch()
 
 #global parameter
 para.scenario       = 0
-para.nSteps         = 10 # number of simulation steps
+para.nSteps         = 50 # number of simulation steps
 para.flgSpatial     = True
 para.connRadius     = 2.1  # radíus of cells that get an connection
 para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
