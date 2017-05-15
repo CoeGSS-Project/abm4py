@@ -59,57 +59,59 @@ _hh   = 2
 
 
 #%% INIT
-para = Bunch()
+parameters = Bunch()
 
 #global parameter
-para.scenario       = 0
-para.nSteps         = 100 # number of simulation steps
-para.flgSpatial     = True
-para.connRadius     = 2.1  # radíus of cells that get an connection
-para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
+parameters.scenario       = 1
+parameters.nSteps         = 100 # number of simulation steps
+parameters.flgSpatial     = True
+parameters.connRadius     = 2.1  # radíus of cells that get an connection
+parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
+parameters.spatial        = True
+parameters.util           = 'cobb'
 
-para.initPhase      = 20
-para.properties     = ['emmisions','price']
-para.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
-para.randomCarPropDeviationSTD = 0.01
+parameters.initPhase      = 20
+parameters.properties     = ['emmisions','price']
+parameters.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
+parameters.randomCarPropDeviationSTD = 0.01
 
 
-# agent parameter
-para.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
-para.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-para.incomeShareForMobility = 0.5
-para.minFriends = 50  # number of desired friends
-para.memoryTime  = 10  # length of the periode for which memories are stored
-para.addYourself = True
-para.carNewPeriod = 6
+# agent parametersmeter
+parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
+parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
+parameters.incomeShareForMobility = 0.5
+parameters.minFriends = 50  # number of desired friends
+parameters.memoryTime  = 10  # length of the periode for which memories are stored
+parameters.addYourself = True
+parameters.carNewPeriod = 6
 
-para.utilObsError = 1
-para.recAgent   = []   # reporter agents that return a diary
+parameters.utilObsError = 1
+parameters.recAgent   = []   # reporter agents that return a diary
 
-para.writeOutput = False
-para.writeNPY    = True
-para.writeCSV    = False
+parameters.writeOutput = True
+parameters.writeNPY    = True
+parameters.writeCSV    = False
 
 tt = time.time()
 
 ## Scenario definition ###################################################################
-if para.scenario == 0: #small
-    para.writeOutput = False
-    para.minFriends = 10
+if parameters.scenario == 0: #small
+    parameters.writeOutput = True
+    parameters.minFriends = 10
     landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
-    population = landLayer*20
+    population = landLayer* np.random.randint(5,20,landLayer.shape)
     
-elif para.scenario == 1: # medium
+elif parameters.scenario == 1: # medium
     landLayer   = np.asarray([[0, 0, 0, 0, 0, 1, 1, 1], 
                               [1, 1, 1, 0, 0, 1, 1, 1],
                               [1, 1, 1, 0, 0, 1, 0, 0],
                               [1, 1, 1, 1, 1, 1, 0, 0],
                               [1, 1, 1, 1, 1, 1, 0, 0]])    
-    population = landLayer*100
+    population = landLayer*np.random.randint(5,20,landLayer.shape)
     
-elif para.scenario == 2: # Niedersachsen
+elif parameters.scenario == 2: # Niedersachsen
     reductionFactor = 100
     landLayer= gt.load_array_from_tiff('resources_nie/land_layer_3432x8640.tiff')
     landLayer[np.isnan(landLayer)] = 0
@@ -124,47 +126,45 @@ nAgents    = np.nansum(population)
 assert np.sum(np.isnan(population[landLayer==1])) == 0
 print 'Running with ' + str(nAgents) + ' agents'
 
-if not para.randomAgents:
-    para.synPopPath = 'resources_nie/hh_niedersachsen.csv'
-    dfSynPop = pd.read_csv(para.synPopPath)
+if not parameters.randomAgents:
+    parameters.synPopPath = 'resources_nie/hh_niedersachsen.csv'
+    dfSynPop = pd.read_csv(parameters.synPopPath)
     hhMat = pd.read_csv('resources_nie/hh_niedersachsen.csv').values
 
 
 #%% INITIALIZATION ##########################   
-if para.writeOutput:
+if parameters.writeOutput:
     # get simulation number
     fid = open("simNumber","r")
-    para.simNo = int(fid.readline())
+    parameters.simNo = int(fid.readline())
     fid = open("simNumber","w")
-    fid.writelines(str(para.simNo+1))
+    fid.writelines(str(parameters.simNo+1))
     fid.close()
 else:
-    para.simNo = None
+    parameters.simNo = None
 
-earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
+earth = Earth(parameters)
 earth.registerEdgeType('cell-cell')
 earth.registerEdgeType('cell-hh')
 earth.registerEdgeType('hh-hh')
-connList= earth.computeConnectionList(para.connRadius)
+connList= earth.computeConnectionList(parameters.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
-ecoMin = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,20)
-ecoMax = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,90)
+ecoMin = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,20)
+ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
 opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 
-# transfer all parameters to earth
-earth.setParameters(Bunch.toDict(para)) 
 
-earth.initMarket(para.properties, para.randomCarPropDeviationSTD)
+earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD)
 
 #init location memory
 earth.enums = dict()
-earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
+earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
 
 
 #                       emmisions price']
-earth.addBrand('green',(10,220*12), 0)   # green tech car
-earth.addBrand('brown',(20, 100*12), 0)  # combustion car
-earth.addBrand('none',(3, 150*12), 0)    # none or other
+earth.addBrand('green',(230,220*12), 0)   # green tech car
+earth.addBrand('brown',(440, 100*12), 0)  # combustion car
+earth.addBrand('none',(120, 150*12), 0)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -194,12 +194,12 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
     #print x,y
     nAgentsCell = int(population[x,y])
     while True:
-        if nHH in para.recAgent:
+        if nHH in parameters.recAgent:
             hh = Reporter(earth,'hh', x, y)
         else:
             hh = Household(earth,'hh', x, y)
         hh.connectGeoNode(earth)
-        hh.tolerance = para.tolerance
+        hh.tolerance = parameters.tolerance
         nPers = hhMat[idx,4]
         hh.setValue('hhSize',nPers)
         age= hhMat[idx:idx+nPers,12]
@@ -208,21 +208,22 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
         nKids = np.sum(age<18)
         hh.setValue('nKids', nKids)
         income = hhMat[idx,16]
-        income *= para.incomeShareForMobility
+        income *= parameters.incomeShareForMobility
         hh.setValue('income',income)   
         if len(np.where(age>=18)[0]) > 0:
             idxAdult = np.random.choice(np.where(age>=18)[0])
         else:
             idxAdult = 0
-        prEco, prCon, prMon = opinion.getPref(age[idxAdult],sex[idxAdult],nKids,income,para.radicality)
+        prEco, prCon, prMon = opinion.getPref(age[idxAdult],sex[idxAdult],nKids,income,parameters.radicality)
         # normal 
         hh.setValue('preferences', (prEco, prCon, prMon))
         hh.prefTyp = np.argmax((prEco, prCon, prMon))
         hh.setValue('prefTyp',hh.prefTyp)
         hh.setValue('expUtil',0)
+        hh.setValue('util',0)
         hh.setValue('predMeth',0)
         hh.setValue('noisyUtil',0)
-
+        hh.setValue('x', [0,0,0])
         hh.registerAgent(earth)
         earth.nPrefTypes[hh.prefTyp] += 1
         nAgentsCell -= nPers
@@ -236,9 +237,9 @@ print 'Agents created in -- ' + str( time.time() - tt) + ' s'
 
 # %% Generate Network
 tt = time.time()
-earth.genFriendNetwork(para.minFriends)
+earth.genFriendNetwork(parameters.minFriends)
 earth.market.initCars()
-if para.scenario == 0:
+if parameters.scenario == 0:
     earth.view('output/graph.png')
 print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
 
@@ -247,11 +248,12 @@ tt = time.time()
 for household in earth.iterNodes(_hh):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
     household.car['age'] = np.random.randint(0,15)
-    household.util = household.evalUtility(earth)
-    household.shareExperience(earth)
+#    household.evalIndividualConsequences(earth)
+#    household.util = household.evalUtility(earth)
+#    household.shareExperience(earth)
     
 for cell in earth.iterNodes(_cell):
-    cell.step()
+    cell.step(earth.market)
 print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
 
 
@@ -265,7 +267,7 @@ print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
 #%% Simulation 
 earth.time = -1 # hot bugfix to have both models running #TODO Fix later
 print "Starting the simulation:"
-for step in xrange(para.nSteps):
+for step in xrange(parameters.nSteps):
     tt = time.time()
     earth.step() # looping over all cells
     print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
@@ -275,19 +277,19 @@ for step in xrange(para.nSteps):
 
 #%% Finishing the simulation    
 print "Finishing thesimulation:"
-if para.writeOutput:
+if parameters.writeOutput:
     earth.finalizeAgentFile()
     earth.finalize()        
 
        
 #%% post processing
-legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.columns]
-if False:
-    #plot individual utilities
-    plt.figure()
-    for agent in earth.iterNodes(_hh):
-        plt.plot(agent.utilList)    
-
+#legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.columns]
+#if False:
+#    #plot individual utilities
+#    plt.figure()
+#    for agent in earth.iterNodes(_hh):
+#        plt.plot(agent.utilList)    
+#
 plt.figure()
 for key in brandDict.keys():
     with sns.color_palette("Set3", n_colors=9, desat=.8):
@@ -295,12 +297,12 @@ for key in brandDict.keys():
 plt.legend(legLabels, loc=3)
 plt.title('Utility per brand')
 plt.savefig('utilityPerBrand.png')
-#plt.figure()
-#with sns.color_palette("Set3", n_colors=9, desat=.8):
-#    plt.plot(earth.market.stockbyBrand)
-#plt.legend(legLabels, loc=3)
-#plt.title('Cars per brand')
-#plt.savefig('carsPerBrand.png')
+plt.figure()
+with sns.color_palette("Set3", n_colors=9, desat=.8):
+    plt.plot(earth.market.stockbyBrand)
+plt.legend(legLabels, loc=3)
+plt.title('Cars per brand')
+plt.savefig('carsPerBrand.png')
 
 
 #%% Cars per brand

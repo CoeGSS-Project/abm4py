@@ -47,16 +47,21 @@ _hh   = 2
 #%% --- Global classes ---
 class Earth(World):
     
-    def __init__(self, nSteps, simNo, spatial):
-        World.__init__(self, spatial)
-        self.simNo      = simNo
+    def __init__(self, parameters):
+        
+        World.__init__(self, parameters.spatial)
+        self.simNo      = parameters.simNo
         self.agentRec   = dict()   
         self.time       = 0
-        self.nSteps     = nSteps
+        self.nSteps     = parameters.nSteps
         self.reporter   = list()
         self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
+        
+        # transfer all parameters to earth
+        earth.setParameters(Bunch.toDict(parameters)) 
+
         
         if not os.path.isdir('output'):
             os.mkdir('output')
