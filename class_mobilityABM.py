@@ -35,6 +35,7 @@ import tqdm
 import time
 import os
 import math
+import copy
 
 #%% --- ENUMERATIONS ---
 #connections
@@ -301,10 +302,10 @@ class Market():
         self.brandLabels   = dict()                     # brandID -> label
         #self.prctValues = [50,80]        
         self.brandInitDict = dict()
-        self.brandsToInit  = list()
-        self.labelStats    = dict()                     # labelID -> [number, growth rate]
-        self.etaG          = 0.7
-        self.etaB          = 1.
+        self.brandsToInit  = list()                     # list of brand labels
+        self.carsPerLabel  = list()
+        self.brandGrowthRates = list()                  # list of growth rates of brand
+        self.techProgress  = [1.]*self.nBrands          # list of productivities of brand
 
        
     def initCars(self):
@@ -317,8 +318,8 @@ class Market():
         #    self.percentiles[item] = np.percentile
         #self.percentiles = np.percentile(self.stock[:,1:],self.prctValues,axis=0)
         #print self.percentiles
-        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means, index properties?
-        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std?
+        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
+        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
         
     def step(self):
         self.time +=1 
@@ -326,13 +327,27 @@ class Market():
         #re-init key for next dict in new timestep
         for key in self.obsDict[self.time-1]:
             self.obsDict[self.time][key] = list()
-            
-        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))           # das ist was ist brauche 
+        
+        # calculate growth rates per brand:
+        oldCarsPerLabel = copy.copy(self.carsPerLabel)
+        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))           
+        for i in range(len(self.carsPerLabel)):
+            if i<len(oldCarsPerLabel) and (oldCarsPerLabel[i] is not 0):
+                newGrowthRate = (self.carsPerLabel-oldCarsPerLabel)/oldCarsPerLabel
+            else: 
+                newGrowthRate = 0
+            self.brandgrowthRates[i] = newGrowthRate          
+        
+        # technological progress:
+        oldEtas = copy.copy(self.techProgress)
+        for brandID in range(len(self.nBrands)):
+            self.techProgress[brandID] = oldEta[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
         
         if self.time in self.brandInitDict.keys():
             
             for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
                 self.initBrand(label, propertyTuple, brandID)
+
         
     def addBrand(self, label, propertyTuple, initTimeStep):
         
@@ -401,11 +416,39 @@ class Household(Agent):
         self.util = 0
 
 
-    def cobbDouglasUtil(self, x, alpha):
-        pass
+    def cobbDouglasUtil(x, alpha, income):
+        utility = 1.
+        factor = 100        
+        # standard:
+        #for i in range(len(x)):
+        #    utility *= (factor*x[i])**alpha[i]
+            
+        # convenience-ecology-money with prices (not xMoney) from R: 
+        p = copy.copy(x[2])
+        x[2] = 1-p/income        
+        for i in range(3):
+            utility *= (factor*x[i])**alpha[i]
+            
+        return utility
+
     
-    def CESUtil(self, x, alpha):
-        pass
+    def CESUtil(x, alpha, income):
+        uti = 0
+        s = 2.    # elasticity of substitution        
+        # standard:
+        #for i in range(len(x)):
+        #    uti += alpha[i]**(1/s)*x[i]**((s-1)/s)        
+     
+        # convenience-ecology-money with prices (not xMoney) from R: 
+        p = copy.copy(x[2])
+        x[2] = 1-p/income        
+        for i in range(3):
+            uti += alpha[i]**(1/s)*x[i]**((s-1)/s)
+            
+        utility = uti**(s/(s-1))
+        
+        return utility
+        
 
     def registerAgent(self, world):
 
@@ -524,8 +567,8 @@ class Household(Agent):
             else:
                 weigList = []
         return friendList, connList, weigList
-
-            
+    
+        
     def evalUtility(self, world, props =None):
         # do something
         
@@ -678,11 +721,10 @@ class Cell(Location):
         ecology = 1/(1+math.exp(self.sigmaEps*(emissions-self.muEps)))
         return ecology        
         
-    def updateR(self):
+    def updateR(self, market):
         # convenience parameters:        
         a, b, c, d = 1., 0.05, 1., 0.1
         kappa = 0.
-
         popT = 100   # population threshold for urban area
         popDensity = len(self.agList)/self.cellSize
         
@@ -693,21 +735,21 @@ class Cell(Location):
         else:
             convenienceB = a - b*(popDensity - popT)**2
         convenienceN = c/(1+math.exp((-d)*(popDensity-popT)))
+        conveniences = [convenienceG, convenienceB, convenienceN]
         
-        # calculate ecologies
-        epsG = 10
-        epsB = 10                
-        ecologyG = self.ecology(epsG)
-        ecologyB = self.ecology(epsB)
-        ecologyN = 0.99
+        emissions = list()
+        prices = list()
+        ecologies = list()
         
-        # calculate prices
+        for brandID in range(market.nBrands):
+            properties = market.brandProp[brandID]
+            em = properties[0]/market.techProgress[brandID]
+            emissions.append(em)
+            ecologies.append(self.ecology(em))
+            prices.append(properties[1]/market.techProgress[brandID])
+        ecologies[-1] = 0.99
         
-        greenCons = [convenienceG, ecologyG]
-        brownCons = [convenienceB, ecologyB]
-        noneCons  = [convenienceN, ecologyN]
-        
-        return greenCons, brownCons, noneCons
+        return conveniences, ecologies, prices
         
         
     def step(self):
