@@ -161,8 +161,7 @@ class Earth(World):
         self.graph.add_edges(edgeList)
         self.graph.es[eStart:]['type'] = _thh
         self.graph.es[eStart:]['weig'] = weigList
-        for node in self.entList:
-            node.updateEdges()
+
 
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         

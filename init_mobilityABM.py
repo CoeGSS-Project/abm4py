@@ -63,7 +63,7 @@ para = Bunch()
 
 #global parameter
 para.scenario       = 0
-para.nSteps         = 200 # number of simulation steps
+para.nSteps         = 100 # number of simulation steps
 para.flgSpatial     = True
 para.connRadius     = 2.1  # radíus of cells that get an connection
 para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -142,6 +142,9 @@ else:
     para.simNo = None
 
 earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
+earth.registerEdgeType('cell-cell')
+earth.registerEdgeType('cell-hh')
+earth.registerEdgeType('hh-hh')
 connList= earth.computeConnectionList(para.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
 ecoMin = np.percentile(dfSynPop['INCTOT']*para.incomeShareForMobility,20)
@@ -155,7 +158,7 @@ earth.initMarket(para.properties, para.randomCarPropDeviationSTD)
 
 #init location memory
 earth.enums = dict()
-#earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
+earth.initMemory(para.properties + ['utility','label','hhID'], para.memoryTime)
 
 
 #                       emmisions price']
@@ -260,6 +263,7 @@ print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
 
 
 #%% Simulation 
+earth.time = -1 # hot bugfix to have both models running #TODO Fix later
 print "Starting the simulation:"
 for step in xrange(para.nSteps):
     tt = time.time()
@@ -313,7 +317,7 @@ plt.savefig('utilityPerBrand.png')
 
 #%%
 if True:
-    df = pd.DataFrame([],columns=['prSaf','prEco','prCon','prMon'])
+    df = pd.DataFrame([],columns=['prEco','prCon','prMon'])
     for agID in earth.nodeList[2]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     
@@ -324,9 +328,9 @@ if True:
     print df.std()
     
     print 'Preferences - standart deviation within friends'
-    avgStd= np.zeros([1,4])    
+    avgStd= np.zeros([1,3])    
     for agent in earth.iterNodes(_hh): 
-        friendList = agent.getOutNeighNodes(_thh)
+        friendList = agent.getConnNodeIDs(nodeType=_hh)
         if len(friendList)> 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values
@@ -352,7 +356,7 @@ if True:
 preDiff = list()
 weights = list()
 
-pref = np.zeros([earth.graph.vcount(), 4])
+pref = np.zeros([earth.graph.vcount(), 3])
 pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
 idx = list()
 for edge in earth.iterEdges(_thh):

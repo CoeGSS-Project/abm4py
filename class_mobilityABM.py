@@ -79,10 +79,10 @@ class Earth(World):
     def initMarket(self, properties, propRelDev=0.01, time = 0):
         self.market = Market(properties, propRelDev=propRelDev, time=time)
     
-#    def initMemory(self, memeLabels, memoryTime):
-#        self.memoryTime = memoryTime
-#        for location in tqdm.tqdm(self.iterNodes(_cell)):
-#            location.initCellMemory(memoryTime, memeLabels)
+    def initMemory(self, memeLabels, memoryTime):
+        self.memoryTime = memoryTime
+        for location in tqdm.tqdm(self.iterNodes(_cell)):
+            location.initCellMemory(memoryTime, memeLabels)
 #    
 #    def initObsAtLoc(self,properties):
 #        for loc in self.nodeList[1]:
@@ -146,61 +146,6 @@ class Earth(World):
         
         return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon
     
-    def view(self,filename = 'none', vertexProp='none'):
-        import matplotlib.cm as cm
-        
-        
-        # Nodes        
-        if vertexProp=='none':
-            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))   
-            colorDictNode = {}
-            for i in range(len(self.types)+1):
-                hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
-        else:
-            maxCars = max(self.graph.vs[vertexProp])
-            colors = iter(cm.rainbow(np.linspace(0, 1, maxCars+1)))
-            colorDictNode = {}
-            for i in range(maxCars+1):
-                hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
-        # nodeValues[np.isnan(nodeValues)] = 0
-        # Edges            
-        colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))              
-        colorDictEdge = {}  
-        for i in range(len(self.types)+1):
-            hsv =  next(colors)[0:3]
-            colorDictEdge[i] = hsv.tolist()
-        
-        self.graph.vs["label"] = self.graph.vs["name"]
-        edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
-        
-        visual_style = {}
-        visual_style["vertex_color"] = [colorDictNode[typ] for typ in nodeValues]
-        visual_style["vertex_shape"] = list()        
-        for vert in self.graph.vs['type']:
-            if vert == 0:
-                visual_style["vertex_shape"].append('hidden')                
-            elif vert == 1:
-                    
-                visual_style["vertex_shape"].append('rectangle')                
-            else:
-                visual_style["vertex_shape"].append('circle')     
-        visual_style["vertex_size"] = list()  
-        for vert in self.graph.vs['type']:
-            if vert >= 3:
-                visual_style["vertex_size"].append(4)  
-            else:
-                visual_style["vertex_size"].append(15)  
-        visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
-        visual_style["edge_arrow_size"]   = [.5]*len(visual_style["edge_color"])
-        visual_style["bbox"] = (900, 900)
-        if filename  == 'none':
-            ig.plot(self.graph,**visual_style)    
-        else:
-            ig.plot(self.graph, filename, **visual_style)     
     
     def genFriendNetwork(self, nFriendsPerPerson):
         """ 
@@ -232,9 +177,7 @@ class Earth(World):
         """ 
         Method to proceed the next time step
         """
-        
-        # proceed step
-        self.time += 1
+        self.time += 1       
         
         # proceed market in time
         self.market.step() # Statistics are computed here
@@ -262,7 +205,11 @@ class Earth(World):
         for agent in tqdm.tqdm(self.randomIterNodes(_hh)):
             #agent = self.agDict[agID]
             agent.step(self)
-               
+
+        # proceed step
+        self.writeAgentFile()
+        
+                
         
     def finalize(self):
         
@@ -309,13 +256,15 @@ class Market():
         self.brandInitDict = dict()
         self.brandsToInit  = list()                     # list of brand labels
         self.carsPerLabel  = list()
-        self.brandGrowthRates = list()                  # list of growth rates of brand
-        self.techProgress  = [1.]*self.nBrands          # list of productivities of brand
+        self.brandGrowthRates = list()                   # list of growth rates of brand
+        self.techProgress  = list()                     # list of productivities of brand
 
        
     def initCars(self):
+        # actually puts the car on the market
         for label, propertyTuple, _, brandID in  self.brandInitDict[0]:
              self.initBrand(label, propertyTuple, brandID)
+
     
     def computeStatistics(self):  
         # prct = self.percentiles.keys()
@@ -335,18 +284,18 @@ class Market():
         
         # calculate growth rates per brand:
         oldCarsPerLabel = copy.copy(self.carsPerLabel)
-        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int))           
-        for i in range(len(self.carsPerLabel)):
-            if i<len(oldCarsPerLabel) and (oldCarsPerLabel[i] is not 0):
-                newGrowthRate = (self.carsPerLabel-oldCarsPerLabel)/oldCarsPerLabel
+        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int)).astype(float)           
+        for i in range(self.nBrands):
+            if not oldCarsPerLabel[i] == 0.:
+                newGrowthRate = (self.carsPerLabel[i]-oldCarsPerLabel[i])/oldCarsPerLabel[i]
             else: 
                 newGrowthRate = 0
-            self.brandgrowthRates[i] = newGrowthRate          
+            self.brandGrowthRates[i] = newGrowthRate          
         
         # technological progress:
         oldEtas = copy.copy(self.techProgress)
-        for brandID in range(len(self.nBrands)):
-            self.techProgress[brandID] = oldEta[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
+        for brandID in range(self.nBrands):
+            self.techProgress[brandID] = oldEtas[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
         
         if self.time in self.brandInitDict.keys():
             
@@ -358,6 +307,9 @@ class Market():
         
         brandID = self.nBrands
         self.nBrands +=1 
+        self.brandGrowthRates.append(0)
+        self.techProgress.append(0)
+        self.carsPerLabel = np.zeros(self.nBrands)
         self.brandsToInit.append(label)
         if initTimeStep not in self.brandInitDict.keys():
             self.brandInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , brandID]]
@@ -473,45 +425,52 @@ class Household(Agent):
         """
         pass
     
-    def weightFriendExperience(self, world, onlyEqualCars=True):
-        friendUtil, edgeIDs = self.getNeighNodeValues( 'noisyUtil' ,edgeType= _thh, mode='OUT')
-        carLabels, _        = self.getNeighNodeValues( 'label' ,edgeType= _thh, mode='OUT')
+    def weightFriendExperience(self, world):
+        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _hh)
+        carLabels, _        = self.getConnNodeValues( 'label' ,nodeType= _hh)
+        #friendID            = self.getOutNeighNodes(edgeType=_thh)
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
         
+        edges = self.getEdges(_thh)
+        
+        idxT = list()
+        for i, label in enumerate(carLabels):
+            if label == ownLabel:
+                idxT.append(i)
+        #indexedEdges = [ edges[x].index for x in idxT]
+        
+        if len(idxT) < 2:
+            return
+        
+        diff = np.asarray(friendUtil)[idxT] - ownUtil
+        prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
+        prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
+        
+        onlyEqualCars = True
         if onlyEqualCars:
-            idxT = list()
-            for i, label in enumerate(carLabels):
-                if label == ownLabel:
-                    idxT.append(i)
-            indexedEdges = [ edgeIDs[x] for x in idxT]
-            
-            if len(indexedEdges) < 2:
-                return
-            
-            diff = np.asarray(friendUtil)[idxT] - ownUtil
-            prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
-            prop = prop / np.sum(prop)
-            prior = np.asarray(world.getEdgeValues(indexedEdges,'weig'))
+        #### only weighting agents with same cars
+            prior = np.asarray(edges[idxT]['weig'])
             post = prior * prop 
             sumPrior = np.sum(prior)
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
                 if np.sum(post) > 0:
-                    world.setEdgeValues(indexedEdges,'weig',post)
+                    edges[idxT]['weig'] = post
                 else:
                     print 'updating failed, sum of weights are zero'
-                    
-        else: 
-            idxT = list()
-            idxF = list()
-            for i, label in enumerate(carLabels):
-                if label == ownLabel:
-                    idxT.append(i)
-                else:
-                    idxF.append(i)
-                    
+            #neig = [self.graph.es[x].target for x in indexedEdges]
+            #diff = [np.sum(np.abs(np.asarray(self.graph.vs[x]['preferences']) - np.asarray(self.graph.vs[self.nID]['preferences']))) for x in neig]
+#            plt.scatter(diff,prop)
+#            for y,z in zip(diff,prop):
+#                if y > .5 and z > .8:
+#                    print 1
+        else:
+        #### reducting also weight of owners of other cars -> factor .99
+            idxF = np.where(carLabels!=ownLabel)[0]
+            #otherEdges = [ edgeIDs[x] for x in idxF]
+       
             prior = np.asarray(world.getEdgeValues(edgeIDs,'weig'))
             post = prior
             sumPrior = np.sum(prior)
@@ -595,7 +554,11 @@ class Household(Agent):
             world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
         carID, properties = world.market.buyCar(label, self.nID)
         self.loc.addToTraffic(label)
-        self.setValue('mobility',label)
+        self.setValue('mobilityType',label)        
+        self.setValue('carID',carID)
+        self.setValue('prop', properties)
+        self.setValue('obsID', None)
+        self.setValue('carAge', 0)
         
     def shareExperience(self, world):
         
@@ -603,23 +566,23 @@ class Household(Agent):
         # adding noise to the observations
         noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']
         self.setValue('noisyUtil',noisyUtil[0])
-        mobility = self.getValue('mobility')
+        mobility = self.getValue('mobilityType')
         # save util based on label
         world.market.obsDict[world.time][mobility].append(noisyUtil)
-        self.car['obsID'] = self.loc.registerObs(self.nID, self.car['prop'], noisyUtil, mobility)
+        obsID = self.loc.registerObs(self.nID, self.getValue('prop'), noisyUtil, mobility)
+        self.setValue('obsID', obsID)
         if hasattr(world, 'globalRec'):
             world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
 
         
         # tell agents that are friends with you - not your friends ("IN")
-        for neig in self.getNeighNodes(_thh,mode="IN"):
+        for neig in self.getConnNodeIDs( _hh, 'in'):
             agent = world.entDict[neig]
-            agent.tell(self.loc.nID,self.car['obsID'], world.time)
-            #print neig, self.loc.nID,obsID
+            agent.tell(self.loc.nID,self.getValue('obsID'), world.time)
     
     def sellCar(self,world, carID):
         world.market.sellCar(carID)
-        self.loc.remFromTraffic(self.car['label'])
+        self.loc.remFromTraffic(self.getValue('mobilityType'))
     
     def tell(self, locID, obsID, time):
         if locID in self.obs:
@@ -647,39 +610,67 @@ class Household(Agent):
                 if choice[1] > self.util *1.2:
                     self.setValue('predMeth',1) # predition method
                     self.setValue('expUtil',choice[1]) # expected utility
-                    self.sellCar(world, self.car['ID'])
+                    self.sellCar(world, self.getValue('carID'))
                     self.buyCar(world, choice[0])
                     carBought = True
                 # Otherwise, we have a 25% chance of looking at properties
                 # of cars owned by friends, and perform linear sensitivity
                 # analysis based on the utility of your friends.
-                elif np.random.rand(1)>.75:
-
-                    # more complex search
-                    
-                    regr = self.linearReg(world)
-                    
-                        
-                    if regr is not None:
-                        # Then you look at properties of all the cars on
-                        # the market, and select the most promising one.
-                        df = pd.DataFrame.from_dict(world.market.brandProp)
-                        extUtil = regr.predict(df.values.T)
-                        
-                        if extUtil[extUtil.argmax()] > self.util*1.2:
-                            self.setValue('predMeth',2) # predition method
-                            self.setValue('expUtil',extUtil[extUtil.argmax()])
-                            label = df.columns[extUtil.argmax()]
-                            self.sellCar(world, self.car['ID'])
-                            self.buyCar(world, label)
-                            carBought = True
-                            # update prior expectations of observation
+                
         
         self.util = self.evalUtility(world)                 
         if carBought:
             self.weightFriendExperience(world)
         self.shareExperience(world)
 
+    def getObservationsMat(self, world, labelList):
+        if len(self.obs) == 0:
+            return None
+        mat = np.zeros([0,len(labelList)])
+        for key in self.obs.keys():
+            idxList, timeList = self.obs[key]
+            idxList = [x for x,y in zip(idxList,timeList) if world.time - y < world.memoryTime  ]
+            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
+            self.obs[key] = idxList, timeList
+            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
+        return mat
+    
+    def optimalChoice(self,world):
+        """ 
+        Method for searching the optimal choice that lead to the highest
+        expected utility
+        return a_opt = arg_max (E(u(a)))
+        """
+        from operator import itemgetter
+        if len(self.obs) == 0:
+            return None
+
+        obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
+       
+        if obsMat.shape[0] == 0:
+            return None
+        
+        carIDs       = np.unique(obsMat[:,-1])
+        
+        tmp = np.zeros([len(carIDs),obsMat.shape[0]])
+        weighted = True
+        
+        if weighted:
+                
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh) 
+            target = [edge.target for edge in edges]
+            srcDict =  dict(zip(target,weights))
+            for i, id_ in enumerate(carIDs):
+                
+                tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
+        else:
+            for i, id_ in enumerate(carIDs):
+                tmp[i,obsMat[:,-1] == id_] = 1
+            
+        avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
+        maxid = np.argmax(avgUtil)
+        return carIDs[maxid], avgUtil[maxid]
+    
 class Reporter(Household):
     
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
@@ -699,13 +690,16 @@ class Cell(Location):
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
-    
-    def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getConnProp('weig')
-        self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
+
+    def initCellMemory(self, memoryLen, memeLabels):
+        from collections import deque
+        self.deleteQueue = deque([list()]*(memoryLen+1))
+        self.currDelList = list()
+        self.obsMemory   = Memory(memeLabels)
         
-        #remap function to only return the values 
-        #self.getConnCellsPlus = self.returnConnWeights #TODO reconsider this - not very clear and only if graph does not change
+    def getConnCellsPlus(self):
+        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_tll, mode='out')
+        self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connNodeList
     
     
@@ -773,7 +767,28 @@ class Cell(Location):
             self.setValue('carsInCell', tuple(self.traffic.values()))
         else:
             self.setValue('carsInCell', self.traffic.values()[0])
-   
+    
+    def registerObs(self, hhID, prop, util, label):
+        """
+        Adds a car to the cell pool of observations
+        """
+        #prop.append(util)
+        #obsID = self.currID
+        meme = prop + [util, label, hhID]
+        assert not any(np.isnan(meme))
+        obsID = self.obsMemory.addMeme(meme)
+        self.currDelList.append(obsID)
+        
+        #self.currID +=1
+        return obsID
+        
+    def removeObs(self, label):
+        """
+        Removes a car for the pool of observations
+        - not used right now -
+        """
+        self.traffic[label] -= 1
+        
 class Opinion():
     import numpy as np
     """ 

@@ -628,8 +628,11 @@ class World:
                 else:
                     self.agentRec[typ].currRecord[:,self.agentRec[typ].attrIdx[attr]] = self.graph.vs[self.agentRec[typ].ag2FileIdx][attr]
                     #self.agentRec[typ].record[self.time][:,self.agentRec[typ].attrIdx[attr]] =  self.graph.vs[self.agentRec[typ].ag2FileIdx][attr]
-            if self.para['writeNPY']: 
+            
+            if self.para['writeNPY']:
+                print self.time
                 self.agentRec[typ].recordNPY[self.time] = self.agentRec[typ].currRecord
+            
             if self.para['writeCSV']:
                 for record in self.agentRec[typ].currRecord:
                     #print record
