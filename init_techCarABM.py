@@ -62,8 +62,8 @@ _hh   = 2
 para = Bunch()
 
 #global parameter
-para.scenario       = 0
-para.nSteps         = 50 # number of simulation steps
+para.scenario       = 1
+para.nSteps         = 300 # number of simulation steps
 para.flgSpatial     = True
 para.connRadius     = 2.1  # radíus of cells that get an connection
 para.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -90,9 +90,9 @@ para.carNewPeriod = 6
 para.utilObsError = 1
 para.recAgent   = []   # reporter agents that return a diary
 
-para.writeOutput = False
+para.writeOutput = True
 para.writeNPY    = True
-para.writeCSV    = False
+para.writeCSV    = True
 
 tt = time.time()
 
@@ -145,7 +145,7 @@ if para.writeOutput:
 else:
     para.simNo = None
 
-earth = Earth(para.nSteps, para.simNo, spatial=para.flgSpatial)
+earth = Earth(para.nSteps, para.simNo, para.flgSpatial, para)
 earth.registerEdgeType('cell-cell')
 earth.registerEdgeType('cell-hh')
 earth.registerEdgeType('hh-hh')
@@ -182,9 +182,9 @@ earth.addBrand('Diesel',(2500, 900,  7.5,   8.5,  150,  280*12), 0)   #Diesels
 earth.addBrand('Sport', (1500, 800,  9.0,   5.0,  250,  400*12), 0)   #sports 
 earth.addBrand('small',(1800, 700,  5.0,   5.0,  160,  120*12),50)   #small car 
 earth.addBrand('Diesel+',(2600, 1000, 7.0,   8.5,  160,  270*12),60) 
-earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),70)
-earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),80)   #suv 
-earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),90)
+earth.addBrand('city', (1500, 600,  4.5,   4.7,  140,  160*12),100)
+earth.addBrand('SUV',   (3500, 500,  9.0,   9.0,  180,  350*12),110)   #suv 
+earth.addBrand('green',(1500, 450,  2.0,   4,    130,  250*12),150)
     
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
@@ -376,6 +376,7 @@ earth.initAgentFile(typ = _cell)
 print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
 earth.writeAgentFile()
 #%% Simulation 
+tt = time.time()
 for step in xrange(1,para.nSteps):
     
     earth.step() # looping over all cells
@@ -407,7 +408,7 @@ for step in xrange(1,para.nSteps):
 if para.writeOutput:
     earth.finalizeAgentFile()
     earth.finalize()        
-
+print 'Simulation steos done in -- ' + str( time.time() - tt) + ' s'
        
 #%% post processing
 #legLabels = [earth.market.brandLabels[x] for x in earth.market.stockbyBrand.columns]

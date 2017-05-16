@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 import tqdm
 import time
 import os
-
+from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
 _tll = 1 # loc - loc
@@ -47,20 +47,20 @@ _hh   = 2
 #%% --- Global classes ---
 class Earth(World):
     
-    def __init__(self, parameters):
+    def __init__(self, nSteps, simNo, flgSpatial, para):
         
-        World.__init__(self, parameters.spatial)
-        self.simNo      = parameters.simNo
+        World.__init__(self,flgSpatial)
+        self.simNo      = simNo
         self.agentRec   = dict()   
         self.time       = 0
-        self.nSteps     = parameters.nSteps
+        self.nSteps     = nSteps
         self.reporter   = list()
         self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
         
         # transfer all parameters to earth
-        earth.setParameters(Bunch.toDict(parameters)) 
+        self.setParameters(Bunch.toDict(para)) 
 
         
         if not os.path.isdir('output'):

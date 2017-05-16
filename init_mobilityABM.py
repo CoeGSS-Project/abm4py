@@ -162,7 +162,7 @@ earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.
 
 
 #                       emmisions price']
-earth.addBrand('green',(230,220*12), 0)   # green tech car
+earth.addBrand('green',(170,220*12), 0)   # green tech car
 earth.addBrand('brown',(440, 100*12), 0)  # combustion car
 earth.addBrand('none',(120, 150*12), 0)    # none or other
 

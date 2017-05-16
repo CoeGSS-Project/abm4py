@@ -5,7 +5,7 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
-CAR INNOVATION MARKET MODEL
+MOBILITY INNOVATION MARKET MODEL
 -- CLASS FILE --
 
 This file is part of GCFABM.
@@ -173,7 +173,7 @@ class Earth(World):
         tt = time.time()
         for node in tqdm.tqdm(self.entList):
             node.updateEdges()
-        print 'Edges upated in -- ' + str( time.time() - tt) + ' s'
+        print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
 
