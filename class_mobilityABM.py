@@ -80,8 +80,8 @@ class Earth(World):
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
-    def initMarket(self, properties, propRelDev=0.01, time = 0):
-        self.market = Market(properties, propRelDev=propRelDev, time=time)
+    def initMarket(self, properties, propRelDev=0.01, time = 0, burnIn = 0):
+        self.market = Market(properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
@@ -287,28 +287,30 @@ class Market():
         for key in self.obsDict[self.time-1]:
             self.obsDict[self.time][key] = list()
         
-        # calculate growth rates per brand:
-        oldCarsPerLabel = copy.copy(self.carsPerLabel)
-        self.carsPerLabel = np.bincount(self.stock[:,0].astype(int)).astype(float)           
-        for i in range(self.nBrands):
-            if not oldCarsPerLabel[i] == 0.:
-                newGrowthRate = (self.carsPerLabel[i]-oldCarsPerLabel[i])/oldCarsPerLabel[i]
-            else: 
-                newGrowthRate = 0
-            self.brandGrowthRates[i] = newGrowthRate          
         
+        if self.time in self.brandInitDict.keys():
+                
+            for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
+                self.initBrand(label, propertyTuple, brandID)
         
         # only do technical change after the burn in phase
-        if self.time > self.bunIn:
+        if self.time > self.burnIn:
+            # calculate growth rates per brand:
+            oldCarsPerLabel = copy.copy(self.carsPerLabel)
+            self.carsPerLabel = np.bincount(self.stock[:,0].astype(int)).astype(float)           
+            for i in range(self.nBrands):
+                if not oldCarsPerLabel[i] == 0.:
+                    newGrowthRate = (self.carsPerLabel[i]-oldCarsPerLabel[i])/oldCarsPerLabel[i]
+                else: 
+                    newGrowthRate = 0
+                self.brandGrowthRates[i] = newGrowthRate          
+            
             # technological progress:
             oldEtas = copy.copy(self.techProgress)
             for brandID in range(self.nBrands):
                 self.techProgress[brandID] = oldEtas[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
             
-            if self.time in self.brandInitDict.keys():
-                
-                for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
-                    self.initBrand(label, propertyTuple, brandID)
+            
 
         
     def addBrand(self, label, propertyTuple, initTimeStep):

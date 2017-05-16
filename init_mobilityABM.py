@@ -62,8 +62,8 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 0
-parameters.nSteps         = 100 # number of simulation steps
+parameters.scenario       = 1
+parameters.nSteps         = 20 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -175,7 +175,7 @@ ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
 opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 
 
-earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, parameters.burnIn)
+earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, burnIn=parameters.burnIn)
 
 #init location memory
 earth.enums = dict()
@@ -299,7 +299,7 @@ for step in xrange(parameters.nSteps):
     
 
 #%% Finishing the simulation    
-print "Finishing thesimulation:"
+print "Finalizing the simulation:"
 if parameters.writeOutput:
     earth.finalizeAgentFile()
     earth.finalize()        
@@ -399,4 +399,4 @@ x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
 y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
 print np.corrcoef(x,y)
 
-print 'Simulation finished after -- ' + str( time.time() - overallTime) + ' s'
+print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
