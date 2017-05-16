@@ -242,6 +242,7 @@ class Earth(World):
         
 class Market():
 
+    def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0):
 
         self.time          = time
         self.properties    = properties
