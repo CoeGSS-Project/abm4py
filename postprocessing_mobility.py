@@ -15,14 +15,14 @@ import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
 plotRecords     = 0
-plotCarStockBar = 0
+plotCarStockBar = 1
 prefPerLabel    = 1
 utilPerLabel    = 1
 incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0150/'
+path = 'output/sim0160/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -41,21 +41,7 @@ if plotRecords:
             plt.title(filename)
             plt.legend(df.columns)
 
-#%%  plot car stock as bar plot
-legStr = list()
-if plotCarStockBar:
-    plt.figure()
-    enums   = loadObj(path + 'enumerations')
-    df = pd.read_csv(path +  'rec/' + 'carStock.csv', index_col=0)
-    nSteps = df.shape[0]
-    nCars = np.zeros(nSteps)
-    colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
-    for i, brand in enumerate(enums['brands'].values()):
-       plt.bar(np.arange(nSteps), df.ix[:,i],bottom=nCars, color =colorPal[i], width=1)
-       nCars += df.ix[:,i]
-       legStr.append(brand)
-#plt.legend(legStr)
-plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+
 #%% loading household agent file
 
 agMat   = np.load(path + 'agentFile_type2.npy')
@@ -63,6 +49,26 @@ propDic = loadObj(path + 'attributeList_type2')
 enums   = loadObj(path + 'enumerations')
 
 nSteps, nAgents, nProp = agMat.shape
+
+#%%  plot car stock as bar plot
+legStr = list()
+
+carMat = np.zeros([agMat.shape[0],3])
+for time in range(agMat.shape[0]):
+    carMat[time,:]= np.bincount(agMat[time,:,propDic['mobilityType'][0]].astype(int),minlength=3).astype(float)
+if plotCarStockBar:
+    plt.figure()
+    enums   = loadObj(path + 'enumerations')
+    #df = pd.read_csv(path +  'rec/' + 'carStock.csv', index_col=0)
+    nSteps = agMat.shape[0]
+    nCars = np.zeros(nSteps)
+    colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
+    for i, brand in enumerate(enums['brands'].values()):
+       plt.bar(np.arange(nSteps), carMat[:,i],bottom=nCars, color =colorPal[i], width=1)
+       nCars += carMat[:,i]
+       legStr.append(brand)
+#plt.legend(legStr)
+plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% number of different car per agent:
 nUniqueCars = list()
@@ -136,7 +142,7 @@ if prefPerLabel:
         plt.title(enums['brands'][carLabel])
         plt.legend(legStr,loc=0)
     
-    fig.suptitle('n preference types per car label')
+        fig.suptitle('n preference types per car label')
 print 1
 
 #%% utiilty per car label

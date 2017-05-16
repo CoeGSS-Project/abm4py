@@ -5,7 +5,7 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://wwww.globalclimateforum.org
 
-CAR INNOVATION MARKET MODEL
+MOBILITY INNOVATION MARKET MODEL
 -- INIT FILE --
 
 This file is part of GCFABM.
@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 1
+parameters.scenario       = 0
 parameters.nSteps         = 100 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
@@ -178,8 +178,9 @@ nAgents = 0
 nHH     = 0
 
 earth.enums['prefTypes'] = dict()
-earth.enums['prefTypes'][0] = 'ecology'
-earth.enums['prefTypes'][1] = 'convinience'
+
+earth.enums['prefTypes'][0] = 'convinience'
+earth.enums['prefTypes'][1] = 'ecology'
 earth.enums['prefTypes'][2] = 'money'
 earth.nPref = len(earth.enums['prefTypes'])
 earth.nPrefTypes = [0]* earth.nPref
@@ -216,8 +217,8 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
             idxAdult = 0
         prEco, prCon, prMon = opinion.getPref(age[idxAdult],sex[idxAdult],nKids,income,parameters.radicality)
         # normal 
-        hh.setValue('preferences', (prEco, prCon, prMon))
-        hh.prefTyp = np.argmax((prEco, prCon, prMon))
+        hh.setValue('preferences', (prCon ,prEco , prMon))
+        hh.prefTyp = np.argmax((prCon ,prEco, prMon))
         hh.setValue('prefTyp',hh.prefTyp)
         hh.setValue('expUtil',0)
         hh.setValue('util',0)
