@@ -299,7 +299,7 @@ class Market():
         
         
         # only do technical change after the burn in phase
-        if self.time > self.bunIN:
+        if self.time > self.bunIn:
             # technological progress:
             oldEtas = copy.copy(self.techProgress)
             for brandID in range(self.nBrands):

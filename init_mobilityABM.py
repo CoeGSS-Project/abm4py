@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 1
+parameters.scenario       = 0
 parameters.nSteps         = 100 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
@@ -103,7 +103,7 @@ if parameters.scenario == 0: #small
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
     population = landLayer* np.random.randint(5,20,landLayer.shape)
-    parameters.urbanPopulationTreshold = 13
+    urbThreshold = 13
     
 elif parameters.scenario == 1: # medium
     landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
@@ -118,13 +118,9 @@ elif parameters.scenario == 1: # medium
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
     population = 10*population+ landLayer* np.random.randint(1,8,landLayer.shape)
     urbThreshold = 35
-    parameters.urbanPopulationThreshold = urbThreshold
     
-    minPop = np.min(population[population!=0])
-    maxPop = np.max(population)
-    maxDeviation = max((minPop-urbThreshold)**2, (maxPop-urbThreshold)**2)
-    minCarConvenience = .4
-    parameters.paraB = minCarConvenience / maxDeviation
+    
+
     
     
 elif parameters.scenario == 2: # Niedersachsen
@@ -139,6 +135,15 @@ elif parameters.scenario == 2: # Niedersachsen
     landLayer[landLayer == 1 & np.isnan(population)] =0
 
 nAgents    = np.nansum(population)
+
+minPop = np.min(population[population!=0])
+maxPop = np.max(population)
+maxDeviation = max((minPop-urbThreshold)**2, (maxPop-urbThreshold)**2)
+minCarConvenience = .4
+parameters.paraB = minCarConvenience / maxDeviation
+parameters.urbanPopulationThreshold = urbThreshold  
+
+
 assert np.sum(np.isnan(population[landLayer==1])) == 0
 print 'Running with ' + str(nAgents) + ' agents'
 
