@@ -22,7 +22,7 @@ incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0139/'
+path = 'output/sim0153/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -121,7 +121,7 @@ for prefTyp in range(0,4):
 
 if prefPerLabel:
     res = dict()
-    for carLabel in range(0,8):
+    for carLabel in range(0,9):
         res[carLabel] = np.zeros([nSteps,4])
     
     for step in range(0,nSteps):

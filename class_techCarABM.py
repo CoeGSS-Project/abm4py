@@ -233,8 +233,9 @@ class Earth(World):
             writer.close() 
         
         # writing global records to file
-        for key in self.globalRec:    
-            self.globalRec[key].saveCSV(self.para['outPath'] + '/rec')
+        if hasattr(self, 'globalRec'):
+            for key in self.globalRec:    
+                self.globalRec[key].saveCSV(self.para['outPath'] + '/rec')
 
 
         # saving enumerations            
