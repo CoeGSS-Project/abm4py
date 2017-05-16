@@ -183,9 +183,9 @@ earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.
 
 
 #                       emmisions price']
-earth.addBrand('green',(170,220*12), 0)   # green tech car
-earth.addBrand('brown',(440, 100*12), 0)  # combustion car
-earth.addBrand('none',(120, 150*12), 0)    # none or other
+earth.addBrand('green',(170,250*12), 0)   # green tech car
+earth.addBrand('brown',(440, 150*12), 0)  # combustion car
+earth.addBrand('other',(120, 80*12), 0)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -342,13 +342,13 @@ if parameters.writeOutput:
 
 #%%
 if True:
-    df = pd.DataFrame([],columns=['prEco','prCon','prMon'])
+    df = pd.DataFrame([],columns=['prCon','prEco','prMon'])
     for agID in earth.nodeList[2]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     
     
     print 'Preferences -average'
-    df.mean()
+    print df.mean()
     print 'Preferences - standart deviation'
     print df.std()
     
@@ -359,6 +359,7 @@ if True:
         if len(friendList)> 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values
+             
     print avgStd / nAgents
     prfType = np.argmax(df.values,axis=1)
     #for i, agent in enumerate(earth.iterNode(_hh)):

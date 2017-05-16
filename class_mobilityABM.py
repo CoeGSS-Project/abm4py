@@ -728,8 +728,8 @@ class Cell(Location):
    
     def updateX(self, market):
         # convenience parameters:        
-        paraA, paraC, paraD = 1., 1., 0.1
-        kappa = 0.
+        paraA, paraC, paraD = 1., .5, 0.1
+        kappa = -0.3
         popDensity = float(self.population)/self.cellSize
         
         # calculate conveniences
@@ -835,7 +835,7 @@ class Opinion():
         ce = float(ce)**2
         
         #convinience
-        cc = 1
+        cc = 5
         cc += nKids
         cc += income/self.convIncomeFraction
         if sex == 1:
