@@ -22,7 +22,7 @@ incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = True
-path = 'output/sim0160/'
+path = 'output/sim0178/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -274,6 +274,81 @@ if printCellMaps:
 
 
 
+#%% loading cell agent file
 
+cellMat   = np.load(path + 'agentFile_type1.npy')
+propDict = loadObj(path + 'attributeList_type1')
+enums   = loadObj(path + 'enumerations')
+
+nSteps, nAgents, nProp = cellMat.shape
+
+#%%
+meanCon   = np.zeros([nSteps,3])
+meanEco   = np.zeros([nSteps,3])
+meanPrc   = np.zeros([nSteps,3])
+for step in range(nSteps):
+    meanVect = np.mean(cellMat[step,:,propDict['cellX']],axis=1)
+    meanCon[step,:] = meanVect[:3]
+    meanEco[step,:] = meanVect[3:6]
+    meanPrc[step,:] = meanVect[6:]
+
+plt.figure()
+plt.subplot(2,2,1)
+plt.plot(meanCon)
+plt.legend(enums['brands'].values())
+plt.title('convenience, mean over cells')
+plt.subplot(2,2,2)
+plt.plot(meanEco)
+plt.legend(enums['brands'].values())
+plt.title('ecology, mean over cells')
+plt.subplot(2,2,3)
+plt.plot(meanPrc)
+plt.legend(enums['brands'].values())
+plt.title('price on cell level')
+plt.xlim([0,nSteps])    
+
+#%%
+plt.clf()
+landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1))
+for iCell in range(cellMat.shape[1]):
+    landLayer[cellMat[0,iCell,propDict['pos'][0]],cellMat[0,iCell,propDict['pos'][1]]] = 1
+#plt.pcolormesh(landLayer)
+landLayer = landLayer.astype(bool)
+res = landLayer*1.0
+step = 80
+test = landLayer*0
+for iBrand in range(3):
+    res = landLayer*1.0
+    res[landLayer] = cellMat[0,:,propDict['carsInCell'][iBrand]] / np.sum(cellMat[0,:,propDict['carsInCell']],axis=0)
+    test = test + res
+    #res[landLayer==False] = np.nan
+    plt.subplot(2,2,iBrand+1)
+    plt.pcolormesh(res)
+    plt.clim([0,1])
+    plt.colorbar()
+    plt.title(enums['brands'][iBrand] + ' per cells')
+print 1
+
+#%%
+plt.clf()
+landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1))
+for iCell in range(cellMat.shape[1]):
+    landLayer[cellMat[0,iCell,propDict['pos'][0]],cellMat[0,iCell,propDict['pos'][1]]] = 1
+#plt.pcolormesh(landLayer)
+landLayer = landLayer.astype(bool)
+res = landLayer*1.0
+step = 10
+for iBrand in range(len(propDict['cellX'])):
+    res = landLayer*1.0
+    res[landLayer] = cellMat[step,:,propDict['cellX'][iBrand]] 
+    #res[landLayer==False] = np.nan
+    plt.subplot(3,3,iBrand+1)
+    plt.pcolormesh(res)
+    plt.clim([np.min(res[landLayer]),np.max(res[landLayer])])
+    print [np.min(res[landLayer]),np.max(res[landLayer])]
+    plt.colorbar()
+    plt.title('consequences per cells')
+
+print 1
 #%%
 plt.show()

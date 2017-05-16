@@ -242,7 +242,6 @@ class Earth(World):
         
 class Market():
 
-    def __init__(self, properties, propRelDev=0.01, time = 0):
 
         self.time          = time
         self.properties    = properties
@@ -263,7 +262,7 @@ class Market():
         self.carsPerLabel  = list()
         self.brandGrowthRates = list()                   # list of growth rates of brand
         self.techProgress  = list()                     # list of productivities of brand
-
+        self.burnIn        = burnIn
        
     def initCars(self):
         # actually puts the car on the market
@@ -297,15 +296,18 @@ class Market():
                 newGrowthRate = 0
             self.brandGrowthRates[i] = newGrowthRate          
         
-        # technological progress:
-        oldEtas = copy.copy(self.techProgress)
-        for brandID in range(self.nBrands):
-            self.techProgress[brandID] = oldEtas[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
         
-        if self.time in self.brandInitDict.keys():
+        # only do technical change after the burn in phase
+        if self.time > self.bunIN:
+            # technological progress:
+            oldEtas = copy.copy(self.techProgress)
+            for brandID in range(self.nBrands):
+                self.techProgress[brandID] = oldEtas[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
             
-            for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
-                self.initBrand(label, propertyTuple, brandID)
+            if self.time in self.brandInitDict.keys():
+                
+                for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
+                    self.initBrand(label, propertyTuple, brandID)
 
         
     def addBrand(self, label, propertyTuple, initTimeStep):
@@ -476,7 +478,7 @@ class Household(Agent):
         self.queueConnection(geoNodeID,_tlh)         
         self.loc = world.entDict[geoNodeID]        
         self.loc.agList.append(self.nID)
-        
+        self.loc.population += self.getValue('hhSize')
     
     def generateFriends(self,world, nFriends):
         """
@@ -684,7 +686,9 @@ class Cell(Location):
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
-        
+        self.population = 0
+        self.urbanThreshold = earth.para['urbanPopulationThreshold']
+        self.paraB = earth.para['paraB']
 
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
@@ -721,18 +725,17 @@ class Cell(Location):
    
     def updateX(self, market):
         # convenience parameters:        
-        a, b, c, d = 1., 0.005, 1., 0.1
+        paraA, paraC, paraD = 1., 1., 0.1
         kappa = 0.
-        popT = 13   # population threshold for urban area
-        popDensity = float(len(self.agList))/self.cellSize
+        popDensity = float(self.population)/self.cellSize
         
         # calculate conveniences
-        convenienceG = a - b*(popDensity - popT)**2 + kappa
-        if popDensity<popT:
-            convenienceB = a
+        convenienceG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + kappa
+        if popDensity<self.urbanThreshold:
+            convenienceB = paraA
         else:
-            convenienceB = a - b*(popDensity - popT)**2
-        convenienceN = c/(1+math.exp((-d)*(popDensity-popT)))
+            convenienceB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
+        convenienceN = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
         conveniences = [convenienceG, convenienceB, convenienceN]
         
         emissions = list()
@@ -745,10 +748,10 @@ class Cell(Location):
             emissions.append(em)
             ecologies.append(self.ecology(em, market))
             prices.append(properties[1]/market.techProgress[brandID])
-        ecologies[-1] = 0.99
+        #ecologies[-1] = 0.99
         
         self.xCell = np.asarray([conveniences, ecologies, prices]).T
-        
+        self.setValue('cellX', tuple(conveniences + ecologies + prices))
         
     def step(self, market):
         """

@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 0
+parameters.scenario       = 1
 parameters.nSteps         = 100 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
@@ -91,6 +91,7 @@ parameters.recAgent   = []   # reporter agents that return a diary
 parameters.writeOutput = True
 parameters.writeNPY    = True
 parameters.writeCSV    = False
+parameters.burnIn      = 20
 
 tt = time.time()
 
@@ -102,14 +103,29 @@ if parameters.scenario == 0: #small
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
     population = landLayer* np.random.randint(5,20,landLayer.shape)
+    parameters.urbanPopulationTreshold = 13
     
 elif parameters.scenario == 1: # medium
-    landLayer   = np.asarray([[0, 0, 0, 0, 0, 1, 1, 1], 
-                              [1, 1, 1, 0, 0, 1, 1, 1],
-                              [1, 1, 1, 0, 0, 1, 0, 0],
-                              [1, 1, 1, 1, 1, 1, 0, 0],
-                              [1, 1, 1, 1, 1, 1, 0, 0]])    
-    population = landLayer*np.random.randint(5,20,landLayer.shape)
+    landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
+                              [0, 1, 0, 0, 0, 1, 1, 1, 0],
+                              [1, 1, 1, 0, 0, 1, 0, 0, 0],
+                              [1, 1, 1, 1, 1, 1, 0, 0, 0],
+                              [1, 1, 1, 1, 1, 1, 1, 0, 0],
+                              [1, 1, 1, 1, 0, 0, 0, 0, 0]])    
+    
+    convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
+    from scipy import signal
+    population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
+    population = 10*population+ landLayer* np.random.randint(1,8,landLayer.shape)
+    urbThreshold = 35
+    parameters.urbanPopulationThreshold = urbThreshold
+    
+    minPop = np.min(population[population!=0])
+    maxPop = np.max(population)
+    maxDeviation = max((minPop-urbThreshold)**2, (maxPop-urbThreshold)**2)
+    minCarConvenience = .4
+    parameters.paraB = minCarConvenience / maxDeviation
+    
     
 elif parameters.scenario == 2: # Niedersachsen
     reductionFactor = 100
@@ -154,7 +170,7 @@ ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
 opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 
 
-earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD)
+earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, parameters.burnIn)
 
 #init location memory
 earth.enums = dict()
@@ -199,7 +215,7 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
             hh = Reporter(earth,'hh', x, y)
         else:
             hh = Household(earth,'hh', x, y)
-        hh.connectGeoNode(earth)
+        
         hh.tolerance = parameters.tolerance
         nPers = hhMat[idx,4]
         hh.setValue('hhSize',nPers)
@@ -231,6 +247,7 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
         nAgents     += nPers
         idx         += nPers
         nHH         +=1
+        hh.connectGeoNode(earth)
         if nAgentsCell < 0:
             break
 earth.dequeueEdges()
@@ -291,19 +308,19 @@ if parameters.writeOutput:
 #    for agent in earth.iterNodes(_hh):
 #        plt.plot(agent.utilList)    
 #
-plt.figure()
-for key in brandDict.keys():
-    with sns.color_palette("Set3", n_colors=9, desat=.8):
-        plt.plot(range(para.nSteps-len(brandDict[key]),para.nSteps), brandDict[key])
-plt.legend(legLabels, loc=3)
-plt.title('Utility per brand')
-plt.savefig('utilityPerBrand.png')
-plt.figure()
-with sns.color_palette("Set3", n_colors=9, desat=.8):
-    plt.plot(earth.market.stockbyBrand)
-plt.legend(legLabels, loc=3)
-plt.title('Cars per brand')
-plt.savefig('carsPerBrand.png')
+#plt.figure()
+#for key in brandDict.keys():
+#    with sns.color_palette("Set3", n_colors=9, desat=.8):
+#        plt.plot(range(para.nSteps-len(brandDict[key]),para.nSteps), brandDict[key])
+#plt.legend(legLabels, loc=3)
+#plt.title('Utility per brand')
+#plt.savefig('utilityPerBrand.png')
+#plt.figure()
+#with sns.color_palette("Set3", n_colors=9, desat=.8):
+#    plt.plot(earth.market.stockbyBrand)
+#plt.legend(legLabels, loc=3)
+#plt.title('Cars per brand')
+#plt.savefig('carsPerBrand.png')
 
 
 #%% Cars per brand
