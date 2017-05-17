@@ -23,7 +23,7 @@ meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = 0
 
-path = 'output/sim0209/'
+path = 'output/sim0210/'
 #%% init
     
 from class_auxiliary import loadObj

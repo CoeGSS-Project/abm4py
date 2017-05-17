@@ -401,3 +401,11 @@ y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
 print np.corrcoef(x,y)
 
 print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+
+nPeople = np.nansum(population)
+nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])!=0))
+
+print 'Number of agents: ' + str(nPeople)
+print 'Number of agents: ' + str(nCars)
+print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+print 'cars per 1000 people: ' + str(nCars/float(nAgents*1000.)
