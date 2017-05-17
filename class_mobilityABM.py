@@ -191,7 +191,7 @@ class Earth(World):
         
         #loop over cells
         for cell in self.iterNodes(_cell):
-            cell.step(self.market)
+            cell.step()
         # Update observations (remove old ones)
         # Compute the number of cars in each cell
 
@@ -245,7 +245,7 @@ class Market():
     def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0):
 
         self.time          = time
-        self.properties    = properties
+        self.properties    = properties                 # (currently: emissions, price)
         self.brandProp     = dict()                     # brandID -> [properties]
         self.nProp         = len(properties)
         self.stock         = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
@@ -261,7 +261,7 @@ class Market():
         self.brandInitDict = dict()
         self.brandsToInit  = list()                     # list of brand labels
         self.carsPerLabel  = list()
-        self.brandGrowthRates = list()                   # list of growth rates of brand
+        self.brandGrowthRates = list()                  # list of growth rates of brand
         self.techProgress  = list()                     # list of productivities of brand
         self.burnIn        = burnIn
        
@@ -279,6 +279,12 @@ class Market():
         #print self.percentiles
         self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
         self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+
+
+    def ecology(self, emissions):
+        ecology = 1/(1+math.exp((emissions-self.mean[0])/self.std[0]))
+        return ecology        
+
         
     def step(self):
         self.time +=1 
@@ -349,7 +355,9 @@ class Market():
     
     def buyCar(self, brandID, eID):
         # draw the actual car property with a random component
-        prop =[float(x * y) for x,y in zip( self.brandProp[brandID], (1 + np.random.randn(self.nProp)*self.propRelDev))]
+        eta = self.techProgress[int(brandID)]
+        print eta
+        prop =[float(x/eta * y) for x,y in zip( self.brandProp[brandID], (1 + np.random.randn(self.nProp)*self.propRelDev))]
         
         if len(self.freeSlots) > 0:
             carID = self.freeSlots.pop()
@@ -379,32 +387,28 @@ class Household(Agent):
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Agent.__init__(self, world, nodeType,  xPos, yPos)
         self.obs  = dict()
-        self.car  = dict()
+ #       self.car  = dict()
         self.util = 0
         if world.para['util'] == 'cobb':
             self.utilFunc = self.cobbDouglasUtil
         elif world.para['util'] == 'ces':
             self.utilFunc = self.CESUtil
+ #       self.consequences = list()
 
     def cobbDouglasUtil(self, x,alpha):
         utility = 1.
         factor = 100        
-        # standard:
         for i in range(len(x)):
             utility *= (factor*x[i])**alpha[i]
-        if  np.isnan(utility) or np.isinf(utility):
-            print sdfsdf      
+        assert not (np.isnan(utility) or np.isinf(utility)), 'sdfsdf'      
         return utility
 
     
     def CESUtil(self, x,alpha):
         uti = 0
         s = 2.    # elasticity of substitution        
-        # standard:
         for i in range(len(x)):
-            uti += alpha[i]**(1/s)*x[i]**((s-1)/s)        
-     
-
+            uti += alpha[i]**(1/s)*x[i]**((s-1)/s)             
         utility = uti**(s/(s-1))
         if  np.isnan(utility) or np.isinf(utility):
             print 1
@@ -412,7 +416,6 @@ class Household(Agent):
         
 
     def registerAgent(self, world):
-
         self.register(world)    
         world.nAgents += 1
 
@@ -526,13 +529,13 @@ class Household(Agent):
         return friendList, connList, weigList
     
         
-    def evalUtility(self,):
-        util = self.utilFunc(self.getValue('x'), self.getValue('preferences'))
-        assert not( np.isnan(util) or np.isinf(util))
+    def evalUtility(self):
+        util = self.utilFunc(self.getValue('consequences'), self.getValue('preferences'))
+        assert not( np.isnan(util) or np.isinf(util)), util
         self.setValue('util',util)
         return util
                         
-    def buyCar(self,world, label):
+    def buyCar(self,world, brandID):
         """
         Method to execute the optimal choice, observe its real consequences and
         tell others in your network about it.
@@ -541,16 +544,16 @@ class Household(Agent):
         #world.record.loc[world.time, world.rec["sales"][1][self.prefTyp]] += 1
         if hasattr(world, 'globalRec'):
             world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
-        carID, properties = world.market.buyCar(label, self.nID)
-        self.loc.addToTraffic(label)
-        self.setValue('mobilityType',label)        
+        carID, properties = world.market.buyCar(brandID, self.nID)
+        self.loc.addToTraffic(brandID)
+        self.setValue('mobilityType', brandID)        
         self.setValue('carID',carID)
         self.setValue('prop', properties)
         self.setValue('obsID', None)
         self.setValue('carAge', 0)
+
         
     def shareExperience(self, world):
-        
         
         # adding noise to the observations
         noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']
@@ -580,14 +583,30 @@ class Household(Agent):
         else:
             self.obs[locID] = [obsID], [time]
 
+
+    def calculateConsequences(self, market):        
+        # get convenience from cell:
+        brandID = int(self.getValue('mobilityType'))
+        convenience = self.loc.conveniences[brandID]                
+        # calculate ecology:
+        emissions = self.getValue('prop')[0]
+        ecology = market.ecology(emissions)
+        # calculate money consequence
+        price = self.getValue('prop')[1]        
+        money = max(0, 1 - price/self.getValue('income'))
+        
+ #       self.consequences = [convenience, ecology, money]
+        self.setValue('consequences', [convenience, ecology, money])
+
+
     def step(self, world):
-        self.car['age']  +=1
+        self.addValue('carAge', 1)
         carBought = False
         self.setValue('predMeth',0)
         self.setValue('expUtil',0)
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
-        if self.car['age'] > world.para['carNewPeriod'] and np.random.rand(1)>.5: 
+        if self.getValue('carAge') > world.para['carNewPeriod'] and np.random.rand(1)>.5: 
             # Check what cars are owned by my friends, and what are their utilities,
             # and make a choice based on that.
             choice = self.optimalChoice(world)  
@@ -606,22 +625,19 @@ class Household(Agent):
                 # of cars owned by friends, and perform linear sensitivity
                 # analysis based on the utility of your friends.
                 
-                    
-                
-        self.evalIndividualConsequences(world)
+        self.calculateConsequences(world.market)
         self.util = self.evalUtility()               
         if carBought:
             self.weightFriendExperience(world)
         self.shareExperience(world)
 
-    def evalIndividualConsequences(self,world):
-        
-       
-        x = self.loc.getX(self.getValue('mobilityType'))
-        x[-1] = max(0,1 - x[-1] / self.getValue('income'))
-        self.setValue('x', x)
-        
-        
+
+#    def evalIndividualConsequences(self,world):
+#        x = self.loc.getX(self.getValue('mobilityType'))
+#        x[-1] = max(0,1 - x[-1] / self.getValue('income'))
+#        self.setValue('x', x)
+ 
+              
     def getObservationsMat(self, world, labelList):
         if len(self.obs) == 0:
             return None
@@ -692,6 +708,7 @@ class Cell(Location):
         self.population = 0
         self.urbanThreshold = earth.para['urbanPopulationThreshold']
         self.paraB = earth.para['paraB']
+        self.conveniences = list()
 
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
@@ -718,45 +735,28 @@ class Cell(Location):
         
     def remFromTraffic(self,label):
         self.traffic[label] -= 1
-        
-    def ecology(self, emissions, market):
-        ecology = 1/(1+math.exp((emissions-market.mean[0])/market.std[0]))
-        return ecology        
-    
+            
     def getX(self, choice):
         return copy.copy(self.xCell[choice,:])
+
    
-    def updateX(self, market):
+    def updateConveniences(self):
         # convenience parameters:        
         paraA, paraC, paraD = 1., .5, 0.1
         kappa = -0.3
-        popDensity = float(self.population)/self.cellSize
-        
+        popDensity = float(self.population)/self.cellSize        
         # calculate conveniences
-        convenienceG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + kappa
+        convG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + kappa
         if popDensity<self.urbanThreshold:
-            convenienceB = paraA
+            convB = paraA
         else:
-            convenienceB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
-        convenienceN = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
-        conveniences = [convenienceG, convenienceB, convenienceN]
+            convB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
+        convO = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
+        convAll = [convG, convB, convO]
+        self.conveniences = convAll
         
-        emissions = list()
-        prices = list()
-        ecologies = list()
         
-        for brandID in range(market.nBrands):
-            properties = market.brandProp[brandID]
-            em = properties[0] / market.techProgress[brandID]
-            emissions.append(em)
-            ecologies.append(self.ecology(em, market))
-            prices.append(properties[1]/market.techProgress[brandID])
-        #ecologies[-1] = 0.99
-        
-        self.xCell = np.asarray([conveniences, ecologies, prices]).T
-        self.setValue('cellX', tuple(conveniences + ecologies + prices))
-        
-    def step(self, market):
+    def step(self):
         """
         Manages the deletion og observation after a while
         """
@@ -773,7 +773,8 @@ class Cell(Location):
         else:
             self.setValue('carsInCell', self.traffic.values()[0])
             
-        self.updateX(market)
+        self.updateConveniences()
+
     
     def registerObs(self, hhID, prop, util, label):
         """

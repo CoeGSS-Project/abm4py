@@ -63,7 +63,7 @@ parameters = Bunch()
 
 #global parameter
 parameters.scenario       = 1
-parameters.nSteps         = 20 # number of simulation steps
+parameters.nSteps         = 100 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -245,7 +245,7 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
         hh.setValue('util',0)
         hh.setValue('predMeth',0)
         hh.setValue('noisyUtil',0)
-        hh.setValue('x', [0,0,0])
+        hh.setValue('consequences', [0,0,0])
         hh.registerAgent(earth)
         earth.nPrefTypes[hh.prefTyp] += 1
         nAgentsCell -= nPers
@@ -270,13 +270,13 @@ print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
 for household in earth.iterNodes(_hh):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
-    household.car['age'] = np.random.randint(0,15)
+    household.setValue('carAge', np.random.randint(0,15))
 #    household.evalIndividualConsequences(earth)
 #    household.util = household.evalUtility(earth)
 #    household.shareExperience(earth)
     
 for cell in earth.iterNodes(_cell):
-    cell.step(earth.market)
+    cell.step()
 print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
 
 
