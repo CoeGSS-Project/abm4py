@@ -211,10 +211,10 @@ if meanPrefPerLabel:
     for carLabel in range(0,len(enums['brands'])):
         res[carLabel] = np.zeros([nSteps,3])
     for step in range(0,nSteps):
-        ensembleAverage = np.mean(agMat[step,:,propDic['x']], axis = 1)
+        ensembleAverage = np.mean(agMat[step,:,propDic['consequences']], axis = 1)
         for carLabel in range(0,len(enums['brands'])):
             idx = np.where(agMat[step,:,propDic['mobilityType'][0]] == carLabel)[0]
-            res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['x'])],axis=1) #/ ensembleAverage
+            res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['consequences'])],axis=1) #/ ensembleAverage
     legStr = list()
     for prefType in range(0,3):
         legStr.append(enums['prefTypes'][prefType])
