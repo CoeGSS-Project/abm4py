@@ -18,12 +18,12 @@ plotRecords     = 0
 plotCarStockBar = 1
 prefPerLabel    = 0
 utilPerLabel    = 0
-incomePerLabel  = 0
+incomePerLabel  = 1
 meanPrefPerLabel= 1
 printCellMaps   = 0
 printPredMeth   = 0
 
-path = 'output/sim0210/'
+path = 'output/sim0254/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -252,7 +252,7 @@ if printCellMaps:
     agMat   = np.load(path + 'agentFile_type1.npy')
     propDic = loadObj(path + 'attributeList_type1')
     enums   = loadObj(path + 'enumerations')
-    
+    plt.figure()
     #get extend 
     step = 0
     min_ = [int(x) for x in np.min(agMat[step,:,propDic['pos']],axis=1)]
@@ -266,13 +266,13 @@ if printCellMaps:
     step = 45
     max_ = np.max(agMat[step,:,propDic['carsInCell']])
     min_ = np.min(agMat[step,:,propDic['carsInCell']])
-    for carLabel in range(0,8):
+    for carLabel in range(0,3):
         plt.subplot(2,4,carLabel+1)   
         cellMap[cellIdx] = agMat[step,:,propDic['carsInCell'][carLabel]]
         plt.pcolor(cellMap)
         plt.clim([min_, max_])
     plt.colorbar()
-
+    fig.suptitle('cars per cell')
 
 if printCellMaps:
     #%% loading cell agent file

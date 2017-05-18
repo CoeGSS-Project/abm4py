@@ -308,7 +308,7 @@ class Market():
             # technological progress:
             oldEtas = copy.copy(self.techProgress)
             for brandID in range(self.nBrands):
-                self.techProgress[brandID] = oldEtas[brandID] * (1+max(0,self.brandGrowthRates[brandID]))       
+                self.techProgress[brandID] = oldEtas[brandID] * (1+.2* max(0,self.brandGrowthRates[brandID]))       
             
             
 
@@ -393,7 +393,8 @@ class Household(Agent):
         for i in range(len(x)):
             utility *= (factor*x[i])**alpha[i]
         if  np.isnan(utility) or np.isinf(utility):
-            print sdfsdf      
+            import pdb
+            pdb.set_trace()
         return utility
 
     
@@ -481,7 +482,7 @@ class Household(Agent):
         self.queueConnection(geoNodeID,_tlh)         
         self.loc = world.entDict[geoNodeID]        
         self.loc.agList.append(self.nID)
-        self.loc.population += self.getValue('hhSize')
+        self.loc.population += 1
     
     def generateFriends(self,world, nFriends):
         """
@@ -806,7 +807,7 @@ class Opinion():
         self.ecoIncomeRange = ecoIncomeRange
         self.convIncomeFraction = convIncomeFraction
         
-    def getPref(self,age,sex,nKids,income, radicality):
+    def getPref(self,age,sex,nKids, nPers,income, radicality):
         
         #safety
         cs = 0
@@ -821,7 +822,7 @@ class Opinion():
         cs = float(cs)**2
         
         #ecology
-        ce = 3
+        ce = 1.5
         if sex == 2:
             ce +=2
         if income>self.ecoIncomeRange[0] and income<self.ecoIncomeRange[1]:
@@ -835,7 +836,7 @@ class Opinion():
         ce = float(ce)**2
         
         #convinience
-        cc = 5
+        cc = 3.0
         cc += nKids
         cc += income/self.convIncomeFraction
         if sex == 1:
@@ -848,23 +849,32 @@ class Opinion():
             cc += 1
         cc = float(cc)**2
 
+        cm = 1
+        cm += nKids
+        cm += self.convIncomeFraction/income*1.5
+        cm += nPers
+        cm = float(cm)**2
         
-        sumC = cc + cs + ce
+        
+        sumC = cc + cs + ce + cm
         cc /= sumC
         ce /= sumC
         cs /= sumC
+        cm /= sumC
+
 
         #individual preferences
-        cci, cei, csi = np.random.rand(3)
-        sumC = cci + cei + csi
+        cci, cei, csi, cmi = np.random.rand(4)
+        sumC = cci + cei + csi + cmi
         cci /= sumC
         cei /= sumC
         csi /= sumC
+        cmi /= sumC
         
         csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
-        cmAll = np.random.rand(1) # only random component
+        cmAll = cm* (1-self.indiRatio) + cmi*self.indiRatio
         
         pref = np.asarray([ ceAll, ccAll, cmAll])
         pref = pref ** radicality

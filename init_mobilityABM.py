@@ -63,14 +63,14 @@ parameters = Bunch()
 
 #global parameter
 parameters.scenario       = 1
-parameters.nSteps         = 20 # number of simulation steps
+parameters.nSteps         = 270 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 parameters.spatial        = True
 parameters.util           = 'cobb'
 
-parameters.initPhase      = 20
+parameters.burnIn         = 30
 parameters.properties     = ['emmisions','price']
 parameters.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
 parameters.randomCarPropDeviationSTD = 0.01
@@ -80,7 +80,7 @@ parameters.randomCarPropDeviationSTD = 0.01
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
 parameters.incomeShareForMobility = 0.5
-parameters.minFriends = 50  # number of desired friends
+parameters.minFriends = 30  # number of desired friends
 parameters.memoryTime  = 10  # length of the periode for which memories are stored
 parameters.addYourself = True
 parameters.carNewPeriod = 6
@@ -91,7 +91,7 @@ parameters.recAgent   = []   # reporter agents that return a diary
 parameters.writeOutput = True
 parameters.writeNPY    = True
 parameters.writeCSV    = False
-parameters.burnIn      = 20
+
 
 tt = time.time()
 
@@ -140,7 +140,7 @@ minPop = np.min(population[population!=0])
 maxPop = np.max(population)
 maxDeviation = max((minPop-urbThreshold)**2, (maxPop-urbThreshold)**2)
 minCarConvenience = .4
-parameters.paraB = minCarConvenience / maxDeviation
+parameters.paraB =  minCarConvenience / maxDeviation 
 parameters.urbanPopulationThreshold = urbThreshold  
 
 
@@ -183,7 +183,7 @@ earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.
 
 
 #                       emmisions price']
-earth.addBrand('green',(170,250*12), 0)   # green tech car
+earth.addBrand('green',(250,450*12), 0)   # green tech car
 earth.addBrand('brown',(440, 150*12), 0)  # combustion car
 earth.addBrand('other',(120, 80*12), 0)    # none or other
 
@@ -216,45 +216,57 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
     #print x,y
     nAgentsCell = int(population[x,y])
     while True:
-        if nHH in parameters.recAgent:
-            hh = Reporter(earth,'hh', x, y)
-        else:
-            hh = Household(earth,'hh', x, y)
         
-        hh.tolerance = parameters.tolerance
+        
         nPers = hhMat[idx,4]
-        hh.setValue('hhSize',nPers)
-        age= hhMat[idx:idx+nPers,12]
-        sex= hhMat[idx:idx+nPers,12]
+        ages= hhMat[idx:idx+nPers,12]
         
-        nKids = np.sum(age<18)
-        hh.setValue('nKids', nKids)
-        income = hhMat[idx,16]
-        income *= parameters.incomeShareForMobility
-        hh.setValue('income',income)   
-        if len(np.where(age>=18)[0]) > 0:
-            idxAdult = np.random.choice(np.where(age>=18)[0])
-        else:
-            idxAdult = 0
-        prEco, prCon, prMon = opinion.getPref(age[idxAdult],sex[idxAdult],nKids,income,parameters.radicality)
-        # normal 
-        hh.setValue('preferences', (prCon ,prEco , prMon))
-        hh.prefTyp = np.argmax((prCon ,prEco, prMon))
-        hh.setValue('prefTyp',hh.prefTyp)
-        hh.setValue('expUtil',0)
-        hh.setValue('util',0)
-        hh.setValue('predMeth',0)
-        hh.setValue('noisyUtil',0)
-        hh.setValue('x', [0,0,0])
-        hh.registerAgent(earth)
-        earth.nPrefTypes[hh.prefTyp] += 1
-        nAgentsCell -= nPers
-        nAgents     += nPers
+        for person in range(nPers):
+            
+            #creating persons as agents
+            
+            age= hhMat[idx+person,12]
+            sex= hhMat[idx+person,13]
+            
+            nKids = np.sum(ages<18)
+            income = hhMat[idx,16]
+            income *= parameters.incomeShareForMobility
+            
+              
+            if age< 18:
+                continue
+            
+            if nHH in parameters.recAgent:
+                hh = Reporter(earth,'hh', x, y)
+            else:
+                hh = Household(earth,'hh', x, y)
+            prEco, prCon, prMon = opinion.getPref(age,sex,nKids, nPers, income,parameters.radicality)
+            prefTyp = np.argmax((prCon ,prEco, prMon))
+            
+            # seting values of hh
+            hh.tolerance = parameters.tolerance
+            hh.setValue('hhSize',nPers)
+            hh.setValue('nKids', nKids)
+            hh.setValue('income',income) 
+            hh.setValue('preferences', (prCon ,prEco , prMon))
+            hh.setValue('prefTyp',prefTyp)
+            hh.setValue('expUtil',0)
+            hh.setValue('util',0)
+            hh.setValue('predMeth',0)
+            hh.setValue('noisyUtil',0)
+            hh.setValue('x', [0,0,0])
+            hh.registerAgent(earth)
+            earth.nPrefTypes[prefTyp] += 1
+            nAgentsCell -= 1
+            nAgents     += 1
+            hh.connectGeoNode(earth)
+            
         idx         += nPers
-        nHH         +=1
-        hh.connectGeoNode(earth)
-        if nAgentsCell < 0:
-            break
+        nHH         += 1
+        
+        if nAgentsCell <= 0:
+                break
+
 earth.dequeueEdges()
 print 'Agents created in -- ' + str( time.time() - tt) + ' s'
 
@@ -401,11 +413,13 @@ y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
 print np.corrcoef(x,y)
 
 print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-
+#%%
 nPeople = np.nansum(population)
-nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])!=0))
-
+nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])!=2))
+nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])==0))
+nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])==1))
 print 'Number of agents: ' + str(nPeople)
 print 'Number of agents: ' + str(nCars)
 print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
-print 'cars per 1000 people: ' + str(nCars/float(nAgents*1000.)
+print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
