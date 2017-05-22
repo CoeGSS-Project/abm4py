@@ -62,15 +62,15 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 1
-parameters.nSteps         = 270 # number of simulation steps
+parameters.scenario       = 2
+parameters.nSteps         = 250 # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 2.1  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 parameters.spatial        = True
 parameters.util           = 'cobb'
 
-parameters.burnIn         = 30
+parameters.burnIn         = 10
 parameters.properties     = ['emmisions','price']
 parameters.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
 parameters.randomCarPropDeviationSTD = 0.01
@@ -80,17 +80,17 @@ parameters.randomCarPropDeviationSTD = 0.01
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
 parameters.incomeShareForMobility = 0.5
-parameters.minFriends = 30  # number of desired friends
-parameters.memoryTime  = 10  # length of the periode for which memories are stored
-parameters.addYourself = True
-parameters.carNewPeriod = 6
+parameters.minFriends    = 30  # number of desired friends
+parameters.memoryTime    = 10  # length of the periode for which memories are stored
+parameters.addYourself   = True
+parameters.carNewPeriod  = 60 # months
 
-parameters.utilObsError = 1
-parameters.recAgent   = []   # reporter agents that return a diary
+parameters.utilObsError  = 1
+parameters.recAgent      = []   # reporter agents that return a diary
 
-parameters.writeOutput = True
-parameters.writeNPY    = True
-parameters.writeCSV    = False
+parameters.writeOutput   = 1
+parameters.writeNPY      = 1
+parameters.writeCSV      = 0
 
 
 tt = time.time()
@@ -116,8 +116,8 @@ elif parameters.scenario == 1: # medium
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     from scipy import signal
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
-    population = 10*population+ landLayer* np.random.randint(1,8,landLayer.shape)
-    urbThreshold = 35
+    population = 10*population+ landLayer* np.random.randint(1,4,landLayer.shape)
+    urbThreshold = 32
     
     
 
@@ -130,16 +130,17 @@ elif parameters.scenario == 2: # Niedersachsen
     landLayer = landLayer.astype(int)
     plt.imshow(landLayer)
     population = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_3432x8640.tiff') / reductionFactor
-    plt.imshow(population)
-
+    plt.imshow(population,cmap='jet')
+    plt.clim([0, np.nanpercentile(population,90)])
+    plt.colorbar()
     landLayer[landLayer == 1 & np.isnan(population)] =0
-
+    urbThreshold = np.nanpercentile(population,90)
 nAgents    = np.nansum(population)
 
-minPop = np.min(population[population!=0])
-maxPop = np.max(population)
-maxDeviation = max((minPop-urbThreshold)**2, (maxPop-urbThreshold)**2)
-minCarConvenience = .4
+minPop = np.nanmin(population[population!=0])
+maxPop = np.nanmax(population)
+maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
+minCarConvenience = .6
 parameters.paraB =  minCarConvenience / maxDeviation 
 parameters.urbanPopulationThreshold = urbThreshold  
 
@@ -182,10 +183,10 @@ earth.enums = dict()
 earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
 
 
-#                       emmisions price']
-earth.addBrand('green',(250,450*12), 0)   # green tech car
-earth.addBrand('brown',(440, 150*12), 0)  # combustion car
-earth.addBrand('other',(120, 80*12), 0)    # none or other
+#              label , properties, initTimestpe, allTimeProduced
+earth.addBrand('green',(250,450*12), 0, 100)   # green tech car
+earth.addBrand('brown',(440, 150*12), 0,5000)  # combustion car
+earth.addBrand('other',(120, 80*12), 0, 500)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -254,7 +255,7 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
             hh.setValue('util',0)
             hh.setValue('predMeth',0)
             hh.setValue('noisyUtil',0)
-        hh.setValue('consequences', [0,0,0])
+            hh.setValue('consequences', [0,0,0])
             hh.registerAgent(earth)
             earth.nPrefTypes[prefTyp] += 1
             nAgentsCell -= 1
@@ -288,7 +289,7 @@ for household in earth.iterNodes(_hh):
 #    household.shareExperience(earth)
     
 for cell in earth.iterNodes(_cell):
-    cell.step()
+    cell.step(earth.market.kappa)
 print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
 
 

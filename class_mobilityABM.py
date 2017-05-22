@@ -94,8 +94,8 @@ class Earth(World):
 #            columns = properties + ['utility','label']
 #            self.agDict[loc].obsDf = pd.DataFrame(columns = columns)
     
-    def addBrand(self, label, propertyTuple, initTimeStep):
-        brandID = self.market.addBrand(label, propertyTuple, initTimeStep)
+    def addBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
+        brandID = self.market.addBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
         for cell in self.iterNodes(_cell):
             cell.traffic[brandID] = 0
@@ -191,7 +191,7 @@ class Earth(World):
         
         #loop over cells
         for cell in self.iterNodes(_cell):
-            cell.step()
+            cell.step(self.market.kappa)
         # Update observations (remove old ones)
         # Compute the number of cars in each cell
 
@@ -257,17 +257,20 @@ class Market():
         self.stockbyBrand  = pd.DataFrame([])           # stock by brands 
         self.nBrands       = 0
         self.brandLabels   = dict()                     # brandID -> label
-        #self.prctValues = [50,80]        
         self.brandInitDict = dict()
         self.brandsToInit  = list()                     # list of brand labels
         self.carsPerLabel  = list()
         self.brandGrowthRates = list()                  # list of growth rates of brand
         self.techProgress  = list()                     # list of productivities of brand
         self.burnIn        = burnIn
-       
+        self.greenInfraMalus = -0.3
+        self.kappa         = self.greenInfraMalus
+        self.sales         =list()  
+        self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
+        
     def initCars(self):
         # actually puts the car on the market
-        for label, propertyTuple, _, brandID in  self.brandInitDict[0]:
+        for label, propertyTuple, _, brandID, allTimeProduced in  self.brandInitDict[0]:
              self.initBrand(label, propertyTuple, brandID)
 
     
@@ -293,7 +296,7 @@ class Market():
         for key in self.obsDict[self.time-1]:
             self.obsDict[self.time][key] = list()
         
-        
+        # check if a new car is entering the market
         if self.time in self.brandInitDict.keys():
                 
             for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
@@ -301,12 +304,20 @@ class Market():
         
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
+            self.computeTechnicalProgress()
+        
+        # add sales to allTimeProduced
+        self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.sales)]
+        # reset sales
+        self.sales = [0]*len(self.sales)
+            
+    def computeTechnicalProgress(self):
             # calculate growth rates per brand:
-            oldCarsPerLabel = copy.copy(self.carsPerLabel)
-            self.carsPerLabel = np.bincount(self.stock[:,0].astype(int)).astype(float)           
+            #oldCarsPerLabel = copy.copy(self.carsPerLabel)
+            #self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nBrands).astype(float)           
             for i in range(self.nBrands):
-                if not oldCarsPerLabel[i] == 0.:
-                    newGrowthRate = (self.carsPerLabel[i]-oldCarsPerLabel[i])/oldCarsPerLabel[i]
+                if not self.allTimeProduced[i] == 0.:
+                    newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
                 else: 
                     newGrowthRate = 0
                 self.brandGrowthRates[i] = newGrowthRate          
@@ -314,23 +325,27 @@ class Market():
             # technological progress:
             oldEtas = copy.copy(self.techProgress)
             for brandID in range(self.nBrands):
-                self.techProgress[brandID] = oldEtas[brandID] * (1+.2* max(0,self.brandGrowthRates[brandID]))       
-            
+                self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.brandGrowthRates[brandID]))   
+                
+            # technical process of infrastructure -> given to cells                
+            self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
             
 
         
-    def addBrand(self, label, propertyTuple, initTimeStep):
+    def addBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
         
         brandID = self.nBrands
         self.nBrands +=1 
         self.brandGrowthRates.append(0.)
         self.techProgress.append(1.)
+        self.sales.append(0)
+        self.allTimeProduced.append(allTimeProduced)
         self.carsPerLabel = np.zeros(self.nBrands)
         self.brandsToInit.append(label)
         if initTimeStep not in self.brandInitDict.keys():
-            self.brandInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , brandID]]
+            self.brandInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , brandID, allTimeProduced]]
         else:
-            self.brandInitDict[initTimeStep].append([label, propertyTuple, initTimeStep, brandID])
+            self.brandInitDict[initTimeStep].append([label, propertyTuple, initTimeStep, brandID, allTimeProduced])
        
         return brandID
     
@@ -356,9 +371,11 @@ class Market():
     def buyCar(self, brandID, eID):
         # draw the actual car property with a random component
         eta = self.techProgress[int(brandID)]
-        print eta
+        #print eta
         prop =[float(x/eta * y) for x,y in zip( self.brandProp[brandID], (1 + np.random.randn(self.nProp)*self.propRelDev))]
-        
+        if self.time > self.burnIn:
+            self.sales[int(brandID)] += 1
+            
         if len(self.freeSlots) > 0:
             carID = self.freeSlots.pop()
             self.stock[carID] = [brandID] + prop
@@ -400,7 +417,7 @@ class Household(Agent):
         factor = 100        
         for i in range(len(x)):
             utility *= (factor*x[i])**alpha[i]
-        assert not (np.isnan(utility) or np.isinf(utility)), 'sdfsdf'      
+        if np.isnan(utility) or np.isinf(utility):
             import pdb
             pdb.set_trace()
         return utility
@@ -486,7 +503,7 @@ class Household(Agent):
         self.queueConnection(geoNodeID,_tlh)         
         self.loc = world.entDict[geoNodeID]        
         self.loc.agList.append(self.nID)
-        self.loc.population += 1
+        self.loc.addValue('population',1)
     
     def generateFriends(self,world, nFriends):
         """
@@ -552,9 +569,11 @@ class Household(Agent):
         self.setValue('carID',carID)
         self.setValue('prop', properties)
         self.setValue('obsID', None)
-        self.setValue('carAge', 0)
-
-        
+        if world.time <  world.para['burnIn']:
+            self.setValue('carAge', np.random.randint(0, world.para['carNewPeriod']))
+        else:
+            self.setValue('carAge', 0)
+            
     def shareExperience(self, world):
         
         # adding noise to the observations
@@ -589,7 +608,7 @@ class Household(Agent):
     def calculateConsequences(self, market):        
         # get convenience from cell:
         brandID = int(self.getValue('mobilityType'))
-        convenience = self.loc.conveniences[brandID]                
+        convenience = self.loc.getValue('convenience')[brandID]                
         # calculate ecology:
         emissions = self.getValue('prop')[0]
         ecology = market.ecology(emissions)
@@ -608,7 +627,7 @@ class Household(Agent):
         self.setValue('expUtil',0)
         # If the car is older than a constant, we have a 50% of searching
         # for a new car.
-        if self.getValue('carAge') > world.para['carNewPeriod'] and np.random.rand(1)>.5: 
+        if (self.getValue('carAge') > world.para['carNewPeriod'] and np.random.rand(1)>.5) or world.time < world.para['burnIn']: 
             # Check what cars are owned by my friends, and what are their utilities,
             # and make a choice based on that.
             choice = self.optimalChoice(world)  
@@ -617,7 +636,13 @@ class Household(Agent):
                 # If the utility of the new choice is higher than
                 # the current utility times 1.2, we perform a transaction
 
-                if choice[1] > self.util *1.05:
+                buySellBecauseOld = max(0.,self.getValue('carAge') - 2*world.para['carNewPeriod'])/world.para['carNewPeriod'] > np.random.rand(1)
+                
+                # three reasons to buy a car:
+                    # new car has a higher utility 
+                    # current car is very old
+                    # in the burn in phase, every time step a new car is chosen
+                if choice[1] > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
                     self.setValue('predMeth',1) # predition method
                     self.setValue('expUtil',choice[1]) # expected utility
                     self.sellCar(world, self.getValue('carID'))
@@ -707,11 +732,13 @@ class Cell(Location):
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
-        self.population = 0
+        self.setValue('population', 0)
+        self.setValue('convenience', [0,0,0])
         self.urbanThreshold = earth.para['urbanPopulationThreshold']
         self.paraB = earth.para['paraB']
         self.conveniences = list()
-
+        self.kappa = -0.3
+        
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
         self.deleteQueue = deque([list()]*(memoryLen+1))
@@ -745,24 +772,23 @@ class Cell(Location):
     def updateConveniences(self):
         # convenience parameters:        
         paraA, paraC, paraD = 1., .5, 0.1
-        kappa = -0.3
-        popDensity = float(self.population)/self.cellSize        
+        
+        popDensity = float(self.getValue('population'))/self.cellSize        
         # calculate conveniences
-        convG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + kappa
+        convG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + self.kappa
         if popDensity<self.urbanThreshold:
             convB = paraA
         else:
             convB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
         convO = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
         convAll = [convG, convB, convO]
-        self.conveniences = convAll
+        self.setValue('convenience', convAll)
         
-        
-    def step(self):
+    def step(self, kappa):
         """
         Manages the deletion og observation after a while
         """
-        
+        self.kappa = kappa
         self.deleteQueue.append(self.currDelList) # add current list to the queue for later
         delList = self.deleteQueue.popleft()      # takes the list to delete
         for obsID in delList:
@@ -811,7 +837,7 @@ class Opinion():
         
     def getPref(self,age,sex,nKids, nPers,income, radicality):
         
-        #safety
+        # priority of safety
         cs = 0
         if nKids < 0:
             if sex == 2:
@@ -823,7 +849,7 @@ class Opinion():
             cs += 1
         cs = float(cs)**2
         
-        #ecology
+        # priority of ecology
         ce = 1.5
         if sex == 2:
             ce +=2
@@ -837,8 +863,8 @@ class Opinion():
                 ce +=1
         ce = float(ce)**2
         
-        #convinience
-        cc = 3.0
+        # priority of convinience
+        cc = 2.5
         cc += nKids
         cc += income/self.convIncomeFraction
         if sex == 1:
@@ -850,7 +876,8 @@ class Opinion():
         elif age > 40:
             cc += 1
         cc = float(cc)**2
-
+        
+        # priority of money
         cm = 1
         cm += nKids
         cm += self.convIncomeFraction/income*1.5

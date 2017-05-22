@@ -94,14 +94,31 @@ for prefTyp in range(4):
     
 print 1
 #%% df for one timestep
-if False:
-    step = 50
+if True:
+    step = 100
+    properties = ['weight','range', 'consumption', 'size', 'speed', 'expence']
     columns= ['']*agMat.shape[2]
     for key in propDic.keys():
         for i in propDic[key]:
             columns[i] = key
+    for i,idx in enumerate(propDic['preferences']):
+        columns[idx] = 'pref of ' + enums['prefTypes'][i] 
+    for i,idx in enumerate(propDic['preceivedProps']):
+        columns[idx] = properties[i]     
     df = pd.DataFrame(agMat[step],columns=columns)
-#ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
+    del df['time']
+    del df['noisyUtil']
+    del df['label']
+    del df['predMeth']
+    del df['expUtil']
+    del df['name']
+    del df['type']
+    del df['prefTyp']
+    #ax = sns.countplot(x=propDic['prefTyp'][0], hue=propDic['label'][0], data=df)
+    from biokit.viz import corrplot
+    c = corrplot.Corrplot(df)
+    c.plot(method='circle')
+print 1
 
 #%% df for one agent
 if False:

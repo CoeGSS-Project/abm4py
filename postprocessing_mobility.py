@@ -11,6 +11,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
+sys.path.append('/media/sf_shared/python/modules/biokit')
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
@@ -19,11 +21,11 @@ plotCarStockBar = 1
 prefPerLabel    = 0
 utilPerLabel    = 0
 incomePerLabel  = 1
-meanPrefPerLabel= 1
-printCellMaps   = 0
-printPredMeth   = 0
+meanPrefPerLabel= 0
+printCellMaps   = 1
+emissionsPerLabel   = 1
 
-path = 'output/sim0254/'
+path = 'output/sim0310/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -71,6 +73,17 @@ if plotCarStockBar:
 #plt.legend(legStr)
 plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
+#%% sales
+carSales = np.zeros([agMat.shape[0],3])
+for time in range(agMat.shape[0]):
+    for brand in range(0,len(enums['brands'])):
+        idx = agMat[time,:,propDic['predMeth'][0]] ==1
+        carSales[time,:] = np.bincount(agMat[time,idx,propDic['mobilityType'][0]].astype(int),minlength=3).astype(float)
+fig = plt.figure()
+plt.plot(carSales)
+plt.legend(enums['brands'].values(),loc=0)
+
+plt.title('sales per mobility Type')
 #%% number of different car per agent:
 nUniqueCars = list()
 for i in range(agMat.shape[1]):
@@ -101,13 +114,37 @@ for prefTyp in range(3):
     
 print 1
 #%% df for one timestep
-if False:
-    step = 50
+fig = plt.figure()
+
+if True:
+    step = 75
     columns= ['']*agMat.shape[2]
     for key in propDic.keys():
         for i in propDic[key]:
             columns[i] = key
+    for i,idx in enumerate(propDic['prop']):  
+        columns[idx] = ['emissions','price'][i]           
+    for i,idx in enumerate(propDic['preferences']):
+        columns[idx] = 'pref of ' + enums['prefTypes'][i] 
+    for i,idx in enumerate(propDic['consequences']):
+        columns[idx] = ['comfort','environmental','remainig money'][i] 
+       
     df = pd.DataFrame(agMat[step],columns=columns)
+    del df['time']
+    del df['noisyUtil']
+    del df['carID']
+    del df['predMeth']
+    del df['expUtil']
+    del df['name']
+    del df['type']
+    del df['prefTyp']  
+    del df['mobilityType']    
+             
+            
+
+from biokit.viz import corrplot
+c = corrplot.Corrplot(df)
+c.plot()
 
 #%% df for one agent
 if False:
@@ -226,53 +263,36 @@ if meanPrefPerLabel:
         plt.title(enums['brands'][carLabel])
         #plt.legend(legStr,loc=0)
         plt.xlim([0,nSteps])
-    plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.legend(['convenience','ecology', 'remaining income share'],bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr, loc = (1,1,0,0))
     plt.tight_layout()
     fig.suptitle('mean consequences per car label')
 print 1
 
-#%% print predition method
-
-if printPredMeth:
-   sumAvergUtil = np.sum(agMat[:,:,propDic['predMeth']]==1, axis = 1) 
-   sumLinRef = np.sum(agMat[:,:,propDic['predMeth']]==2, axis = 1) 
-   plt.figure()
-   plt.plot(sumAvergUtil)
-   plt.plot(sumLinRef)
-   plt.title('Prediction that lead to car buy')
-   plt.legend(['Cond Util','Lin. Reg.'],loc=0)
-   plt.xlim([0,nSteps])
-
+#%% print emissions per brand
+if emissionsPerLabel:
+    fig = plt.figure()
+    res = np.zeros([nSteps,len(enums['brands'])])
+    for i in range(2):
+        plt.subplot(2,1,i+1)
+        for step in range(0,nSteps):
+            for carLabel in range(0,len(enums['brands'])):
+                idx = agMat[step,:,propDic['mobilityType'][0]] == carLabel
+                res[step, carLabel] = np.mean(agMat[step,idx,propDic['prop'][i]])
+        legStr = list()
+        for label in range(0,len(enums['brands'])):
+            legStr.append(enums['brands'][label])        
+        
+        plt.plot(res)
+        if i == 0:
+            plt.title('Average emissions by brand')
+        else:
+            plt.title('Average price by brand')
+    plt.legend(legStr,loc=0)    
 
 plt.show()
 #%% loading cell agent file
 
-if printCellMaps:
-    agMat   = np.load(path + 'agentFile_type1.npy')
-    propDic = loadObj(path + 'attributeList_type1')
-    enums   = loadObj(path + 'enumerations')
-    plt.figure()
-    #get extend 
-    step = 0
-    min_ = [int(x) for x in np.min(agMat[step,:,propDic['pos']],axis=1)]
-    max_ = [int(x+1) for x in np.max(agMat[step,:,propDic['pos']],axis=1)]
-    cellMap = np.zeros(max_)
-    for agID in range(agMat.shape[1]):
-        x,y = agMat[step,agID,propDic['pos']]
-        cellMap[int(x),int(y)] = 1
-        cellIdx = np.where(cellMap)
-
-    step = 45
-    max_ = np.max(agMat[step,:,propDic['carsInCell']])
-    min_ = np.min(agMat[step,:,propDic['carsInCell']])
-    for carLabel in range(0,3):
-        plt.subplot(2,4,carLabel+1)   
-        cellMap[cellIdx] = agMat[step,:,propDic['carsInCell'][carLabel]]
-        plt.pcolor(cellMap)
-        plt.clim([min_, max_])
-    plt.colorbar()
-    fig.suptitle('cars per cell')
 
 if printCellMaps:
     #%% loading cell agent file
@@ -282,37 +302,31 @@ if printCellMaps:
     enums   = loadObj(path + 'enumerations')
     
     nSteps, nAgents, nProp = cellMat.shape
-    
-    #%%
+#%%    
+if printCellMaps:
+
     meanCon   = np.zeros([nSteps,3])
     meanEco   = np.zeros([nSteps,3])
     meanPrc   = np.zeros([nSteps,3])
     for step in range(nSteps):
-        meanVect = np.mean(cellMat[step,:,propDict['cellX']],axis=1)
-        meanCon[step,:] = meanVect[:3]
-        meanEco[step,:] = meanVect[3:6]
-        meanPrc[step,:] = meanVect[6:]
+        meanVect = np.mean(cellMat[step,:,propDict['convenience']],axis=1)
+        meanCon[step,:] = meanVect
+#        meanEco[step,:] = meanVect[3:6]
+#        meanPrc[step,:] = meanVect[6:]
     
     plt.figure()
-    plt.subplot(2,2,1)
+    #plt.subplot(2,2,1)
     plt.plot(meanCon)
     plt.legend(enums['brands'].values())
     plt.title('convenience, mean over cells')
-    plt.subplot(2,2,2)
-    plt.plot(meanEco)
-    plt.legend(enums['brands'].values())
-    plt.title('ecology, mean over cells')
-    plt.subplot(2,2,3)
-    plt.plot(meanPrc)
-    plt.legend(enums['brands'].values())
-    plt.title('price on cell level')
-    plt.xlim([0,nSteps])    
     
     #%%
     plt.clf()
-    landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1))
+    landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1).astype(int).tolist())
     for iCell in range(cellMat.shape[1]):
-        landLayer[cellMat[0,iCell,propDict['pos'][0]],cellMat[0,iCell,propDict['pos'][1]]] = 1
+        x = cellMat[0,iCell,propDict['pos'][0]].astype(int)
+        y = cellMat[0,iCell,propDict['pos'][1]].astype(int)
+        landLayer[x,y] = 1
     #plt.pcolormesh(landLayer)
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
@@ -325,31 +339,41 @@ if printCellMaps:
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
         plt.pcolormesh(res)
-        plt.clim([0,1])
+        #plt.clim([0,1])
         plt.colorbar()
-        plt.title(enums['brands'][iBrand] + ' per cells')
+        plt.title(enums['brands'][iBrand] + ' cars per cells')
     print 1
     
     #%%
+    plt.figure()
     plt.clf()
-    landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1))
+    landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1).astype(int).tolist())
     for iCell in range(cellMat.shape[1]):
-        landLayer[cellMat[0,iCell,propDict['pos'][0]],cellMat[0,iCell,propDict['pos'][1]]] = 1
-    #plt.pcolormesh(landLayer)
+        x = cellMat[0,iCell,propDict['pos'][0]].astype(int)
+        y = cellMat[0,iCell,propDict['pos'][1]].astype(int)
+        landLayer[x,y] = 1
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
-    step = 10
-    for iBrand in range(len(propDict['cellX'])):
+    step = 80
+    test = landLayer*0
+    for iBrand in range(3):
         res = landLayer*1.0
-        res[landLayer] = cellMat[step,:,propDict['cellX'][iBrand]] 
+        res[landLayer] = cellMat[0,:,propDict['convenience'][iBrand]]
+        test = test + res
         #res[landLayer==False] = np.nan
-        plt.subplot(3,3,iBrand+1)
+        plt.subplot(2,2,iBrand+1)
         plt.pcolormesh(res)
-        plt.clim([np.min(res[landLayer]),np.max(res[landLayer])])
-        print [np.min(res[landLayer]),np.max(res[landLayer])]
+        #plt.clim([0,1])
         plt.colorbar()
-        plt.title('consequences per cells')
-    
+        plt.title('convenience of ' + enums['brands'][iBrand] + ' cars per cells')
     print 1
 #%%
+plt.figure()
+res = landLayer*1.0
+res[landLayer] = cellMat[0,:,propDict['population']][0]
+plt.pcolormesh(res)
+#plt.clim([0,1])
+plt.colorbar()
+plt.title('population')
+print 1
 plt.show()
