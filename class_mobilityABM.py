@@ -80,8 +80,8 @@ class Earth(World):
         self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
-    def initMarket(self, properties, propRelDev=0.01, time = 0, burnIn = 0):
-        self.market = Market(properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
+    def initMarket(self, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
+        self.market = Market(properties, propRelDev=propRelDev, time=time, burnIn=burnIn, greenInfraMalus=greenInfraMalus)
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
@@ -244,7 +244,7 @@ class Earth(World):
         
 class Market():
 
-    def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0):
+    def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
         self.time          = time
         self.properties    = properties                 # (currently: emissions, price)
@@ -265,7 +265,7 @@ class Market():
         self.brandGrowthRates = list()                  # list of growth rates of brand
         self.techProgress  = list()                     # list of productivities of brand
         self.burnIn        = burnIn
-        self.greenInfraMalus = -0.3
+        self.greenInfraMalus = greenInfraMalus
         self.kappa         = self.greenInfraMalus
         self.sales         =list()  
         self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress

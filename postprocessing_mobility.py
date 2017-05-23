@@ -26,7 +26,7 @@ meanConsequencePerLabel = 1
 printCellMaps   = 1
 emissionsPerLabel   = 1
 
-path = 'output/sim0367/'
+path = 'output/sim0376/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -68,7 +68,7 @@ if plotCarStockBar:
     nCars = np.zeros(nSteps)
     colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
     for i, brand in enumerate(enums['brands'].values()):
-       plt.bar(np.arange(nSteps), carMat[:,i],bottom=nCars, color =colorPal[i], width=1)
+       plt.bar(np.arange(nSteps), carMat[:,i],bottom=nCars, color =colorPal[[1,0,2][i]], width=1)
        nCars += carMat[:,i]
        legStr.append(brand)
 #plt.legend(legStr)

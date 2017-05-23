@@ -63,25 +63,25 @@ parameters = Bunch()
 
 #global parameter
 parameters.scenario       = 1
-parameters.nSteps         = 150  # number of simulation steps
+parameters.nSteps         = 260  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 parameters.spatial        = True
 parameters.util           = 'cobb'
 
-parameters.burnIn         = 10
-parameters.properties     = ['emmisions','price']
+parameters.burnIn         = 20
+parameters.properties     = ['emmisions','TCO']
 parameters.randomAgents   = 0    # 0: prefrences dependent on agent properties - 1: random distribution
 parameters.randomCarPropDeviationSTD = 0.01
-
+parameters.greenInfraMalus = -0.5
 
 # agent parametersmeter
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-parameters.incomeShareForMobility = 0.1
+parameters.incomeShareForMobility = 0.2
 parameters.minFriends    = 30  # number of desired friends
-parameters.memoryTime    = 10  # length of the periode for which memories are stored
+parameters.memoryTime    = 20  # length of the periode for which memories are stored
 parameters.addYourself   = True
 parameters.carNewPeriod  = 60 # months
 
@@ -117,7 +117,7 @@ elif parameters.scenario == 1: # medium
     from scipy import signal
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
     population = 20*population+ landLayer* np.random.randint(1,4,landLayer.shape)
-    urbThreshold = 64
+    urbThreshold = 40
     
     
 
@@ -140,7 +140,7 @@ nAgents    = np.nansum(population)
 minPop = np.nanmin(population[population!=0])
 maxPop = np.nanmax(population)
 maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
-minCarConvenience = .6
+minCarConvenience = 1 + parameters.greenInfraMalus
 parameters.paraB =  minCarConvenience / maxDeviation 
 parameters.urbanPopulationThreshold = urbThreshold  
 
@@ -179,7 +179,10 @@ opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFr
 for cell in earth.iterNodes(_cell):
     cell.selfTest()
 
-earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, burnIn=parameters.burnIn)
+earth.initMarket(parameters.properties, 
+                 parameters.randomCarPropDeviationSTD, 
+                 burnIn=parameters.burnIn, 
+                 greenInfraMalus=parameters.greenInfraMalus)
 earth.market.mean = np.array([400.,300.])
 earth.market.std = np.array([100.,50.])
 #init location memory
@@ -208,11 +211,11 @@ def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
     return conv
 
                         
-earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 5000)  # combustion car
+earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 50000)  # combustion car
 
-earth.initBrand('green',(250., 450.), convienienceGreen, 0, 100)   # green tech car
+earth.initBrand('green',(250., 450.), convienienceGreen, 0, 1000)   # green tech car
 
-earth.initBrand('other',(120., 80.), convienienceOther, 0, 500)    # none or other
+earth.initBrand('other',(120., 80.), convienienceOther, 0, 5000)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -242,7 +245,7 @@ earth.enums['nodeTypes'][2] = 'household'
 earth.enums['consequences'] = dict()
 earth.enums['consequences'][0] = 'comfort'
 earth.enums['consequences'][1] = 'eco-friendliness'
-earth.enums['consequences'][2] = 'free money'
+earth.enums['consequences'][2] = 'remaining money'
 
 earth.enums['mobilityTypes'] = dict()
 earth.enums['mobilityTypes'][1] = 'green'
