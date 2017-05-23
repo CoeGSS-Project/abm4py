@@ -63,7 +63,7 @@ parameters = Bunch()
 
 #global parameter
 parameters.scenario       = 1
-parameters.nSteps         = 50  # number of simulation steps
+parameters.nSteps         = 150  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -79,7 +79,7 @@ parameters.randomCarPropDeviationSTD = 0.01
 # agent parametersmeter
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-parameters.incomeShareForMobility = 0.3
+parameters.incomeShareForMobility = 0.1
 parameters.minFriends    = 30  # number of desired friends
 parameters.memoryTime    = 10  # length of the periode for which memories are stored
 parameters.addYourself   = True
@@ -180,18 +180,39 @@ for cell in earth.iterNodes(_cell):
     cell.selfTest()
 
 earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, burnIn=parameters.burnIn)
-
+earth.market.mean = np.array([400.,300.])
+earth.market.std = np.array([100.,50.])
 #init location memory
 earth.enums = dict()
 earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
 
 
+# %% CAR BRANDS
 #              label , properties, initTimestpe, allTimeProduced
-earth.initBrand('brown',(440, 150), 0,5000)  # combustion car
+                        #(emmisions, TCO)
+import math
 
-earth.initBrand('green',(250,450), 0, 100)   # green tech car
+def convienienceBrown(popDensity, paraA, paraB, paraC ,paraD, cell):
+     if popDensity<cell.urbanThreshold:
+        conv = paraA
+     else:
+        conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa                   
+     return conv
+        
+def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
+    conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  
+    return conv
 
-earth.initBrand('other',(120, 80), 0, 500)    # none or other
+def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
+    conv = paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold)))
+    return conv
+
+                        
+earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 5000)  # combustion car
+
+earth.initBrand('green',(250., 450.), convienienceGreen, 0, 100)   # green tech car
+
+earth.initBrand('other',(120., 80.), convienienceOther, 0, 500)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -210,6 +231,9 @@ earth.enums['priorities'][0] = 'convinience'
 earth.enums['priorities'][1] = 'ecology'
 earth.enums['priorities'][2] = 'money'
 
+earth.enums['properties'] = dict()
+earth.enums['properties'][1] = 'emissions'
+earth.enums['properties'][2] = 'TCO'
 
 earth.enums['nodeTypes'] = dict()
 earth.enums['nodeTypes'][1] = 'cell'
@@ -217,7 +241,7 @@ earth.enums['nodeTypes'][2] = 'household'
 
 earth.enums['consequences'] = dict()
 earth.enums['consequences'][0] = 'comfort'
-earth.enums['consequences'][1] = 'eco-friendlyness'
+earth.enums['consequences'][1] = 'eco-friendliness'
 earth.enums['consequences'][2] = 'free money'
 
 earth.enums['mobilityTypes'] = dict()
@@ -301,8 +325,10 @@ print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
 for household in tqdm.tqdm(earth.iterNodes(_hh)):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
-    earth.market.computeStatistics()
+    #earth.market.computeStatistics()
     household.setValue('carAge', np.random.randint(0,15))
+    
+for household in tqdm.tqdm(earth.iterNodes(_hh)):    
     household.calculateConsequences(earth.market)
     household.util = household.evalUtility()
     household.shareExperience(earth)

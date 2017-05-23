@@ -94,11 +94,13 @@ class Earth(World):
 #            columns = properties + ['utility','label']
 #            self.agDict[loc].obsDf = pd.DataFrame(columns = columns)
     
-    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
+    def initBrand(self, label, propertyTuple, convFunction, initTimeStep, allTimeProduced):
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
         for cell in self.iterNodes(_cell):
             cell.traffic[brandID] = 0
+            cell.convFunctions.append(convFunction)
+            
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
         self.enums['brands'][brandID] = label
@@ -745,6 +747,8 @@ class Cell(Location):
         self.paraB = earth.para['paraB']
         self.conveniences = list()
         self.kappa = -0.3
+        self.convFunctions = list()
+        
         
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
@@ -784,20 +788,17 @@ class Cell(Location):
                 pdb.trace()
     
     def calculateConveniences(self):
-        # convenience parameters:        
+        
+        convAll = list()
+        # convenience parameters:    
         paraA, paraC, paraD = 1., .5, 0.1
-        
         popDensity = float(self.getValue('population'))/self.cellSize        
-        # calculate conveniences
-        convG = paraA - self.paraB*(popDensity - self.urbanThreshold)**2 + self.kappa
-        if popDensity<self.urbanThreshold:
-            convB = paraA
-        else:
-            convB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
-        convO = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
-        convAll = [convG, convB, convO]
+        for funcCall in self.convFunctions:
+            
+            convAll.append(funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))
+            
         return convAll
-        
+
         
     def step(self, kappa):
         """

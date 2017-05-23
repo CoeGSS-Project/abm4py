@@ -26,7 +26,7 @@ meanConsequencePerLabel = 1
 printCellMaps   = 1
 emissionsPerLabel   = 1
 
-path = 'output/sim0345/'
+path = 'output/sim0367/'
 #%% init
     
 from class_auxiliary import loadObj
