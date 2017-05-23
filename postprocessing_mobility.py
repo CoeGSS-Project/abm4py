@@ -20,12 +20,13 @@ plotRecords     = 0
 plotCarStockBar = 1
 prefPerLabel    = 0
 utilPerLabel    = 0
-incomePerLabel  = 1
+incomePerLabel  = 0
 meanPrefPerLabel= 0
+meanConsequencePerLabel = 1
 printCellMaps   = 1
 emissionsPerLabel   = 1
 
-path = 'output/sim0310/'
+path = 'output/sim0345/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -96,7 +97,7 @@ for prefTyp in range(3):
     idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
     for i in np.where(idx)[0]:
         nUniqueCars.append(len(np.unique(agMat[:,i,propDic['mobilityType'][0]])))
-    print 'Pref Type = ' + enums['prefTypes'][prefTyp] + ' ownes ' + str(np.mean(nUniqueCars)) +'different cars'
+    print 'Pref Type = ' + enums['priorities'][prefTyp] + ' ownes ' + str(np.mean(nUniqueCars)) +'different cars'
 
 #%% number of buys
 
@@ -109,7 +110,7 @@ np.min(carBuys)
 for prefTyp in range(3):
     idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
     
-    print 'Pref Type "' + enums['prefTypes'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
+    print 'Pref Type "' + enums['priorities'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
     
     
 print 1
@@ -117,7 +118,7 @@ print 1
 fig = plt.figure()
 
 if True:
-    step = 75
+    step = 1
     columns= ['']*agMat.shape[2]
     for key in propDic.keys():
         for i in propDic[key]:
@@ -125,7 +126,7 @@ if True:
     for i,idx in enumerate(propDic['prop']):  
         columns[idx] = ['emissions','price'][i]           
     for i,idx in enumerate(propDic['preferences']):
-        columns[idx] = 'pref of ' + enums['prefTypes'][i] 
+        columns[idx] = 'pref of ' + enums['priorities'][i] 
     for i,idx in enumerate(propDic['consequences']):
         columns[idx] = ['comfort','environmental','remainig money'][i] 
        
@@ -173,7 +174,7 @@ if prefPerLabel:
     
     legStr = list()
     for prefType in range(0,3):
-        legStr.append(enums['prefTypes'][prefType])
+        legStr.append(enums['priorities'][prefType])
     for carLabel in range(0,len(enums['brands'])):
         fig = plt.figure()
         plt.plot(res[carLabel])
@@ -226,7 +227,7 @@ if meanPrefPerLabel:
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1) / ensembleAverage
     legStr = list()
     for prefType in range(0,3):
-        legStr.append(enums['prefTypes'][prefType])
+        legStr.append(enums['priorities'][prefType])
     
     h = list()
     for carLabel in range(0,len(enums['brands'])):
@@ -242,7 +243,7 @@ if meanPrefPerLabel:
 print 1
 #%% mean consequences per car label
 
-if meanPrefPerLabel:
+if meanConsequencePerLabel:
     fig = plt.figure()
     res = dict()
     for carLabel in range(0,len(enums['brands'])):
@@ -254,22 +255,23 @@ if meanPrefPerLabel:
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['consequences'])],axis=1) #/ ensembleAverage
     legStr = list()
     for prefType in range(0,3):
-        legStr.append(enums['prefTypes'][prefType])
+        legStr.append(enums['consequences'][prefType])
     
     h = list()
     for carLabel in range(0,len(enums['brands'])):
         plt.subplot(2,2,carLabel+1)    
         h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
-        #plt.legend(legStr,loc=0)
+        
         plt.xlim([0,nSteps])
-    plt.legend(['convenience','ecology', 'remaining income share'],bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    #fig.legend(h, legStr, loc = (1,1,0,0))
+    # plt.legend(legStr,loc=0)        
+    plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #fig.legend(h, legStr)
     plt.tight_layout()
     fig.suptitle('mean consequences per car label')
 print 1
 
-#%% print emissions per brand
+#%% print consequences per brand
 if emissionsPerLabel:
     fig = plt.figure()
     res = np.zeros([nSteps,len(enums['brands'])])
@@ -330,11 +332,12 @@ if printCellMaps:
     #plt.pcolormesh(landLayer)
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
-    step = 80
+    step = 19
     test = landLayer*0
     for iBrand in range(3):
         res = landLayer*1.0
-        res[landLayer] = cellMat[0,:,propDict['carsInCell'][iBrand]] / np.sum(cellMat[0,:,propDict['carsInCell']],axis=0)
+        res[landLayer] = cellMat[step,:,propDict['carsInCell'][iBrand]] / np.sum(cellMat[step,:,propDict['carsInCell']],axis=0)
+        print np.max(res)
         test = test + res
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
@@ -347,18 +350,18 @@ if printCellMaps:
     #%%
     plt.figure()
     plt.clf()
-    landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1).astype(int).tolist())
+    landLayer = np.zeros(np.max(cellMat[step,:,propDict['pos']]+1,axis=1).astype(int).tolist())
     for iCell in range(cellMat.shape[1]):
         x = cellMat[0,iCell,propDict['pos'][0]].astype(int)
         y = cellMat[0,iCell,propDict['pos'][1]].astype(int)
         landLayer[x,y] = 1
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
-    step = 80
+    step = 1
     test = landLayer*0
     for iBrand in range(3):
         res = landLayer*1.0
-        res[landLayer] = cellMat[0,:,propDict['convenience'][iBrand]]
+        res[landLayer] = cellMat[step,:,propDict['convenience'][iBrand]]
         test = test + res
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)

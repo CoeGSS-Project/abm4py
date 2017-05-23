@@ -94,8 +94,8 @@ class Earth(World):
 #            columns = properties + ['utility','label']
 #            self.agDict[loc].obsDf = pd.DataFrame(columns = columns)
     
-    def addBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
-        brandID = self.market.addBrand(label, propertyTuple, initTimeStep, allTimeProduced)
+    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
+        brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
         for cell in self.iterNodes(_cell):
             cell.traffic[brandID] = 0
@@ -268,10 +268,10 @@ class Market():
         self.sales         =list()  
         self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
         
-    def initCars(self):
+    def initialCarInit(self):
         # actually puts the car on the market
         for label, propertyTuple, _, brandID, allTimeProduced in  self.brandInitDict[0]:
-             self.initBrand(label, propertyTuple, brandID)
+             self.addBrand2Market(label, propertyTuple, brandID)
 
     
     def computeStatistics(self):  
@@ -285,7 +285,10 @@ class Market():
 
 
     def ecology(self, emissions):
-        ecology = 1/(1+math.exp((emissions-self.mean[0])/self.std[0]))
+        if self.std[0] == 0:
+            ecology = 1/(1+math.exp((emissions-self.mean[0])/1))
+        else:
+            ecology = 1/(1+math.exp((emissions-self.mean[0])/self.std[0]))
         return ecology        
 
         
@@ -300,7 +303,7 @@ class Market():
         if self.time in self.brandInitDict.keys():
                 
             for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
-                self.initBrand(label, propertyTuple, brandID)
+                self.addBrand2Market(label, propertyTuple, brandID)
         
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
@@ -310,6 +313,9 @@ class Market():
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.sales)]
         # reset sales
         self.sales = [0]*len(self.sales)
+        
+        #compute new statistics
+        self.computeStatistics()
             
     def computeTechnicalProgress(self):
             # calculate growth rates per brand:
@@ -332,7 +338,7 @@ class Market():
             
 
         
-    def addBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
+    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
         
         brandID = self.nBrands
         self.nBrands +=1 
@@ -349,7 +355,7 @@ class Market():
        
         return brandID
     
-    def initBrand(self, label, propertyTuple, brandID):
+    def addBrand2Market(self, label, propertyTuple, brandID):
         
         #add brand to the market
            
@@ -385,7 +391,7 @@ class Market():
             self.owners.append((eID, brandID))
             carID = len(self.owners)-1
         #self.stockbyBrand.loc[self.stockbyBrand.index[-1],brandID] += 1
-        self.computeStatistics()
+        #self.computeStatistics()
         
         return carID, prop
     
@@ -430,7 +436,8 @@ class Household(Agent):
             uti += alpha[i]**(1/s)*x[i]**((s-1)/s)             
         utility = uti**(s/(s-1))
         if  np.isnan(utility) or np.isinf(utility):
-            print 1
+            import pdb
+            pdb.set_trace()
         return utility
         
 
@@ -768,8 +775,15 @@ class Cell(Location):
     def getX(self, choice):
         return copy.copy(self.xCell[choice,:])
 
+    def selfTest(self):
+        convAll = self.calculateConveniences()
    
-    def updateConveniences(self):
+        for x in convAll:
+            if np.isinf(x) or np.isnan(x) or x == 0:
+                import pdb
+                pdb.trace()
+    
+    def calculateConveniences(self):
         # convenience parameters:        
         paraA, paraC, paraD = 1., .5, 0.1
         
@@ -782,7 +796,8 @@ class Cell(Location):
             convB = paraA - self.paraB*(popDensity - self.urbanThreshold)**2
         convO = paraC/(1+math.exp((-paraD)*(popDensity-self.urbanThreshold)))
         convAll = [convG, convB, convO]
-        self.setValue('convenience', convAll)
+        return convAll
+        
         
     def step(self, kappa):
         """
@@ -801,8 +816,8 @@ class Cell(Location):
         else:
             self.setValue('carsInCell', self.traffic.values()[0])
             
-        self.updateConveniences()
-
+        convAll = self.calculateConveniences()
+        self.setValue('convenience', convAll)
     
     def registerObs(self, hhID, prop, util, label):
         """

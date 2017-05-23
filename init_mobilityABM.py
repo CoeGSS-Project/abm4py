@@ -62,24 +62,24 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 2
-parameters.nSteps         = 250 # number of simulation steps
+parameters.scenario       = 1
+parameters.nSteps         = 50  # number of simulation steps
 parameters.flgSpatial     = True
-parameters.connRadius     = 2.1  # radíus of cells that get an connection
+parameters.connRadius     = 1.5  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 parameters.spatial        = True
 parameters.util           = 'cobb'
 
 parameters.burnIn         = 10
 parameters.properties     = ['emmisions','price']
-parameters.randomAgents   = 0 # 0: prefrences dependent on agent properties - 1: random distribution
+parameters.randomAgents   = 0    # 0: prefrences dependent on agent properties - 1: random distribution
 parameters.randomCarPropDeviationSTD = 0.01
 
 
 # agent parametersmeter
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
 parameters.radicality    = 3 # exponent of the preferences -> high values lead to extreme differences
-parameters.incomeShareForMobility = 0.5
+parameters.incomeShareForMobility = 0.3
 parameters.minFriends    = 30  # number of desired friends
 parameters.memoryTime    = 10  # length of the periode for which memories are stored
 parameters.addYourself   = True
@@ -116,15 +116,15 @@ elif parameters.scenario == 1: # medium
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     from scipy import signal
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
-    population = 10*population+ landLayer* np.random.randint(1,4,landLayer.shape)
-    urbThreshold = 32
+    population = 20*population+ landLayer* np.random.randint(1,4,landLayer.shape)
+    urbThreshold = 64
     
     
 
     
     
 elif parameters.scenario == 2: # Niedersachsen
-    reductionFactor = 100
+    reductionFactor = 200
     landLayer= gt.load_array_from_tiff('resources_nie/land_layer_3432x8640.tiff')
     landLayer[np.isnan(landLayer)] = 0
     landLayer = landLayer.astype(int)
@@ -176,6 +176,9 @@ ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
 opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 
 
+for cell in earth.iterNodes(_cell):
+    cell.selfTest()
+
 earth.initMarket(parameters.properties, parameters.randomCarPropDeviationSTD, burnIn=parameters.burnIn)
 
 #init location memory
@@ -184,9 +187,11 @@ earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.
 
 
 #              label , properties, initTimestpe, allTimeProduced
-earth.addBrand('green',(250,450*12), 0, 100)   # green tech car
-earth.addBrand('brown',(440, 150*12), 0,5000)  # combustion car
-earth.addBrand('other',(120, 80*12), 0, 500)    # none or other
+earth.initBrand('brown',(440, 150), 0,5000)  # combustion car
+
+earth.initBrand('green',(250,450), 0, 100)   # green tech car
+
+earth.initBrand('other',(120, 80), 0, 500)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
@@ -199,17 +204,30 @@ tt = time.time()
 nAgents = 0
 nHH     = 0
 
-earth.enums['prefTypes'] = dict()
+earth.enums['priorities'] = dict()
 
-earth.enums['prefTypes'][0] = 'convinience'
-earth.enums['prefTypes'][1] = 'ecology'
-earth.enums['prefTypes'][2] = 'money'
-earth.nPref = len(earth.enums['prefTypes'])
-earth.nPrefTypes = [0]* earth.nPref
+earth.enums['priorities'][0] = 'convinience'
+earth.enums['priorities'][1] = 'ecology'
+earth.enums['priorities'][2] = 'money'
+
 
 earth.enums['nodeTypes'] = dict()
 earth.enums['nodeTypes'][1] = 'cell'
 earth.enums['nodeTypes'][2] = 'household'
+
+earth.enums['consequences'] = dict()
+earth.enums['consequences'][0] = 'comfort'
+earth.enums['consequences'][1] = 'eco-friendlyness'
+earth.enums['consequences'][2] = 'free money'
+
+earth.enums['mobilityTypes'] = dict()
+earth.enums['mobilityTypes'][1] = 'green'
+earth.enums['mobilityTypes'][0] = 'brown'
+earth.enums['mobilityTypes'][2] = 'other'
+
+
+earth.nPref = len(earth.enums['priorities'])
+earth.nPrefTypes = [0]* earth.nPref
 
 
 idx = 0
@@ -274,19 +292,20 @@ print 'Agents created in -- ' + str( time.time() - tt) + ' s'
 # %% Generate Network
 tt = time.time()
 earth.genFriendNetwork(parameters.minFriends)
-earth.market.initCars()
+earth.market.initialCarInit()
 if parameters.scenario == 0:
     earth.view('output/graph.png')
 print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
 
 #%% Initial actions
 tt = time.time()
-for household in earth.iterNodes(_hh):
+for household in tqdm.tqdm(earth.iterNodes(_hh)):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
+    earth.market.computeStatistics()
     household.setValue('carAge', np.random.randint(0,15))
-#    household.evalIndividualConsequences(earth)
-#    household.util = household.evalUtility(earth)
-#    household.shareExperience(earth)
+    household.calculateConsequences(earth.market)
+    household.util = household.evalUtility()
+    household.shareExperience(earth)
     
 for cell in earth.iterNodes(_cell):
     cell.step(earth.market.kappa)

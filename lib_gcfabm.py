@@ -68,7 +68,7 @@ class Entity():
         self.updateEdges()
 
     def updateEdges(self):
-            
+        #TODO re-think this approach            
         for typ in self.graph.edgeTypes:
             self.edges[typ] = self.graph.es[self.graph.incident(self.nID,'out')].select(type=typ)
         self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
