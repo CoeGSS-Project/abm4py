@@ -579,7 +579,7 @@ class Household(Agent):
         self.setValue('prop', properties)
         self.setValue('obsID', None)
         if world.time <  world.para['burnIn']:
-            self.setValue('carAge', np.random.randint(0, world.para['carNewPeriod']))
+            self.setValue('carAge', np.random.randint(0, 2*world.para['carNewPeriod']))
         else:
             self.setValue('carAge', 0)
             
@@ -641,9 +641,9 @@ class Household(Agent):
         if (self.getValue('carAge') > world.para['carNewPeriod'] and np.random.rand(1)>.5) or world.time < world.para['burnIn']: 
             # Check what cars are owned by my friends, and what are their utilities,
             # and make a choice based on that.
-            choice = self.optimalChoice(world)  
+            brandID, expUtil = self.optimalChoice(world)  
             
-            if choice is not None:
+            if brandID is not None:
                 # If the utility of the new choice is higher than
                 # the current utility times 1.2, we perform a transaction
 
@@ -653,11 +653,11 @@ class Household(Agent):
                     # new car has a higher utility 
                     # current car is very old
                     # in the burn in phase, every time step a new car is chosen
-                if choice[1] > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
+                if expUtil > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
                     self.setValue('predMeth',1) # predition method
-                    self.setValue('expUtil',choice[1]) # expected utility
+                    self.setValue('expUtil',expUtil) # expected utility
                     self.sellCar(world, self.getValue('carID'))
-                    self.buyCar(world, choice[0])
+                    self.buyCar(world, brandID)
                     carBought = True
                 # Otherwise, we have a 25% chance of looking at properties
                 # of cars owned by friends, and perform linear sensitivity
@@ -696,7 +696,7 @@ class Household(Agent):
         """
         from operator import itemgetter
         if len(self.obs) == 0:
-            return None
+            return None, None
 
         obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
        
@@ -946,7 +946,6 @@ class Opinion():
         pref = np.asarray([ ceAll, ccAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
-        #return tuple([0,0,1])
         return tuple(pref)
      
 # %% --- main ---

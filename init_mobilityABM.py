@@ -62,8 +62,8 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 2
-parameters.nSteps         = 20  # number of simulation steps
+parameters.scenario       = 1
+parameters.nSteps         = 260  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
@@ -210,11 +210,11 @@ def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
     return conv
 
                         
-earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 50000)  # combustion car
+earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 10000)  # combustion car
 
-earth.initBrand('green',(250., 450.), convienienceGreen, 0, 1000)   # green tech car
+earth.initBrand('green',(250., 450.), convienienceGreen, 0, 500)   # green tech car
 
-earth.initBrand('other',(120., 80.), convienienceOther, 0, 5000)    # none or other
+earth.initBrand('other',(120., 80.), convienienceOther, 0, 2000)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()
