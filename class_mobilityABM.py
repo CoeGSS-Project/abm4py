@@ -907,7 +907,7 @@ class Opinion():
         cm = 1
         cm += nKids
         cm += self.convIncomeFraction/income*1.5
-        cm += nPers
+        #cm += nPers
         cm = float(cm)**2
         
         
@@ -945,7 +945,7 @@ class Opinion():
         pref = np.asarray([ ceAll, ccAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
-        return tuple([0,0,1])
+        #return tuple([0,0,1])
         return tuple(pref)
      
 # %% --- main ---
