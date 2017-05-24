@@ -211,11 +211,11 @@ def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
     return conv
 
                         
-earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 50000)  # combustion car
+earth.initBrand('brown',(440., 150.), convienienceBrown, 0, 10000)  # combustion car
 
-earth.initBrand('green',(250., 450.), convienienceGreen, 0, 1000)   # green tech car
+earth.initBrand('green',(250., 450.), convienienceGreen, 0, 500)   # green tech car
 
-earth.initBrand('other',(120., 80.), convienienceOther, 0, 5000)    # none or other
+earth.initBrand('other',(120., 80.), convienienceOther, 0, 2000)    # none or other
 
 print 'Init finished after -- ' + str( time.time() - tt) + ' s'
 tt = time.time()

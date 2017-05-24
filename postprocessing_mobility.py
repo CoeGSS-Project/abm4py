@@ -23,10 +23,10 @@ utilPerLabel    = 1
 incomePerLabel  = 1
 meanPrefPerLabel= 1
 meanConsequencePerLabel = 1
-printCellMaps   = 0
+printCellMaps   = 1
 emissionsPerLabel   = 1
 
-path = 'output/sim0023/'
+path = 'output/sim0018/'
 
 #%% init
     
@@ -419,7 +419,7 @@ foMap = class_map.Map()
 cm = matplotlib.cm.get_cmap('YlGn')
 arrayData = res
 normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,95) - np.nanpercentile(arrayData,5))
-                self.minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)
+self.minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)
 colored_data = cm(normed_data)
 foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
 foMap.view()
