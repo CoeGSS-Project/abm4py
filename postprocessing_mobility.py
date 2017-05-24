@@ -18,13 +18,14 @@ sns.set_color_codes("dark")
 
 plotRecords     = 0
 plotCarStockBar = 1
-prefPerLabel    = 1
-utilPerLabel    = 1
+prefPerLabel    = 0
+utilPerLabel    = 0
 incomePerLabel  = 1
 meanPrefPerLabel= 0
 meanConsequencePerLabel = 1
 printCellMaps   = 1
-emissionsPerLabel   = 1
+emissionsPerLabel = 1
+
 
 path = 'output/sim0412/'
 
@@ -75,6 +76,8 @@ if plotCarStockBar:
        nCars += carMat[:,i]
        legStr.append(brand)
 #plt.legend(legStr)
+if withoutBurnIn: 
+    plt.xlim([bi,steps])
 plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% sales

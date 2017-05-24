@@ -802,10 +802,11 @@ class Cell(Location):
         
         convAll = list()
         # convenience parameters:    
-        paraA, paraC, paraD = 1., .3, 0.05
+
+        paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            
+            convAll.append(min(1., max(0.05,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            
         return convAll
 
         
@@ -919,7 +920,11 @@ class Opinion():
         cm /= sumC
 
         # priority of imitation
+<<<<<<< HEAD
         ci = 0.20
+=======
+        ci = 0.2
+>>>>>>> 38cd07a62e1fd0cbf0069dcdf7167397cb6a5faf
     
         sumC = cc + cs + ce + cm +ci
         cc /= sumC
