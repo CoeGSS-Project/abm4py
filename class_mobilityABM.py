@@ -795,14 +795,14 @@ class Cell(Location):
         for x in convAll:
             if np.isinf(x) or np.isnan(x) or x == 0:
                 import pdb
-                pdb.trace()
+                pdb.set_trace()
         return convAll, self.getValue('population')
     
     def calculateConveniences(self):
         
         convAll = list()
         # convenience parameters:    
-        paraA, paraC, paraD = 1., .3, 0.01
+        paraA, paraC, paraD = 1., .3, 0.05
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
             convAll.append(min(1., max(0.,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            
@@ -919,7 +919,7 @@ class Opinion():
         cm /= sumC
 
         # priority of imitation
-        ci = 0.25
+        ci = 0.20
     
         sumC = cc + cs + ce + cm +ci
         cc /= sumC

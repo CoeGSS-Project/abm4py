@@ -26,7 +26,7 @@ meanConsequencePerLabel = 1
 printCellMaps   = 1
 emissionsPerLabel   = 1
 
-path = 'output/sim0018/'
+path = 'output/sim0412/'
 
 #%% init
     
@@ -348,7 +348,7 @@ if printCellMaps:
     #plt.pcolormesh(landLayer)
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
-    step = 19
+    step = 250
     test = landLayer*0
     for iBrand in range(3):
         res = landLayer*1.0
@@ -364,6 +364,7 @@ if printCellMaps:
         plt.colorbar()
         plt.title(enums['brands'][iBrand] + ' cars per cells')
     print 1
+    sys.path.append('/media/sf_shared/python/modules')
     sys.path.append('/media/sf_shared/python/database')
     import class_map
     import matplotlib

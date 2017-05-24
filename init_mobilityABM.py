@@ -63,18 +63,18 @@ parameters = Bunch()
 
 #global parameter
 parameters.scenario       = 1
-parameters.nSteps         = 260  # number of simulation steps
+parameters.nSteps         = 300  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
 parameters.tolerance      = 1.   # tolerance of friends when connecting to others (deviation in preferences)
 parameters.spatial        = True
 parameters.util           = 'cobb'
 
-parameters.burnIn         = 20
+parameters.burnIn         = 60
 parameters.properties     = ['emmisions','TCO']
 parameters.randomAgents   = 0    # 0: prefrences dependent on agent properties - 1: random distribution
 parameters.randomCarPropDeviationSTD = 0.01
-parameters.greenInfraMalus = -0.5
+parameters.greenInfraMalus = -0.4
 
 # agent parametersmeter
 parameters.randPref      = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
@@ -83,7 +83,7 @@ parameters.incomeShareForMobility = 0.2
 parameters.minFriends    = 30  # number of desired friends
 parameters.memoryTime    = 20  # length of the periode for which memories are stored
 parameters.addYourself   = True
-parameters.carNewPeriod  = 60 # months
+parameters.carNewPeriod  = 36 # months
 
 parameters.utilObsError  = 1
 parameters.recAgent      = []   # reporter agents that return a diary
@@ -104,7 +104,14 @@ if parameters.scenario == 0: #small
                               [0, 0, 1, 1, 1, 1]])
     population = landLayer* np.random.randint(5,20,landLayer.shape)
     urbThreshold = 13
+    nAgents    = np.nansum(population)
     
+    minPop = np.nanmin(population[population!=0])
+    maxPop = np.nanmax(population)
+    maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
+    minCarConvenience = 1 + parameters.greenInfraMalus
+    parameters.paraB =  minCarConvenience / (maxDeviation*.5)
+    parameters.urbanPopulationThreshold = urbThreshold  
 elif parameters.scenario == 1: # medium
     landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
                               [0, 1, 0, 0, 0, 1, 1, 1, 0],
@@ -116,9 +123,16 @@ elif parameters.scenario == 1: # medium
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     from scipy import signal
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
-    population = 20*population+ landLayer* np.random.randint(1,4,landLayer.shape)
-    urbThreshold = 55
+    population = 20*population+ landLayer* np.random.randint(1,10,landLayer.shape)
+    urbThreshold = 40
+    nAgents    = np.nansum(population)
     
+    minPop = np.nanmin(population[population!=0])
+    maxPop = np.nanmax(population)
+    maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
+    minCarConvenience = 1 + parameters.greenInfraMalus
+    parameters.paraB =  minCarConvenience / (maxDeviation*.5)
+    parameters.urbanPopulationThreshold = urbThreshold  
     
 
     
@@ -135,14 +149,14 @@ elif parameters.scenario == 2: # Niedersachsen
     plt.colorbar()
     landLayer[landLayer == 1 & np.isnan(population)] =0
     urbThreshold = np.nanpercentile(population,90)
-nAgents    = np.nansum(population)
-
-minPop = np.nanmin(population[population!=0])
-maxPop = np.nanmax(population)
-maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
-minCarConvenience = 1 + parameters.greenInfraMalus
-parameters.paraB =  minCarConvenience / maxDeviation 
-parameters.urbanPopulationThreshold = urbThreshold  
+    nAgents    = np.nansum(population)
+    
+    minPop = np.nanmin(population[population!=0])
+    maxPop = np.nanmax(population)
+    maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
+    minCarConvenience = 1 + parameters.greenInfraMalus
+    parameters.paraB =  minCarConvenience / (maxDeviation*.1)
+    parameters.urbanPopulationThreshold = urbThreshold  
 
 
 assert np.sum(np.isnan(population[landLayer==1])) == 0
@@ -198,11 +212,11 @@ def convienienceBrown(popDensity, paraA, paraB, paraC ,paraD, cell):
      if popDensity<cell.urbanThreshold:
         conv = paraA
      else:
-        conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2            
+        conv = max(0.05,paraA - paraB*(popDensity - cell.urbanThreshold)**2)          
      return conv
         
 def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
-    conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  
+    conv = max(0.05, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
     return conv
 
 def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
@@ -332,7 +346,7 @@ for i in range(earth.market.nBrands):
     plt.scatter(popArray,convArray[i,:])    
     plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
 plt.show()
-sdfs
+
 
 # %% Generate Network
 tt = time.time()
