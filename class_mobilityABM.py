@@ -796,12 +796,13 @@ class Cell(Location):
             if np.isinf(x) or np.isnan(x) or x == 0:
                 import pdb
                 pdb.trace()
+        return convAll, self.getValue('population')
     
     def calculateConveniences(self):
         
         convAll = list()
         # convenience parameters:    
-        paraA, paraC, paraD = 1., .5, 0.1
+        paraA, paraC, paraD = 1., .3, 0.01
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
             convAll.append(min(1., max(0.,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            

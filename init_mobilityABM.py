@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 1
+parameters.scenario       = 2
 parameters.nSteps         = 20  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
@@ -117,7 +117,7 @@ elif parameters.scenario == 1: # medium
     from scipy import signal
     population = landLayer* signal.convolve2d(landLayer,convMat,boundary='symm',mode='same')
     population = 20*population+ landLayer* np.random.randint(1,4,landLayer.shape)
-    urbThreshold = 40
+    urbThreshold = 55
     
     
 
@@ -125,7 +125,7 @@ elif parameters.scenario == 1: # medium
     
 elif parameters.scenario == 2: # Niedersachsen
     reductionFactor = 200
-    landLayer= gt.load_array_from_tiff('resources_nie/land_layer_3432x8640.tiff')
+    landLayer= gt.load_array_from_tiff('resources_nie/land_layer_62x118.tiff')
     landLayer[np.isnan(landLayer)] = 0
     landLayer = landLayer.astype(int)
     plt.imshow(landLayer)
@@ -176,8 +176,7 @@ ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
 opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
 
 
-for cell in earth.iterNodes(_cell):
-    cell.selfTest()
+
 
 earth.initMarket(parameters.properties, 
                  parameters.randomCarPropDeviationSTD, 
@@ -199,7 +198,7 @@ def convienienceBrown(popDensity, paraA, paraB, paraC ,paraD, cell):
      if popDensity<cell.urbanThreshold:
         conv = paraA
      else:
-        conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa                   
+        conv = paraA - paraB*(popDensity - cell.urbanThreshold)**2            
      return conv
         
 def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
@@ -317,6 +316,23 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
 
 earth.dequeueEdges()
 print 'Agents created in -- ' + str( time.time() - tt) + ' s'
+
+
+#%% cell convenience test
+convArray = np.zeros([earth.market.nBrands,len(earth.nodeList[1])])
+popArray = np.zeros([len(earth.nodeList[1])])
+for i, cell in enumerate(earth.iterNodes(_cell)):
+    convAll, population = cell.selfTest()
+    convArray[:,i] = convAll
+    popArray[i] = population
+plt.figure()
+
+for i in range(earth.market.nBrands):    
+    plt.subplot(2,2,i+1)
+    plt.scatter(popArray,convArray[i,:])    
+    plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
+plt.show()
+sdfs
 
 # %% Generate Network
 tt = time.time()
