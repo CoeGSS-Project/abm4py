@@ -148,9 +148,9 @@ class Earth(World):
         #print ageList
         idxAdult = [ n for n,i in enumerate(ageList) if i>17 ]
         idx = np.random.choice(idxAdult)
-        prSaf, prEco, prCon, prMon = self.og.getPref(ageList[idx],sexList[idx],nKids,income, self.radicality)
+        prSaf, prEco, prCon, prMon, prImi = self.og.getPref(ageList[idx],sexList[idx],nKids,income, self.radicality)
         
-        return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon
+        return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon, prImi
     
     
     def genFriendNetwork(self, nFriendsPerPerson):
@@ -624,9 +624,11 @@ class Household(Agent):
         # calculate money consequence
         price = self.getValue('prop')[1]        
         money = max(0, 1 - price/self.getValue('income'))
+        # get similarity consequence
+        imitation = self.loc.brandShares[brandID]
         
  #       self.consequences = [convenience, ecology, money]
-        self.setValue('consequences', [convenience, ecology, money])
+        self.setValue('consequences', [convenience, ecology, money, imitation])
 
 
     def step(self, world):
@@ -748,6 +750,7 @@ class Cell(Location):
         self.conveniences = list()
         self.kappa = -0.3
         self.convFunctions = list()
+        self.brandShares = [1.,1.,1.,1.]
         
         
     def initCellMemory(self, memoryLen, memeLabels):
@@ -770,11 +773,18 @@ class Cell(Location):
         return self.getAgentOfCell(edgeType=1)
     
     
-    def addToTraffic(self,label):
-        self.traffic[label] += 1
+    def addToTraffic(self,brandID):
+        self.traffic[brandID] += 1      
         
     def remFromTraffic(self,label):
         self.traffic[label] -= 1
+        
+    def trafficMixture(self):
+        total = sum(self.traffic.values()) 
+        shares = list()
+        for key in self.traffic.keys():         
+            shares.append(float(self.traffic[key])/total)       
+        self.brandShares = shares
             
     def getX(self, choice):
         return copy.copy(self.xCell[choice,:])
@@ -793,10 +803,8 @@ class Cell(Location):
         # convenience parameters:    
         paraA, paraC, paraD = 1., .5, 0.1
         popDensity = float(self.getValue('population'))/self.cellSize        
-        for funcCall in self.convFunctions:
-            
-            convAll.append(funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))
-            
+        for funcCall in self.convFunctions:            
+            convAll.append(min(1., max(0.,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            
         return convAll
 
         
@@ -819,6 +827,8 @@ class Cell(Location):
             
         convAll = self.calculateConveniences()
         self.setValue('convenience', convAll)
+        self.trafficMixture()
+        
     
     def registerObs(self, hhID, prop, util, label):
         """
@@ -907,21 +917,32 @@ class Opinion():
         cs /= sumC
         cm /= sumC
 
+        # priority of imitation
+        ci = 0.25
+    
+        sumC = cc + cs + ce + cm +ci
+        cc /= sumC
+        ce /= sumC
+        cs /= sumC
+        cm /= sumC
+        ci /= sumC
 
         #individual preferences
-        cci, cei, csi, cmi = np.random.rand(4)
-        sumC = cci + cei + csi + cmi
+        cci, cei, csi, cmi, cii = np.random.rand(5)
+        sumC = cci + cei + csi + cmi + cii
         cci /= sumC
         cei /= sumC
         csi /= sumC
         cmi /= sumC
+        cii /= sumC
         
         csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
         cmAll = cm* (1-self.indiRatio) + cmi*self.indiRatio
+        ciAll = ci* (1-self.indiRatio) + cii*self.indiRatio
         
-        pref = np.asarray([ ceAll, ccAll, cmAll])
+        pref = np.asarray([ ceAll, ccAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
         return tuple(pref)

@@ -18,15 +18,15 @@ sns.set_color_codes("dark")
 
 plotRecords     = 0
 plotCarStockBar = 1
-prefPerLabel    = 0
-utilPerLabel    = 0
-incomePerLabel  = 0
-meanPrefPerLabel= 0
+prefPerLabel    = 1
+utilPerLabel    = 1
+incomePerLabel  = 1
+meanPrefPerLabel= 1
 meanConsequencePerLabel = 1
-printCellMaps   = 1
+printCellMaps   = 0
 emissionsPerLabel   = 1
 
-path = 'output/sim0376/'
+path = 'output/sim0015/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -53,6 +53,8 @@ propDic = loadObj(path + 'attributeList_type2')
 enums   = loadObj(path + 'enumerations')
 
 nSteps, nAgents, nProp = agMat.shape
+
+nPr = len(enums['priorities'])
 
 #%%  plot car stock as bar plot
 legStr = list()
@@ -92,7 +94,7 @@ for i in range(agMat.shape[1]):
 
 print np.mean(nUniqueCars)
 
-for prefTyp in range(3):
+for prefTyp in range(nPr):
     nUniqueCars = list()
     idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
     for i in np.where(idx)[0]:
@@ -107,7 +109,7 @@ carBuys =np.sum(x[:,:,propDic['mobilityType']] > 0,axis = 0)
 np.mean(carBuys)
 np.max(carBuys)
 np.min(carBuys)
-for prefTyp in range(3):
+for prefTyp in range(nPr):
     idx = agMat[0,:,propDic['prefTyp'][0]] == prefTyp
     
     print 'Pref Type "' + enums['priorities'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
@@ -117,7 +119,7 @@ print 1
 #%% df for one timestep
 fig = plt.figure()
 
-if True:
+if False:
     step = 1
     columns= ['']*agMat.shape[2]
     for key in propDic.keys():
@@ -128,7 +130,7 @@ if True:
     for i,idx in enumerate(propDic['preferences']):
         columns[idx] = 'pref of ' + enums['priorities'][i] 
     for i,idx in enumerate(propDic['consequences']):
-        columns[idx] = ['comfort','environmental','remainig money'][i] 
+        columns[idx] = ['comfort','environmental','remainig money','similarity'][i] 
        
     df = pd.DataFrame(agMat[step],columns=columns)
     del df['time']
@@ -143,9 +145,9 @@ if True:
              
             
 
-from biokit.viz import corrplot
-c = corrplot.Corrplot(df)
-c.plot()
+#from biokit.viz import corrplot
+#c = corrplot.Corrplot(df)
+#c.plot()
 
 #%% df for one agent
 if False:
@@ -157,23 +159,23 @@ if False:
     df = pd.DataFrame(agMat[:,agent,:],columns=columns)
 
 #%% preference types per car label
-prefTypes = np.zeros(3)
-for prefTyp in range(0,3):
+prefTypes = np.zeros(nPr)
+for prefTyp in range(0,nPr):
     prefTypes[prefTyp] = np.sum(agMat[0,:,propDic['prefTyp'][0]] == prefTyp)
 
 if prefPerLabel:
     res = dict()
     for carLabel in range(0,8):
-        res[carLabel] = np.zeros([nSteps,3])
+        res[carLabel] = np.zeros([nSteps,nPr])
     
     for step in range(0,nSteps):
         for carLabel in range(0,8):
             idx = agMat[step,:,propDic['mobilityType'][0]] == carLabel
-            for prefType in range(0,3):
+            for prefType in range(0,nPr):
                 res[carLabel][step,prefType] = np.sum(agMat[step,idx,propDic['prefTyp'][0]] == prefType) / prefTypes[prefType]
     
     legStr = list()
-    for prefType in range(0,3):
+    for prefType in range(0,nPr):
         legStr.append(enums['priorities'][prefType])
     for carLabel in range(0,len(enums['brands'])):
         fig = plt.figure()
@@ -220,13 +222,13 @@ if meanPrefPerLabel:
     fig = plt.figure()
     res = dict()
     for carLabel in range(0,len(enums['brands'])):
-        res[carLabel] = np.zeros([nSteps,3])
+        res[carLabel] = np.zeros([nSteps,nPr])
     for step in range(0,nSteps):
         for carLabel in range(0,len(enums['brands'])):
             idx = np.where(agMat[step,:,propDic['mobilityType'][0]] == carLabel)[0]
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['preferences'])],axis=1) / ensembleAverage
     legStr = list()
-    for prefType in range(0,3):
+    for prefType in range(0,nPr):
         legStr.append(enums['priorities'][prefType])
     
     h = list()
@@ -247,14 +249,14 @@ if meanConsequencePerLabel:
     fig = plt.figure()
     res = dict()
     for carLabel in range(0,len(enums['brands'])):
-        res[carLabel] = np.zeros([nSteps,3])
+        res[carLabel] = np.zeros([nSteps,nPr])
     for step in range(0,nSteps):
         ensembleAverage = np.mean(agMat[step,:,propDic['consequences']], axis = 1)
         for carLabel in range(0,len(enums['brands'])):
             idx = np.where(agMat[step,:,propDic['mobilityType'][0]] == carLabel)[0]
             res[carLabel][step,:] = np.mean(agMat[np.ix_([step],idx,propDic['consequences'])],axis=1) #/ ensembleAverage
     legStr = list()
-    for prefType in range(0,3):
+    for prefType in range(0,nPr):
         legStr.append(enums['consequences'][prefType])
     
     h = list()

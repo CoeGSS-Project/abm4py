@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 1
+parameters.scenario       = 0
 parameters.nSteps         = 260  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection
@@ -233,6 +233,7 @@ earth.enums['priorities'] = dict()
 earth.enums['priorities'][0] = 'convinience'
 earth.enums['priorities'][1] = 'ecology'
 earth.enums['priorities'][2] = 'money'
+earth.enums['priorities'][3] = 'imitation'
 
 earth.enums['properties'] = dict()
 earth.enums['properties'][1] = 'emissions'
@@ -246,6 +247,7 @@ earth.enums['consequences'] = dict()
 earth.enums['consequences'][0] = 'comfort'
 earth.enums['consequences'][1] = 'eco-friendliness'
 earth.enums['consequences'][2] = 'remaining money'
+earth.enums['consequences'][3] = 'similarity'
 
 earth.enums['mobilityTypes'] = dict()
 earth.enums['mobilityTypes'][1] = 'green'
@@ -286,21 +288,21 @@ for x,y in tqdm.tqdm(earth.locDict.keys()):
                 hh = Reporter(earth,'hh', x, y)
             else:
                 hh = Household(earth,'hh', x, y)
-            prEco, prCon, prMon = opinion.getPref(age,sex,nKids, nPers, income,parameters.radicality)
-            prefTyp = np.argmax((prCon ,prEco, prMon))
+            prEco, prCon, prMon, prImi = opinion.getPref(age,sex,nKids, nPers, income,parameters.radicality)
+            prefTyp = np.argmax((prCon, prEco, prMon, prImi))
             
             # seting values of hh
             hh.tolerance = parameters.tolerance
             hh.setValue('hhSize',nPers)
             hh.setValue('nKids', nKids)
             hh.setValue('income',income) 
-            hh.setValue('preferences', (prCon ,prEco , prMon))
+            hh.setValue('preferences', (prCon ,prEco , prMon, prImi))
             hh.setValue('prefTyp',prefTyp)
             hh.setValue('expUtil',0)
             hh.setValue('util',0)
             hh.setValue('predMeth',0)
             hh.setValue('noisyUtil',0)
-            hh.setValue('consequences', [0,0,0])
+            hh.setValue('consequences', [0,0,0,0])
             hh.registerAgent(earth)
             earth.nPrefTypes[prefTyp] += 1
             nAgentsCell -= 1
@@ -403,7 +405,7 @@ if parameters.writeOutput:
 
 #%%
 if True:
-    df = pd.DataFrame([],columns=['prCon','prEco','prMon'])
+    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
     for agID in earth.nodeList[2]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     
@@ -414,7 +416,7 @@ if True:
     print df.std()
     
     print 'Preferences - standart deviation within friends'
-    avgStd= np.zeros([1,3])    
+    avgStd= np.zeros([1,4])    
     for agent in earth.iterNodes(_hh): 
         friendList = agent.getConnNodeIDs(nodeType=_hh)
         if len(friendList)> 1:
@@ -443,7 +445,7 @@ if True:
 preDiff = list()
 weights = list()
 
-pref = np.zeros([earth.graph.vcount(), 3])
+pref = np.zeros([earth.graph.vcount(), 4])
 pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
 idx = list()
 for edge in earth.iterEdges(_thh):
