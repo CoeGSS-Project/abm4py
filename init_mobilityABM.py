@@ -62,7 +62,7 @@ _hh   = 2
 parameters = Bunch()
 
 #global parameter
-parameters.scenario       = 0
+parameters.scenario       = 1
 parameters.nSteps         = 260  # number of simulation steps
 parameters.flgSpatial     = True
 parameters.connRadius     = 1.5  # radíus of cells that get an connection

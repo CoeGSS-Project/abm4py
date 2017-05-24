@@ -26,8 +26,8 @@ meanConsequencePerLabel = 1
 printCellMaps   = 0
 emissionsPerLabel   = 1
 
-
 path = 'output/sim0023/'
+
 #%% init
     
 from class_auxiliary import loadObj
