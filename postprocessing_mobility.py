@@ -26,7 +26,8 @@ meanConsequencePerLabel = 1
 printCellMaps   = 0
 emissionsPerLabel   = 1
 
-path = 'output/sim0015/'
+
+path = 'output/sim0023/'
 #%% init
     
 from class_auxiliary import loadObj
@@ -119,8 +120,10 @@ print 1
 #%% df for one timestep
 fig = plt.figure()
 
+
 if False:
     step = 1
+
     columns= ['']*agMat.shape[2]
     for key in propDic.keys():
         for i in propDic[key]:
@@ -158,6 +161,16 @@ if False:
             columns[i] = key
     df = pd.DataFrame(agMat[:,agent,:],columns=columns)
 
+
+#%% df for one timestep
+if False:
+    #%%
+    step = 9
+    columns= ['']*agMat.shape[2]
+    for key in propDic.keys():
+        for i in propDic[key]:
+            columns[i] = key
+    df = pd.DataFrame(agMat[step,:,:],columns=columns)
 #%% preference types per car label
 prefTypes = np.zeros(nPr)
 for prefTyp in range(0,nPr):
@@ -325,6 +338,7 @@ if printCellMaps:
     plt.title('convenience, mean over cells')
     
     #%%
+    import copy
     plt.clf()
     landLayer = np.zeros(np.max(cellMat[0,:,propDict['pos']]+1,axis=1).astype(int).tolist())
     for iCell in range(cellMat.shape[1]):
@@ -338,9 +352,11 @@ if printCellMaps:
     test = landLayer*0
     for iBrand in range(3):
         res = landLayer*1.0
-        res[landLayer] = cellMat[step,:,propDict['carsInCell'][iBrand]] / np.sum(cellMat[step,:,propDict['carsInCell']],axis=0)
+        res[np.where(landLayer)] = cellMat[step,:,propDict['carsInCell'][iBrand]] / cellMat[step,:,propDict['population']]
         print np.max(res)
         test = test + res
+        if iBrand == 1:
+            arrayData = copy.copy(res)
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
         plt.pcolormesh(res)
@@ -348,7 +364,20 @@ if printCellMaps:
         plt.colorbar()
         plt.title(enums['brands'][iBrand] + ' cars per cells')
     print 1
-    
+    sys.path.append('/media/sf_shared/python/database')
+    import class_map
+    import matplotlib
+    foMap = class_map.Map()
+    cm = matplotlib.cm.get_cmap('YlGn')
+    normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,95) - np.nanpercentile(arrayData,5))
+    self.minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)
+    colored_data = cm(normed_data)
+    foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
+    from branca.utilities import color_brewer
+    cols = color_brewer('YlGn',6)
+    cmap = folium.LinearColormap(cols,index = [np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)], caption='test')
+    self.map.add_child(cmap)
+    foMap.view()
     #%%
     plt.figure()
     plt.clf()
@@ -382,3 +411,15 @@ plt.colorbar()
 plt.title('population')
 print 1
 plt.show()
+
+sys.path.append('/media/sf_shared/python/database')
+import class_map
+import matplotlib
+foMap = class_map.Map()
+cm = matplotlib.cm.get_cmap('YlGn')
+arrayData = res
+normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,95) - np.nanpercentile(arrayData,5))
+                self.minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)
+colored_data = cm(normed_data)
+foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
+foMap.view()

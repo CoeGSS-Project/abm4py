@@ -119,7 +119,7 @@ elif para.scenario == 2: # Niedersachsen
     landLayer[np.isnan(landLayer)] = 0
     landLayer = landLayer.astype(int)
     plt.imshow(landLayer)
-    population = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_3432x8640.tiff') / reductionFactor
+    population = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_62x118.tiff') / reductionFactor
     plt.imshow(population)
 
     landLayer[landLayer == 1 & np.isnan(population)] =0

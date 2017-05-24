@@ -330,32 +330,26 @@ class World:
         self.entDict[agent.nID] = agent
         self.nodeList[typ].append(agent.nID)
     
-    
-    def iterNodes(self,nodeType):
+      
+    def iterNodes(self,nodeType, random=True):
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
         nodeList = self.nodeList[nodeType]
-        return  [self.entList[i] for i in nodeList]
-    
-    def randomIterNodes(self,nodeType):
+        if random:
+            shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+            return [self.entList[i] for i in shuffled_list]
+        else:
+            return  [self.entList[i] for i in nodeList]
+        
+    def iterNodeAndID(self,nodeType, random=True):
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
         nodeList = self.nodeList[nodeType]
-        shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
-        return [self.entList[i] for i in shuffled_list]
-    
-    def iterNodeAndID(self,nodeType):
-        if isinstance(nodeType,str):
-            nodeType = self.types.index(nodeType)
-        nodeList = self.nodeList[nodeType]
-        return  [(self.entList[i], i) for i in nodeList]
-
-    def randomIterNodeAndID(self,nodeType):
-        if isinstance(nodeType,str):
-            nodeType = self.types.index(nodeType)
-        nodeList = self.nodeList[nodeType]
-        shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
-        return  [(self.entList[i], i) for i in shuffled_list]
+        if random:
+            shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+            return  [(self.entList[i], i) for i in shuffled_list]
+        else:
+            return  [(self.entList[i], i) for i in nodeList]
 
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):

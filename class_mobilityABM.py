@@ -208,7 +208,7 @@ class Earth(World):
 #        markerlist = ['s', 'o', 'd', 'x', '*', '^','p','d','8','_']
 #        colors = sns.color_palette("Set1", n_colors=9, desat=.5)
         # Iterate over households with a progress bar
-        for agent in tqdm.tqdm(self.randomIterNodes(_hh)):
+        for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
             agent.step(self)
 
@@ -945,6 +945,7 @@ class Opinion():
         pref = np.asarray([ ceAll, ccAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
+        return tuple([0,0,1])
         return tuple(pref)
      
 # %% --- main ---
