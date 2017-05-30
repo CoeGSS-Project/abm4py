@@ -388,7 +388,6 @@ class Market():
         prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobType], (1 + np.random.randn(self.nProp)*self.propRelDev))]
         if self.time > self.burnIn:
             self.sales[int(mobType)] += 1
-            self.stockbyMobType[int(mobType)] += 1
             
         if len(self.freeSlots) > 0:
             carID = self.freeSlots.pop()

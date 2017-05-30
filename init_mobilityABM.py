@@ -31,9 +31,9 @@ from __future__ import division
 import sys, os
 from os.path import expanduser
 import igraph as ig
-#home = expanduser("~")
+home = expanduser("~")
 #sys.path.append(home + '/python/decorators/')
-sys.path.append('/home/gcf/python/modules/')
+sys.path.append(home + '/python/modules/')
 
 #from deco_util import timing_function
 import numpy as np
@@ -92,8 +92,8 @@ def scenarioTestSmall(parameters):
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
-    setup.writeOutput   = 0
-    setup.writeNPY      = 0
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
     setup.writeCSV      = 0
     
     #cars and infrastructure
@@ -137,6 +137,7 @@ def scenarioTestMedium(parameters):
     setup.burnIn         = 100
     
     #spatial
+    setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
     setup.connRadius    = 1.5      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
@@ -209,21 +210,21 @@ def scenarioNiedersachsen(parameters):
     try:
         plt.imshow(setup.landLayer)
 
-        population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / reductionFactor
-        plt.imshow(population,cmap='jet')
-        plt.clim([0, np.nanpercentile(population,90)])
+        setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / reductionFactor
+        plt.imshow(setup.population,cmap='jet')
+        plt.clim([0, np.nanpercentile(setup.population,90)])
         plt.colorbar()
     except:
         pass
-    setup.landLayer[setup.landLayer == 1 & np.isnan(population)] =0
-    urbThreshold = np.nanpercentile(population,90)
-    nAgents    = np.nansum(population)
+    setup.landLayer[setup.landLayer == 1 & np.isnan(setup.population)] =0
+    urbThreshold = np.nanpercentile(setup.population,90)
+    nAgents    = np.nansum(setup.population)
     
     #social
     setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.minFriends    = 30       # number of desired friends
-    setup.memoryTime    = 20       # length of the periode for which memories are stored
+    setup.memoryTime    = 12       # length of the periode for which memories are stored
     setup.utilObsError  = 1
     setup.recAgent      = []       # reporter agents that return a diary
     
@@ -247,15 +248,15 @@ def scenarioNiedersachsen(parameters):
     setup.minFriends       = 10
     
     
-    minPop = np.nanmin(population[population!=0])
-    maxPop = np.nanmax(population)
+    minPop = np.nanmin(setup.population[setup.population!=0])
+    maxPop = np.nanmax(setup.population)
     maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
     minCarConvenience = 1 + setup.greenInfraMalus
     parameters.paraB =  minCarConvenience / (maxDeviation*.1)
     parameters.urbanPopulationThreshold = urbThreshold  
 
 
-    assert np.sum(np.isnan(population[setup.landLayer==1])) == 0
+    assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     print 'Running with ' + str(nAgents) + ' agents'
     
     # redefinition of setup parameters by input
@@ -479,6 +480,17 @@ def initMobilityTypes(earth, parameters):
 def initGlobalRecords(earth, parameters):
     earth.registerRecord('stock', 'total use per mobility type', earth.enums['mobilityTypes'].values(), style ='plot')
     
+    calDataDf = pd.read_csv(parameters.resourcePath + 'brownCars.csv',index_col=0, header=1)
+    timeIdxs = list()
+    values   = list()
+    for column in calDataDf.columns[1:]:
+        year = int(column)
+        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+        value = (calDataDf[column]['re_1518'] + calDataDf[column]['re_6321']) / parameters['reductionFactor']
+        timeIdxs.append(timeIdx)
+        values.append(value)
+    earth.globalData['stock'].addCalibrationData(timeIdxs,values)
+    
 def runModel(earth, parameters):
 
     #%% Initial actions
@@ -524,7 +536,12 @@ def runModel(earth, parameters):
 
        
 import csv
+
+######################################################################################
+
+
 if __name__ == '__main__':
+    
     dirPath = os.path.dirname(os.path.realpath(__file__))
     # got csv file containing parameters
     if len(sys.argv) > 1:
@@ -541,8 +558,8 @@ if __name__ == '__main__':
         parameters = Bunch()
         parameters.urbThreshold = 13
         parameters.convIncomeFraction = 1000
-        
-
+    
+    
     parameters.scenario       = 1
 
     if parameters.scenario == 0:

@@ -120,6 +120,11 @@ class Record():
         self.nSteps = nSteps
         self.title  = title
     
+    def addCalibrationData(self, timeIdxs, values):
+        self.calDataDict = dict()
+        for idx, value in zip(timeIdxs, values):
+            self.calDataDict[idx] = value
+    
     def set(self, time, data):
         self.rec[time,:] = data
         
@@ -142,6 +147,10 @@ class Record():
         plt.figure()
         if self.style == 'plot':
             plt.plot(self.rec)
+            if hasattr(self,'calDataDict'):
+                for x,y in self.calDataDict.iteritems():
+                    plt.plot(x,y,'d')
+            
         elif self.style == 'stackedBar':
             nCars = np.zeros(self.nSteps)
             colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
