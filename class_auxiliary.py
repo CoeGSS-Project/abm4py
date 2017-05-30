@@ -31,6 +31,18 @@ import pandas as pd
 import seaborn as sns
 import pickle
 
+def convertStr(string):
+    """
+    Returns integer, float or string dependent on the input
+    """
+    if str.isdigit(string):
+        return int(string)
+    else:
+        try:
+            return float(string)
+        except:
+            return string
+
 def saveObj(obj, name ):
     with open( name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)

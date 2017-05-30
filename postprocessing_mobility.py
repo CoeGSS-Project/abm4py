@@ -27,7 +27,8 @@ printCellMaps   = 1
 emissionsPerLabel = 1
 
 
-path = 'output/sim0412/'
+path = 'output/sim0414/'
+withoutBurnIn = True 
 
 #%% init
     
@@ -76,8 +77,10 @@ if plotCarStockBar:
        nCars += carMat[:,i]
        legStr.append(brand)
 #plt.legend(legStr)
-if withoutBurnIn: 
-    plt.xlim([bi,steps])
+if withoutBurnIn:
+    years = (agMat.shape[0] -100) / 12
+    plt.xlim([100,agMat.shape[0]])
+    plt.xticks(np.linspace(100,100+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
 plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% sales
@@ -371,16 +374,17 @@ if printCellMaps:
     sys.path.append('/media/sf_shared/python/database')
     import class_map
     import matplotlib
+    import folium
     foMap = class_map.Map()
     cm = matplotlib.cm.get_cmap('YlGn')
-    normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,95) - np.nanpercentile(arrayData,5))
-    self.minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)
+    normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,98) - np.nanpercentile(arrayData,5))
+    minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,98)
     colored_data = cm(normed_data)
     foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
     from branca.utilities import color_brewer
     cols = color_brewer('YlGn',6)
-    cmap = folium.LinearColormap(cols,index = [np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,95)], caption='test')
-    self.map.add_child(cmap)
+    cmap = folium.LinearColormap(cols,index = minmax, caption='test')
+    foMap.map.add_child(cmap)
     foMap.view()
     #%%
     plt.figure()

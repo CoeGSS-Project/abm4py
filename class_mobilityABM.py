@@ -51,15 +51,19 @@ class Earth(World):
     
     def __init__(self, parameters):
         
-        World.__init__(self, parameters.spatial)
+        World.__init__(self, parameters.isSpatial)
         self.simNo      = parameters.simNo
         self.agentRec   = dict()   
         self.time       = 0
+        self.date       = list(parameters.startDate)
+        self.timeUnit   = parameters.timeUint
         self.nSteps     = parameters.nSteps
         self.reporter   = list()
         self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
+        
+        self.globalData  = dict() # storage of global data
         
         # transfer all parameters to earth
         self.setParameters(Bunch.toDict(parameters)) 
@@ -75,9 +79,7 @@ class Earth(World):
                 os.mkdir(self.para['outPath'] + '/rec')
                 
     def registerRecord(self, name, title, colLables, style ='plot'):
-        if not hasattr(self, 'globalRec'):
-            self.globalRec  = dict()
-        self.globalRec[name] = Record(name, colLables, self.nSteps, title, style)
+        self.globalData[name] = Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
     def initMarket(self, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
@@ -120,8 +122,8 @@ class Earth(World):
         #import matplotlib.pyplot as plt
         import numpy.ma as ma
         traffic = self.graph.IdArray *0
-        if label in self.market.brandLabels.itervalues():
-            brandID = self.market.brandLabels.keys()[self.market.brandLabels.values().index(label)]
+        if label in self.market.mobilityLables.itervalues():
+            brandID = self.market.mobilityLables.keys()[self.market.mobilityLables.values().index(label)]
             
             for cell in self.iterNodes(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
@@ -183,30 +185,29 @@ class Earth(World):
         """ 
         Method to proceed the next time step
         """
-        self.time += 1       
+        self.time += 1
+        
+        # progressing time
+        if self.timeUnit == 1: #months
+            self.date[0] += 1  
+            if self.date[0] == 13:
+                self.date[0] = 1
+                self.date[1] += 1
+        elif self.timeUnit == 1: # years
+            self.date[1] +=1
+            
         
         # proceed market in time
         self.market.step() # Statistics are computed here
-        # The utility of a single agent depends on the whole market
-        # if you want a fast car, you are not as happy if everyone
-        # else has a fast car same for ecology, etc.
+        
         
         #loop over cells
         for cell in self.iterNodes(_cell):
             cell.step(self.market.kappa)
-        # Update observations (remove old ones)
-        # Compute the number of cars in each cell
-
-        #self.avgDegree.append(np.mean(self.graph.vs[self.nodeList[2]].degree()))
-        self.market.stockbyBrand.loc[len(self.market.stockbyBrand)] = self.market.stockbyBrand.loc[len(self.market.stockbyBrand)-1]
-
-        # get number of new cars
         
-        # find which agents will by a new car
+        #update global data
+        self.globalData['stock'].set(self.time,self.market.stockbyMobType)
         
-        #loop over buyers
-#        markerlist = ['s', 'o', 'd', 'x', '*', '^','p','d','8','_']
-#        colors = sns.color_palette("Set1", n_colors=9, desat=.5)
         # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
@@ -226,9 +227,8 @@ class Earth(World):
             writer.close() 
         
         # writing global records to file
-        if hasattr(self, 'globalRec'):
-            for key in self.globalRec:    
-                self.globalRec[key].saveCSV(self.para['outPath'] + '/rec')
+        for key in self.globalData:    
+            self.globalData[key].saveCSV(self.para['outPath'] + '/rec')
 
 
         # saving enumerations            
@@ -236,8 +236,8 @@ class Earth(World):
         
         try:
             # plotting and saving figures
-            for key in self.globalRec:
-                self.globalRec[key].plot(self.para['outPath'] + '/rec')
+            for key in self.globalData:
+                self.globalData[key].plot(self.para['outPath'] + '/rec')
         except:
             pass
 
@@ -246,33 +246,40 @@ class Market():
 
     def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
-        self.time          = time
-        self.properties    = properties                 # (currently: emissions, price)
-        self.brandProp     = dict()                     # brandID -> [properties]
-        self.nProp         = len(properties)
-        self.stock         = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
-        self.owners        = list()                     # List of (ownerID, brandID) index: carID
-        self.propRelDev    = propRelDev                 # relative deviation of the actual car propeties
-        self.obsDict       = dict()                     # time -> other dictionary (see next line)
+        self.time               = time
+        self.properties         = properties                 # (currently: emissions, price)
+        self.mobilityProp       = dict()                     # mobType -> [properties]
+        self.nProp              = len(properties)
+        self.stock              = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
+        self.owners             = list()                     # List of (ownerID, brandID) index: carID
+        self.propRelDev         = propRelDev                 # relative deviation of the actual car propeties
+        self.obsDict            = dict()                     # time -> other dictionary (see next line)
         self.obsDict[self.time] = dict()                # (used by agents, observations (=utilities) also saved in locations)
-        self.freeSlots     = list()
-        self.stockbyBrand  = pd.DataFrame([])           # stock by brands 
-        self.nBrands       = 0
-        self.brandLabels   = dict()                     # brandID -> label
-        self.brandInitDict = dict()
-        self.brandsToInit  = list()                     # list of brand labels
-        self.carsPerLabel  = list()
-        self.brandGrowthRates = list()                  # list of growth rates of brand
-        self.techProgress  = list()                     # list of productivities of brand
-        self.burnIn        = burnIn
-        self.greenInfraMalus = greenInfraMalus
-        self.kappa         = self.greenInfraMalus
-        self.sales         =list()  
-        self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
+        self.freeSlots          = list()
+        self.stockbyMobType     = list()                     # stock by brands 
+        self.nMobTypes          = 0
+        self.mobilityLables     = dict()                     # brandID -> label
+        self.mobilityInitDict   = dict()
+        self.mobilityTypesToInit  = list()                     # list of brand labels
+        self.carsPerLabel       = list()
+        self.mobilityGrowthRates = list()                  # list of growth rates of brand
+        self.techProgress       = list()                     # list of productivities of brand
+        self.burnIn             = burnIn
+        self.greenInfraMalus    = greenInfraMalus
+        self.kappa              = self.greenInfraMalus
+        self.sales              = list()  
         
+        self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
+    
+    def getNTypes(self):
+        return self.nMobTypes
+    
+    def getTypes(self):
+        return self.mobilityLables
+    
     def initialCarInit(self):
         # actually puts the car on the market
-        for label, propertyTuple, _, brandID, allTimeProduced in  self.brandInitDict[0]:
+        for label, propertyTuple, _, brandID, allTimeProduced in  self.mobilityInitDict[0]:
              self.addBrand2Market(label, propertyTuple, brandID)
 
     
@@ -302,9 +309,9 @@ class Market():
             self.obsDict[self.time][key] = list()
         
         # check if a new car is entering the market
-        if self.time in self.brandInitDict.keys():
+        if self.time in self.mobilityInitDict.keys():
                 
-            for label, propertyTuple, _, brandID in  self.brandInitDict[self.time]:
+            for label, propertyTuple, _, brandID in  self.mobilityInitDict[self.time]:
                 self.addBrand2Market(label, propertyTuple, brandID)
         
         # only do technical change after the burn in phase
@@ -322,18 +329,18 @@ class Market():
     def computeTechnicalProgress(self):
             # calculate growth rates per brand:
             #oldCarsPerLabel = copy.copy(self.carsPerLabel)
-            #self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nBrands).astype(float)           
-            for i in range(self.nBrands):
+            #self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
+            for i in range(self.nMobTypes):
                 if not self.allTimeProduced[i] == 0.:
                     newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
                 else: 
                     newGrowthRate = 0
-                self.brandGrowthRates[i] = newGrowthRate          
+                self.mobilityGrowthRates[i] = newGrowthRate          
             
             # technological progress:
             oldEtas = copy.copy(self.techProgress)
-            for brandID in range(self.nBrands):
-                self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.brandGrowthRates[brandID]))   
+            for brandID in range(self.nMobTypes):
+                self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
                 
             # technical process of infrastructure -> given to cells                
             self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
@@ -342,68 +349,68 @@ class Market():
         
     def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
         
-        brandID = self.nBrands
-        self.nBrands +=1 
-        self.brandGrowthRates.append(0.)
+        mobType = self.nMobTypes
+        self.nMobTypes +=1 
+        self.mobilityGrowthRates.append(0.)
         self.techProgress.append(1.)
         self.sales.append(0)
+        self.stockbyMobType.append(0)
         self.allTimeProduced.append(allTimeProduced)
-        self.carsPerLabel = np.zeros(self.nBrands)
-        self.brandsToInit.append(label)
-        if initTimeStep not in self.brandInitDict.keys():
-            self.brandInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , brandID, allTimeProduced]]
+        self.carsPerLabel = np.zeros(self.nMobTypes)
+        self.mobilityTypesToInit.append(label)
+        if initTimeStep not in self.mobilityInitDict.keys():
+            self.mobilityInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , mobType, allTimeProduced]]
         else:
-            self.brandInitDict[initTimeStep].append([label, propertyTuple, initTimeStep, brandID, allTimeProduced])
+            self.mobilityInitDict[initTimeStep].append([label, propertyTuple, initTimeStep, mobType, allTimeProduced])
        
-        return brandID
+        return mobType
     
-    def addBrand2Market(self, label, propertyTuple, brandID):
+    def addBrand2Market(self, label, propertyTuple, mobType):
         
         #add brand to the market
            
-        self.stockbyBrand[brandID] = 0
-        if self.stockbyBrand.shape[0] == 0:
-            # init first time step row
-            self.stockbyBrand.loc[len(self.stockbyBrand)] = 0    
-        self.brandProp[brandID]   = propertyTuple
-        self.brandLabels[brandID] = label
+        self.stockbyMobType[mobType] = 0
+        self.mobilityProp[mobType]   = propertyTuple
+        self.mobilityLables[mobType] = label
         #self.buyCar(brandID,0)
-        #self.stockbyBrand.loc[self.stockbyBrand.index[-1],brandID] -= 1
-        self.obsDict[self.time][brandID] = list()
+        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],brandID] -= 1
+        self.obsDict[self.time][mobType] = list()
         
         
     def remBrand(self,label):
         #remove brand from the market
-        del self.brandProp[label]
+        del self.mobilityProp[label]
     
-    def buyCar(self, brandID, eID):
+    def buyCar(self, mobType, eID):
         # draw the actual car property with a random component
-        eta = self.techProgress[int(brandID)]
+        eta = self.techProgress[int(mobType)]
         #print eta
-        prop =[float(x/eta * y) for x,y in zip( self.brandProp[brandID], (1 + np.random.randn(self.nProp)*self.propRelDev))]
+        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobType], (1 + np.random.randn(self.nProp)*self.propRelDev))]
         if self.time > self.burnIn:
-            self.sales[int(brandID)] += 1
+            self.sales[int(mobType)] += 1
+            self.stockbyMobType[int(mobType)] += 1
             
         if len(self.freeSlots) > 0:
             carID = self.freeSlots.pop()
-            self.stock[carID] = [brandID] + prop
-            self.owners[carID] = (eID, brandID)
+            self.stock[carID] = [mobType] + prop
+            self.owners[carID] = (eID, mobType)
         else:
-            self.stock = np.vstack(( self.stock, [brandID] + prop))
-            self.owners.append((eID, brandID))
+            self.stock = np.vstack(( self.stock, [mobType] + prop))
+            self.owners.append((eID, mobType))
             carID = len(self.owners)-1
-        #self.stockbyBrand.loc[self.stockbyBrand.index[-1],brandID] += 1
+        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],brandID] += 1
+        self.stockbyMobType[int(mobType)] += 1
         #self.computeStatistics()
         
         return carID, prop
     
-    def sellCar(self, carID):
-        self.stock[carID] = np.Inf
-        self.freeSlots.append(carID)
-        label = self.owners[carID][1]
-        self.owners[carID] = None
-        self.stockbyBrand.loc[self.stockbyBrand.index[-1],label] -= 1
-    
+    def sellCar(self, mobID):
+        self.stock[mobID] = np.Inf
+        self.freeSlots.append(mobID)
+        mobType = self.owners[mobID][1]
+        self.owners[mobID] = None
+        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],label] -= 1
+        self.stockbyMobType[int(mobType)] -= 1
 
 # %% --- entity classes ---
 
@@ -920,12 +927,9 @@ class Opinion():
         cm /= sumC
 
         # priority of imitation
-<<<<<<< HEAD
-        ci = 0.20
-=======
-        ci = 0.2
->>>>>>> 38cd07a62e1fd0cbf0069dcdf7167397cb6a5faf
-    
+        ci = 0.2  
+        
+        # normalization
         sumC = cc + cs + ce + cm +ci
         cc /= sumC
         ce /= sumC
