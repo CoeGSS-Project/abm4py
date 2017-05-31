@@ -39,12 +39,13 @@ import copy
 from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
-_tll = 1 # loc - loc
-_tlh = 2 # loc - household
-_thh = 3 # household, household
+_cll = 1 # loc - loc
+_clh = 2 # loc - household
+_chh = 3 # household, household
 #nodes
 _cell = 1
 _hh   = 2
+_pers = 3
 
 #%% --- Global classes ---
 class Earth(World):
@@ -163,14 +164,14 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
-        for agent, x in tqdm.tqdm(self.iterNodeAndID(_hh)):
+        for agent, x in tqdm.tqdm(self.iterNodeAndID(_pers)):
             
             frList, edges, weights = agent.generateFriends(self,nFriendsPerPerson)
             edgeList += edges
             weigList += weights
         eStart = self.graph.ecount()
         self.graph.add_edges(edgeList)
-        self.graph.es[eStart:]['type'] = _thh
+        self.graph.es[eStart:]['type'] = _chh
         self.graph.es[eStart:]['weig'] = weigList
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
@@ -413,6 +414,57 @@ class Market():
 
 # %% --- entity classes ---
 
+class Person(Agent):
+    def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
+        Agent.__init__(self, world, nodeType,  xPos, yPos)
+
+    def registerAtGeoNode(self, world, cellID):
+        self.loc = world.entDict[cellID]        
+        self.loc.peList.append(self.nID)
+        self.loc.addValue('population',1)
+
+    def generateFriends(self,world, nFriends):
+        """
+        Method to make/delete or alter the agents social connections
+        details to be defined
+        """
+        friendList = list()
+        connList   = list()
+        ownPref = self.getValue('preferences') 
+        weights, eList, cellList = self.loc.getConnCellsPlus()
+        cumWeights = np.cumsum(weights)
+        
+        iFriend = 0
+        i = 0
+        if world.para['addYourself']:
+            friendList.append(self.nID)
+            connList.append((self.nID,self.nID))
+        while iFriend < nFriends:
+            
+            idx = np.argmax(cumWeights > np.random.random(1)) 
+            cellID = cellList[idx]
+            peList = world.entDict[cellID].getPersons()
+            if len(peList) > 0:
+
+                newFrID = np.random.choice(peList)
+                diff = 0
+                for x,y in zip (world.graph.vs[newFrID]['preferences'], ownPref ): #TODO change to lib-cal
+                    diff += abs(x-y)
+                    
+                if not newFrID == self.nID and newFrID not in friendList and  diff < self.tolerance:   
+                    friendList.append(newFrID)
+                    connList.append((self.nID,newFrID))
+                    iFriend +=1
+                i +=1
+                if i > 1000:
+                    break
+        
+            if len(connList) > 0:
+                weigList = [1./len(connList)]*len(connList)
+            else:
+                weigList = []
+        return friendList, connList, weigList
+
 class Household(Agent):
 
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
@@ -447,22 +499,16 @@ class Household(Agent):
             import pdb
             pdb.set_trace()
         return utility
-        
-
-    def registerAgent(self, world):
-        self.register(world)    
-        world.nAgents += 1
-
-    
+ 
     
     def weightFriendExperience(self, world):
         friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _hh)
         carLabels, _        = self.getConnNodeValues( 'mobilityType' ,nodeType= _hh)
-        #friendID            = self.getOutNeighNodes(edgeType=_thh)
+        #friendID            = self.getOutNeighNodes(edgeType=_chh)
         ownLabel = self.getValue('mobilityType')
         ownUtil  = self.getValue('util')
         
-        edges = self.getEdges(_thh)
+        edges = self.getEdges(_chh)
         
         idxT = list()
         for i, label in enumerate(carLabels):
@@ -515,52 +561,12 @@ class Household(Agent):
                     
     def connectGeoNode(self, world):
         geoNodeID = int(self.graph.IdArray[int(self.x),int(self.y)])
-        self.queueConnection(geoNodeID,_tlh)         
+        self.queueConnection(geoNodeID,_clh)         
         self.loc = world.entDict[geoNodeID]        
-        self.loc.agList.append(self.nID)
-        self.loc.addValue('population',1)
+        self.loc.hhList.append(self.nID)
+        
     
-    def generateFriends(self,world, nFriends):
-        """
-        Method to make/delete or alter the agents social connections
-        details to be defined
-        """
-        friendList = list()
-        connList   = list()
-        ownPref = self.getValue('preferences') 
-        weights, eList, cellList = self.loc.getConnCellsPlus()
-        cumWeights = np.cumsum(weights)
-        
-        iFriend = 0
-        i = 0
-        if world.para['addYourself']:
-            friendList.append(self.nID)
-            connList.append((self.nID,self.nID))
-        while iFriend < nFriends:
-            
-            idx = np.argmax(cumWeights > np.random.random(1)) 
-            cellID = cellList[idx]
-            agList = world.entDict[cellID].getAgents()
-            if len(agList) > 0:
-
-                newFrID = np.random.choice(agList)
-                diff = 0
-                for x,y in zip (world.graph.vs[newFrID]['preferences'], ownPref ): #TODO change to lib-cal
-                    diff += abs(x-y)
-                    
-                if not newFrID == self.nID and newFrID not in friendList and  diff < self.tolerance:   
-                    friendList.append(newFrID)
-                    connList.append((self.nID,newFrID))
-                    iFriend +=1
-                i +=1
-                if i > 1000:
-                    break
-        
-            if len(connList) > 0:
-                weigList = [1./len(connList)]*len(connList)
-            else:
-                weigList = []
-        return friendList, connList, weigList
+    
     
         
     def evalUtility(self):
@@ -716,7 +722,7 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh) 
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
@@ -741,7 +747,8 @@ class Cell(Location):
     
     def __init__(self, earth,  xPos, yPos):
         Location.__init__(self, earth,  xPos, yPos)
-        self.agList = list()
+        self.hhList = list()
+        self.peList = list()
         self.carsToBuy = 0
         self.deleteQueue =1
         self.currID = 0
@@ -767,13 +774,16 @@ class Cell(Location):
 
         
     def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_tll, mode='out')
+        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connNodeList
     
     
-    def getAgents(self):
-        return self.agList
+    def getHHs(self):
+        return self.hhList
+    
+    def getPersons(self):
+        return self.peList
     
     def getConnLoc(self,edgeType=1):
         return self.getAgentOfCell(edgeType=1)

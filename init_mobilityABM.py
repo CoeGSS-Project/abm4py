@@ -39,7 +39,8 @@ sys.path.append(home + '/python/modules/')
 import numpy as np
 import time
 import mod_geotiff as gt
-from class_mobilityABM import Household, Reporter, Cell,  Earth, Opinion
+from class_mobilityABM import Person, Household, Reporter, Cell,  Earth, Opinion
+
 from class_auxiliary  import convertStr
 import matplotlib
 matplotlib.use('TKAgg')
@@ -53,12 +54,15 @@ from bunch import Bunch
 overallTime = time.time()
 ###### Enums ################
 #connections
-_tll = 1 # loc - loc
-_tlh = 2 # loc - household
-_thh = 3 # household, household
+_cll = 1 # loc - loc
+_clh = 2 # loc - household
+_chh = 3 # household, household
+_chp = 4 # household, person
+
 #nodes
 _cell = 1
 _hh   = 2
+_pers = 3
 
 #time spans
 _month = 1
@@ -76,6 +80,7 @@ def scenarioTestSmall(parameters):
     setup.burnIn         = 100
     
     #spatial
+    setup.reductionFactor = 50000
     setup.isSpatial     = True
     setup.connRadius    = 1.5      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
@@ -322,49 +327,55 @@ def householdSetup(earth, parameters):
         while True:
             
             
-            nPers = hhMat[idx,4]
-            ages= hhMat[idx:idx+nPers,12]
             
-            for person in range(nPers):
+            
+            
+            
                 
-                #creating persons as agents
+            #creating persons as agents
+            nPers = hhMat[idx,4]    
+            ages    = list(hhMat[idx:idx+nPers,12])
+            genders = list(hhMat[idx:idx+nPers,13])
+            income = hhMat[idx,16]
+            income *= parameters.incomeShareForMobility
+            nKids = np.sum(ages<18)
+            
+            # creating houshold
+            hh = Household(earth,'hh', x, y)
+            hh.setValue('hhSize',nPers)
+            hh.setValue('nKids', nKids)
+            hh.setValue('income',income) 
+            hh.setValue('expUtil',0)
+            hh.setValue('util',0)
+            hh.register(earth)
+            hh.connectGeoNode(earth)
+            
+            
+            for iPers in range(nPers):
                 
-                age= hhMat[idx+person,12]
-                sex= hhMat[idx+person,13]
+                if ages[iPers]< 18:
+                    continue    #skip kids
                 
-                nKids = np.sum(ages<18)
-                income = hhMat[idx,16]
-                income *= parameters.incomeShareForMobility
-                
-                  
-                if age< 18:
-                    continue
-                
-                if nHH in parameters.recAgent:
-                    hh = Reporter(earth,'hh', x, y)
-                else:
-                    hh = Household(earth,'hh', x, y)
-                prEco, prCon, prMon, prImi = opinion.getPref(age,sex,nKids, nPers, income,parameters.radicality)
-                prefTyp = np.argmax((prCon, prEco, prMon, prImi))
-                
-                # seting values of hh
-                hh.tolerance = parameters.tolerance
-                hh.setValue('hhSize',nPers)
-                hh.setValue('nKids', nKids)
-                hh.setValue('income',income) 
-                hh.setValue('preferences', (prCon ,prEco , prMon, prImi))
-                hh.setValue('prefTyp',prefTyp)
-                hh.setValue('expUtil',0)
-                hh.setValue('util',0)
-                hh.setValue('predMeth',0)
-                hh.setValue('noisyUtil',0)
-                hh.setValue('consequences', [0,0,0,0])
-                hh.registerAgent(earth)
+                pers = Person(earth,'pers')
+                pers.register(earth)
+                prefTuple = opinion.getPref(ages[iPers],genders[iPers],nKids,nPers,income,parameters.radicality)
+                prefTyp = np.argmax(prefTuple)
+                pers.setValue('preferences', prefTuple)
+                pers.setValue('prefTyp',prefTyp)
+                pers.setValue('genders', genders[iPers])
+                pers.setValue('ages', ages[iPers])
+                pers.setValue('expUtil',0)
+                pers.setValue('util',0)
+                pers.setValue('consequences', [0,0,0,0])
+                pers.tolerance = parameters.tolerance
+                pers.queueConnection(hh.nID,edgeType=_chp)
+                pers.registerAtGeoNode(earth, hh.loc.nID)
+            
+            
                 earth.nPrefTypes[prefTyp] += 1
                 nAgentsCell -= 1
                 nAgents     += 1
-                hh.connectGeoNode(earth)
-                
+    
             idx         += nPers
             nHH         += 1
             
@@ -372,7 +383,8 @@ def householdSetup(earth, parameters):
                     break
     
     earth.dequeueEdges()
-    print 'Agents created in -- ' + str( time.time() - tt) + ' s'
+
+    print str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s'
     return earth
 
 
@@ -399,6 +411,7 @@ def initEarth(parameters):
     earth.registerEdgeType('cell-cell')
     earth.registerEdgeType('cell-hh')
     earth.registerEdgeType('hh-hh')
+    earth.registerEdgeType('hh-pers')
     connList= earth.computeConnectionList(parameters.connRadius)
     earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
     
@@ -560,7 +573,7 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
     
     
-    parameters.scenario       = 1
+    parameters.scenario       = 0
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'
@@ -643,7 +656,7 @@ if __name__ == '__main__':
     pref = np.zeros([earth.graph.vcount(), 4])
     pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
     idx = list()
-    for edge in earth.iterEdges(_thh):
+    for edge in earth.iterEdges(_chh):
         edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
         idx.append(edge.index)
         
