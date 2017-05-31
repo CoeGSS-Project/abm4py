@@ -288,7 +288,6 @@ class World:
         self.graph    = ig.Graph(directed=True)
         self.graph.edgeQueue   = (list(),list()) #(nodetuple list, typelist)
         self.graph.vertexQueue = (list(),list()) #(nodelist, typelist)
-        self.types    = list()
         self.nodeList = dict()        
         self.entList   = list()
         self.entDict   = dict()
@@ -489,7 +488,7 @@ class World:
         if typeStr not in self.graph.nodeTypes.values():
             self.registerNodeType(typeStr)
                 
-        for iType, liTyp in enumerate(self.graph.nodeTypes.iteritems()):
+        for iType, liTyp in self.graph.nodeTypes.iteritems():
             if liTyp == typeStr :
                 break
         
@@ -514,7 +513,6 @@ class World:
 
     def view(self,filename = 'none', vertexProp='none'):
         import matplotlib.cm as cm
-        
         
         # Nodes        
         if vertexProp=='none':
@@ -557,7 +555,7 @@ class World:
         visual_style["vertex_size"] = list()  
         for vert in self.graph.vs['type']:
             if vert >= 3:
-                visual_style["vertex_size"].append(4)  
+                visual_style["vertex_size"].append(15)  
             else:
                 visual_style["vertex_size"].append(15)  
         visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
