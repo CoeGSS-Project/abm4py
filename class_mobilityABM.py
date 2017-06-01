@@ -214,7 +214,7 @@ class Earth(World):
         # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
-            agent.stepNew(self)
+            agent.step(self)
 
         # proceed step
         self.writeAgentFile()
@@ -237,12 +237,12 @@ class Earth(World):
         # saving enumerations            
         saveObj(self.enums, self.para['outPath'] + '/enumerations')
         
-        try:
+        #try:
             # plotting and saving figures
-            for key in self.globalData:
-                self.globalData[key].plot(self.para['outPath'] + '/rec')
-        except:
-            pass
+        for key in self.globalData:
+            self.globalData[key].plot(self.para['outPath'] + '/rec')
+        #except:
+        #    pass
 
         
 class Market():
@@ -254,7 +254,7 @@ class Market():
         self.mobilityProp       = dict()                     # mobType -> [properties]
         self.nProp              = len(properties)
         self.stock              = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
-        self.owners             = list()                     # List of (ownerID, brandID) index: carID
+        self.owners             = list()                     # List of (ownerID, brandID) index: mobID
         self.propRelDev         = propRelDev                 # relative deviation of the actual car propeties
         self.obsDict            = dict()                     # time -> other dictionary (see next line)
         self.obsDict[self.time] = dict()                # (used by agents, observations (=utilities) also saved in locations)
@@ -394,18 +394,18 @@ class Market():
             self.sales[int(mobType)] += 1
             
         if len(self.freeSlots) > 0:
-            carID = self.freeSlots.pop()
-            self.stock[carID] = [mobType] + prop
-            self.owners[carID] = (eID, mobType)
+            mobID = self.freeSlots.pop()
+            self.stock[mobID] = [mobType] + prop
+            self.owners[mobID] = (eID, mobType)
         else:
             self.stock = np.vstack(( self.stock, [mobType] + prop))
             self.owners.append((eID, mobType))
-            carID = len(self.owners)-1
+            mobID = len(self.owners)-1
         #self.stockbyMobType.loc[self.stockbyMobType.index[-1],brandID] += 1
         self.stockbyMobType[int(mobType)] += 1
         #self.computeStatistics()
         
-        return carID, prop
+        return mobID, prop
     
     def sellCar(self, mobID):
         self.stock[mobID] = np.Inf
@@ -663,6 +663,7 @@ class Household(Agent):
             
             utility = self.utilFunc(adult.node['consequences'], adult.node['preferences'])
             assert not( np.isnan(utility) or np.isinf(utility)), utility
+            
             adult.node['util'] = utility
             hhUtility += utility
         
@@ -670,23 +671,23 @@ class Household(Agent):
         return hhUtility
              
 
-    def takeAction(self, world, persons, actions):
+    def takeAction(self, world, persons, actionIds):
         """
         Method to execute the optimal actions for selected persons of the household
         """
-        for adult, action in zip(persons, actions):
+        for person, actionIdx in zip(persons, actionIds):
             
-            carID, properties = world.market.buyCar(action, self.nID)
-            self.loc.addToTraffic(action)
+            mobID, properties = world.market.buyCar(actionIdx, self.nID)
+            self.loc.addToTraffic(actionIdx)
             
-            adult.node['mobType']   = int(action)
-            adult.node['carID']     = int(carID)
-            adult.node['prop']      = properties
-            adult.node['obsID']     = None
+            person.node['mobType']   = int(actionIdx)
+            person.node['mobID']     = int(mobID)
+            person.node['prop']      = properties
+            person.node['obsID']     = None
             if world.time <  world.para['burnIn']:
-                adult.setValue('lastAction', np.random.randint(0, 2*world.para['newPeriod']))
+                person.node['lastAction'] = np.random.randint(0, 2*world.para['newPeriod'])
             else:
-                adult.setValue('lastAction', 0)
+                person.node['lastAction'] =0
             # add cost of mobility to the expenses
             self.node['expenses'] += properties[1]
             
@@ -696,8 +697,8 @@ class Household(Agent):
         Method to undo actions
         """
         for adult in persons:
-            carID = adult.node['carID']
-            world.market.sellCar(carID)
+            mobID = adult.node['mobID']
+            world.market.sellCar(mobID)
             self.loc.remFromTraffic(adult.getValue('mobType'))
             
             # remove cost of mobility to the expenses
@@ -706,6 +707,9 @@ class Household(Agent):
 
 
     def calculateConsequences(self, market):     
+        
+        # calculate money consequence
+        money = max(0, 1 - self.node['expenses'] /self.node['income'])
         
         for adult in self.adults:
             #get action of the person
@@ -719,48 +723,48 @@ class Household(Agent):
             emissions = adult.getValue('prop')[0]
             ecology = market.ecology(emissions)
             
-            # calculate money consequence
-            money = max(0, 1 - self.node['expenses'] /self.node['income'])
-        
             # get similarity consequence
             imitation = self.loc.brandShares[action]
         
-            adult.setValue('consequences', [convenience, ecology, money, imitation])
+            adult.node['consequences'] = [convenience, ecology, money, imitation]
 
 
     
 
     def evaluateExpectedUtility(self, world):
     
-        observedActions = list()
-        eUtil           = list()
+        actionIdsList   = list()
+        eUtilsList      = list()
         isActor         = np.zeros(len(self.adults)).astype(bool)
         actors          = list()
-        for iActor, adult in enumerate(self.adults):
+        for iAdult, adult in enumerate(self.adults):
             
             if adult.node['lastAction']> world.para['newPeriod']:
                 actors.append(adult)
-                isActor[iActor] = True
-                actions, eUtils = adult.getExpectedUtility(world) 
-                if actions is None:
-                    actions, eUtils = [adult.node['mobType']], [adult.node['util']]
+                isActor[iAdult] = True
+                actionIds, eUtils = adult.getExpectedUtility(world)
+                
+                if actionIds is None:
+                    actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
             else:
-                actions, eUtils = [adult.node['mobType']], [adult.node['util']]
-            observedActions.append(actions)
-            eUtil.append(eUtils)
+                actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
+            actionIdsList.append(actionIds)
+            eUtilsList.append(eUtils)
         
-        if len(observedActions) == 0:
+        if len(actionIdsList) == 0:
             return None, None, None
-        combActions = cartesian(observedActions)
-        overallUtil = np.sum(cartesian(eUtil),axis=1)
+        
+        combActions = cartesian(actionIdsList)
+        overallUtil = np.sum(cartesian(eUtils),axis=1)
 
         #best action 
-        bestActionIdx = np.argmax(overallUtil)
-        return actors, combActions[bestActionIdx][isActor], overallUtil[bestActionIdx]
+        bestActionIds = np.argmax(overallUtil)
+        return actors, combActions[bestActionIds][isActor], overallUtil[bestActionIds]
     
-    def stepNew(self, world):
+    def step(self, world):
         for adult in self.adults:
             adult.addValue('lastAction', 1)
+            #adult.node['lastAction'] += 1
         actionTaken = False
         doCheckMobAlternatives = False
 
@@ -772,6 +776,7 @@ class Household(Agent):
             
         if doCheckMobAlternatives:
             
+            # return persons that are potentially performing an acton, the action and the expected overall utility
             personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(world)
             
             if personsToTakeAction is None:
@@ -782,17 +787,18 @@ class Household(Agent):
                 actionTaken = True
                 
                 
-            else: # check if mob type is changed because to oll
+            else: # check if mob type is changed because to old
                 personsToTakeAction = list()
                 actions             = list()
                 for adult in self.adults:
                     
-                    buySellBecauseOld = max(0.,adult.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand(1)
+                    buySellBecauseOld = max(0.,adult.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand()
                     if buySellBecauseOld:
                         actionTaken = True
                         personsToTakeAction.append(adult)
                         actions.append(adult.node['mobType'])
-                        
+                       
+            # the action is only performed if flag is True                        
             if actionTaken:
                 self.undoActions(world, personsToTakeAction)
                 self.takeAction(world, personsToTakeAction, actions)
@@ -803,43 +809,43 @@ class Household(Agent):
                 self.shareExperience(world)
                 
                 
-    def step(self, world):
-        self.addValue('carAge', 1)
-        carBought = False
-        self.setValue('predMeth',0)
-        self.setValue('expUtil',0)
-        # If the car is older than a constant, we have a 50% of searching
-        # for a new car.
-        if (self.getValue('lastAction') > world.para['newPeriod'] and np.random.rand(1)>.5) or world.time < world.para['burnIn']: 
-            # Check what cars are owned by my friends, and what are their utilities,
-            # and make a choice based on that.
-            brandID, expUtil = self.optimalChoice(world)  
-            
-            if brandID is not None:
-                # If the utility of the new choice is higher than
-                # the current utility times 1.2, we perform a transaction
-
-                buySellBecauseOld = max(0.,self.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand(1)
-                
-                # three reasons to buy a car:
-                    # new car has a higher utility 
-                    # current car is very old
-                    # in the burn in phase, every time step a new car is chosen
-                if expUtil > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
-                    self.setValue('predMeth',1) # predition method
-                    self.setValue('expUtil',expUtil) # expected utility
-                    self.sellCar(world, self.getValue('carID'))
-                    self.buyCar(world, brandID)
-                    carBought = True
-                # Otherwise, we have a 25% chance of looking at properties
-                # of cars owned by friends, and perform linear sensitivity
-                # analysis based on the utility of your friends.
-                
-        self.calculateConsequences(world.market)
-        self.util = self.evalUtility()               
-        if carBought:
-            self.weightFriendExperience(world)
-        self.shareExperience(world)
+#    def step(self, world):
+#        self.addValue('carAge', 1)
+#        carBought = False
+#        self.setValue('predMeth',0)
+#        self.setValue('expUtil',0)
+#        # If the car is older than a constant, we have a 50% of searching
+#        # for a new car.
+#        if (self.getValue('lastAction') > world.para['newPeriod'] and np.random.rand(1)>.5) or world.time < world.para['burnIn']: 
+#            # Check what cars are owned by my friends, and what are their utilities,
+#            # and make a choice based on that.
+#            brandID, expUtil = self.optimalChoice(world)  
+#            
+#            if brandID is not None:
+#                # If the utility of the new choice is higher than
+#                # the current utility times 1.2, we perform a transaction
+#
+#                buySellBecauseOld = max(0.,self.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand(1)
+#                
+#                # three reasons to buy a car:
+#                    # new car has a higher utility 
+#                    # current car is very old
+#                    # in the burn in phase, every time step a new car is chosen
+#                if expUtil > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
+#                    self.setValue('predMeth',1) # predition method
+#                    self.setValue('expUtil',expUtil) # expected utility
+#                    self.sellCar(world, self.getValue('mobID'))
+#                    self.buyCar(world, brandID)
+#                    carBought = True
+#                # Otherwise, we have a 25% chance of looking at properties
+#                # of cars owned by friends, and perform linear sensitivity
+#                # analysis based on the utility of your friends.
+#                
+#        self.calculateConsequences(world.market)
+#        self.util = self.evalUtility()               
+#        if carBought:
+#            self.weightFriendExperience(world)
+#        self.shareExperience(world)
 
 
 #    def evalIndividualConsequences(self,world):
@@ -865,9 +871,9 @@ class Household(Agent):
         if obsMat.shape[0] == 0:
             return None
         
-        carIDs       = np.unique(obsMat[:,-1])
+        mobIDs       = np.unique(obsMat[:,-1])
         
-        tmp = np.zeros([len(carIDs),obsMat.shape[0]])
+        tmp = np.zeros([len(mobIDs),obsMat.shape[0]])
         weighted = True
         
         if weighted:
@@ -875,16 +881,16 @@ class Household(Agent):
             weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
-            for i, id_ in enumerate(carIDs):
+            for i, id_ in enumerate(mobIDs):
                 
                 tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
         else:
-            for i, id_ in enumerate(carIDs):
+            for i, id_ in enumerate(mobIDs):
                 tmp[i,obsMat[:,-1] == id_] = 1
             
         avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
         maxid = np.argmax(avgUtil)
-        return carIDs[maxid], avgUtil[maxid]
+        return mobIDs[maxid], avgUtil[maxid]
     
 class Reporter(Household):
     

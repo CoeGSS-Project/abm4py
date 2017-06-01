@@ -199,8 +199,11 @@ class Record():
         if self.style == 'plot':
             plt.plot(self.rec)
             if hasattr(self,'calDataDict'):
+                calData = self.rec*np.nan
                 for x,y in self.calDataDict.iteritems():
-                    plt.plot(x,y,'d')
+                    calData[x,:] = y
+                    
+                plt.plot(calData,'d')
             
         elif self.style == 'stackedBar':
             nCars = np.zeros(self.nSteps)

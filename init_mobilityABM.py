@@ -299,10 +299,10 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, 20000)  # combustion car
     
-    earth.initBrand('green',(250., 500.), convienienceGreen, 0, 40)   # green tech car
+    earth.initBrand('green',(250., 500.), convienienceGreen, 0, 10)   # green tech car
     
     earth.initBrand('other',(120., 80.), convienienceOther, 0, 20000)    # none or other
-    
+            
     return earth
     ##############################################################################
 
@@ -500,13 +500,19 @@ def initMobilityTypes(earth, parameters):
 def initGlobalRecords(earth, parameters):
     earth.registerRecord('stock', 'total use per mobility type', earth.enums['mobilityTypes'].values(), style ='plot')
     
-    calDataDf = pd.read_csv(parameters.resourcePath + 'brownCars.csv',index_col=0, header=1)
+    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
+    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
     timeIdxs = list()
     values   = list()
-    for column in calDataDf.columns[1:]:
+    for column in calDataDfCV.columns[1:]:
+        value = [np.nan]*3
         year = int(column)
         timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-        value = (calDataDf[column]['re_1518'] + calDataDf[column]['re_6321']) / parameters['reductionFactor']
+        value[0] = (calDataDfCV[column]['re_1518'] + calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
+        if column in calDataDfEV.columns[1:]:
+            value[1] = (calDataDfEV[column]['re_1518'] + calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
+        
+        
         timeIdxs.append(timeIdx)
         values.append(value)
     earth.globalData['stock'].addCalibrationData(timeIdxs,values)
@@ -553,7 +559,7 @@ def runModel(earth, parameters):
     print "Finalizing the simulation:"
     if parameters.writeOutput:
         earth.finalizeAgentFile()
-        earth.finalize()        
+    earth.finalize()        
 
        
 import csv
