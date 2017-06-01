@@ -30,6 +30,7 @@ emissionsPerLabel = 1
 path = 'output/sim0414/'
 withoutBurnIn = True 
 
+
 #%% init
     
 from class_auxiliary import loadObj
@@ -76,11 +77,12 @@ if plotCarStockBar:
        plt.bar(np.arange(nSteps), carMat[:,i],bottom=nCars, color =colorPal[[1,0,2][i]], width=1)
        nCars += carMat[:,i]
        legStr.append(brand)
-#plt.legend(legStr)
-if withoutBurnIn:
+#plt.legend(legStr)if withoutBurnIn:
     years = (agMat.shape[0] -100) / 12
     plt.xlim([100,agMat.shape[0]])
     plt.xticks(np.linspace(100,100+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
+
 plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% sales
@@ -218,6 +220,8 @@ if utilPerLabel:
     fig = plt.figure()
     plt.plot(res)
     plt.title('Average utility by brand')
+    if withoutBurnIn: 
+        plt.xlim([burnIn,stepsTotal])
     plt.legend(legStr,loc=0)
 
 #%% income per car label
@@ -233,6 +237,8 @@ if incomePerLabel:
     fig = plt.figure()
     plt.plot(res)
     plt.title('Average income by brand')
+    if withoutBurnIn: 
+        plt.xlim([burnIn,stepsTotal])
     plt.legend(legStr,loc=0)    
 
 #%% mean preference per car label
@@ -256,14 +262,21 @@ if meanPrefPerLabel:
         h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
         #plt.legend(legStr,loc=0)
-        plt.xlim([0,nSteps])
+        if withoutBurnIn: 
+            years = (agMat.shape[0] -burnIn) / 12
+            plt.xlim([burnIn,agMat.shape[0]])
+            plt.xticks(np.linspace(burnIn,burnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45) 
+            #plt.xlim([burnIn,stepsTotal])
+        else:
+            plt.xlim([0,nSteps])
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr, loc = (1,1,0,0))
     plt.tight_layout()
+
     fig.suptitle('mean preference per car label')
 print 1
 #%% mean consequences per car label
-
+enums['consequences'] = {0: 'convenience', 1: 'eco-friendliness', 2: 'remaining money', 3: 'similarity'}
 if meanConsequencePerLabel:
     fig = plt.figure()
     res = dict()
@@ -282,9 +295,12 @@ if meanConsequencePerLabel:
     for carLabel in range(0,len(enums['brands'])):
         plt.subplot(2,2,carLabel+1)    
         h.append(plt.plot(res[carLabel]))
-        plt.title(enums['brands'][carLabel])
-        
-        plt.xlim([0,nSteps])
+        plt.title(enums['brands'][carLabel])        
+        if withoutBurnIn: 
+            plt.xlim([burnIn,agMat.shape[0]])            
+        else:
+            plt.xlim([0,nSteps])
+        plt.xticks(np.linspace(burnIn,burnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     # plt.legend(legStr,loc=0)        
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr)
@@ -311,6 +327,10 @@ if emissionsPerLabel:
             plt.title('Average emissions by brand')
         else:
             plt.title('Average price by brand')
+        if withoutBurnIn: 
+            plt.xlim([burnIn,nSteps])
+        plt.xticks(np.linspace(burnIn,burnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+        plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
     plt.legend(legStr,loc=0)    
 
 plt.show()
