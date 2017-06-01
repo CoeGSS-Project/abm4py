@@ -577,29 +577,79 @@ if __name__ == '__main__':
         parameters = Bunch()
         for item in csv.DictReader(open(fileName)):
             parameters[item['name']] = convertStr(item['value'])
-        
-        
-        
+    
     # no csv file given
     else:
         parameters = Bunch()
         parameters.urbThreshold = 13
         parameters.convIncomeFraction = 1000
-    
-    
-    parameters.scenario       = 1
+        if nAgentsCell <= 0:
+                break
 
-    if parameters.scenario == 0:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestSmall(parameters)
-   
-    elif parameters.scenario == 1:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestMedium(parameters)
+earth.dequeueEdges()
+print 'Agents created in -- ' + str( time.time() - tt) + ' s'
+
+
+#%% cell convenience test
+convArray = np.zeros([earth.market.nBrands,len(earth.nodeList[1])])
+popArray = np.zeros([len(earth.nodeList[1])])
+for i, cell in enumerate(earth.iterNodes(_cell)):
+    convAll, population = cell.selfTest()
+    convArray[:,i] = convAll
+    popArray[i] = population
+plt.figure()
+
+try:
+    for i in range(earth.market.nBrands):    
+        plt.subplot(2,2,i+1)
+        plt.scatter(popArray,convArray[i,:])    
+        plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
+    plt.show()
+except:
+    pass
+
+# %% Generate Network
+tt = time.time()
+earth.genFriendNetwork(parameters.minFriends)
+earth.market.initialCarInit()
+if parameters.scenario == 0:
+    earth.view('output/graph.png')
+print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
+
+#%% Initial actions
+tt = time.time()
+for household in tqdm.tqdm(earth.iterNodes(_hh)):
+    household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
+    #earth.market.computeStatistics()
+    household.setValue('carAge', np.random.randint(0,15))
     
-    elif parameters.scenario == 2:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioNiedersachsen(parameters)
+for household in tqdm.tqdm(earth.iterNodes(_hh)):    
+    household.calculateConsequences(earth.market)
+    household.util = household.evalUtility()
+    household.shareExperience(earth)
+    
+for cell in earth.iterNodes(_cell):
+    cell.step(earth.market.kappa)
+print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
+
+
+#%% Init of agent file
+tt = time.time()
+earth.initAgentFile(typ = _hh)
+earth.initAgentFile(typ = _cell)
+print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
+
+
+#%% Simulation 
+earth.time = -1 # hot bugfix to have both models running #TODO Fix later
+print "Starting the simulation:"
+for step in xrange(parameters.nSteps):
+    tt = time.time()
+    earth.step() # looping over all cells
+    print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
+    earth.writeAgentFile()
+    print ' - agent file written in ' +  str(time.time()-tt) + ' s'
+
         
     #%% Init 
     earth = initEarth(parameters)
