@@ -585,9 +585,10 @@ if __name__ == '__main__':
         parameters = Bunch()
         parameters.urbThreshold = 13
         parameters.convIncomeFraction = 1000
-    
-    
+
+ 
     parameters.scenario       = 1
+
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'
