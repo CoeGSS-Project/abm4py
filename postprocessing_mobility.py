@@ -81,6 +81,7 @@ if withoutBurnIn:
     years = (agMat.shape[0] -100) / 12
     plt.xlim([100,agMat.shape[0]])
     plt.xticks(np.linspace(100,100+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
 plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% sales
