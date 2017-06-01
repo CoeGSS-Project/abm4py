@@ -58,6 +58,7 @@ _cll = 1 # loc - loc
 _clh = 2 # loc - household
 _chh = 3 # household, household
 _chp = 4 # household, person
+_cpp = 5 # person, person
 
 #nodes
 _cell = 1
@@ -103,7 +104,7 @@ def scenarioTestSmall(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.carNewPeriod  = 24 # months
+    setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
     setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
     
@@ -136,7 +137,7 @@ def scenarioTestMedium(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps         = 10     # number of simulation steps
+    setup.nSteps         = 340     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
     setup.burnIn         = 100
@@ -170,7 +171,7 @@ def scenarioTestMedium(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.carNewPeriod  = 24 # months
+    setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
     setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
     
@@ -240,7 +241,7 @@ def scenarioNiedersachsen(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.carNewPeriod  = 24 # months
+    setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
     setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
     
@@ -298,9 +299,9 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, 20000)  # combustion car
     
-    earth.initBrand('green',(250., 500.), convienienceGreen, 0, 400)   # green tech car
+    earth.initBrand('green',(250., 500.), convienienceGreen, 0, 40)   # green tech car
     
-    earth.initBrand('other',(120., 80.), convienienceOther, 0, 2000)    # none or other
+    earth.initBrand('other',(120., 80.), convienienceOther, 0, 20000)    # none or other
     
     return earth
     ##############################################################################
@@ -342,11 +343,13 @@ def householdSetup(earth, parameters):
             
             # creating houshold
             hh = Household(earth,'hh', x, y)
+            hh.adults = list()
             hh.setValue('hhSize',nPers)
             hh.setValue('nKids', nKids)
             hh.setValue('income',income) 
             hh.setValue('expUtil',0)
             hh.setValue('util',0)
+            hh.setValue('expenses',0)
             hh.register(earth)
             hh.connectGeoNode(earth)
             
@@ -366,11 +369,14 @@ def householdSetup(earth, parameters):
                 pers.setValue('ages', ages[iPers])
                 pers.setValue('expUtil',0)
                 pers.setValue('util',0)
+                pers.setValue('mobType',0)
                 pers.setValue('consequences', [0,0,0,0])
                 pers.tolerance = parameters.tolerance
                 pers.queueConnection(hh.nID,edgeType=_chp)
                 pers.registerAtGeoNode(earth, hh.loc.nID)
-            
+                
+                # adding reference to the person to household
+                hh.adults.append(pers)
             
                 earth.nPrefTypes[prefTyp] += 1
                 nAgentsCell -= 1
@@ -412,6 +418,7 @@ def initEarth(parameters):
     earth.registerEdgeType('cell-hh')
     earth.registerEdgeType('hh-hh')
     earth.registerEdgeType('hh-pers')
+    earth.registerEdgeType('pers-pers')
     connList= earth.computeConnectionList(parameters.connRadius)
     earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
     
@@ -509,17 +516,18 @@ def runModel(earth, parameters):
     #%% Initial actions
     tt = time.time()
     for household in tqdm.tqdm(earth.iterNodes(_hh)):
-        household.buyCar(earth,np.random.choice(range(earth.market.nMobTypes)))
-        #earth.market.computeStatistics()
-        household.setValue('carAge', np.random.randint(0,15))
         
-    for household in tqdm.tqdm(earth.iterNodes(_hh)):    
-        household.calculateConsequences(earth.market)
-        household.util = household.evalUtility()
-        household.shareExperience(earth)
+        household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
+        #for adult in household.adults:
+            #adult.setValue('lastAction', 0)
         
     for cell in earth.iterNodes(_cell):
         cell.step(earth.market.kappa)
+        
+    for household in tqdm.tqdm(earth.iterNodes(_hh)):
+        household.calculateConsequences(earth.market)
+        household.util = household.evalUtility()
+        household.shareExperience(earth)
     print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
     
     
@@ -573,7 +581,7 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
     
     
-    parameters.scenario       = 0
+    parameters.scenario       = 1
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'
@@ -614,7 +622,7 @@ if __name__ == '__main__':
     #%% postprocessing
     if True:
         df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeList[2]:
+    for agID in earth.nodeList[3]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     
     
@@ -653,16 +661,17 @@ if __name__ == '__main__':
     preDiff = list()
     weights = list()
     
+    nPersons = len(earth.nodeList[_pers])
     pref = np.zeros([earth.graph.vcount(), 4])
-    pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
+    pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
     idx = list()
-    for edge in earth.iterEdges(_chh):
+    for edge in earth.iterEdges(_cpp):
         edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
         idx.append(edge.index)
         
         
     plt.figure()
-    plt.scatter(earth.graph.es['prefDiff'],earth.graph.es['weig'])
+    plt.scatter(np.asarray(earth.graph.es['prefDiff'])[idx],np.asarray(earth.graph.es['weig'])[idx])
     plt.xlabel('difference in preferences')
     plt.ylabel('connections weight')
     
