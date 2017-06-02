@@ -30,7 +30,7 @@ emissionsPerLabel = 1
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
-path = 'output/sim0039/'
+path = 'output/sim0607/'
 
 
 #%% init
@@ -115,34 +115,34 @@ if plotCarSales:
     plt.title('sales per mobility Type')
     
 #%% number of different cars per preference type:
-    
-nUniqueCars = list()
-for i in range(agMat.shape[1]):
-    nUniqueCars.append(len(np.unique(agMat[:,i,propDic['type'][0]])))
-
-print np.mean(nUniqueCars)
-
-for prefTyp in range(nPrior):
+if False: 
     nUniqueCars = list()
-    idx = persMat[0,:,persPropDict['prefTyp'][0]] == prefTyp
-    for i in np.where(idx)[0]:
+    for i in range(agMat.shape[1]):
         nUniqueCars.append(len(np.unique(agMat[:,i,propDic['type'][0]])))
-    print 'Pref Type = ' + enums['priorities'][prefTyp] + ' ownes ' + str(np.mean(nUniqueCars)) +'different cars'
+    
+    print np.mean(nUniqueCars)
+    
+    for prefTyp in range(nPrior):
+        nUniqueCars = list()
+        idx = persMat[0,:,persPropDict['prefTyp'][0]] == prefTyp
+        for i in np.where(idx)[0]:
+            nUniqueCars.append(len(np.unique(agMat[:,i,propDic['type'][0]])))
+        print 'Pref Type = ' + enums['priorities'][prefTyp] + ' ownes ' + str(np.mean(nUniqueCars)) +'different cars'
 
 #%% number of buys
-
-x = np.diff(persMat,axis=0)
-#x = x[:,:,propDic['label']] != 0
-carBuys =np.sum(x[:,:,persPropDict['type']] > 0,axis = 0)
-np.mean(carBuys)
-np.max(carBuys)
-np.min(carBuys)
-for prefTyp in range(nPr):
-    idx = persMat[0,:,persPropDict['prefTyp'][0]] == prefTyp
-    
-    print 'Pref Type "' + enums['priorities'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
+if False:
+    x = np.diff(persMat,axis=0)
+    #x = x[:,:,propDic['label']] != 0
+    carBuys =np.sum(x[:,:,persPropDict['type']] > 0,axis = 0)
+    np.mean(carBuys)
+    np.max(carBuys)
+    np.min(carBuys)
+    for prefTyp in range(nPr):
+        idx = persMat[0,:,persPropDict['prefTyp'][0]] == prefTyp
         
-print 1
+        print 'Pref Type "' + enums['priorities'][prefTyp] + '" buys ' + str(np.mean(carBuys[idx])) +'times'
+            
+    print 1
 
 #%% df for one timestep
 
@@ -282,7 +282,7 @@ if meanPrefPerLabel:
     for time in range(nSteps):
         for carLabel in range(len(enums['brands'])):
             idx = np.where(persMat[time,:,persPropDict['mobType'][0]] == carLabel)[0]
-            res[carLabel][time,:] = np.mean(persMat[np.ix_([step],idx,persPropDict['preferences'])],axis=1) / ensembleAverage
+            res[carLabel][time,:] = np.mean(persMat[np.ix_([time],idx,persPropDict['preferences'])],axis=1) / ensembleAverage
     legStr = list()
     for prefType in range(nPrior):
         legStr.append(enums['priorities'][prefType])

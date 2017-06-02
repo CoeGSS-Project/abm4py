@@ -85,8 +85,8 @@ class Earth(World):
         self.globalData[name] = Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
-    def initMarket(self, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
-        self.market = Market(properties, propRelDev=propRelDev, time=time, burnIn=burnIn, greenInfraMalus=greenInfraMalus)
+    def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
+        self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn, greenInfraMalus=greenInfraMalus)
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
@@ -247,7 +247,7 @@ class Earth(World):
         
 class Market():
 
-    def __init__(self, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
+    def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
         self.time               = time
         self.properties         = properties                 # (currently: emissions, price)
@@ -273,9 +273,10 @@ class Market():
         self.sales              = list()
         self.meanDist           = 0.
         self.stdDist            = 1.
-        
-        self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
-    
+        self.innovationWeig     = [1- earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]
+        self.allTimeProduced    = list()                   # list of previous produced numbers -> for technical progress
+        self.newPeriod          = earth.para['mobNewPeriod']
+        self.innoDevRange       = earth.para['innoDevRange']
     def getNTypes(self):
         return self.nMobTypes
     
@@ -304,8 +305,9 @@ class Market():
         self.meanDist = np.mean(distances)
         self.stdDist = np.std(distances)
 
-    def distanceFromMean(self, properties, distanceWeights = [1.,1.]):     
-        distance = distanceWeights[0]*(self.mean[0]-properties[0])/self.std[0]+distanceWeights[1]*(properties[1]-self.mean[1])/self.std[1]            
+    def distanceFromMean(self, properties): 
+        
+        distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
         return distance
 
     def ecology(self, emissions):
@@ -764,7 +766,7 @@ class Household(Agent):
             # get similarity consequence
             #imitation = self.loc.brandShares[action]
             distance = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
-            imitation = math.exp(-(adult.innovatorDegree - distance)**2)
+            imitation = math.exp(-((adult.innovatorDegree - distance)**2)/ market.innoDevRange)
             
             adult.node['consequences'] = [convenience, ecology, money, imitation]
 
@@ -954,13 +956,18 @@ class Cell(Location):
         self.cellSize = 1.
         self.setValue('population', 0)
         self.setValue('convenience', [0,0,0])
-        self.urbanThreshold = earth.para['urbanPopulationThreshold']
-        self.paraB = earth.para['paraB']
+        self.urbanThreshold = earth.para['urbanThreshold']
+        
         self.conveniences = list()
-        self.kappa = -0.3
+        
         self.convFunctions = list()
         self.brandShares = [1.,1.,1.,1.]
         
+        self.paraA = earth.para['convA']
+        self.paraB = earth.para['convB']
+        self.paraC = earth.para['convC']
+        self.paraD = earth.para['convD']
+        self.kappa = earth.para['kappa']
         
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
@@ -1015,10 +1022,10 @@ class Cell(Location):
         convAll = list()
         # convenience parameters:    
 
-        paraA, paraC, paraD = 1., .2, 0.07
+        #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.05,funcCall(popDensity, paraA, self.paraB, paraC, paraD, self))))            
+            convAll.append(min(1., max(0.05,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
         return convAll
 
         
@@ -1070,30 +1077,32 @@ class Opinion():
     """ 
     Creates preferences for households, given their properties
     """
-    def __init__(self, indiRatio = 0.33, ecoIncomeRange=(1000,4000),convIncomeFraction=7000):
-        self.indiRatio = indiRatio
-        self.ecoIncomeRange = ecoIncomeRange
-        self.convIncomeFraction = convIncomeFraction
+    def __init__(self, world):
+        self.innovationPriority = world.para['innoPriority']
+        self.charAge            = world.para['charAge']
+        self.indiRatio          = world.para['individualPrio']
+        self.minIncomeEco       =world.para['minIncomeEco']
+        self.convIncomeFraction =world.para['charIncome']
         
     def getPref(self,age,sex,nKids, nPers,income, radicality):
         
-        # priority of safety
-        cs = 0
-        if nKids < 0:
-            if sex == 2:
-                cs += 4
-            else:
-                cs += 2
-        cs += int(float(age)/10)
-        if sex == 2:
-            cs += 1
-        cs = float(cs)**2
+#        # priority of safety
+#        cs = 0
+#        if nKids < 0:
+#            if sex == 2:
+#                cs += 4
+#            else:
+#                cs += 2
+#        cs += int(float(age)/10) #
+#        if sex == 2:
+#            cs += 1
+#        cs = float(cs)**2
         
         # priority of ecology
         ce = 1.5
         if sex == 2:
             ce +=2
-        if income>self.ecoIncomeRange[0] and income<self.ecoIncomeRange[1]:
+        if income>self.minIncomeEco:
             rn = np.random.rand(1)
             if rn > 0.9:
                 ce += 5
@@ -1109,12 +1118,8 @@ class Opinion():
         cc += income/self.convIncomeFraction
         if sex == 1:
             cc +=1
-        if age > 60:
-            cc += 3
-        elif age > 50:
-            cc += 2
-        elif age > 40:
-            cc += 1
+        
+        cc += int(float(age)/self.charAge)  
         cc = float(cc)**2
         
         # priority of money
@@ -1125,33 +1130,33 @@ class Opinion():
         cm = float(cm)**2
         
         
-        sumC = cc + cs + ce + cm
+        sumC = cc + ce + cm
         cc /= sumC
         ce /= sumC
-        cs /= sumC
+        #cs /= sumC
         cm /= sumC
 
-        # priority of imitation
-        ci = 0.2  
+        # priority of innovation
+        ci = self.innovationPriority  
         
         # normalization
-        sumC = cc + cs + ce + cm +ci
+        sumC = cc +  ce + cm +ci
         cc /= sumC
         ce /= sumC
-        cs /= sumC
+        #cs /= sumC
         cm /= sumC
         ci /= sumC
 
         #individual preferences
-        cci, cei, csi, cmi, cii = np.random.rand(5)
-        sumC = cci + cei + csi + cmi + cii
+        cci, cei,  cmi, cii = np.random.rand(4)
+        sumC = cci + cei + + cmi + cii
         cci /= sumC
         cei /= sumC
-        csi /= sumC
+        #csi /= sumC
         cmi /= sumC
         cii /= sumC
         
-        csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
+        #csAll = cs* (1-self.indiRatio) + csi*self.indiRatio
         ceAll = ce* (1-self.indiRatio) + cei*self.indiRatio
         ccAll = cc* (1-self.indiRatio) + cci*self.indiRatio
         cmAll = cm* (1-self.indiRatio) + cmi*self.indiRatio

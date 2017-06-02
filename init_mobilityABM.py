@@ -106,7 +106,6 @@ def scenarioTestSmall(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
     
     #agents
     setup.util             = 'cobb'
@@ -119,11 +118,10 @@ def scenarioTestSmall(parameters):
     
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
-    maxDeviation = np.nanmax([(minPop-parameters.urbThreshold)**2, (maxPop-parameters.urbThreshold)**2])
-    minCarConvenience = 1 + setup.greenInfraMalus
-    parameters.paraB =  minCarConvenience / (maxDeviation*.5)
-    parameters.urbanPopulationThreshold = parameters.urbThreshold  
-    
+    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
+    minCarConvenience = 1 + parameters.kappa
+    parameters.convB =  minCarConvenience / (maxDeviation)
+
     # redefinition of setup parameters by input
     setup.update(parameters.toDict())
     
@@ -173,7 +171,6 @@ def scenarioTestMedium(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
     
     #agents
     setup.util             = 'cobb'
@@ -186,10 +183,9 @@ def scenarioTestMedium(parameters):
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
-    maxDeviation = np.nanmax([(minPop-parameters.urbThreshold)**2, (maxPop-parameters.urbThreshold)**2])
-    minCarConvenience = 1 + setup.greenInfraMalus
-    parameters.paraB =  minCarConvenience / (maxDeviation*.5)
-    parameters.urbanPopulationThreshold = parameters.urbThreshold  
+    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
+    minCarConvenience = 1 + parameters.kappa
+    parameters.convB =  minCarConvenience / (maxDeviation)
 
     # redefinition of setup parameters by input
     setup.update(parameters.toDict())
@@ -224,11 +220,9 @@ def scenarioNiedersachsen(parameters):
         except:
             pass
     setup.landLayer[setup.landLayer == 1 & np.isnan(setup.population)] =0
-    urbThreshold = np.nanpercentile(setup.population,90)
     nAgents    = np.nansum(setup.population)
     
     #social
-    setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.minFriends    = 30       # number of desired friends
     setup.memoryTime    = 12       # length of the periode for which memories are stored
@@ -244,23 +238,22 @@ def scenarioNiedersachsen(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.newPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.greenInfraMalus = -0.3                   # malus assumed for initial disadvantages of green cars
+
     
     #agents
     setup.util             = 'cobb'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
     setup.minFriends       = 10
     
     
+    
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
-    maxDeviation = np.nanmax([(minPop-urbThreshold)**2, (maxPop-urbThreshold)**2])
-    minCarConvenience = 1 + setup.greenInfraMalus
-    parameters.paraB =  minCarConvenience / (maxDeviation*.1)
-    parameters.urbanPopulationThreshold = urbThreshold  
+    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
+    minCarConvenience = 1 + parameters.kappa
+    parameters.convB =  minCarConvenience / (maxDeviation)
 
 
     assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
@@ -298,11 +291,11 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(440., 200.), convienienceBrown, 0, 20000)  # combustion car
+    earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(250., 500.), convienienceGreen, 0, 10)   # green tech car
+    earth.initBrand('green',(250., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
     
-    earth.initBrand('other',(120., 80.), convienienceOther, 0, 20000)    # none or other
+    earth.initBrand('other',(120., 80.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
     return earth
     ##############################################################################
@@ -319,9 +312,7 @@ def householdSetup(earth, parameters):
         dfSynPop = pd.read_csv(parameters.synPopPath)
         hhMat = pd.read_csv(parameters.synPopPath).values
         
-    ecoMin = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,20)
-    ecoMax = np.percentile(dfSynPop['INCTOT']*parameters.incomeShareForMobility,90)
-    opinion =  Opinion(indiRatio = 0.33, ecoIncomeRange=(ecoMin,ecoMax),convIncomeFraction=10000)
+    opinion =  Opinion(earth)
     
     for x,y in tqdm.tqdm(earth.locDict.keys()):
         #print x,y
@@ -372,7 +363,8 @@ def householdSetup(earth, parameters):
                 pers.setValue('expUtil',0)
                 pers.setValue('util',0)
                 pers.setValue('mobType',0)
-                pers.setValue('consequences', [0,0,0,0])
+                pers.setValue('prop',[0]*len(parameters.properties))
+                pers.setValue('consequences', [0]*len(prefTuple))
                 pers.tolerance = parameters.tolerance
                 pers.innovatorDegree = np.random.randn()
                 pers.queueConnection(hh.nID,edgeType=_chp)
@@ -398,7 +390,6 @@ def householdSetup(earth, parameters):
 
 
 
-#%% Run of the simulation model ###############################################   
 
 def initEarth(parameters):
     tt = time.time()
@@ -429,10 +420,12 @@ def initEarth(parameters):
     
     
     
-    earth.initMarket(parameters.properties, 
+    earth.initMarket(earth,
+                     parameters.properties, 
                      parameters.randomCarPropDeviationSTD, 
                      burnIn=parameters.burnIn, 
-                     greenInfraMalus=parameters.greenInfraMalus)
+                     greenInfraMalus=parameters.kappa)
+    
     earth.market.mean = np.array([400.,300.])
     earth.market.std = np.array([100.,50.])
     #init location memory
@@ -474,8 +467,9 @@ def initEarth(parameters):
     return earth                  
 
     
-#%% cell convenience test
-def cellTest(earth, parameters):    
+
+def cellTest(earth, parameters):   
+    #%% cell convenience test
     convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeList[1])])
     popArray = np.zeros([len(earth.nodeList[1])])
     for i, cell in enumerate(earth.iterNodes(_cell)):
@@ -621,8 +615,10 @@ def onlinePostProcessing(earth):
         x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
         y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
         print np.corrcoef(x,y)
-######################################################################################
 
+#%%###################################################################################
+########## Run of the simulation model ###############################################   
+######################################################################################
 
 if __name__ == '__main__':
     
@@ -643,7 +639,7 @@ if __name__ == '__main__':
         parameters = Bunch()
         parameters.urbThreshold = 13
         parameters.convIncomeFraction = 1000
-
+        
  
     parameters.scenario       = 1
     parameters.showFigures    = True
