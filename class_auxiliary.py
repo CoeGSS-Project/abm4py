@@ -220,3 +220,20 @@ class Record():
         df = pd.DataFrame(self.rec, columns=self.columns)
         df.to_csv(path +'/' + self.name + '.csv')
         
+    def evaluateRelativeError(self):
+        if hasattr(self,'calDataDict'):
+            
+            err = 0
+            for timeIdx ,calValues in self.calDataDict.iteritems():
+                
+                for i, calValue in enumerate(calValues):
+                   if not np.isnan(calValue):
+                       err += np.abs(calValue - self.rec[timeIdx,i]) / calValue
+            fid = open('err.csv','w')
+            fid.write(str(err))
+            fid.close()
+            return err
+        
+        else:
+            return None
+        

@@ -168,7 +168,7 @@ class Earth(World):
         weigList  = list()
         for agent, x in tqdm.tqdm(self.iterNodeAndID(_pers)):
             
-            frList, edges, weights = agent.generateFriends(self,nFriendsPerPerson)
+            frList, edges, weights = agent.generateFriendNetwork(self,nFriendsPerPerson)
             edgeList += edges
             weigList += weights
         eStart = self.graph.ecount()
@@ -237,11 +237,11 @@ class Earth(World):
         # saving enumerations            
         saveObj(self.enums, self.para['outPath'] + '/enumerations')
         
-        #try:
+        if self.para['showFigures']:
             # plotting and saving figures
-        for key in self.globalData:
-            self.globalData[key].plot(self.para['outPath'] + '/rec')
-        #except:
+            for key in self.globalData:
+                self.globalData[key].plot(self.para['outPath'] + '/rec')
+            #except:
         #    pass
 
         
@@ -502,49 +502,73 @@ class Person(Agent):
                 else:
                     print 'updating failed, sum of weights are zero'
                     
-    def generateFriends(self,world, nFriends):
+    def generateFriendNetwork(self, world, nFriends):
         """
-        Method to make/delete or alter the agents social connections
-        details to be defined
+        Method to generate a preliminary friend network that accounts for 
+        proximity in space, priorities and income
         """
+        
         friendList = list()
         connList   = list()
-        ownPref = self.getValue('preferences') 
-        weights, eList, cellList = self.loc.getConnCellsPlus()
-        cumWeights = np.cumsum(weights)
+        ownPref    = self.node['preferences']
+        ownIncome  = self.hh.node['income']
+
+        contactIds     = list()
+        propDiffList   = list()
+        incoDiffList   = list()
+        spatWeigList   = list()
         
-        iFriend = 0
-        i = 0
+
+
+        #get spatial weights to all connected cells
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
+        
+        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
+            
+            personIds = world.entDict[cellIdx].getPersons()
+            
+            
+            for personIdx in personIds:
+                person = world.entDict[personIdx]
+                propDiffList.append(np.sum([(x-y)**2 for x,y in zip (person.node['preferences'], ownPref ) ])) # TODO look if get faster
+                incoDiffList.append(np.abs(person.hh.node['income'] - ownIncome))
+                
+            contactIds.extend(personIds)
+            spatWeigList.extend([cellWeight]*len(personIds))
+        
+        propWeigList = np.array(propDiffList)    
+        nullIds  = propWeigList == 0
+        propWeigList = 1 / propWeigList
+        propWeigList[nullIds] = 0 
+        propWeigList = propWeigList / np.sum(propWeigList)
+        
+        incoWeigList = np.array(incoDiffList)    
+        nullIds  = incoWeigList == 0
+        incoWeigList = 1 / incoWeigList
+        incoWeigList[nullIds] = 0 
+        incoWeigList = incoWeigList / np.sum(incoWeigList)
+        
+        spatWeigList = spatWeigList / np.sum(spatWeigList)
+        spatWeigList = spatWeigList / np.sum(spatWeigList)
+        
+        weights = propWeigList * spatWeigList * spatWeigList
+        weights = weights / np.sum(weights)
+        
+        nFriends = min(len(weights)-1,nFriends)
+        ids = np.random.choice(len(weights), nFriends, replace=False, p=weights)
+        friendList = [ contactIds[idx] for idx in ids ]
+        connList   = [(self.nID, contactIds[idx]) for idx in ids]
+        
+        
         if world.para['addYourself']:
+            #add yourself as a friend
             friendList.append(self.nID)
             connList.append((self.nID,self.nID))
-        while iFriend < nFriends:
-            
-            idx = np.argmax(cumWeights > np.random.random(1)) 
-            cellID = cellList[idx]
-            peList = world.entDict[cellID].getPersons()
-            if len(peList) > 0:
-
-                newFrID = np.random.choice(peList)
-                diff = 0
-                for x,y in zip (world.graph.vs[newFrID]['preferences'], ownPref ): #TODO change to lib-cal
-                    diff += abs(x-y)
-                    
-                if not newFrID == self.nID and newFrID not in friendList and  diff < self.tolerance:   
-                    friendList.append(newFrID)
-                    connList.append((self.nID,newFrID))
-                    iFriend +=1
-                i +=1
-                if i > 1000:
-                    break
         
-            if len(connList) > 0:
-                weigList = [1./len(connList)]*len(connList)
-            else:
-                weigList = []
+        weigList   = [1./len(connList)]*len(connList)    
         return friendList, connList, weigList
-
-
+        
+    
     def getExpectedUtility(self,world):
         """ 
         return all possible actions with their expected consequences

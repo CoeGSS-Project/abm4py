@@ -83,7 +83,7 @@ def scenarioTestSmall(parameters):
     #spatial
     setup.reductionFactor = 50000
     setup.isSpatial     = True
-    setup.connRadius    = 1.5      # radíus of cells that get an connection
+    setup.connRadius    = 2.1      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
@@ -213,15 +213,16 @@ def scenarioNiedersachsen(parameters):
     setup.landLayer= gt.load_array_from_tiff(parameters.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = setup.landLayer.astype(int)
-    try:
-        plt.imshow(setup.landLayer)
-
-        setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / reductionFactor
-        plt.imshow(setup.population,cmap='jet')
-        plt.clim([0, np.nanpercentile(setup.population,90)])
-        plt.colorbar()
-    except:
-        pass
+    
+    setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / reductionFactor
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
     setup.landLayer[setup.landLayer == 1 & np.isnan(setup.population)] =0
     urbThreshold = np.nanpercentile(setup.population,90)
     nAgents    = np.nansum(setup.population)
@@ -360,6 +361,7 @@ def householdSetup(earth, parameters):
                     continue    #skip kids
                 
                 pers = Person(earth,'pers')
+                pers.hh = hh
                 pers.register(earth)
                 prefTuple = opinion.getPref(ages[iPers],genders[iPers],nKids,nPers,income,parameters.radicality)
                 prefTyp = np.argmax(prefTuple)
@@ -479,13 +481,15 @@ def cellTest(earth, parameters):
         convAll, population = cell.selfTest()
         convArray[:,i] = convAll
         popArray[i] = population
-    plt.figure()
     
-    for i in range(earth.market.getNTypes()):    
-        plt.subplot(2,2,i+1)
-        plt.scatter(popArray,convArray[i,:])    
-        plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
-    plt.show()
+    
+    if earth.para['showFigures']:
+        plt.figure()
+        for i in range(earth.market.getNTypes()):    
+            plt.subplot(2,2,i+1)
+            plt.scatter(popArray,convArray[i,:])    
+            plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
+        plt.show()
     
     
 def generateNetwork(earth, parameters):
@@ -517,6 +521,16 @@ def initGlobalRecords(earth, parameters):
         values.append(value)
     earth.globalData['stock'].addCalibrationData(timeIdxs,values)
     
+def initAgentOutput(earth):
+    #%% Init of agent file
+
+    tt = time.time()
+    earth.initAgentFile(typ = _hh)
+    earth.initAgentFile(typ = _pers)
+    earth.initAgentFile(typ = _cell)
+    print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
+    
+    
 def runModel(earth, parameters):
 
     #%% Initial actions
@@ -537,11 +551,6 @@ def runModel(earth, parameters):
     print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
     
     
-    #%% Init of agent file
-    tt = time.time()
-    earth.initAgentFile(typ = _hh)
-    earth.initAgentFile(typ = _cell)
-    print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
     
     
     #%% Simulation 
@@ -561,8 +570,57 @@ def runModel(earth, parameters):
         earth.finalizeAgentFile()
     earth.finalize()        
 
-       
 
+def evaluateError(earth):
+    err = earth.globalData['stock'].evaluateRelativeError()
+    print 'The simulation error is: ' + str(err) 
+
+def onlinePostProcessing(earth):
+    # calculate the mean and standart deviation of priorities
+    if True:
+        df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
+        for agID in earth.nodeList[3]:
+            df.loc[agID] = earth.graph.vs[agID]['preferences']
+        
+        
+        print 'Preferences -average'
+        print df.mean()
+        print 'Preferences - standart deviation'
+        print df.std()
+        
+        print 'Preferences - standart deviation within friends'
+        avgStd= np.zeros([1,4])    
+        for agent in earth.iterNodes(_hh): 
+            friendList = agent.getConnNodeIDs(nodeType=_hh)
+            if len(friendList)> 1:
+                #print df.ix[friendList].std()
+                avgStd += df.ix[friendList].std().values
+        nAgents    = np.nansum(parameters.population)         
+        print avgStd / nAgents
+        prfType = np.argmax(df.values,axis=1)
+        #for i, agent in enumerate(earth.iterNode(_hh)):
+        #    print agent.prefTyp, prfType[i]
+        df['ref'] = prfType
+
+    # calculate the correlation between weights and differences in priorities        
+    if True:
+        pref = np.zeros([earth.graph.vcount(), 4])
+        pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
+        idx = list()
+        for edge in earth.iterEdges(_cpp):
+            edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
+            idx.append(edge.index)
+            
+            
+        plt.figure()
+        plt.scatter(np.asarray(earth.graph.es['prefDiff'])[idx],np.asarray(earth.graph.es['weig'])[idx])
+        plt.xlabel('difference in preferences')
+        plt.ylabel('connections weight')
+        
+        plt.show()
+        x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
+        y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
+        print np.corrcoef(x,y)
 ######################################################################################
 
 
@@ -588,6 +646,7 @@ if __name__ == '__main__':
     
     
     parameters.scenario       = 1
+    parameters.showFigures    = True
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'
@@ -616,82 +675,25 @@ if __name__ == '__main__':
     
     initGlobalRecords(earth, parameters)
     
+    initAgentOutput(earth)
+    
     if parameters.scenario == 0:
         earth.view('output/graph.png')
   
     #%% run of the model ################################################
     runModel(earth, parameters)
     
+    if earth.para['showFigures']:
+        onlinePostProcessing(earth)
     
-    
-    
-    #%% postprocessing
-    if True:
-        df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeList[3]:
-        df.loc[agID] = earth.graph.vs[agID]['preferences']
-    
-    
-    print 'Preferences -average'
-    print df.mean()
-    print 'Preferences - standart deviation'
-    print df.std()
-    
-    print 'Preferences - standart deviation within friends'
-    avgStd= np.zeros([1,4])    
-    for agent in earth.iterNodes(_hh): 
-        friendList = agent.getConnNodeIDs(nodeType=_hh)
-        if len(friendList)> 1:
-            #print df.ix[friendList].std()
-            avgStd += df.ix[friendList].std().values
-    nAgents    = np.nansum(parameters.population)         
-    print avgStd / nAgents
-    prfType = np.argmax(df.values,axis=1)
-    #for i, agent in enumerate(earth.iterNode(_hh)):
-    #    print agent.prefTyp, prfType[i]
-    df['ref'] = prfType
+    evaluateError(earth)
 
-    
-    #%%
-    #for key in earth.rec:
-    #    stat = earth.rec[key][1]
-    #    plt.figure()
-    #    plt.plot(earth.record[stat][initPhase:])
-    #    plt.legend(stat, loc=0)
-    #    plt.title(earth.rec[key][0])
-    #    plt.savefig(key + '.png')
-    
-    
-    #%% correlation testing of weights and deviation in preferences
-    
-    preDiff = list()
-    weights = list()
-    
-    nPersons = len(earth.nodeList[_pers])
-    pref = np.zeros([earth.graph.vcount(), 4])
-    pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
-    idx = list()
-    for edge in earth.iterEdges(_cpp):
-        edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
-        idx.append(edge.index)
-        
-        
-    plt.figure()
-    plt.scatter(np.asarray(earth.graph.es['prefDiff'])[idx],np.asarray(earth.graph.es['weig'])[idx])
-    plt.xlabel('difference in preferences')
-    plt.ylabel('connections weight')
-    
-    plt.show()
-    x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
-    y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
-    print np.corrcoef(x,y)
-    
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
     #%%
     nPeople = np.nansum(parameters.population)
-    nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])!=2))
-    nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])==0))
-    nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_hh]]['mobilityType'])==1))
+    nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])!=2))
+    nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==0))
+    nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==1))
     print 'Number of agents: ' + str(nPeople)
     print 'Number of agents: ' + str(nCars)
     print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
