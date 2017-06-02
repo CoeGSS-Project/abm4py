@@ -205,12 +205,12 @@ def scenarioNiedersachsen(parameters):
     #spatial
     setup.isSpatial     = True
     setup.connRadius    = 1.5      # radíus of cells that get an connection
-    reductionFactor = 200
+    setup.reductionFactor = 200
     setup.landLayer= gt.load_array_from_tiff(parameters.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = setup.landLayer.astype(int)
     
-    setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / reductionFactor
+    setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
     if False:
         try:
             #plt.imshow(setup.landLayer)
@@ -249,8 +249,6 @@ def scenarioNiedersachsen(parameters):
     
     
     
-    minPop = np.nanmin(setup.population[setup.population!=0])
-    maxPop = np.nanmax(setup.population)
     maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
     minCarConvenience = 1 + parameters.kappa
     parameters.convB =  minCarConvenience / (maxDeviation)

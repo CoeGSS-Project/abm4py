@@ -591,16 +591,18 @@ class Person(Agent):
 
         from operator import itemgetter
         if len(self.obs) == 0:
-            return None, None
+            return np.array([-1]), np.array(self.node['util'])
 
         obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
        
         if obsMat.shape[0] == 0:
-            return None, None
+            return np.array([-1]), np.array(self.node['util'])
         
-        observedActions       = np.unique(obsMat[:,-1])
+        observedActions       = np.hstack([np.array([-1]), np.unique(obsMat[:,-1])]) # action = -1 -> keep old car
+        observedUtil          = observedActions*0
+        observedUtil[0]       = self.node['util']              # utility of keeping old car = present utility
         
-        tmp = np.zeros([len(observedActions),obsMat.shape[0]])
+        tmp = np.zeros([len(observedActions)-1,obsMat.shape[0]])
         weighted = True
         
         if weighted:
@@ -608,18 +610,17 @@ class Person(Agent):
             weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
-            for i, id_ in enumerate(observedActions):
+            for i, id_ in enumerate(observedActions[1:]):
                 
                 tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
         else:
-            for i, id_ in enumerate(observedActions):
+            for i, id_ in enumerate(observedActions[1:]):
                 tmp[i,obsMat[:,-1] == id_] = 1
             
         avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
         #maxid = np.argmax(avgUtil)
-        observedActions.append(-1)          # action = -1 -> keep old car
-        avgUtil.append(self.node['util'])   # utility of keeping old car = present utility
-        return observedActions, avgUtil
+        observedUtil[1:] = avgUtil
+        return observedActions, observedUtil
 
     
 
@@ -747,7 +748,7 @@ class Household(Agent):
 
 
 
-    def calculateConsequences(self, market, earth):     
+    def calculateConsequences(self, market):     
         
         # calculate money consequence
         money = max(0, 1 - self.node['expenses'] /self.node['income'])
@@ -783,13 +784,13 @@ class Household(Agent):
     
         actionIdsList   = list()
         eUtilsList      = list()
-        isActor         = np.zeros(len(self.adults)).astype(bool)
-        actors          = list()
+        #isActor         = np.zeros(len(self.adults)).astype(bool)
+        #actors          = list()
         for iAdult, adult in enumerate(self.adults):
             
             if adult.node['lastAction']> earth.para['newPeriod']:
-                actors.append(adult)
-                isActor[iAdult] = True
+                #actors.append(adult)
+                #isActor[iAdult] = True
                 actionIds, eUtils = adult.getExpectedUtility(earth)
                 
                 #if actionIds is None:
@@ -798,27 +799,26 @@ class Household(Agent):
                 actionIds, eUtils = [-1], [adult.node['util']]
             actionIdsList.append(actionIds)
             eUtilsList.append(eUtils)
+            
+            if eUtils is None:
+                print 1
         
         if len(actionIdsList) == 0:
             return None, None, None
+
         
         combActions = cartesian(actionIdsList)
-        overallUtil = np.sum(cartesian(eUtils),axis=1)
+        overallUtil = np.sum(cartesian(eUtilsList),axis=1)
 
         #best action 
         bestActionIds = np.argmax(overallUtil)
-        actions = combActions[bestActionIds][isActor]
+        actions = combActions[bestActionIds]
         
-        # take out actors (and actions) that don't buy a new car (action == -1)
-        noActionIds = list()        
-        for idx in range(len(actions)):
-            if actions[idx] == -1:
-                noActionIds.append(idx)
-        for j in range(len(noActionIds)):
-            idx = noActionIds[len(noActionIds)-1-j]
-            del actors[idx]            
-            del actions[idx]
-            
+        # ruturn persons that will potentially do an actions that don't buy a new car (action not -1)
+        actors = np.array(self.adults)[ actions != -1]
+        actions = actions[ actions != -1]     
+        if overallUtil[bestActionIds] is None:
+            print 1
         return actors, actions, overallUtil[bestActionIds]
     
     def step(self, earth):
@@ -839,13 +839,12 @@ class Household(Agent):
             # return persons that are potentially performing an action, the action and the expected overall utility
             personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
             
-            if personsToTakeAction is None:
-                return
+            if len(personsToTakeAction) > 0:
             
-            # the propbabilty of taking action is equal to the expected raise of the expected utility
-            if ((expectedUtil / self.node['util'] ) - 1 > np.random.rand()):
-                actionTaken = True                   
-                       
+                # the propbabilty of taking action is equal to the expected raise of the expected utility
+                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
+                    actionTaken = True                   
+                           
             # the action is only performed if flag is True
           
             if actionTaken:

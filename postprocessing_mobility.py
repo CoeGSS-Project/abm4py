@@ -30,7 +30,7 @@ emissionsPerLabel = 1
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
-path = 'output/sim0607/'
+path = 'output/sim0627/'
 
 
 #%% init
