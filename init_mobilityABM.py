@@ -372,6 +372,7 @@ def householdSetup(earth, parameters):
                 pers.setValue('mobType',0)
                 pers.setValue('consequences', [0,0,0,0])
                 pers.tolerance = parameters.tolerance
+                pers.innovatorDegree = np.random.randn()
                 pers.queueConnection(hh.nID,edgeType=_chp)
                 pers.registerAtGeoNode(earth, hh.loc.nID)
                 
@@ -539,6 +540,7 @@ def runModel(earth, parameters):
     
     #%% Init of agent file
     tt = time.time()
+    earth.initAgentFile(typ = _pers)
     earth.initAgentFile(typ = _hh)
     earth.initAgentFile(typ = _cell)
     print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
