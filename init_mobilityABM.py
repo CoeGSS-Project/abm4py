@@ -374,6 +374,7 @@ def householdSetup(earth, parameters):
                 pers.setValue('mobType',0)
                 pers.setValue('consequences', [0,0,0,0])
                 pers.tolerance = parameters.tolerance
+                pers.innovatorDegree = np.random.randn()
                 pers.queueConnection(hh.nID,edgeType=_chp)
                 pers.registerAtGeoNode(earth, hh.loc.nID)
                 
@@ -552,7 +553,6 @@ def runModel(earth, parameters):
     
     
     
-    
     #%% Simulation 
     earth.time = -1 # hot bugfix to have both models running #TODO Fix later
     print "Starting the simulation:"
@@ -643,10 +643,11 @@ if __name__ == '__main__':
         parameters = Bunch()
         parameters.urbThreshold = 13
         parameters.convIncomeFraction = 1000
-    
-    
+
+ 
     parameters.scenario       = 1
     parameters.showFigures    = True
+
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'

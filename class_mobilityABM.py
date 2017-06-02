@@ -270,7 +270,9 @@ class Market():
         self.burnIn             = burnIn
         self.greenInfraMalus    = greenInfraMalus
         self.kappa              = self.greenInfraMalus
-        self.sales              = list()  
+        self.sales              = list()
+        self.meanDist           = 0.
+        self.stdDist            = 1.
         
         self.allTimeProduced = list()                   # list of previous produced numbers -> for technical progress
     
@@ -284,9 +286,9 @@ class Market():
         # actually puts the car on the market
         for label, propertyTuple, _, brandID, allTimeProduced in  self.mobilityInitDict[0]:
              self.addBrand2Market(label, propertyTuple, brandID)
-
     
-    def computeStatistics(self):  
+    def computeStatistics(self):
+        distances=list()
         # prct = self.percentiles.keys()
         # for item in self.percentiles.keys():
         #    self.percentiles[item] = np.percentile
@@ -294,7 +296,17 @@ class Market():
         #print self.percentiles
         self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
         self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+        distances = list()         
+        for mobID in range(len(self.stock)):
+            properties = self.stock[mobID,1:]
+            distance = self.distanceFromMean(properties)
+            distances.append(distance)
+        self.meanDist = np.mean(distances)
+        self.stdDist = np.std(distances)
 
+    def distanceFromMean(self, properties, distanceWeights = [1.,1.]):     
+        distance = distanceWeights[0]*(self.mean[0]-properties[0])/self.std[0]+distanceWeights[1]*(properties[1]-self.mean[1])/self.std[1]            
+        return distance
 
     def ecology(self, emissions):
         if self.std[0] == 0:
@@ -421,6 +433,7 @@ class Person(Agent):
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Agent.__init__(self, world, nodeType,  xPos, yPos)
         self.obs  = dict()
+        #self.innovatorDegree = 0.
         
     def registerAtGeoNode(self, world, cellID):
         self.loc = world.entDict[cellID]        
@@ -723,7 +736,7 @@ class Household(Agent):
         for adult in persons:
             mobID = adult.node['mobID']
             world.market.sellCar(mobID)
-            self.loc.remFromTraffic(adult.getValue('mobType'))
+            self.loc.remFromTraffic(adult.node['mobType'])
             
             # remove cost of mobility to the expenses
             self.node['expenses'] -= adult.node['prop'][1]
@@ -738,18 +751,21 @@ class Household(Agent):
         for adult in self.adults:
             #get action of the person
             
-            action = adult.getValue('mobType')
+            actionIdx = adult.node['mobType']
+            mobProps = adult.node['prop']
 
             # get convenience from cell:    
-            convenience = self.loc.getValue('convenience')[action]                
+            convenience = self.loc.getValue('convenience')[actionIdx]                
             
             # calculate ecology:
-            emissions = adult.getValue('prop')[0]
+            emissions = mobProps[0]
             ecology = market.ecology(emissions)
             
             # get similarity consequence
-            imitation = self.loc.brandShares[action]
-        
+            #imitation = self.loc.brandShares[action]
+            distance = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
+            imitation = math.exp(-(adult.innovatorDegree - distance)**2)
+            
             adult.node['consequences'] = [convenience, ecology, money, imitation]
 
 
