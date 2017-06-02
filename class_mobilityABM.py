@@ -614,7 +614,9 @@ class Person(Agent):
                 tmp[i,obsMat[:,-1] == id_] = 1
             
         avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
-        maxid = np.argmax(avgUtil)
+        #maxid = np.argmax(avgUtil)
+        observedActions.append(-1)          # action = -1 -> keep old car
+        avgUtil.append(self.node['util'])   # utility of keeping old car = present utility
         return observedActions, avgUtil
 
     
@@ -743,7 +745,7 @@ class Household(Agent):
 
 
 
-    def calculateConsequences(self, market):     
+    def calculateConsequences(self, market, earth):     
         
         # calculate money consequence
         money = max(0, 1 - self.node['expenses'] /self.node['income'])
@@ -754,8 +756,12 @@ class Household(Agent):
             actionIdx = adult.node['mobType']
             mobProps = adult.node['prop']
 
-            # get convenience from cell:    
-            convenience = self.loc.getValue('convenience')[actionIdx]                
+            # calculate convenience:
+            if adult.node['lastAction'] > 2*market.newPeriod:
+                decay = math.exp(-(adult.node['lastAction'] - 2*market.newPeriod)**2)
+            else:
+                decay = 1.
+            convenience = decay * self.loc.getValue('convenience')[actionIdx]                
             
             # calculate ecology:
             emissions = mobProps[0]
@@ -764,14 +770,13 @@ class Household(Agent):
             # get similarity consequence
             #imitation = self.loc.brandShares[action]
             distance = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
-            imitation = math.exp(-(adult.innovatorDegree - distance)**2)
+            innovation = math.exp(-(adult.innovatorDegree - distance)**2)
             
-            adult.node['consequences'] = [convenience, ecology, money, imitation]
+            adult.node['consequences'] = [convenience, ecology, money, innovation]
 
+   
 
-    
-
-    def evaluateExpectedUtility(self, world):
+    def evaluateExpectedUtility(self, earth):
     
         actionIdsList   = list()
         eUtilsList      = list()
@@ -779,15 +784,15 @@ class Household(Agent):
         actors          = list()
         for iAdult, adult in enumerate(self.adults):
             
-            if adult.node['lastAction']> world.para['newPeriod']:
+            if adult.node['lastAction']> earth.para['newPeriod']:
                 actors.append(adult)
                 isActor[iAdult] = True
-                actionIds, eUtils = adult.getExpectedUtility(world)
+                actionIds, eUtils = adult.getExpectedUtility(earth)
                 
-                if actionIds is None:
-                    actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
+                #if actionIds is None:
+                #    actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
             else:
-                actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
+                actionIds, eUtils = [-1], [adult.node['util']]
             actionIdsList.append(actionIds)
             eUtilsList.append(eUtils)
         
@@ -799,54 +804,58 @@ class Household(Agent):
 
         #best action 
         bestActionIds = np.argmax(overallUtil)
-        return actors, combActions[bestActionIds][isActor], overallUtil[bestActionIds]
+        actions = combActions[bestActionIds][isActor]
+        
+        # take out actors (and actions) that don't buy a new car (action == -1)
+        noActionIds = list()        
+        for idx in range(len(actions)):
+            if actions[idx] == -1:
+                noActionIds.append(idx)
+        for j in range(len(noActionIds)):
+            idx = noActionIds[len(noActionIds)-1-j]
+            del actors[idx]            
+            del actions[idx]
+            
+        return actors, actions, overallUtil[bestActionIds]
     
-    def step(self, world):
+    def step(self, earth):
         for adult in self.adults:
             adult.addValue('lastAction', 1)
             #adult.node['lastAction'] += 1
         actionTaken = False
         doCheckMobAlternatives = False
 
-        if world.time < world.para['burnIn']:
+        if earth.time < earth.para['burnIn']:
             doCheckMobAlternatives = True
-        elif any( [adult.node['lastAction']> world.para['newPeriod'] for adult in self.adults]):
+        elif any( [adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults]):
             doCheckMobAlternatives = True
                 
             
         if doCheckMobAlternatives:
             
-            # return persons that are potentially performing an acton, the action and the expected overall utility
-            personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(world)
+            # return persons that are potentially performing an action, the action and the expected overall utility
+            personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
             
             if personsToTakeAction is None:
                 return
             
             # the propbabilty of taking action is equal to the expected raise of the expected utility
-            if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
-                actionTaken = True
-                
-                
-            else: # check if mob type is changed because to old
-                personsToTakeAction = list()
-                actions             = list()
-                for adult in self.adults:
-                    
-                    buySellBecauseOld = max(0.,adult.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand()
-                    if buySellBecauseOld:
-                        actionTaken = True
-                        personsToTakeAction.append(adult)
-                        actions.append(adult.node['mobType'])
+            if ((expectedUtil / self.node['util'] ) - 1 > np.random.rand()):
+                actionTaken = True                   
                        
-            # the action is only performed if flag is True                        
+            # the action is only performed if flag is True
+          
             if actionTaken:
-                self.undoActions(world, personsToTakeAction)
-                self.takeAction(world, personsToTakeAction, actions)
-                self.calculateConsequences(world.market)
-                self.util = self.evalUtility()
+                self.undoActions(earth, personsToTakeAction)
+                self.takeAction(earth, personsToTakeAction, actions)
+
+            self.calculateConsequences(earth.market)
+            self.util = self.evalUtility()
+            
+            if actionTaken:                
                 for adult in self.adults:
-                    adult.weightFriendExperience(world)
-                self.shareExperience(world)
+                    adult.weightFriendExperience(earth)
+                self.shareExperience(earth)
                 
                 
 #    def step(self, world):
