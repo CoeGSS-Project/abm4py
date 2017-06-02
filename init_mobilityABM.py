@@ -641,8 +641,8 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 1
-    parameters.showFigures    = True
+    parameters.scenario       = 0
+    parameters.showFigures    = 0
 
 
     if parameters.scenario == 0:
