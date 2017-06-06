@@ -135,7 +135,7 @@ def scenarioTestMedium(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps         = 340     # number of simulation steps
+    setup.nSteps         = 360     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
     setup.burnIn         = 100
@@ -639,8 +639,8 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 0
-    parameters.showFigures    = 0
+    parameters.scenario       = 1
+    parameters.showFigures    = 1
 
 
     if parameters.scenario == 0:

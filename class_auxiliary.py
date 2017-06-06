@@ -201,7 +201,8 @@ class Record():
             if hasattr(self,'calDataDict'):
                 calData = self.rec*np.nan
                 for x,y in self.calDataDict.iteritems():
-                    calData[x,:] = y
+                    if x <= calData.shape[0]:
+                        calData[x,:] = y
                     
                 plt.plot(calData,'d')
             

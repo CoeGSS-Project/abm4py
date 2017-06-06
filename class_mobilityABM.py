@@ -839,7 +839,7 @@ class Household(Agent):
             # return persons that are potentially performing an action, the action and the expected overall utility
             personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
             
-            if len(personsToTakeAction) > 0:
+            if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
             
                 # the propbabilty of taking action is equal to the expected raise of the expected utility
                 if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
@@ -1114,9 +1114,9 @@ class Opinion():
         if income>self.minIncomeEco:
             rn = np.random.rand(1)
             if rn > 0.9:
-                ce += 5
-            elif rn > 0.5:
                 ce += 3
+            elif rn > 0.6:
+                ce += 2
             else:
                 ce +=1
         ce = float(ce)**2
@@ -1134,7 +1134,7 @@ class Opinion():
         # priority of money
         cm = 1
         cm += nKids
-        cm += self.convIncomeFraction/income*1.5
+        cm += self.convIncomeFraction/income
         #cm += nPers
         cm = float(cm)**2
         
@@ -1171,7 +1171,7 @@ class Opinion():
         cmAll = cm* (1-self.indiRatio) + cmi*self.indiRatio
         ciAll = ci* (1-self.indiRatio) + cii*self.indiRatio
         
-        pref = np.asarray([ ceAll, ccAll, cmAll, ciAll])
+        pref = np.asarray([ ccAll, ceAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
         return tuple(pref)
