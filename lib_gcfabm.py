@@ -36,10 +36,11 @@ class Entity():
     def __init__(self, world, nodeStr):
         self.graph= world.graph
         self.nID = len(self.graph.vs)
-        nodeType = world.getNodeType(nodeStr)
+        nodeType = world.getNodeType(nodeStr)        
         self.graph.add_vertex(self.nID, type=nodeType)
-        self.type = nodeType     
         self.node = self.graph.vs[self.nID]
+        self.type = nodeType     
+    
         self.edges = dict()
             
     
@@ -52,10 +53,14 @@ class Entity():
         return neigbours, neigIDList
         
     
-    def queueConnection(self, friendID,edgeType=0):
-        if not self.graph.are_connected(self.nID,friendID) and (self.nID,friendID) not in self.graph.edgeQueue[0]:
-            self.graph.edgeQueue[0].append((self.nID,friendID))
-            self.graph.edgeQueue[1].append(edgeType)
+    def queueConnection(self, friendID, edgeType=0, propDict={}):
+        if not self.graph.are_connected(self.nID,friendID) and (self.nID,friendID) not in self.graph.edgeQueues[edgeType]:
+            
+            self.graph.queueEdge((self.nID,friendID), edgeType, propDict)
+            #self.graph.edgeQueue[0].append()
+            #self.graph.edgeQueue[1].append()
+    
+    
     
     def addConnection(self, friendID, edgeType=0):
         if not self.graph.are_connected(self.nID,friendID):
@@ -286,11 +291,18 @@ class World:
     def __init__(self,spatial=False):
         self.spatial  = spatial
         self.graph    = ig.Graph(directed=True)
-        self.graph.edgeQueue   = (list(),list()) #(nodetuple list, typelist)
-        self.graph.vertexQueue = (list(),list()) #(nodelist, typelist)
-        self.nodeList = dict()        
+        self.graph.queueEdge = self.queueEdge
+        self.nodeList = dict()    
+        self.graph.nodeProperies = dict()
         self.entList   = list()
         self.entDict   = dict()
+        
+        # generation queues
+        self.graph.nodeQueues   = dict()
+        self.graph.nodePropQueues = dict()
+        
+        self.graph.edgeQueues     = dict()
+        self.graph.edgePropQueues = dict()
         
         # dict of types
         self.graph.nodeTypes    = dict()
@@ -305,7 +317,18 @@ class World:
 
         
         self.para     = dict()
+    
+
+
+
+    
+    def addNodeProperty(self, nodeType, property):
+        self.graph.nodeProperies[nodeType].append(property)
+        self.graph.nodePropQueues[nodeType][property]
         
+    def addEdgeProperty(self, edgeType, property):
+        self.graph.edgeProperies[edgeType].append(property)
+        self.graph.edgePropQueues[edgeType][property]
         
     def setParameters(self, parameterDict):
         for key in parameterDict.keys():
@@ -414,7 +437,8 @@ class World:
                     self.registerNode(loc,1)
                     self.locDict[(x,y)] = loc
                     id +=1
-        
+        fullConnectionList = list()
+        fullWeightList     = list()
         for (x,y), loc in tqdm.tqdm(self.locDict.items()):
             
             srcID = loc.nID
@@ -455,10 +479,14 @@ class World:
             #normalize weight to sum up to unity                    
             sumWeig = sum(weigList)
             weig    = np.asarray(weigList) / sumWeig
-            eStart = self.graph.ecount()
-            self.graph.add_edges(connectionList)
-            self.graph.es[eStart:]['type'] = 1
-            self.graph.es[eStart:]['weig'] = weig
+            
+            fullConnectionList.extend(connectionList)
+            fullWeightList.extend(weig)
+            
+        eStart = self.graph.ecount()
+        self.graph.add_edges(fullConnectionList)
+        self.graph.es[eStart:]['type'] = 1
+        self.graph.es[eStart:]['weig'] = fullWeightList
 #            for destID,weig in zip(destList, weigList):
 #                self.graph.add_edge(int(srcID),int(destID), weig=weig/sumWeig, type=1)   
                         
@@ -494,23 +522,85 @@ class World:
         
         return iType
     
-    def registerNodeType(self, typeStr):
-        iType = len(self.graph.nodeTypes)
-        self.graph.nodeTypes[iType] = typeStr
-        self.nodeList[iType]= list()
+    def registerNodeType(self, typeStr, propertyList = ['type']):
+        
+        # type is an required property
+        assert 'type' in propertyList
+        
+        nodeType = len(self.graph.nodeTypes)
+        self.graph.nodeTypes[nodeType] = typeStr
+        self.graph.nodeProperies[nodeType] = ['label', 'type']
+        self.nodeList[nodeType]= list()
+        
+
+        # init queue for the specific type
+        self.graph.nodeQueues[nodeType]                  = list() #(namelist)
+        self.graph.nodePropQueues[nodeType]                = dict()
+        for property in propertyList:
+            self.graph.nodePropQueues[nodeType][property]  = list()
+        return  nodeType
+        
     
-    def registerEdgeType(self, typeStr):
-        iType = len(self.graph.edgeTypes)
-        self.graph.edgeTypes[iType] = typeStr
+    def registerEdgeType(self, typeStr, propertyList = ['type']):
+        edgeType = len(self.graph.edgeTypes)
+        self.graph.edgeTypes[edgeType] = typeStr
+        self.graph.nodeProperies[edgeType] = ['label', 'type']
+        # type is an required property
+        assert 'type' in propertyList
         
-    def dequeueEdges(self):
+       
+        self.graph.edgeQueues[edgeType]                   = list() #(nodeTuple list,)
+        self.graph.edgePropQueues[edgeType]               = dict()
+        for property in propertyList:
+            self.graph.edgePropQueues[edgeType][property] = list()
+        return  edgeType
+
+    def queueEdge(self, IDTuple, edgeType, propDict):
+        self.graph.edgeQueues[edgeType].append(IDTuple)
+        self.graph.edgePropQueues[edgeType]['type'].append(edgeType)
+        
+        for propKey in propDict.keys():
+            self.graph.edgePropQueues[edgeType][propKey].append(propDict[propKey])
+        
+#    def queueNode(self, nodeID, nodeType, propDict):
+#        self.graph.nodeQueues[nodeType].append(nodeID)
+#        self.graph.nodePropQueues[nodeType]['type'].append(nodeType)
+#        
+#        for propKey in propDict.keys():
+#            self.graph.nodePropQueues[nodeType][propKey].append(propDict[propKey])
+
+        
+    def dequeueEdges(self, edgeType):
         eStart = self.graph.ecount()
-        self.graph.add_edges(self.graph.edgeQueue[0])
-        self.graph.es[eStart:]['type'] = self.graph.edgeQueue[1]
+        self.graph.add_edges(self.graph.edgeQueues[edgeType])
+        for property in self.graph.edgePropQueues[edgeType].keys():
+            self.graph.es[eStart:][property] = self.graph.edgePropQueues[edgeType][property]
         
+
         for node in self.entList:
             node.updateEdges()
 
+        # empty queue
+        self.graph.edgeQueues[edgeType]     = list()
+        self.graph.edgePropQueues[edgeType] = dict()
+        
+        # if all queues are done, set complete flag
+        if len(self.graph.edgeQueues) == 0:
+            self.graph.edgesComplete = True
+            
+#    def dequeueNodes(self, nodeType):
+#        vStart = self.graph.vcount()
+#        self.graph.add_vertices(self.graph.nodeQueues[nodeType])
+#        for property in self.graph.nodePropQueues[nodeType].keys():
+#            self.graph.es[vStart:][property] = self.graph.nodePropQueues[nodeType][property]
+#        for nodeInstance in self.nodeDict[]
+#        
+#        
+#        # empty queue
+#        self.graph.edgeQueues[nodeType]     = list()
+#        self.graph.nodePropQueues[nodeType] = dict()            
+            
+            
     def view(self,filename = 'none', vertexProp='none'):
         import matplotlib.cm as cm
         
