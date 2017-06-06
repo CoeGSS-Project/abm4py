@@ -298,12 +298,30 @@ def mobilitySetup(earth, parameters):
     return earth
     ##############################################################################
 
-def householdSetup(earth, parameters):
+def householdSetup(earth, parameters, calibration=False):
     tt = time.time()
     idx = 0
     nAgents = 0
     nHH     = 0
     
+    # init additional properties of nodes 
+    earth.registerNodeType('hh',   ['type',
+                                   'hhSize',
+                                   'nKids',
+                                   'income',
+                                   'expUtil',
+                                   'util',
+                                   'expenses'])
+    earth.registerNodeType('pers', ['type',
+                                   'preferences',
+                                   'prefTyp',
+                                   'genders',
+                                   'ages',
+                                   'expUtil',
+                                   'util',
+                                   'mobType',
+                                   'prop',
+                                   'consequences'])
     
     if not parameters.randomAgents:
         parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
@@ -328,24 +346,24 @@ def householdSetup(earth, parameters):
             ages    = list(hhMat[idx:idx+nPers,12])
             genders = list(hhMat[idx:idx+nPers,13])
             income = hhMat[idx,16]
-            income *= parameters.incomeShareForMobility
+            income *= parameters.mobIncomeShare
             nKids = np.sum(ages<18)
             
             # creating houshold
             hh = Household(earth,'hh', x, y)
             hh.adults = list()
-            hh.setValue('hhSize',nPers)
-            hh.setValue('nKids', nKids)
-            hh.setValue('income',income) 
-            hh.setValue('expUtil',0)
-            hh.setValue('util',0)
-            hh.setValue('expenses',0)
+            hh.node['hhSize']   = nPers
+            hh.node['nKids']    = nKids
+            hh.node['income']   = income
+            hh.node['expUtil']  = 0
+            hh.node['util']     = 0
+            hh.node['expenses'] = 0
             hh.register(earth)
             hh.connectGeoNode(earth)
             
             
             for iPers in range(nPers):
-                
+                hh.loc.node['population'] +=1
                 if ages[iPers]< 18:
                     continue    #skip kids
                 
@@ -354,16 +372,15 @@ def householdSetup(earth, parameters):
                 pers.register(earth)
                 prefTuple = opinion.getPref(ages[iPers],genders[iPers],nKids,nPers,income,parameters.radicality)
                 prefTyp = np.argmax(prefTuple)
-                pers.setValue('preferences', prefTuple)
-                pers.setValue('prefTyp',prefTyp)
-                pers.setValue('genders', genders[iPers])
-                pers.setValue('ages', ages[iPers])
-                pers.setValue('expUtil',0)
-                pers.setValue('util',0)
-                pers.setValue('mobType',0)
-                pers.setValue('prop',[0]*len(parameters.properties))
-                pers.setValue('consequences', [0]*len(prefTuple))
-                pers.tolerance = parameters.tolerance
+                pers.node['preferences']    = prefTuple
+                pers.node['prefTyp']        = prefTyp
+                pers.node['genders']        = genders[iPers]
+                pers.node['ages']           = ages[iPers]
+                pers.node['expUtil']        = 0
+                pers.node['util']           = 0
+                pers.node['mobType']        = 0
+                pers.node['prop']           = [0]*len(parameters.properties)
+                pers.node['consequences']   = [0]*len(prefTuple)
                 pers.innovatorDegree = np.random.randn()
                 pers.queueConnection(hh.nID,edgeType=_chp)
                 pers.registerAtGeoNode(earth, hh.loc.nID)
@@ -381,7 +398,9 @@ def householdSetup(earth, parameters):
             if nAgentsCell <= 0:
                     break
     
-    earth.dequeueEdges()
+    if not(calibration):
+        earth.dequeueEdges(_clh)
+        earth.dequeueEdges(_chp)
 
     print str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s'
     return earth
@@ -406,13 +425,14 @@ def initEarth(parameters):
 
 
     earth = Earth(parameters)
-    earth.registerEdgeType('cell-cell')
+    earth.registerEdgeType('cell-cell', ['type','weig'])
     earth.registerEdgeType('cell-hh')
     earth.registerEdgeType('hh-hh')
     earth.registerEdgeType('hh-pers')
-    earth.registerEdgeType('pers-pers')
+    earth.registerEdgeType('pers-pers', ['type','weig'])
     connList= earth.computeConnectionList(parameters.connRadius)
     earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
+    
     
     
     
@@ -618,6 +638,18 @@ def onlinePostProcessing(earth):
 ########## Run of the simulation model ###############################################   
 ######################################################################################
 
+def prioritiesCalibrationTest():
+    earth = initEarth(parameters)
+        
+    mobilitySetup(earth, parameters)
+        
+    householdSetup(earth, parameters, calibration=True)
+
+    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
+    for agID in earth.nodeList[3]:
+        df.loc[agID] = earth.graph.vs[agID]['preferences']
+    return earth 
+
 if __name__ == '__main__':
     
     dirPath = os.path.dirname(os.path.realpath(__file__))
@@ -639,8 +671,9 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 1
+    parameters.scenario       = 4
     parameters.showFigures    = 1
+    
 
 
     if parameters.scenario == 0:
@@ -655,44 +688,50 @@ if __name__ == '__main__':
         parameters.resourcePath = dirPath + '/resources_nie/'
         parameters = scenarioNiedersachsen(parameters)
         
-    #%% Init 
-    earth = initEarth(parameters)
+        
+    if parameters.scenario == 4:
+        parameters.resourcePath = dirPath + '/resources_nie/'
+        parameters = scenarioNiedersachsen(parameters)
+        earth = prioritiesCalibrationTest()
+    else:
+        #%% Init 
+        earth = initEarth(parameters)
+        
+        mobilitySetup(earth, parameters)
+        
+        householdSetup(earth, parameters)
+        
+        cellTest(earth, parameters)
+        
+        generateNetwork(earth, parameters)
+        
+        initMobilityTypes(earth, parameters)
+        
+        initGlobalRecords(earth, parameters)
+        
+        initAgentOutput(earth)
+        
+        if parameters.scenario == 0:
+            earth.view('output/graph.png')
+      
+        #%% run of the model ################################################
+        runModel(earth, parameters)
+        
+        if earth.para['showFigures']:
+            onlinePostProcessing(earth)
+        
+        evaluateError(earth)
     
-    mobilitySetup(earth, parameters)
-    
-    householdSetup(earth, parameters)
-    
-    cellTest(earth, parameters)
-    
-    generateNetwork(earth, parameters)
-    
-    initMobilityTypes(earth, parameters)
-    
-    initGlobalRecords(earth, parameters)
-    
-    initAgentOutput(earth)
-    
-    if parameters.scenario == 0:
-        earth.view('output/graph.png')
-  
-    #%% run of the model ################################################
-    runModel(earth, parameters)
-    
-    if earth.para['showFigures']:
-        onlinePostProcessing(earth)
-    
-    evaluateError(earth)
-
-    print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-    #%%
-    nPeople = np.nansum(parameters.population)
-    nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])!=2))
-    nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==0))
-    nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==1))
-    print 'Number of agents: ' + str(nPeople)
-    print 'Number of agents: ' + str(nCars)
-    print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
-    print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
-    print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
-    
+        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+        #%%
+        nPeople = np.nansum(parameters.population)
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==1))
+        print 'Number of agents: ' + str(nPeople)
+        print 'Number of agents: ' + str(nCars)
+        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+        
  

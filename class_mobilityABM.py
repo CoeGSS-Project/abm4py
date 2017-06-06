@@ -440,7 +440,7 @@ class Person(Agent):
     def registerAtGeoNode(self, world, cellID):
         self.loc = world.entDict[cellID]        
         self.loc.peList.append(self.nID)
-        self.loc.addValue('population',1)
+        
 
     def shareExperience(self, world):
         
@@ -686,6 +686,7 @@ class Household(Agent):
                     
     def connectGeoNode(self, world):
         geoNodeID = int(self.graph.IdArray[int(self.x),int(self.y)])
+        
         self.queueConnection(geoNodeID,_clh)         
         self.loc = world.entDict[geoNodeID]        
         self.loc.hhList.append(self.nID)
