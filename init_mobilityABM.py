@@ -461,10 +461,10 @@ def initEarth(parameters):
     earth.enums['nodeTypes'][2] = 'household'
     
     earth.enums['consequences'] = dict()
-    earth.enums['consequences'][0] = 'comfort'
+    earth.enums['consequences'][0] = 'convenience'
     earth.enums['consequences'][1] = 'eco-friendliness'
     earth.enums['consequences'][2] = 'remaining money'
-    earth.enums['consequences'][3] = 'similarity'
+    earth.enums['consequences'][3] = 'innovation'
     
     earth.enums['mobilityTypes'] = dict()
     earth.enums['mobilityTypes'][1] = 'green'
@@ -647,18 +647,18 @@ def prioritiesCalibrationTest():
 
 
 def setupHouseholdsWithOptimalChoice():
-        earth = initEarth(parameters)
-        mobilitySetup(earth, parameters)
-        householdSetup(earth, parameters)      
-        #cellTest(earth, parameters)        
-        #generateNetwork(earth, parameters)        
-        initMobilityTypes(earth, parameters)    
+    earth = initEarth(parameters)
+    mobilitySetup(earth, parameters)
+    householdSetup(earth, parameters)      
+    #cellTest(earth, parameters)        
+    #generateNetwork(earth, parameters)        
+    initMobilityTypes(earth, parameters)    
     #householdSetup(earth, parameters, calibration=True)
     
-        for hh in iter(earth.nodeList[_hh]):
-            earth.entDict[hh].bestMobilityChoice(earth.market)
-    
-        return earth    
+    for hh in iter(earth.nodeList[_hh]):
+        earth.entDict[hh].bestMobilityChoice(earth.market)
+
+    return earth    
     
  
 
