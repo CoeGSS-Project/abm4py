@@ -277,11 +277,11 @@ def mobilitySetup(earth, parameters):
          if popDensity<cell.urbanThreshold:
             conv = paraA
          else:
-            conv = max(0.05,paraA - paraB*(popDensity - cell.urbanThreshold)**2)          
+            conv = max(0.2,paraA - paraB*(popDensity - cell.urbanThreshold)**2)          
          return conv
             
     def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = max(0.05, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
+        conv = max(0.2, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
         return conv
     
     def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):

@@ -76,11 +76,11 @@ parameters = Bunch()
 for item in csv.DictReader(open("test_parameters.csv")):
     parameters[item['name']] = convertStr(item['value'])
 
-parameters.initialGreen =50
-parameters.initialBrown =2000
-parameters.initialOther =2000
+parameters.initialGreen =100
+parameters.initialBrown =10000
+parameters.initialOther =5000
 
-parameters.burnIn = 5
+parameters.burnIn = 10
 parameters.showFigures = 1
 
 parameters.resourcePath = dirPath + '/resources_nie/'
@@ -201,9 +201,10 @@ if test == 1:
     plt.ylabel("distance measure")
     plt.tight_layout()
 #%%    
-nSteps = 100
-nMobType = np.zeros([3, nSteps])
+
 if test == 2:
+    nSteps = 50
+    nMobType = np.zeros([3, nSteps])
     for i in range(nSteps):
         print 'step ' + str(i)
         nAg = 1000
@@ -223,7 +224,8 @@ if test == 2:
             z[j]    = pers.node['mobType']
             mobProp = mobProps = pers.node['prop']
             dist[:,j]   = [(earth.market.mean[0]-mobProp[0])/earth.market.std[0], (mobProp[1]- earth.market.mean[1])/earth.market.std[1]]
-            distMeas[j] = (earth.market.distanceFromMean(mobProps)-earth.market.meanDist)/earth.market.stdDist
+            distMeas[j] = earth.market.getDistanceFromMean(mobProp)
+            
             inno[j]     = pers.innovatorDegree
             
     
@@ -257,14 +259,23 @@ if test == 2:
         plt.tight_layout()
         plt.legend(earth.enums['mobilityTypes'].values(),loc=2)
         plt.savefig('tests/' + str(earth.time) + '.png')
+        
+        
         earth.step()
+        
         print "persons per mobType",
         for mob in range(3):
             nMobType[mob, i] = np.sum(z==mob)
             print (np.sum(z==mob)),
         print " "
-plt.figure(2)        
-for mob in range(3):
-                
-    plt.plot(nMobType[mob, :])
-plt.legend(earth.enums['mobilityTypes'].values(),loc=2)
+    plt.figure(2)        
+    for mob in range(3):
+                    
+        plt.plot(nMobType[mob, :])
+    plt.legend(earth.enums['mobilityTypes'].values(),loc=2)
+    
+if test == 3:
+
+    propMat = np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences'])
+    print np.mean(propMat,axis=0)
+    

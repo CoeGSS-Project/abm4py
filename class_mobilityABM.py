@@ -310,6 +310,10 @@ class Market():
         
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
         return distance
+    
+    def getDistanceFromMean(self, properties): 
+        distance = (self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]  - self.meanDist)/self.stdDist          
+        return distance
         
     def setInitialStatistics(self, typeQuantities):
         total = sum(typeQuantities[mobIdx] for mobIdx in range(len(self.nMobTypes)))
@@ -1084,7 +1088,7 @@ class Cell(Location):
         #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.25,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
+            convAll.append(min(1., max(0.05,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
         return convAll
 
         
@@ -1172,9 +1176,9 @@ class Opinion():
         ce = float(ce)**2
         
         # priority of convinience
-        cc = 2.5
+        cc = 0
         cc += nKids
-        cc += income/self.convIncomeFraction
+        cc += income/self.convIncomeFraction/2
         if sex == 1:
             cc +=1
         
@@ -1182,10 +1186,10 @@ class Opinion():
         cc = float(cc)**2
         
         # priority of money
-        cm = 1
+        cm = 0
         cm += nKids
         cm += self.convIncomeFraction/income
-        #cm += nPers
+        cm += nPers
         cm = float(cm)**2
         
         
