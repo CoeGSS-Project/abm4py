@@ -645,9 +645,11 @@ def prioritiesCalibrationTest():
         
     householdSetup(earth, parameters, calibration=True)
 
-    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeList[3]:
-        df.loc[agID] = earth.graph.vs[agID]['preferences']
+#    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
+#    for agID in earth.nodeList[3]:
+#        df.loc[agID] = earth.graph.vs[agID]['preferences']
+
+    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences']))
     return earth 
 
 if __name__ == '__main__':
@@ -671,7 +673,7 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 4
+    parameters.scenario       = 1
     parameters.showFigures    = 1
     
 
