@@ -243,6 +243,7 @@ class Earth(World):
                 self.globalData[key].plot(self.para['outPath'] + '/rec')
             #except:
         #    pass
+          
 
         
 class Market():
@@ -309,7 +310,24 @@ class Market():
         
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
         return distance
-
+        
+    def setInitialStatistics(self, typeQuantities):
+        total = sum(typeQuantities[mobIdx] for mobIdx in range(len(self.nMobTypes)))
+        shares = np.zeros(len(self.nMobTypes))
+        self.mean = np.zeros(len(self.nProp))
+        self.std = np.zeros(len(self.nProp))
+        
+        for mobIdx in range(len(self.nMobTypes)):
+            shares[mobIdx] = typeQuantities[mobIdx]/total
+        
+        for propIdx in range(self.nProp):
+            propMean = sum(shares[mobIdx]*self.properties[mobIdx][propIdx] for mobIdx in range(len(self.nMobTypes)))
+            propVar = sum(shares[mobIdx]*(self.properties[mobIdx][propIdx])**2 for mobIdx in range(len(self.nMobTypes)))-propMean**2
+            propStd = math.sqrt(propVar)            
+            self.mean[propIdx] = propMean
+            self.std[propIdx] = propStd
+            
+            
     def ecology(self, emissions):
         if self.std[0] == 0:
             ecology = 1/(1+math.exp((emissions-self.mean[0])/1))
@@ -714,21 +732,21 @@ class Household(Agent):
         return hhUtility
              
 
-    def takeAction(self, world, persons, actionIds):
+    def takeAction(self, earth, persons, actionIds):
         """
         Method to execute the optimal actions for selected persons of the household
         """
         for person, actionIdx in zip(persons, actionIds):
             
-            mobID, properties = world.market.buyCar(actionIdx, self.nID)
+            mobID, properties = earth.market.buyCar(actionIdx, self.nID)
             self.loc.addToTraffic(actionIdx)
             
             person.node['mobType']   = int(actionIdx)
             person.node['mobID']     = int(mobID)
             person.node['prop']      = properties
             person.node['obsID']     = None
-            if world.time <  world.para['burnIn']:
-                person.node['lastAction'] = np.random.randint(0, 2*world.para['newPeriod'])
+            if earth.time <  earth.para['burnIn']:
+                person.node['lastAction'] = np.random.randint(0, 2*earth.para['newPeriod'])
             else:
                 person.node['lastAction'] =0
             # add cost of mobility to the expenses
@@ -771,7 +789,7 @@ class Household(Agent):
             emissions = mobProps[0]
             ecology = market.ecology(emissions)
             
-            # get similarity consequence
+            # get innovation consequence
             #imitation = self.loc.brandShares[action]
             distance   = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
             innovation = math.exp(-((adult.innovatorDegree - distance)**2)/ market.innoDevRange)
@@ -779,7 +797,38 @@ class Household(Agent):
             
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
-   
+
+    def bestMobilityChoice(self, market):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+        actionsList = list()
+        for n in range(len(self.adults)):
+            actionsList.append(range(market.nMobTypes))            
+        combinedActions = cartesian(actionsList)
+        utilities = list()
+        
+        # try all mobility combinations
+        for combinationIdx in range(len(combinedActions)):
+            self.node['expenses'] = 0            
+            for adultIdx, adult in enumerate(self.adults):
+                adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
+                adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
+                adult.node['lastAction'] = 0
+                self.node['expenses'] += adult.node['prop'][1]
+            
+            self.calculateConsequences(market)
+            utility = self.evalUtility()
+            utilities.append(utility)
+        
+        # get best combination
+        bestUtilIdx = np.argmax(utilities)
+        bestCombination = combinedActions[bestUtilIdx]
+        
+        # set best combination
+        self.node['expenses'] = 0
+        for adultIdx, adult in enumerate(self.adults):
+            adult.node['mobType'] = bestCombination[adultIdx]            
+            self.node['expenses'] += adult.node['prop'][1]
+        self.util = self.evalUtility()      
+        
 
     def evaluateExpectedUtility(self, earth):
     

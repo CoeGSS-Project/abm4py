@@ -325,7 +325,7 @@ def householdSetup(earth, parameters, calibration=False):
     
     if not parameters.randomAgents:
         parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
-        dfSynPop = pd.read_csv(parameters.synPopPath)
+        #dfSynPop = pd.read_csv(parameters.synPopPath)
         hhMat = pd.read_csv(parameters.synPopPath).values
         
     opinion =  Opinion(earth)
@@ -334,13 +334,7 @@ def householdSetup(earth, parameters, calibration=False):
         #print x,y
         nAgentsCell = int(parameters.population[x,y])
         while True:
-            
-            
-            
-            
-            
-            
-                
+             
             #creating persons as agents
             nPers = hhMat[idx,4]    
             ages    = list(hhMat[idx:idx+nPers,12])
@@ -634,21 +628,41 @@ def onlinePostProcessing(earth):
         y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
         print np.corrcoef(x,y)
 
-#%%###################################################################################
-########## Run of the simulation model ###############################################   
-######################################################################################
+
+#%%############### Tests ############################################################ 
+
 
 def prioritiesCalibrationTest():
     earth = initEarth(parameters)
         
-    mobilitySetup(earth, parameters)
-        
+    mobilitySetup(earth, parameters)        
     householdSetup(earth, parameters, calibration=True)
 
     df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
     for agID in earth.nodeList[3]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
     return earth 
+
+
+def setupHouseholdsWithOptimalChoice():
+        earth = initEarth(parameters)
+        mobilitySetup(earth, parameters)
+        householdSetup(earth, parameters)      
+        #cellTest(earth, parameters)        
+        #generateNetwork(earth, parameters)        
+        initMobilityTypes(earth, parameters)    
+    #householdSetup(earth, parameters, calibration=True)
+    
+        for hh in iter(earth.nodeList[_hh]):
+            earth.entDict[hh].bestMobilityChoice(earth.market)
+    
+        return earth    
+    
+ 
+
+#%%###################################################################################
+########## Run of the simulation model ###############################################   
+######################################################################################
 
 if __name__ == '__main__':
     
@@ -661,8 +675,7 @@ if __name__ == '__main__':
         parameters = Bunch()
         for item in csv.DictReader(open(fileName)):
             parameters[item['name']] = convertStr(item['value'])
-        
-        
+                
         
     # no csv file given
     else:
@@ -674,7 +687,6 @@ if __name__ == '__main__':
     parameters.scenario       = 4
     parameters.showFigures    = 1
     
-
 
     if parameters.scenario == 0:
         parameters.resourcePath = dirPath + '/resources_nie/'
@@ -692,7 +704,8 @@ if __name__ == '__main__':
     if parameters.scenario == 4:
         parameters.resourcePath = dirPath + '/resources_nie/'
         parameters = scenarioNiedersachsen(parameters)
-        earth = prioritiesCalibrationTest()
+        #earth = prioritiesCalibrationTest()
+        earth = setupHouseholdsWithOptimalChoice()
     else:
         #%% Init 
         earth = initEarth(parameters)
