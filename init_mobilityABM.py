@@ -50,6 +50,7 @@ import matplotlib.pyplot as plt
 import tqdm
 import pandas as pd
 from bunch import Bunch
+from copy import copy
 
 overallTime = time.time()
 ###### Enums ################
@@ -633,34 +634,32 @@ def onlinePostProcessing(earth):
 
 
 def prioritiesCalibrationTest():
-    earth = initEarth(parameters)
-        
-    mobilitySetup(earth, parameters)        
+             
     householdSetup(earth, parameters, calibration=True)
+    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
+    for agID in earth.nodeList[3]:
+        df.loc[agID] = earth.graph.vs[agID]['preferences']
 
 #    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
 #    for agID in earth.nodeList[3]:
 #        df.loc[agID] = earth.graph.vs[agID]['preferences']
 
     propMat = np.array(np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences']))
+
     return earth 
 
 
 def setupHouseholdsWithOptimalChoice():
-    earth = initEarth(parameters)
-    mobilitySetup(earth, parameters)
-    householdSetup(earth, parameters)      
-    #cellTest(earth, parameters)        
-    #generateNetwork(earth, parameters)        
-    initMobilityTypes(earth, parameters)    
-    #householdSetup(earth, parameters, calibration=True)
-    
-    for hh in iter(earth.nodeList[_hh]):
-        earth.entDict[hh].bestMobilityChoice(earth.market)
 
+    householdSetup(earth, parameters)            
+    initMobilityTypes(earth, parameters)    
+    earth.market.setInitialStatistics([500.0,10.0,200.0])
+    for hh in iter(earth.nodeList[_hh]):
+        oldEarth = copy(earth)
+        earth.entDict[hh].bestMobilityChoice(oldEarth)    
     return earth    
-    
- 
+     
+
 
 #%%###################################################################################
 ########## Run of the simulation model ###############################################   
@@ -705,7 +704,10 @@ if __name__ == '__main__':
         
     if parameters.scenario == 4:
         parameters.resourcePath = dirPath + '/resources_nie/'
+        #parameters = scenarioTestMedium(parameters)
         parameters = scenarioNiedersachsen(parameters)
+        earth = initEarth(parameters)
+        mobilitySetup(earth, parameters)
         #earth = prioritiesCalibrationTest()
         earth = setupHouseholdsWithOptimalChoice()
     else:

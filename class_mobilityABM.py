@@ -278,6 +278,7 @@ class Market():
         self.allTimeProduced    = list()                   # list of previous produced numbers -> for technical progress
         self.newPeriod          = earth.para['mobNewPeriod']
         self.innoDevRange       = earth.para['innoDevRange']
+        
     def getNTypes(self):
         return self.nMobTypes
     
@@ -306,8 +307,7 @@ class Market():
         self.meanDist = np.mean(distances)
         self.stdDist = np.std(distances)
 
-    def distanceFromMean(self, properties): 
-        
+    def distanceFromMean(self, properties):        
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
         return distance
     
@@ -316,22 +316,21 @@ class Market():
         return distance
         
     def setInitialStatistics(self, typeQuantities):
-        total = sum(typeQuantities[mobIdx] for mobIdx in range(len(self.nMobTypes)))
-        shares = np.zeros(len(self.nMobTypes))
-        self.mean = np.zeros(len(self.nProp))
-        self.std = np.zeros(len(self.nProp))
+        total = sum(typeQuantities[mobIdx] for mobIdx in range(self.nMobTypes))
+        shares = np.zeros(self.nMobTypes)
+        self.mean = np.zeros(self.nProp)
+        self.std = np.zeros(self.nProp)
         
-        for mobIdx in range(len(self.nMobTypes)):
+        for mobIdx in range(self.nMobTypes):
             shares[mobIdx] = typeQuantities[mobIdx]/total
         
         for propIdx in range(self.nProp):
-            propMean = sum(shares[mobIdx]*self.properties[mobIdx][propIdx] for mobIdx in range(len(self.nMobTypes)))
-            propVar = sum(shares[mobIdx]*(self.properties[mobIdx][propIdx])**2 for mobIdx in range(len(self.nMobTypes)))-propMean**2
+            propMean = sum(shares[mobIdx]*self.mobilityProp[mobIdx][propIdx] for mobIdx in range(self.nMobTypes))
+            propVar = sum(shares[mobIdx]*(self.mobilityProp[mobIdx][propIdx])**2 for mobIdx in range(self.nMobTypes))-propMean**2
             propStd = math.sqrt(propVar)            
             self.mean[propIdx] = propMean
             self.std[propIdx] = propStd
-            
-            
+                        
     def ecology(self, emissions):
         if self.std[0] == 0:
             ecology = 1/(1+math.exp((emissions-self.mean[0])/1))
@@ -752,7 +751,7 @@ class Household(Agent):
             if earth.time <  earth.para['burnIn']:
                 person.node['lastAction'] = np.random.randint(0, 2*earth.para['newPeriod'])
             else:
-                person.node['lastAction'] =0
+                person.node['lastAction'] = 0
             # add cost of mobility to the expenses
             self.node['expenses'] += properties[1]
             
@@ -802,37 +801,44 @@ class Household(Agent):
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
 
-    def bestMobilityChoice(self, market):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+    def bestMobilityChoice(self, earth):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+        market = earth.market        
         actionsList = list()
-        for n in range(len(self.adults)):
-            actionsList.append(range(market.nMobTypes))            
-        combinedActions = cartesian(actionsList)
-        utilities = list()
+        if (len(self.adults) > 0 and len(self.adults) < 8):
+            for n in range(len(self.adults)):
+                actionsList.append(range(market.nMobTypes))
+            try:
+                combinedActions = cartesian(actionsList)
+            except:
+                import pdb
+                pdb.set_trace()
+            utilities = list()
         
-        # try all mobility combinations
-        for combinationIdx in range(len(combinedActions)):
-            self.node['expenses'] = 0            
-            for adultIdx, adult in enumerate(self.adults):
-                adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
-                adult.node['lastAction'] = 0
-                self.node['expenses'] += adult.node['prop'][1]
+            # try all mobility combinations
+            for combinationIdx in range(len(combinedActions)):
+                self.node['expenses'] = 0            
+                for adultIdx, adult in enumerate(self.adults):
+                    adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
+                    adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
+                    adult.node['lastAction'] = 0
+                    self.node['expenses'] += adult.node['prop'][1]
+                
+                self.calculateConsequences(market)
+                utility = self.evalUtility()
+                utilities.append(utility)
             
-            self.calculateConsequences(market)
-            utility = self.evalUtility()
-            utilities.append(utility)
-        
-        # get best combination
-        bestUtilIdx = np.argmax(utilities)
-        bestCombination = combinedActions[bestUtilIdx]
-        
-        # set best combination
-        self.node['expenses'] = 0
-        for adultIdx, adult in enumerate(self.adults):
-            adult.node['mobType'] = bestCombination[adultIdx]            
-            self.node['expenses'] += adult.node['prop'][1]
-        self.util = self.evalUtility()      
-        
+            # get best combination
+            bestUtilIdx = np.argmax(utilities)
+            bestCombination = combinedActions[bestUtilIdx]
+            
+            # set best combination
+            self.node['expenses'] = 0
+            persons = iter(self.adults)
+            actionIds = bestCombination
+            self.takeAction(earth, persons, actionIds)
+            self.util = self.evalUtility()      
+        else:
+            pass
 
     def evaluateExpectedUtility(self, earth):
     
