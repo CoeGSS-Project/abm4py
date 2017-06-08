@@ -1090,7 +1090,7 @@ class Cell(Location):
         #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.05,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
+            convAll.append(min(1., max(0.25,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
         return convAll
 
         

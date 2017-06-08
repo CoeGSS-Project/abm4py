@@ -462,10 +462,10 @@ def initEarth(parameters):
     earth.enums['nodeTypes'][2] = 'household'
     
     earth.enums['consequences'] = dict()
-    earth.enums['consequences'][0] = 'comfort'
+    earth.enums['consequences'][0] = 'convenience'
     earth.enums['consequences'][1] = 'eco-friendliness'
     earth.enums['consequences'][2] = 'remaining money'
-    earth.enums['consequences'][3] = 'similarity'
+    earth.enums['consequences'][3] = 'innovation'
     
     earth.enums['mobilityTypes'] = dict()
     earth.enums['mobilityTypes'][1] = 'green'
@@ -639,10 +639,18 @@ def prioritiesCalibrationTest():
     df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
     for agID in earth.nodeList[3]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
+
+#    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
+#    for agID in earth.nodeList[3]:
+#        df.loc[agID] = earth.graph.vs[agID]['preferences']
+
+    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences']))
+
     return earth 
 
 
 def setupHouseholdsWithOptimalChoice():
+
     householdSetup(earth, parameters)            
     initMobilityTypes(earth, parameters)    
     earth.market.setInitialStatistics([500.0,10.0,200.0])
@@ -651,6 +659,7 @@ def setupHouseholdsWithOptimalChoice():
         earth.entDict[hh].bestMobilityChoice(oldEarth)    
     return earth    
      
+
 
 #%%###################################################################################
 ########## Run of the simulation model ###############################################   
@@ -676,7 +685,7 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 4
+    parameters.scenario       = 1
     parameters.showFigures    = 1
     
 
