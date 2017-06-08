@@ -297,8 +297,13 @@ class Market():
         #    self.percentiles[item] = np.percentile
         #self.percentiles = np.percentile(self.stock[:,1:],self.prctValues,axis=0)
         #print self.percentiles
-        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
-        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+        
+        
+        if self.time < self.burnIn:
+            self.setInitialStatistics([1000.,5.,300.])
+        else:
+            self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
+            self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
         distances = list()         
         for mobID in range(len(self.stock)):
             properties = self.stock[mobID,1:]
@@ -363,7 +368,10 @@ class Market():
         self.sales = [0]*len(self.sales)
         
         #compute new statistics
+        
         self.computeStatistics()
+        
+        
             
     def computeTechnicalProgress(self):
             # calculate growth rates per brand:
@@ -836,6 +844,7 @@ class Household(Agent):
             persons = iter(self.adults)
             actionIds = bestCombination
             self.takeAction(earth, persons, actionIds)
+            self.calculateConsequences(market)
             self.util = self.evalUtility()      
         else:
             pass
@@ -1168,7 +1177,7 @@ class Opinion():
 #        cs = float(cs)**2
         
         # priority of ecology
-        ce = 1.5
+        ce = 0
         if sex == 2:
             ce +=2
         if income>self.minIncomeEco:

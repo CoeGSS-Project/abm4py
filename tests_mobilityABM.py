@@ -80,7 +80,7 @@ parameters.initialGreen =100
 parameters.initialBrown =10000
 parameters.initialOther =5000
 
-parameters.burnIn = 10
+parameters.burnIn = 100
 parameters.showFigures = 1
 
 parameters.resourcePath = dirPath + '/resources_nie/'
@@ -108,6 +108,8 @@ for household in tqdm.tqdm(earth.iterNodes(_hh)):
 for cell in earth.iterNodes(_cell):
     cell.step(earth.market.kappa) 
 
+earth.market.setInitialStatistics([1000.,5.,300.])
+
 for household in tqdm.tqdm(earth.iterNodes(_hh)):
     household.calculateConsequences(earth.market)
     household.util = household.evalUtility()
@@ -116,7 +118,7 @@ for household in tqdm.tqdm(earth.iterNodes(_hh)):
 colorPal =  sns.color_palette("Set3", n_colors=3, desat=1)    
 
 
-test = 2
+test = 5
 
 if test == 1:
     #%%    
@@ -203,7 +205,7 @@ if test == 1:
 #%%    
 
 if test == 2:
-    nSteps = 50
+    nSteps = 10
     nMobType = np.zeros([3, nSteps])
     for i in range(nSteps):
         print 'step ' + str(i)
@@ -278,4 +280,68 @@ if test == 3:
 
     propMat = np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences'])
     print np.mean(propMat,axis=0)
+
+#%%
+if test == 4:
+    for hh in iter(earth.nodeList[_hh]):
+        oldEarth = copy(earth)
+        earth.entDict[hh].bestMobilityChoice(oldEarth)    
+
+    for j, persID in enumerate(earth.nodeList[3][0:nAg]):
+        pers = earth.entDict[persID]
+        x[j]    = pers.node['util']
+        y[:,j]  = pers.node['consequences']
+        z[j]    = pers.node['mobType']
+        mobProp = mobProps = pers.node['prop']
+        dist[:,j]   = [(earth.market.mean[0]-mobProp[0])/earth.market.std[0], (mobProp[1]- earth.market.mean[1])/earth.market.std[1]]
+        distMeas[j] = earth.market.getDistanceFromMean(mobProp)
+        
+        inno[j]     = pers.innovatorDegree
+    print "persons per mobType",
+        
+    for mob in range(3):
+        nMobType[mob, i] = np.sum(z==mob)
+        print (np.sum(z==mob)),
+    print " "
+
+
+if test == 5:    
     
+    nSteps = 100
+    nMobType = np.zeros([3, nSteps])
+    for i in range(nSteps):
+        print 'step ' + str(i)
+        nAg = 1000
+        
+        
+        x = np.zeros([nAg])
+        y = np.zeros([4,nAg])
+        z = np.zeros([nAg])
+        dist = np.zeros([2,nAg])
+        distMeas = np.zeros([nAg])
+        inno = np.zeros([nAg])
+        
+        for j, persID in enumerate(earth.nodeList[3][0:nAg]):
+            pers = earth.entDict[persID]
+            x[j]    = pers.node['util']
+            y[:,j]  = pers.node['consequences']
+            z[j]    = pers.node['mobType']
+            mobProp = mobProps = pers.node['prop']
+            dist[:,j]   = [(earth.market.mean[0]-mobProp[0])/earth.market.std[0], (mobProp[1]- earth.market.mean[1])/earth.market.std[1]]
+            distMeas[j] = earth.market.getDistanceFromMean(mobProp)
+            
+            inno[j]     = pers.innovatorDegree
+            
+        earth.step()
+            
+        print "persons per mobType",
+        for mob in range(3):
+            nMobType[mob, i] = np.sum(z==mob)
+            print (np.sum(z==mob)),
+        print " "
+        
+    plt.figure(2)        
+    for mob in range(3):
+                    
+        plt.plot(nMobType[mob, :])
+    plt.legend(earth.enums['mobilityTypes'].values(),loc=2)
