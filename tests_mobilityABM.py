@@ -85,8 +85,8 @@ parameters.showFigures = 1
 parameters.util        = 'ces'
 
 parameters.resourcePath = dirPath + '/resources_nie/'
-#parameters = scenarioTestMedium(parameters)
-parameters = scenarioNiedersachsen(parameters)
+parameters = scenarioTestMedium(parameters)
+#parameters = scenarioNiedersachsen(parameters)
 earth = initEarth(parameters)
 
 mobilitySetup(earth, parameters)
@@ -118,7 +118,7 @@ for household in tqdm.tqdm(earth.iterNodes(_hh)):
 colorPal =  sns.color_palette("Set3", n_colors=3, desat=1)    
 
 
-test = 1
+test = 4
 
 if test == 1:
     #%%    
@@ -282,7 +282,18 @@ if test == 3:
     print np.mean(propMat,axis=0)
 
 #%%
+nSteps = 100
+i=0
 if test == 4:
+    nAg = 1000
+    x = np.zeros([nAg])
+    y = np.zeros([4,nAg])
+    z = np.zeros([nAg])
+    dist = np.zeros([2,nAg])
+    distMeas = np.zeros([nAg])
+    inno = np.zeros([nAg])
+    nMobType = np.zeros([3, nSteps])
+    
     for hh in iter(earth.nodeList[_hh]):
         oldEarth = copy(earth)
         earth.entDict[hh].bestMobilityChoice(oldEarth)    
@@ -298,13 +309,14 @@ if test == 4:
         
         inno[j]     = pers.innovatorDegree
     print "persons per mobType",
-        
+
+
     for mob in range(3):
         nMobType[mob, i] = np.sum(z==mob)
         print (np.sum(z==mob)),
     print " "
 
-
+#%%
 if test == 5:    
     
     nSteps = 100

@@ -671,7 +671,7 @@ if __name__ == '__main__':
     
     
     parameters = Bunch() 
-    parameters.scenario       = 2
+    parameters.scenario       = 1
     parameters.showFigures    = 1
     
     
