@@ -1109,8 +1109,7 @@ class Household(Agent):
 #        x[-1] = max(0,1 - x[-1] / self.getValue('income'))
 #        self.setValue('x', x)
  
-              
-
+             
     
     def optimalChoice(self,world):
         """ 

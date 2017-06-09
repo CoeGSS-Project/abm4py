@@ -689,17 +689,17 @@ if __name__ == '__main__':
                 
         
     # no csv file given
-    else:
+    #else:
         
  
     parameters.scenario       = 4
     parameters.showFigures    = 1
 
         
-        if parameters.scenario == 1:
-            fileName = "parameters.csv"
-        if parameters.scenario == 2:
-            fileName = "parameters_nie.csv"
+    if parameters.scenario == 1:
+        fileName = "parameters.csv"
+    if parameters.scenario == 2:
+        fileName = "parameters_nie.csv"
         
     for item in csv.DictReader(open(fileName)):
         parameters[item['name']] = convertStr(item['value'])
