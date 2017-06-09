@@ -84,12 +84,12 @@ parameters.burnIn = 100
 parameters.showFigures = 1
 
 parameters.resourcePath = dirPath + '/resources_nie/'
-parameters = scenarioTestMedium(parameters)
+#parameters = scenarioTestMedium(parameters)
+parameters = scenarioNiedersachsen(parameters)
             
 earth = initEarth(parameters)
 
 mobilitySetup(earth, parameters)
-
 
 cellTest(earth, parameters)
 

@@ -376,6 +376,7 @@ def householdSetup(earth, parameters, calibration=False):
                 pers.node['mobType']        = 0
                 pers.node['prop']           = [0]*len(parameters.properties)
                 pers.node['consequences']   = [0]*len(prefTuple)
+                pers.node['lastAction']     = 0
                 pers.innovatorDegree = np.random.randn()
                 pers.queueConnection(hh.nID,edgeType=_chp)
                 pers.registerAtGeoNode(earth, hh.loc.nID)
@@ -656,7 +657,7 @@ def setupHouseholdsWithOptimalChoice():
     earth.market.setInitialStatistics([500.0,10.0,200.0])
     for hh in iter(earth.nodeList[_hh]):
         oldEarth = copy(earth)
-        earth.entDict[hh].bestMobilityChoice(oldEarth)    
+        earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)    
     return earth    
      
 
@@ -685,7 +686,7 @@ if __name__ == '__main__':
         parameters.convIncomeFraction = 1000
         
  
-    parameters.scenario       = 1
+    parameters.scenario       = 4
     parameters.showFigures    = 1
     
 
@@ -704,8 +705,8 @@ if __name__ == '__main__':
         
     if parameters.scenario == 4:
         parameters.resourcePath = dirPath + '/resources_nie/'
-        #parameters = scenarioTestMedium(parameters)
-        parameters = scenarioNiedersachsen(parameters)
+        parameters = scenarioTestMedium(parameters)
+        #parameters = scenarioNiedersachsen(parameters)
         earth = initEarth(parameters)
         mobilitySetup(earth, parameters)
         #earth = prioritiesCalibrationTest()
