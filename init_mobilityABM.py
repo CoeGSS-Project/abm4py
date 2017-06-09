@@ -51,6 +51,9 @@ import tqdm
 import pandas as pd
 from bunch import Bunch
 from copy import copy
+import csv
+
+
 
 overallTime = time.time()
 ###### Enums ################
@@ -95,7 +98,7 @@ def scenarioTestSmall(parameters):
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.minFriends    = 30       # number of desired friends
     setup.memoryTime    = 20       # length of the periode for which memories are stored
-    setup.utilObsError  = 1
+    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
@@ -114,7 +117,6 @@ def scenarioTestSmall(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.minFriends       = 10
     
     
     minPop = np.nanmin(setup.population[setup.population!=0])
@@ -158,7 +160,7 @@ def scenarioTestMedium(parameters):
     #social
     setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 30       # number of desired friends
+    setup.minFriends    = 100       # number of desired friends
     setup.memoryTime    = 20       # length of the periode for which memories are stored
     setup.utilObsError  = 1
     setup.recAgent      = []       # reporter agents that return a diary
@@ -179,7 +181,6 @@ def scenarioTestMedium(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.minFriends       = 10
     
 
     minPop = np.nanmin(setup.population[setup.population!=0])
@@ -225,14 +226,14 @@ def scenarioNiedersachsen(parameters):
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 30       # number of desired friends
+    setup.minFriends    = 50       # number of desired friends
     setup.memoryTime    = 12       # length of the periode for which memories are stored
-    setup.utilObsError  = 1
+    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
-    setup.writeOutput   = 0
-    setup.writeNPY      = 0
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
     setup.writeCSV      = 0
     
     #cars and infrastructure
@@ -242,11 +243,11 @@ def scenarioNiedersachsen(parameters):
 
     
     #agents
-    setup.util             = 'cobb'
+    setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.minFriends       = 10
+
     
     
     
@@ -356,9 +357,10 @@ def householdSetup(earth, parameters, calibration=False):
             hh.register(earth)
             hh.connectGeoNode(earth)
             
+            hh.loc.node['population'] += nPers
             
             for iPers in range(nPers):
-                hh.loc.node['population'] +=1
+                
                 if ages[iPers]< 18:
                     continue    #skip kids
                 
@@ -668,10 +670,17 @@ def setupHouseholdsWithOptimalChoice():
 
 if __name__ == '__main__':
     
+    
+    parameters = Bunch() 
+    parameters.scenario       = 1
+    parameters.showFigures    = 1
+    
+    
+    
     dirPath = os.path.dirname(os.path.realpath(__file__))
     # got csv file containing parameters
     if len(sys.argv) > 1:
-        import csv
+        
 
         fileName = sys.argv[1]
         parameters = Bunch()
@@ -681,13 +690,20 @@ if __name__ == '__main__':
         
     # no csv file given
     else:
-        parameters = Bunch()
-        parameters.urbThreshold = 13
-        parameters.convIncomeFraction = 1000
         
  
     parameters.scenario       = 4
     parameters.showFigures    = 1
+
+        
+        if parameters.scenario == 1:
+            fileName = "parameters.csv"
+        if parameters.scenario == 2:
+            fileName = "parameters_nie.csv"
+        
+    for item in csv.DictReader(open(fileName)):
+        parameters[item['name']] = convertStr(item['value'])
+        
     
 
     if parameters.scenario == 0:
@@ -720,7 +736,7 @@ if __name__ == '__main__':
         householdSetup(earth, parameters)
         
         cellTest(earth, parameters)
-        
+
         generateNetwork(earth, parameters)
         
         initMobilityTypes(earth, parameters)

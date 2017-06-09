@@ -215,7 +215,10 @@ class Earth(World):
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
             agent.step(self)
-
+        
+        for adult in tqdm.tqdm(self.iterNodes(_pers)):
+            adult.weightFriendExperience(self)   
+        
         # proceed step
         self.writeAgentFile()
 
@@ -333,7 +336,9 @@ class Market():
         
         
         if self.time < self.burnIn:
-            self.setInitialStatistics([1000.,5.,300.])
+            #self.setInitialStatistics([1000.,5.,300.])
+            self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
+            self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
         else:
             self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
             self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
@@ -507,7 +512,7 @@ class Person(Agent):
     def shareExperience(self, world):
         
         # adding noise to the observations
-        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']
+        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']/10
         self.setValue('noisyUtil',noisyUtil[0])
         mobility = self.getValue('mobType')
         # save util based on label
@@ -522,7 +527,7 @@ class Person(Agent):
         for neig in self.getConnNodeIDs( _pers, 'in'):
             agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.getValue('obsID'), world.time)
-   
+       
     def getObservationsMat(self, world, labelList):
         if len(self.obs) == 0:
             return None
@@ -558,9 +563,9 @@ class Person(Agent):
                 idxT.append(i)
         #indexedEdges = [ edges[x].index for x in idxT]
         
-        if len(idxT) < 2:
+        if len(idxT) < 10:
             return
-        
+
         diff = np.asarray(friendUtil)[idxT] - ownUtil
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
@@ -571,6 +576,7 @@ class Person(Agent):
         #### only weighting agents with same cars
             prior = np.asarray(edges[idxT]['weig'])
             post = prior * prop 
+
             sumPrior = np.sum(prior)
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
@@ -578,6 +584,15 @@ class Person(Agent):
                     edges[idxT]['weig'] = post
                 else:
                     print 'updating failed, sum of weights are zero'
+                    
+#        plt.subplot(3,1,1)
+#        plt.scatter(diff,prop)            
+#        plt.subplot(3,1,2)        
+#        plt.scatter(diff,post/prop)
+#        plt.subplot(3,1,3)        
+#        plt.scatter(diff,post)
+#        plt.show
+
                     
     def generateFriendNetwork(self, world, nFriends):
         """
@@ -631,6 +646,8 @@ class Person(Agent):
         weights = propWeigList * spatWeigList * spatWeigList
         weights = weights / np.sum(weights)
         
+        if len(weights)-1 < nFriends:
+            print "reducting the number of friends"
         nFriends = min(len(weights)-1,nFriends)
         ids = np.random.choice(len(weights), nFriends, replace=False, p=weights)
         friendList = [ contactIds[idx] for idx in ids ]
@@ -1005,9 +1022,8 @@ class Household(Agent):
             self.util = self.evalUtility()
             
             if actionTaken:                
-                for adult in self.adults:
-                    adult.weightFriendExperience(earth)
                 self.shareExperience(earth)
+
 
 
     def step2(self, earth):
@@ -1048,6 +1064,7 @@ class Household(Agent):
                 self.shareExperience(earth)
 
                                 
+
 #    def step(self, world):
 #        self.addValue('carAge', 1)
 #        carBought = False
@@ -1228,7 +1245,7 @@ class Cell(Location):
         
     def step(self, kappa):
         """
-        Manages the deletion og observation after a while
+        Manages the deletion of observation after a while
         """
         self.kappa = kappa
         self.deleteQueue.append(self.currDelList) # add current list to the queue for later
