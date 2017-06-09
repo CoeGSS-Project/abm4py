@@ -82,18 +82,18 @@ parameters.initialOther =5000
 
 parameters.burnIn = 100
 parameters.showFigures = 1
+parameters.util        = 'ces'
 
 parameters.resourcePath = dirPath + '/resources_nie/'
-parameters = scenarioTestMedium(parameters)
-            
+#parameters = scenarioTestMedium(parameters)
+parameters = scenarioNiedersachsen(parameters)
 earth = initEarth(parameters)
 
 mobilitySetup(earth, parameters)
 
+householdSetup(earth, parameters)
 
 cellTest(earth, parameters)
-
-householdSetup(earth, parameters)
 
 generateNetwork(earth, parameters)
 
@@ -118,7 +118,7 @@ for household in tqdm.tqdm(earth.iterNodes(_hh)):
 colorPal =  sns.color_palette("Set3", n_colors=3, desat=1)    
 
 
-test = 5
+test = 1
 
 if test == 1:
     #%%    
@@ -345,3 +345,83 @@ if test == 5:
                     
         plt.plot(nMobType[mob, :])
     plt.legend(earth.enums['mobilityTypes'].values(),loc=2)
+    
+    
+#%%
+if test == 6:
+    pref = np.zeros([earth.graph.vcount(), 4])
+    pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
+    ids = list()
+    for edge in earth.iterEdges(_cpp):
+        edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
+        edge['utilDiff'] = np.abs(earth.entDict[edge.source].hh.node['util'] -earth.entDict[edge.target].hh.node['util']) / earth.entDict[edge.source].hh.node['util']
+        if earth.entDict[edge.source].node['mobType']  == earth.entDict[edge.target].node['mobType']:
+            ids.append(edge.index)
+        
+    edgeSeq= earth.graph.es.select(ids)
+    #diffMax = np.max(np.asarray(edgeSeq['prefDiff2']))
+    #
+    #
+    #edgeSeq['prefDiff2'] = edgeSeq['prefDiff2'] / diffMax
+    #edgeSeq['prefDiff'] += edgeSeq['prefDiff2']
+        
+    plt.figure()
+    plt.scatter(np.asarray(earth.graph.es['prefDiff'])[ids],np.asarray(earth.graph.es['utilDiff'])[ids])
+    plt.xlabel('difference in preferences')
+    plt.ylabel('difference in utility')
+    
+    plt.show()
+    x = np.asarray(edgeSeq['prefDiff']).astype(float)
+    y = np.asarray(edgeSeq['utilDiff']).astype(float)
+    print np.corrcoef(x,y)    
+
+if test == 7:
+    #%%
+    pref = np.zeros([earth.graph.vcount(), 4])
+    pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
+    ids = dict()
+    ids[0]= list()
+    ids[1]= list()
+    ids[2]= list()
+    for edge in earth.iterEdges(_cpp):
+        edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
+        edge['utilDiff'] = np.abs(earth.graph.vs[edge.target]['util'] -earth.graph.vs[edge.source]['util'])
+        if edge['utilDiff'] <1e-10:
+            
+            if earth.entDict[edge.source].node['mobType'] == earth.entDict[edge.target].node['mobType'] :
+                ids[earth.entDict[edge.source].node['mobType']].append(edge.index)
+        
+    edgeSeq= earth.graph.es.select(ids)
+    #diffMax = np.max(np.asarray(edgeSeq['prefDiff2']))
+    #
+    #
+    #edgeSeq['prefDiff2'] = edgeSeq['prefDiff2'] / diffMax
+    #edgeSeq['prefDiff'] += edgeSeq['prefDiff2']
+        
+    plt.figure()
+    for mobType in range(3):
+        plt.scatter(np.asarray(earth.graph.es['prefDiff'])[ids[mobType]],np.asarray(earth.graph.es['utilDiff'])[ids[mobType]],color= colorPal[mobType])
+    plt.xlabel('difference in preferences')
+    plt.ylabel('difference in utility')
+    
+    plt.show()
+    for mobType in range(3):
+        x = np.asarray(earth.graph.es['prefDiff'])[ids[mobType]].astype(float)
+        y = np.asarray(earth.graph.es['utilDiff'])[ids[mobType]].astype(float)
+        print np.corrcoef(x,y)    
+
+    #%%
+    pref = np.zeros([earth.graph.vcount(), 4])
+    pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
+    ids = dict()
+    ids[0]= list()
+    ids[1]= list()
+    ids[2]= list()
+    for edge in earth.iterEdges(_cpp):
+        edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
+        
+        if np.abs(earth.entDict[edge.source].node['util'] -earth.entDict[edge.target].node['util']) < 1e-3:
+            print str(edge.source) + ' - ' + str(edge.target)
+            print edge['prefDiff']
+            
+            
