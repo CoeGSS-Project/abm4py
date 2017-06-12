@@ -85,8 +85,11 @@ parameters.showFigures = 1
 parameters.util        = 'ces'
 
 parameters.resourcePath = dirPath + '/resources_nie/'
+
 parameters = scenarioTestMedium(parameters)
 #parameters = scenarioNiedersachsen(parameters)
+            
+
 earth = initEarth(parameters)
 
 mobilitySetup(earth, parameters)

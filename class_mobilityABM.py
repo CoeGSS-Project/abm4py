@@ -229,7 +229,40 @@ class Earth(World):
         
         # proceed step
         self.writeAgentFile()
+
+    def step2(self):
+        """ 
+        Method to proceed the next time step
+        """
+        self.time += 1
         
+        # progressing time
+        if self.timeUnit == 1: #months
+            self.date[0] += 1  
+            if self.date[0] == 13:
+                self.date[0] = 1
+                self.date[1] += 1
+        elif self.timeUnit == 1: # years
+            self.date[1] +=1
+            
+        
+        # proceed market in time
+        self.market.step() # Statistics are computed here
+                
+        #loop over cells
+        for cell in self.iterNodes(_cell):
+            cell.step(self.market.kappa)
+        
+        #update global data
+        self.globalData['stock'].set(self.time,self.market.stockByMobType)
+        
+        # Iterate over households with a progress bar
+        for agent in tqdm.tqdm(self.iterNodes(_hh)):
+            #agent = self.agDict[agID]
+            agent.step(self)
+
+        # proceed step
+        self.writeAgentFile()        
                 
         
     def finalize(self):
@@ -275,7 +308,7 @@ class Market():
         self.obsDict            = dict()                     # time -> other dictionary (see next line)
         self.obsDict[self.time] = dict()                # (used by agents, observations (=utilities) also saved in locations)
         self.freeSlots          = list()
-        self.stockbyMobType     = list()                     # stock by brands 
+        self.stockByMobType     = list()                     # stock by brands 
         self.nMobTypes          = 0
         self.mobilityLables     = dict()                     # brandID -> label
         self.mobilityInitDict   = dict()
@@ -352,6 +385,7 @@ class Market():
             propStd = math.sqrt(propVar)            
             self.mean[propIdx] = propMean
             self.std[propIdx] = propStd
+
                         
     def ecology(self, emissions):
         if self.std[0] == 0:
@@ -384,8 +418,7 @@ class Market():
         #print self.sales
         self.sales = [0]*len(self.sales)
         
-        #compute new statistics
-        
+        #compute new statistics        
         self.computeStatistics()
         
         
@@ -418,7 +451,7 @@ class Market():
         self.mobilityGrowthRates.append(0.)
         self.techProgress.append(1.)
         self.sales.append(0)
-        self.stockbyMobType.append(0)
+        self.stockByMobType.append(0)
         self.allTimeProduced.append(allTimeProduced)
         self.carsPerLabel = np.zeros(self.nMobTypes)
         self.mobilityTypesToInit.append(label)
@@ -433,11 +466,11 @@ class Market():
         
         #add brand to the market
            
-        self.stockbyMobType[mobType] = 0
+        self.stockByMobType[mobType] = 0
         self.mobilityProp[mobType]   = propertyTuple
         self.mobilityLables[mobType] = label
         #self.buyCar(brandID,0)
-        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],brandID] -= 1
+        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] -= 1
         self.obsDict[self.time][mobType] = list()
         
         
@@ -461,8 +494,8 @@ class Market():
             self.stock = np.vstack(( self.stock, [mobType] + prop))
             self.owners.append((eID, mobType))
             mobID = len(self.owners)-1
-        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],brandID] += 1
-        self.stockbyMobType[int(mobType)] += 1
+        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] += 1
+        self.stockByMobType[int(mobType)] += 1
         #self.computeStatistics()
         
         return mobID, prop
@@ -472,8 +505,8 @@ class Market():
         self.freeSlots.append(mobID)
         mobType = self.owners[mobID][1]
         self.owners[mobID] = None
-        #self.stockbyMobType.loc[self.stockbyMobType.index[-1],label] -= 1
-        self.stockbyMobType[int(mobType)] -= 1
+        #self.stockByMobType.loc[self.stockByMobType.index[-1],label] -= 1
+        self.stockByMobType[int(mobType)] -= 1
 
 # %% --- entity classes ---
 
@@ -838,63 +871,111 @@ class Household(Agent):
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
 
-    def bestMobilityChoice(self, earth):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
-        market = earth.market        
-        actionsList = list()
-        if (len(self.adults) > 0 and len(self.adults) < 8):
-            for n in range(len(self.adults)):
-                actionsList.append(range(market.nMobTypes))
-            try:
-                combinedActions = cartesian(actionsList)
-            except:
-                import pdb
-                pdb.set_trace()
-            utilities = list()
+    def bestMobilityChoice(self, earth, forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+        market = earth.market
         
+        if len(self.adults) > 0 :
+        #    try:
+        #        combinedActions = cartesian(actionsList)
+        #    except:
+        #        import pdb
+        #        pdb.set_trace()
+            combinedActions = self.possibleActions(earth, forcedTryAll)            
+            utilities = list()
+            
+            # save current values
+            oldMobType = list()
+            oldProp = list()
+            oldLastAction = list()
+            for adult in self.adults:
+                oldMobType.append(copy.copy(adult.node['mobType']))
+                oldProp.append(copy.copy(adult.node['prop']))
+                oldLastAction.append(copy.copy(adult.node['lastAction']))             
+            oldExpenses = copy.copy(self.node['expenses'])
+            oldUtil = copy.copy(self.util)
+            
             # try all mobility combinations
             for combinationIdx in range(len(combinedActions)):
                 self.node['expenses'] = 0            
                 for adultIdx, adult in enumerate(self.adults):
-                    adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                    adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
-                    adult.node['lastAction'] = 0
+                    if combinedActions[combinationIdx][adultIdx] == -1:     # no action taken
+                        adult.node['mobType'] = oldMobType[adultIdx]
+                        adult.node['prop'] = oldProp[adultIdx]
+                        adult.node['lastAction'] = oldLastAction[adultIdx]
+                    else:
+                        adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
+                        adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
+                        adult.node['lastAction'] = 0                    
                     self.node['expenses'] += adult.node['prop'][1]
                 
                 self.calculateConsequences(market)
                 utility = self.evalUtility()
                 utilities.append(utility)
             
+            # reset old node values
+            for adultIdx, adult in enumerate(self.adults):
+                adult.node['mobType'] = oldMobType[adultIdx] 
+                adult.node['prop'] = oldProp[adultIdx]
+                adult.node['lastAction'] = oldLastAction[adultIdx]
+            self.node['expenses'] = oldExpenses
+                       
             # get best combination
             bestUtilIdx = np.argmax(utilities)
             bestCombination = combinedActions[bestUtilIdx]
-            
-            # set best combination
-            self.node['expenses'] = 0
-            persons = iter(self.adults)
-            actionIds = bestCombination
-            self.takeAction(earth, persons, actionIds)
-            self.calculateConsequences(market)
-            self.util = self.evalUtility()      
+            #print bestCombination
+                
+            # set best combination 
+            if utilities[bestUtilIdx] > oldUtil:
+                persons = np.array(self.adults)
+                actionIds = np.array(bestCombination)
+                actors = persons[ actionIds != -1 ]         # remove persons that don't take action
+                actions = actionIds[ actionIds != -1]       # remove not-actions (i.e. -1 in list)          
+                self.takeAction(earth, actors, actions)
+                self.calculateConsequences(market)
+                self.util = self.evalUtility()
+            else:
+                print utilities[bestUtilIdx]
+                print bestUtilIdx
+                print oldUtil
+                print oldMobType
+              
         else:
             pass
 
+
+    def possibleActions(self, earth, forcedTryAll = False):               
+        actionsList = list()
+        nMobTypes = earth.market.nMobTypes
+        
+        for adultIdx, adult in enumerate(self.adults):
+            if forcedTryAll or (adult.node['lastAction'] > earth.para['newPeriod']) or (earth.time < earth.para['burnIn']):
+                actionsList.append(range(nMobTypes))
+            else:
+                actionsList.append([-1])
+        if len(actionsList) > 7:                            # to avoid the problem of too many possibilities
+            minNoAction = len(actionsList) - 7              # minum number of adults not to take action    
+            while len(filter(lambda x: x == [-1], actionsList)) < minNoAction:
+                randIdx = np.random.randint(len(actionsList))
+                actionsList[randIdx] = [-1]
+            #print 'large Household'
+            #print actionsList
+                                          
+        possibilities = cartesian(actionsList)
+        return possibilities    
+            
+            
     def evaluateExpectedUtility(self, earth):
     
         actionIdsList   = list()
         eUtilsList      = list()
-        #isActor         = np.zeros(len(self.adults)).astype(bool)
-        #actors          = list()
+
         for iAdult, adult in enumerate(self.adults):
             
             if adult.node['lastAction']> earth.para['newPeriod']:
-                #actors.append(adult)
-                #isActor[iAdult] = True
                 actionIds, eUtils = adult.getExpectedUtility(earth)
-                
-                #if actionIds is None:
-                #    actionIds, eUtils = [adult.node['mobType']], [adult.node['util']]
             else:
                 actionIds, eUtils = [-1], [adult.node['util']]
+            
             actionIdsList.append(actionIds)
             eUtilsList.append(eUtils)
             
@@ -903,7 +984,6 @@ class Household(Agent):
         
         if len(actionIdsList) == 0:
             return None, None, None
-
         
         combActions = cartesian(actionIdsList)
         overallUtil = np.sum(cartesian(eUtilsList),axis=1)
@@ -912,13 +992,14 @@ class Household(Agent):
         bestActionIds = np.argmax(overallUtil)
         actions = combActions[bestActionIds]
         
-        # ruturn persons that will potentially do an actions that don't buy a new car (action not -1)
+        # return persons that buy a new car (action is not -1)
         actors = np.array(self.adults)[ actions != -1]
         actions = actions[ actions != -1]     
         if overallUtil[bestActionIds] is None:
             print 1
         return actors, actions, overallUtil[bestActionIds]
-    
+        
+        
     def step(self, earth):
         for adult in self.adults:
             adult.addValue('lastAction', 1)
@@ -954,10 +1035,48 @@ class Household(Agent):
             
             if actionTaken:                
                 self.shareExperience(earth)
+
+
+
+    def step2(self, earth):
+        for adult in self.adults:
+            adult.addValue('lastAction', 1)
+            #adult.node['lastAction'] += 1
+        actionTaken = False
+        doCheckMobAlternatives = False
+
+        if earth.time < earth.para['burnIn']:
+            doCheckMobAlternatives = True
+        elif any([adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults]):
+            doCheckMobAlternatives = True
+                            
+        if doCheckMobAlternatives:
             
-#            for adult in self.adults:
-#                    adult.weightFriendExperience(earth)    
-#                
+            # return persons that are potentially performing an action, the action and the expected overall utility
+            personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
+            
+            if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
+            
+                # the propbabilty of taking action is equal to the expected raise of the expected utility
+                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
+                    actionTaken = True                   
+                           
+            # the action is only performed if flag is True
+          
+            if actionTaken:
+                self.undoActions(earth, personsToTakeAction)
+                self.takeAction(earth, personsToTakeAction, actions)
+
+            self.calculateConsequences(earth.market)
+            self.util = self.evalUtility()
+            
+            if actionTaken:                
+                for adult in self.adults:
+                    adult.weightFriendExperience(earth)
+                self.shareExperience(earth)
+
+                                
+
 #    def step(self, world):
 #        self.addValue('carAge', 1)
 #        carBought = False
@@ -1002,8 +1121,7 @@ class Household(Agent):
 #        x[-1] = max(0,1 - x[-1] / self.getValue('income'))
 #        self.setValue('x', x)
  
-              
-
+             
     
     def optimalChoice(self,world):
         """ 
@@ -1156,6 +1274,28 @@ class Cell(Location):
         convAll = self.calculateConveniences()
         self.setValue('convenience', convAll)
         self.trafficMixture()
+
+
+    def step2(self, kappa):
+        """
+        Manages the deletion og observation after a while
+        """
+        self.kappa = kappa
+        #self.deleteQueue.append(self.currDelList) # add current list to the queue for later
+        #delList = self.deleteQueue.popleft()      # takes the list to delete
+        #for obsID in delList:
+        #    self.obsMemory.remMeme(obsID)         # removes the obs from memory
+        #self.currDelList = list()                 # restarts the list for the next step
+        
+        #write cell traffic to graph
+        if len(self.traffic.values()) > 1:
+            self.setValue('carsInCell', tuple(self.traffic.values()))
+        else:
+            self.setValue('carsInCell', self.traffic.values()[0])
+            
+        convAll = self.calculateConveniences()
+        self.setValue('convenience', convAll)
+        self.trafficMixture()
         
     
     def registerObs(self, hhID, prop, util, label):
@@ -1178,6 +1318,7 @@ class Cell(Location):
         - not used right now -
         """
         self.traffic[label] -= 1
+
         
 class Opinion():
     import numpy as np
