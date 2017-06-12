@@ -138,7 +138,7 @@ def scenarioTestMedium(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps         = 360     # number of simulation steps
+    setup.nSteps         = 10     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
     setup.burnIn         = 100
