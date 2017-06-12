@@ -139,7 +139,7 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps         = 10     # number of simulation steps
+    setup.nSteps         = 485     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
     setup.burnIn         = 5
@@ -182,7 +182,7 @@ def scenarioTestMedium(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False
+    setup.omniscientAgents  = True
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -570,7 +570,7 @@ def runModel(earth, parameters):
     print "Starting the simulation:"
     for step in xrange(parameters.nSteps):
         tt = time.time()
-        earth.step2() # looping over all cells
+        earth.step() # looping over all cells
         print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
         earth.writeAgentFile()
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
