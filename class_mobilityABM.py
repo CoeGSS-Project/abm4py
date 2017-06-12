@@ -69,7 +69,10 @@ class Earth(World):
         self.globalData  = dict() # storage of global data
         
         # transfer all parameters to earth
-        self.setParameters(Bunch.toDict(parameters)) 
+        self.setParameters(Bunch.toDict(parameters))
+        
+        if self.para['omniscientAgents']:
+            self.step = self.stepOmniscient 
         
         if not os.path.isdir('output'):
             os.mkdir('output')
@@ -222,7 +225,7 @@ class Earth(World):
         # proceed step
         self.writeAgentFile()
 
-    def step2(self):
+    def stepOmniscient(self):
         """ 
         Method to proceed the next time step
         """
@@ -251,7 +254,7 @@ class Earth(World):
         # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
-            agent.step(self)
+            agent.stepOmniscient(self)
 
         # proceed step
         self.writeAgentFile()        
@@ -861,7 +864,6 @@ class Household(Agent):
 
     def bestMobilityChoice(self, earth, forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
         market = earth.market
-        
         if len(self.adults) > 0 :
         #    try:
         #        combinedActions = cartesian(actionsList)
@@ -917,15 +919,15 @@ class Household(Agent):
                 persons = np.array(self.adults)
                 actionIds = np.array(bestCombination)
                 actors = persons[ actionIds != -1 ]         # remove persons that don't take action
-                actions = actionIds[ actionIds != -1]       # remove not-actions (i.e. -1 in list)          
-                self.takeAction(earth, actors, actions)
+                actions = actionIds[ actionIds != -1]
+                self.undoActions(earth, actors)                  
+                self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)     
                 self.calculateConsequences(market)
                 self.util = self.evalUtility()
-            else:
-                print utilities[bestUtilIdx]
-                print bestUtilIdx
-                print oldUtil
-                print oldMobType
+#            else:
+                #print utilities[bestUtilIdx]                
+                #print oldUtil
+                #print oldMobType
               
         else:
             pass
@@ -940,13 +942,12 @@ class Household(Agent):
                 actionsList.append(range(nMobTypes))
             else:
                 actionsList.append([-1])
-        if len(actionsList) > 7:                            # to avoid the problem of too many possibilities
+        if len(actionsList) > 7:                            # to avoid the problem of too many possibilities (if more than 7 adults)
             minNoAction = len(actionsList) - 7              # minum number of adults not to take action    
             while len(filter(lambda x: x == [-1], actionsList)) < minNoAction:
                 randIdx = np.random.randint(len(actionsList))
                 actionsList[randIdx] = [-1]
             #print 'large Household'
-            #print actionsList
                                           
         possibilities = cartesian(actionsList)
         return possibilities    
@@ -1026,35 +1027,18 @@ class Household(Agent):
 
 
 
-    def step2(self, earth):
+    def stepOmniscient(self, earth):
         for adult in self.adults:
             adult.addValue('lastAction', 1)
             #adult.node['lastAction'] += 1
         actionTaken = False
         doCheckMobAlternatives = False
 
-        if earth.time < earth.para['burnIn']:
-            doCheckMobAlternatives = True
-        elif any([adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults]):
+        if earth.time < earth.para['burnIn'] or (any([adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults])) :
             doCheckMobAlternatives = True
                             
-        if doCheckMobAlternatives:
-            
-            # return persons that are potentially performing an action, the action and the expected overall utility
-            personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
-            
-            if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
-            
-                # the propbabilty of taking action is equal to the expected raise of the expected utility
-                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
-                    actionTaken = True                   
-                           
-            # the action is only performed if flag is True
-          
-            if actionTaken:
-                self.undoActions(earth, personsToTakeAction)
-                self.takeAction(earth, personsToTakeAction, actions)
-
+        if doCheckMobAlternatives:            
+            self.bestMobilityChoice(earth)
             self.calculateConsequences(earth.market)
             self.util = self.evalUtility()
             

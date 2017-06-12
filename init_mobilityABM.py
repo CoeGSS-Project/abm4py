@@ -117,7 +117,7 @@ def scenarioTestSmall(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    
+    setup.omniscientAgents  = False   
     
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -138,10 +138,10 @@ def scenarioTestMedium(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps         = 360     # number of simulation steps
+    setup.nSteps         = 485     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 100
+    setup.burnIn         = 5
     
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -172,16 +172,16 @@ def scenarioTestMedium(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.newPeriod  = 24 # months
+    setup.newPeriod  = 18 # months
     setup.randomCarPropDeviationSTD = 0.01
     
     #agents
-    setup.util             = 'cobb'
+    setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    
+    setup.omniscientAgents  = False
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -199,10 +199,10 @@ def scenarioNiedersachsen(parameters):
     setup = Bunch()
     
     #time
-    setup.nSteps         = 340     # number of simulation steps
+    setup.nSteps         = 250     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 100
+    setup.burnIn         = 10
     
     #spatial
     setup.isSpatial     = True
@@ -247,7 +247,7 @@ def scenarioNiedersachsen(parameters):
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-
+    setup.omniscientAgents  = False
     
     
     
@@ -295,7 +295,7 @@ def mobilitySetup(earth, parameters):
     
     earth.initBrand('green',(250., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
     
-    earth.initBrand('other',(120., 80.), convienienceOther, 0, earth.para['initialOther'])  # none or other
+    earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
     return earth
     ##############################################################################
@@ -511,6 +511,7 @@ def generateNetwork(earth, parameters):
     
 def initMobilityTypes(earth, parameters):
     earth.market.initialCarInit()
+    earth.market.setInitialStatistics([1000.,5.,200.])
  
 def initGlobalRecords(earth, parameters):
     earth.registerRecord('stock', 'total use per mobility type', earth.enums['mobilityTypes'].values(), style ='plot')
@@ -568,7 +569,7 @@ def runModel(earth, parameters):
     print "Starting the simulation:"
     for step in xrange(parameters.nSteps):
         tt = time.time()
-        earth.step() # looping over all cells
+        earth.step2() # looping over all cells
         print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
         earth.writeAgentFile()
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
@@ -656,7 +657,19 @@ def setupHouseholdsWithOptimalChoice():
 
     householdSetup(earth, parameters)            
     initMobilityTypes(earth, parameters)    
-    earth.market.setInitialStatistics([500.0,10.0,200.0])
+    #earth.market.setInitialStatistics([500.0,10.0,200.0])
+    for household in tqdm.tqdm(earth.iterNodes(_hh)):    
+        household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
+
+    for cell in earth.iterNodes(_cell):
+        cell.step(earth.market.kappa) 
+    
+    earth.market.setInitialStatistics([1000.,5.,300.])
+
+    for household in tqdm.tqdm(earth.iterNodes(_hh)):
+        household.calculateConsequences(earth.market)
+        household.util = household.evalUtility()
+        
     for hh in iter(earth.nodeList[_hh]):
         oldEarth = copy(earth)
         earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)    
@@ -692,7 +705,7 @@ if __name__ == '__main__':
     #else:
         
  
-    parameters.scenario       = 4
+    parameters.scenario       = 1
     parameters.showFigures    = 1
 
         

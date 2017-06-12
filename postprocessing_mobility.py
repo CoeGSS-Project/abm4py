@@ -18,7 +18,7 @@ sns.set_color_codes("dark")
 
 plotRecords       = 0
 plotCarStockBar   = 1
-plotCarSales      = 0
+plotCarSales      = 1
 prefPerLabel      = 0
 utilPerLabel      = 1
 incomePerLabel    = 0
@@ -30,7 +30,7 @@ emissionsPerLabel = 1
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
-path = 'output/sim0632/'
+path = 'output/sim0112/'
 
 
 #%% init

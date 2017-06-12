@@ -285,9 +285,10 @@ if test == 3:
     print np.mean(propMat,axis=0)
 
 #%%
-nSteps = 100
-i=0
+
 if test == 4:
+    nSteps = 1
+    i=0
     nAg = 1000
     x = np.zeros([nAg])
     y = np.zeros([4,nAg])
