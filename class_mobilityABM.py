@@ -74,6 +74,14 @@ class Earth(World):
         if self.para['omniscientAgents']:
             self.step = self.stepOmniscient 
         
+        try: 
+            import git
+            repo = git.Repo(search_parent_directories=True)
+            self.para["gitVersionSHA"] = repo.head.object.hexsha
+        except:
+            print "Warning git version of the code not documented"
+            print "Please install gitpython using: pip install gitpython"
+        
         if not os.path.isdir('output'):
             os.mkdir('output')
         
@@ -275,6 +283,10 @@ class Earth(World):
 
         # saving enumerations            
         saveObj(self.enums, self.para['outPath'] + '/enumerations')
+        
+        
+        # saving enumerations            
+        saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
         
         if self.para['showFigures']:
             # plotting and saving figures

@@ -24,13 +24,15 @@ utilPerLabel      = 1
 incomePerLabel    = 0
 meanPrefPerLabel  = 1
 meanConsequencePerLabel = 1
-printCellMaps     = 0
+printCellMaps     = 1
 emissionsPerLabel = 1
 
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
-path = 'output/sim0112/'
+
+path = 'output/sim0818/'
+
 
 
 #%% init
