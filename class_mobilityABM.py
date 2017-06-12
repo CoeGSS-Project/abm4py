@@ -240,6 +240,10 @@ class Earth(World):
         # saving enumerations            
         saveObj(self.enums, self.para['outPath'] + '/enumerations')
         
+        
+        # saving enumerations            
+        saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
+        
         if self.para['showFigures']:
             # plotting and saving figures
             for key in self.globalData:

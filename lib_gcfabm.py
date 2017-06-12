@@ -724,9 +724,11 @@ class World:
         # saving agent files
         from class_auxiliary import saveObj
         for typ in self.agentRec.keys():
+       
             if self.para['writeNPY']:
                 np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
                 saveObj(self.agentRec[typ].attrIdx, (self.para['outPath'] + '/attributeList_type' + str(typ)))
+          
             if self.para['writeCSV']:
                 self.agentRec[typ].csvFile.close()
 ########################################################################################
