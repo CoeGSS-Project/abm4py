@@ -71,8 +71,8 @@ class Earth(World):
         # transfer all parameters to earth
         self.setParameters(Bunch.toDict(parameters))
         
-        #if self.para['omniscientAgents']:
-        #    self.step = self.stepOmniscient 
+        if self.para['omniscientBurnIn']>self.para['burnIn']:
+            self.para['omniscientBurnIn']=self.para['burnIn']
         
         try: 
             import git
@@ -224,7 +224,7 @@ class Earth(World):
         self.globalData['stock'].set(self.time,self.market.stockByMobType)
 
         # Iterate over households with a progress bar
-        if self.para['omniscientAgents'] or (self.time < self.para['burnIn'] and self.para['omniscientBurnIn']):       
+        if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
             for agent in tqdm.tqdm(self.iterNodes(_hh)):
                 #agent = self.agDict[agID]
                 agent.stepOmniscient(self)        
