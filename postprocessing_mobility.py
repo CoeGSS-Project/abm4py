@@ -31,7 +31,7 @@ withoutBurnIn = False
 years         = True                        # only applicable in plots without burn-in
 
 
-path = 'output/sim0818/'
+path = 'output/sim0912/'
 
 
 

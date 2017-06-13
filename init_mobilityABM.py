@@ -147,7 +147,7 @@ def scenarioTestMedium(parameters):
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
-    setup.connRadius    = 1.5      # radíus of cells that get an connection
+    setup.connRadius    = 2.5      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
                               [0, 1, 0, 0, 0, 1, 1, 1, 0],
                               [1, 1, 1, 0, 0, 1, 0, 0, 0],
@@ -161,7 +161,7 @@ def scenarioTestMedium(parameters):
     #social
     setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 100       # number of desired friends
+    setup.minFriends    = 50       # number of desired friends
     setup.memoryTime    = 20       # length of the periode for which memories are stored
     setup.utilObsError  = 1
     setup.recAgent      = []       # reporter agents that return a diary
@@ -559,7 +559,21 @@ def calGreenNeigbourhoodShareDist(earth):
         n, bins, patches = pl.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
                                 label=['brown', 'green', 'other'])
         pl.legend()
-    
+        
+def plotIncomePerNetwork(earth):        
+    #%%
+        import matplotlib.pylab as pl
+        
+        incomeList = np.zeros([len(earth.nodeList[_pers]),1])
+        for i, persId in enumerate(earth.nodeList[_pers]):
+            person = earth.entDict[persId]
+            x, friends = person.getConnNodeValues('mobType',_pers)
+            incomes = [earth.entDict[friend].hh.node['income'] for friend in friends]
+            incomeList[i,0] = np.mean(incomes)
+            
+        n, bins, patches = pl.hist(incomeList, 20, normed=0, histtype='bar',
+                                label=['average imcome '])
+        pl.legend()
     #%%
 def runModel(earth, parameters):
 
@@ -580,6 +594,7 @@ def runModel(earth, parameters):
         household.shareExperience(earth)
     print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
     
+    #plotIncomePerNetwork(earth)
     
     
     #%% Simulation 
@@ -589,9 +604,9 @@ def runModel(earth, parameters):
         tt = time.time()
         earth.step() # looping over all cells
         print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
-        plt.figure()
+        #plt.figure()
         #calGreenNeigbourhoodShareDist(earth)
-        plt.show()
+        #plt.show()
         tt = time.time()
         earth.writeAgentFile()
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
@@ -710,7 +725,7 @@ if __name__ == '__main__':
 #with PyCallGraph(output=GraphvizOutput()):
         
     parameters = Bunch() 
-    parameters.scenario       = 0
+    parameters.scenario       = 1
     parameters.showFigures    = 1
     
     
@@ -734,7 +749,7 @@ if __name__ == '__main__':
     parameters.showFigures    = 1
 
         
-    if parameters.scenario == 1:
+    if parameters.scenario in [0,1]:
         fileName = "parameters.csv"
     if parameters.scenario == 2:
         fileName = "parameters_nie.csv"

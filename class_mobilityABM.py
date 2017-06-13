@@ -544,17 +544,36 @@ class Person(Agent):
             agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.getValue('obsID'), world.time)
        
+#    def getObservationsMat(self, world, labelList):
+#        if len(self.obs) == 0:
+#            return None
+#        mat = np.zeros([0,len(labelList)])
+#        for key in self.obs.keys():
+#            idxList, timeList = self.obs[key]
+#            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
+#            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
+#            self.obs[key] = idxList, timeList
+#            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
+#        return mat
+    
     def getObservationsMat(self, world, labelList):
         if len(self.obs) == 0:
             return None
         mat = np.zeros([0,len(labelList)])
+        fullTimeList= list()
         for key in self.obs.keys():
             idxList, timeList = self.obs[key]
-            idxList = [x for x,y in zip(idxList,timeList) if world.time - y < world.memoryTime  ]
+            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
             timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
             self.obs[key] = idxList, timeList
+            
+            fullTimeList.extend(timeList)    
             mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
-        return mat
+        
+        fullTimeList = world.time - np.asarray(fullTimeList)    
+        weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
+        return mat, weights
+
 
     def tell(self, locID, obsID, time):
         if locID in self.obs:
@@ -631,6 +650,7 @@ class Person(Agent):
         #get spatial weights to all connected cells
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
         
+        
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
             
             personIds = world.entDict[cellIdx].getPersons()
@@ -659,9 +679,9 @@ class Person(Agent):
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         
-        weights = propWeigList * spatWeigList * spatWeigList
+        weights = propWeigList * spatWeigList
         weights = weights / np.sum(weights)
-        
+
         if len(weights)-1 < nFriends:
             print "reducting the number of friends"
         nFriends = min(len(weights)-1,nFriends)
@@ -687,7 +707,7 @@ class Person(Agent):
         if len(self.obs) == 0:
             return np.array([-1]), np.array(self.node['util'])
 
-        obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
+        obsMat, timeWeights    = self.getObservationsMat(world,['hhID', 'utility','label'])
        
         if obsMat.shape[0] == 0:
             return np.array([-1]), np.array(self.node['util'])
@@ -696,22 +716,24 @@ class Person(Agent):
         observedUtil          = observedActions*0
         observedUtil[0]       = self.node['util']              # utility of keeping old car = present utility
         
-        tmp = np.zeros([len(observedActions)-1,obsMat.shape[0]])
+        tmpWeights = np.zeros([len(observedActions)-1,obsMat.shape[0]])
         weighted = True
         
         if weighted:
                 
             weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+            
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(observedActions[1:]):
                 
-                tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
+                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
+                tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
         else:
             for i, id_ in enumerate(observedActions[1:]):
-                tmp[i,obsMat[:,-1] == id_] = 1
+                tmpWeights[i,obsMat[:,-1] == id_] = 1
             
-        avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
+        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
         #maxid = np.argmax(avgUtil)
         observedUtil[1:] = avgUtil
         return observedActions.tolist(), observedUtil.tolist()
@@ -1117,40 +1139,40 @@ class Household(Agent):
  
              
     
-    def optimalChoice(self,world):
-        """ 
-        Method for searching the optimal choice that lead to the highest
-        expected utility
-        return a_opt = arg_max (E(u(a)))
-        """
-        if len(self.obs) == 0:
-            return None, None
-
-        obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
-       
-        if obsMat.shape[0] == 0:
-            return None
-        
-        mobIDs       = np.unique(obsMat[:,-1])
-        
-        tmp = np.zeros([len(mobIDs),obsMat.shape[0]])
-        weighted = True
-        
-        if weighted:
-                
-            weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
-            target = [edge.target for edge in edges]
-            srcDict =  dict(zip(target,weights))
-            for i, id_ in enumerate(mobIDs):
-                
-                tmp[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
-        else:
-            for i, id_ in enumerate(mobIDs):
-                tmp[i,obsMat[:,-1] == id_] = 1
-            
-        avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
-        maxid = np.argmax(avgUtil)
-        return mobIDs[maxid], avgUtil[maxid]
+#    def optimalChoice(self,world):
+#        """ 
+#        Method for searching the optimal choice that lead to the highest
+#        expected utility
+#        return a_opt = arg_max (E(u(a)))
+#        """
+#        if len(self.obs) == 0:
+#            return None, None
+#
+#        obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
+#       
+#        if obsMat.shape[0] == 0:
+#            return None
+#        
+#        mobIDs       = np.unique(obsMat[:,-1])
+#        
+#        tmpWeights = np.zeros([len(mobIDs),obsMat.shape[0]])
+#        weighted = True
+#        
+#        if weighted:
+#                
+#            weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
+#            target = [edge.target for edge in edges]
+#            srcDict =  dict(zip(target,weights))
+#            for i, id_ in enumerate(mobIDs):
+#                
+#                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
+#        else:
+#            for i, id_ in enumerate(mobIDs):
+#                tmpWeights[i,obsMat[:,-1] == id_] = 1
+#            
+#        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
+#        maxid = np.argmax(avgUtil)
+#        return mobIDs[maxid], avgUtil[maxid]
     
 class Reporter(Household):
     
