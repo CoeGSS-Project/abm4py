@@ -79,15 +79,16 @@ def scenarioTestSmall(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps         = 340     # number of simulation steps
-    setup.timeUint       = _month  # unit of time per step
-    setup.startDate      = [01,2005]
-    setup.burnIn         = 30
-    
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUint         = _month  # unit of time per step
+    setup.startDate        = [01,2005]   
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+          
     #spatial
     setup.reductionFactor = 50000
-    setup.isSpatial     = True
-    setup.connRadius    = 2.1      # radíus of cells that get an connection
+    setup.isSpatial       = True
+    setup.connRadius      = 2.1      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
@@ -117,7 +118,7 @@ def scenarioTestSmall(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False   
+    setup.omniscientAgents = False
     
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -139,11 +140,12 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps         = 380     # number of simulation steps
-    setup.timeUint       = _month  # unit of time per step
-    setup.startDate      = [01,2005]
-    setup.burnIn         = 50
-    
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUint         = _month  # unit of time per step
+    setup.startDate        = [01,2005]   
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+        
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
@@ -182,7 +184,7 @@ def scenarioTestMedium(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False
+    setup.omniscientAgents = False
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -200,10 +202,11 @@ def scenarioNiedersachsen(parameters):
     setup = Bunch()
     
     #time
-    setup.nSteps         = 250     # number of simulation steps
-    setup.timeUint       = _month  # unit of time per step
-    setup.startDate      = [01,2005]
-    setup.burnIn         = 10
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUint         = _month  # unit of time per step
+    setup.startDate        = [01,2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
     
     #spatial
     setup.isSpatial     = True
@@ -248,8 +251,7 @@ def scenarioNiedersachsen(parameters):
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False
-    
+    setup.omniscientAgents = False    
     
     
     maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
@@ -294,7 +296,7 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(250., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(250., 400.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
     
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
@@ -512,7 +514,7 @@ def generateNetwork(earth, parameters):
     
 def initMobilityTypes(earth, parameters):
     earth.market.initialCarInit()
-    earth.market.setInitialStatistics([1000.,5.,200.])
+    earth.market.setInitialStatistics([1000.,2.,500.])
  
 def initGlobalRecords(earth, parameters):
     earth.registerRecord('stock', 'total use per mobility type', earth.enums['mobilityTypes'].values(), style ='plot')

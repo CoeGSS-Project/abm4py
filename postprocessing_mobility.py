@@ -27,7 +27,8 @@ meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
 
-withoutBurnIn = False 
+nBurnIn = 100
+withoutBurnIn = True 
 years         = True                        # only applicable in plots without burn-in
 
 
@@ -65,7 +66,7 @@ enums        = loadObj(path + 'enumerations')
 
 nSteps, nPers, nPersProp = persMat.shape
 nSteps, nHhs,  nHhProp   = hhMat.shape
-nBurnIn = 100
+
 
 nPrior = len(enums['priorities'])
 
