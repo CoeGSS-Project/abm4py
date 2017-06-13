@@ -817,23 +817,35 @@ class Household(Agent):
 
 
 
-    def calculateConsequences(self, market):     
+    def calculateConsequences(self, market):
         
+        carInHh = False
+        # at least one car in househould?
+        if any([adult.node['mobType'] !=2 for adult in self.adults]):       
+            carInHh = True
+            
         # calculate money consequence
         money = max(0, 1 - self.node['expenses'] /self.node['income'])
-        
+                
         for adult in self.adults:
+            hhCarBonus = 0.
             #get action of the person
             
             actionIdx = adult.node['mobType']
             mobProps = adult.node['prop']
-
+            if actionIdx != 2:
+                carInHh = True
+                
             # calculate convenience:
-            if adult.node['lastAction'] > 2*market.newPeriod:
+            if (adult.node['lastAction'] > 2*market.newPeriod) and (actionIdx != 2):
                 decay = math.exp(-(adult.node['lastAction'] - 2*market.newPeriod)**2)
             else:
                 decay = 1.
-            convenience = decay * self.loc.getValue('convenience')[actionIdx]                
+                
+            if (actionIdx == 2) and carInHh:
+                hhCarBonus = 0.2
+                
+            convenience = decay * self.loc.getValue('convenience')[actionIdx] + hhCarBonus               
             
             # calculate ecology:
             emissions = mobProps[0]

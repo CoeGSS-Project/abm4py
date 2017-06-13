@@ -140,10 +140,10 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps         = 250     # number of simulation steps
+    setup.nSteps         = 150     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 10
+    setup.burnIn         = 30
     
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -184,7 +184,7 @@ def scenarioTestMedium(parameters):
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
     setup.omniscientAgents = False
-    setup.omniscientBurnIn = True
+    setup.omniscientBurnIn = False
     
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
