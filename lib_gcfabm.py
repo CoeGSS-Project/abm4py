@@ -42,15 +42,7 @@ class Entity():
         self.type = nodeType     
     
         self.edges = dict()
-        
-        
-        if self.graph.doCaching:
-            # seting puplic method to the privat recaching method 
-            self.getEdgeValues = self._getEdgeValuesRecache
-        else:
-            # seting puplic method to the privat basic method 
-            self.getEdgeValues = self._getEdgeValuesBasic
-    
+            
     
     def getNeigbourhood(self, order):
         
@@ -65,10 +57,9 @@ class Entity():
         if not self.graph.are_connected(self.nID,friendID) and (self.nID,friendID) not in self.graph.edgeQueues[edgeType]:
             
             self.graph.queueEdge((self.nID,friendID), edgeType, propDict)
-
-            # seting puplic method to the privat recaching method 
-            self.getEdgeValues = self._getEdgeValuesRecache
-                
+            #self.graph.edgeQueue[0].append()
+            #self.graph.edgeQueue[1].append()
+    
     
     
     def addConnection(self, friendID, edgeType=0):
@@ -82,12 +73,11 @@ class Entity():
         self.updateEdges()
 
     def updateEdges(self):
+        #TODO re-think this approach            
         self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
         for typ in self.graph.edgeTypes:
             self.edges[typ] = self.edgesAll.select(type=typ)
         
-        # seting puplic method to the privat recaching method 
-        self.getEdgeValues = self._getEdgeValuesCached
     
     def _old1_setValue(self,prop,value):
         self.graph.vs[self.nID][prop] = value
@@ -118,8 +108,9 @@ class Entity():
         eIDSeq = self.graph.es.select(_source=self.nID).indices        
         self.graph.delete_edges(eIDSeq)
 
-    def _getEdgeValuesBasic(self, prop, edgeType = None, mode ='OUT'):
-        """Privat: Basic method of accessing edge properties"""
+    def getEdgeValues(self, prop, edgeType = None,mode ='OUT'):
+        #esSeq = self.graph.es.select(_source=self.nID,type=conTyp).indices
+        #return self.graph.es[esSeq][label]
         eList = self.graph.incident(self.nID,mode=mode) 
         if edgeType is not None:
             edges = list()
@@ -134,35 +125,11 @@ class Entity():
         edges = self.edges[edgeType]
         return edges
     
-    def _getEdgeValuesCached(self, prop, edgeType=0, mode ='OUT'):
-        """Privat: Fastest method to access edge properties"""
-        
-        if mode == 'OUT':
-            edges = self.edges[edgeType]
-            return edges[prop], edges
-        
-        elif mode == 'IN':
-        
-            # IN mode required basic func call
-            return self._getEdgeValuesBasic(self, prop, edgeType =edgeType, mode = mode)
-    
-    def _getEdgeValuesRecache(self, prop, edgeType=0, mode ='OUT'):
-        """Privat: Method that caches the edges before accessing the values"""
-        
-        if mode == 'OUT':
-            self.updateEdges()
-            
-            edges = self.edges[edgeType]
-            return edges[prop], edges
-        
-        elif mode == 'IN':
-            # IN mode required basic func call
-            return self._getEdgeValuesBasic(self, prop, edgeType =edgeType, mode = mode)
-            
-    
-    
-    
+    def getEdgeValuesFast(self, prop, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges[prop], edges
 
+    
     def _old3_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
         if edgeType is not None:
             edges = self.graph.es[self.graph.incident(self.nID,mode)]
@@ -230,6 +197,18 @@ class Entity():
                 values.append(node[prop])
         
         return values, neighbourIDs
+    
+    def getConnNodeValuesNew(self, prop, nodeType=0, mode='out'):
+        nodeList = self.node.neighbors(mode=mode, type=nodeType)
+        neighbourIDs     = list()
+        values          = list()
+
+        for node in nodeList:
+            neighbourIDs.append(node['name'])   
+            values.append(node[prop])
+        
+        return values, neighbourIDs
+    
     
     def _old2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
         neighIDs = self.graph.neighborhood(self.nID)
@@ -323,14 +302,10 @@ class Agent(Entity):
     
 class World:
     
-    def __init__(self,spatial=False, caching =True):
+    def __init__(self,spatial=False):
         self.spatial  = spatial
         self.graph    = ig.Graph(directed=True)
-        if caching:
-            self.graph.doCaching = True
-            self.graph.queueEdge = self.queueEdge
-        else:
-            self.graph.doCaching = False
+        self.graph.queueEdge = self.queueEdge
         self.nodeList = dict()    
         self.graph.nodeProperies = dict()
         self.entList   = list()
@@ -601,14 +576,7 @@ class World:
         for propKey in propDict.keys():
             self.graph.edgePropQueues[edgeType][propKey].append(propDict[propKey])
         
-#    def queueNode(self, nodeID, nodeType, propDict):
-#        self.graph.nodeQueues[nodeType].append(nodeID)
-#        self.graph.nodePropQueues[nodeType]['type'].append(nodeType)
-#        
-#        for propKey in propDict.keys():
-#            self.graph.nodePropQueues[nodeType][propKey].append(propDict[propKey])
-
-        
+       
     def dequeueEdges(self, edgeType):
         eStart = self.graph.ecount()
         self.graph.add_edges(self.graph.edgeQueues[edgeType])
@@ -726,7 +694,7 @@ class World:
                     self.agentRec[typ].attrIdx[attr] = [self.agentRec[typ].nAttr]
                 self.agentRec[typ].nAttr += nProp
                 self.agentRec[typ].header += [attr]*nProp
-                        
+        
         if self.para['writeNPY']:
             self.agentRec[typ].recordNPY = np.zeros([self.nSteps, nAgents,self.agentRec[typ].nAttr ])
         if self.para['writeCSV']:
@@ -773,4 +741,5 @@ class World:
 ########################################################################################
 #  END OF CLASS DESCRIPTION
 ########################################################################################
+
 

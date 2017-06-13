@@ -218,10 +218,11 @@ class Earth(World):
         #loop over cells
         for cell in self.iterNodes(_cell):
             cell.step(self.market.kappa)
-        
+
+
         #update global data
         self.globalData['stock'].set(self.time,self.market.stockByMobType)
-        
+
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['burnIn'] and self.para['omniscientBurnIn']):       
             for agent in tqdm.tqdm(self.iterNodes(_hh)):
@@ -236,7 +237,7 @@ class Earth(World):
             adult.weightFriendExperience(self)   
         
         # proceed step
-        self.writeAgentFile()
+        #self.writeAgentFile()
 
         
     def finalize(self):
@@ -657,7 +658,6 @@ class Person(Agent):
         return all possible actions with their expected consequences
         """
 
-        #from operator import itemgetter
         if len(self.obs) == 0:
             return np.array([-1]), np.array(self.node['util'])
 
@@ -675,7 +675,7 @@ class Person(Agent):
         
         if weighted:
                 
-            weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(observedActions[1:]):
@@ -688,7 +688,7 @@ class Person(Agent):
         avgUtil = np.dot(obsMat[:,1],tmp.T) / np.sum(tmp,axis=1)
         #maxid = np.argmax(avgUtil)
         observedUtil[1:] = avgUtil
-        return observedActions, observedUtil
+        return observedActions.tolist(), observedUtil.tolist()
 
     
 
@@ -949,7 +949,7 @@ class Household(Agent):
 
         for iAdult, adult in enumerate(self.adults):
             
-            if adult.node['lastAction']> earth.para['newPeriod']:
+            if adult.node['lastAction'] > earth.para['newPeriod'] or (earth.time < earth.para['burnIn']):
                 actionIds, eUtils = adult.getExpectedUtility(earth)
             else:
                 actionIds, eUtils = [-1], [adult.node['util']]
@@ -962,6 +962,16 @@ class Household(Agent):
         
         if len(actionIdsList) == 0:
             return None, None, None
+        
+        elif len(actionIdsList) > 7:                            # to avoid the problem of too many possibilities (if more than 7 adults)
+            minNoAction = len(actionIdsList) - 7              # minum number of adults not to take action    
+            #import pdb
+            #pdb.set_trace()
+            while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
+                randIdx = np.random.randint(len(actionIdsList))
+                actionIdsList[randIdx] = [-1]
+                eUtilsList[randIdx] = [ eUtilsList[randIdx][0] ]
+            #print 'large Household'
         
         combActions = cartesian(actionIdsList)
         overallUtil = np.sum(cartesian(eUtilsList),axis=1)
@@ -1090,7 +1100,6 @@ class Household(Agent):
         expected utility
         return a_opt = arg_max (E(u(a)))
         """
-        from operator import itemgetter
         if len(self.obs) == 0:
             return None, None
 
@@ -1106,7 +1115,7 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getEdgeValues('weig', edgeType=_chh) 
+            weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(mobIDs):
@@ -1162,12 +1171,17 @@ class Cell(Location):
         self.currDelList = list()
         self.obsMemory   = Memory(memeLabels)
 
-        
+
     def getConnCellsPlus(self):
-        self.weights, edges = self.getEdgeValues('weig',edgeType=_cll, mode='OUT')
-        self.connNodeList = [edge.target for edge in edges ]
-        return self.weights, edges.indices, self.connNodeList
-    
+         self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
+         self.connNodeList = [edge.target for edge in edges ]
+         return self.weights, edges.indices, self.connNodeList    
+ 
+    def _getConnCellsPlusOld(self):
+         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
+         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
+         return self.weights, self.eIDs, self.connNodeList
+
     
     def getHHs(self):
         return self.hhList
