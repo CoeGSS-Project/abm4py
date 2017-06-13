@@ -218,9 +218,10 @@ class Earth(World):
         #loop over cells
         for cell in self.iterNodes(_cell):
             cell.step(self.market.kappa)
-        
+
+
         #update global data
-        self.globalData['stock'].set(self.time,self.market.stockbyMobType)
+        self.globalData['stock'].set(self.time,self.market.stockByMobType)
         
         # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
@@ -683,7 +684,7 @@ class Person(Agent):
         return all possible actions with their expected consequences
         """
 
-        from operator import itemgetter
+        
         if len(self.obs) == 0:
             return np.array([-1]), np.array(self.node['util'])
 
@@ -1184,12 +1185,17 @@ class Cell(Location):
         self.currDelList = list()
         self.obsMemory   = Memory(memeLabels)
 
-        
+
     def getConnCellsPlus(self):
+        self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
+        self.connNodeList = [edge.target for edge in edges ]
+        return self.weights, edges.indices, self.connNodeList    
+
+    def _getConnCellsPlusOld(self):
         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connNodeList
-    
+
     
     def getHHs(self):
         return self.hhList

@@ -197,6 +197,18 @@ class Entity():
         
         return values, neighbourIDs
     
+    def getConnNodeValuesNew(self, prop, nodeType=0, mode='out'):
+        nodeList = self.node.neighbors(mode=mode, type=nodeType)
+        neighbourIDs     = list()
+        values          = list()
+
+        for node in nodeList:
+            neighbourIDs.append(node['name'])   
+            values.append(node[prop])
+        
+        return values, neighbourIDs
+    
+    
     def _old2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
         neighIDs = self.graph.neighborhood(self.nID)
         
