@@ -129,6 +129,7 @@ class Entity():
         edges = self.edges[edgeType]
         return edges[prop], edges
 
+    
     def _old3_getEdgeValues(self, prop, edgeType=0, mode="OUT"):
         if edgeType is not None:
             edges = self.graph.es[self.graph.incident(self.nID,mode)]
@@ -575,14 +576,7 @@ class World:
         for propKey in propDict.keys():
             self.graph.edgePropQueues[edgeType][propKey].append(propDict[propKey])
         
-#    def queueNode(self, nodeID, nodeType, propDict):
-#        self.graph.nodeQueues[nodeType].append(nodeID)
-#        self.graph.nodePropQueues[nodeType]['type'].append(nodeType)
-#        
-#        for propKey in propDict.keys():
-#            self.graph.nodePropQueues[nodeType][propKey].append(propDict[propKey])
-
-        
+       
     def dequeueEdges(self, edgeType):
         eStart = self.graph.ecount()
         self.graph.add_edges(self.graph.edgeQueues[edgeType])
@@ -747,4 +741,5 @@ class World:
 ########################################################################################
 #  END OF CLASS DESCRIPTION
 ########################################################################################
+
 

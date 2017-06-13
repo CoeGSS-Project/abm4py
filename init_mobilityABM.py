@@ -82,7 +82,7 @@ def scenarioTestSmall(parameters):
     setup.nSteps         = 340     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 100
+    setup.burnIn         = 30
     
     #spatial
     setup.reductionFactor = 50000
@@ -139,10 +139,10 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps         = 485     # number of simulation steps
+    setup.nSteps         = 380     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 5
+    setup.burnIn         = 50
     
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -182,7 +182,7 @@ def scenarioTestMedium(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = True
+    setup.omniscientAgents  = False
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -207,7 +207,7 @@ def scenarioNiedersachsen(parameters):
     
     #spatial
     setup.isSpatial     = True
-    setup.connRadius    = 1.5      # radíus of cells that get an connection
+    setup.connRadius    = 2.1      # radíus of cells that get an connection
     setup.reductionFactor = 200
     setup.landLayer= gt.load_array_from_tiff(parameters.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
@@ -543,7 +543,24 @@ def initAgentOutput(earth):
     earth.initAgentFile(typ = _cell)
     print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
     
+
+def calGreenNeigbourhoodShareDist(earth):
     
+    #%%
+    import matplotlib.pylab as pl
+    
+    relarsPerNeigborhood = np.zeros([len(earth.nodeList[_pers]),3])
+    for i, persId in enumerate(earth.nodeList[_pers]):
+        person = earth.entDict[persId]
+        x,__ = person.getConnNodeValues('mobType',_pers)
+        for mobType in range(3):
+            relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
+        
+    n, bins, patches = pl.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
+                            label=['brown', 'green', 'other'])
+    pl.legend()
+    
+    #%%
 def runModel(earth, parameters):
 
     #%% Initial actions
@@ -572,6 +589,10 @@ def runModel(earth, parameters):
         tt = time.time()
         earth.step() # looping over all cells
         print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
+        plt.figure()
+        calGreenNeigbourhoodShareDist(earth)
+        plt.show()
+        tt = time.time()
         earth.writeAgentFile()
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
         
@@ -683,8 +704,11 @@ def setupHouseholdsWithOptimalChoice():
 ######################################################################################
 
 if __name__ == '__main__':
-    
-    
+#from pycallgraph import PyCallGraph
+#from pycallgraph.output import GraphvizOutput
+#
+#with PyCallGraph(output=GraphvizOutput()):
+        
     parameters = Bunch() 
     parameters.scenario       = 1
     parameters.showFigures    = 1
