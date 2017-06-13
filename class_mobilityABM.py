@@ -221,8 +221,8 @@ class Earth(World):
 
 
         #update global data
-        self.globalData['stock'].set(self.time,self.market.stockByMobType)
-        
+        self.globalData['stock'].set(self.time, self.market.stockByMobType)
+
         # Iterate over households with a progress bar
         for agent in tqdm.tqdm(self.iterNodes(_hh)):
             #agent = self.agDict[agID]
@@ -540,7 +540,7 @@ class Person(Agent):
 
         
         # tell agents that are friends with you - not your friends ("IN")
-        for neig in self.getConnNodeIDs( _pers, 'in'):
+        for neig in self.getConnNodeIDs( _pers, 'IN'):
             agent = world.entDict[neig]
             agent.tell(self.loc.nID,self.getValue('obsID'), world.time)
        
@@ -684,7 +684,6 @@ class Person(Agent):
         return all possible actions with their expected consequences
         """
 
-        
         if len(self.obs) == 0:
             return np.array([-1]), np.array(self.node['util'])
 
@@ -907,7 +906,7 @@ class Household(Agent):
                         adult.node['lastAction'] = oldLastAction[adultIdx]
                     else:
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                        adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
+                        adult.node['prop']    = market.mobilityProp[adult.node['mobType']]
                         adult.node['lastAction'] = 0                    
                     self.node['expenses'] += adult.node['prop'][1]
                 
@@ -1124,7 +1123,6 @@ class Household(Agent):
         expected utility
         return a_opt = arg_max (E(u(a)))
         """
-        from operator import itemgetter
         if len(self.obs) == 0:
             return None, None
 
@@ -1176,6 +1174,7 @@ class Cell(Location):
         self.cellSize = 1.
         self.setValue('population', 0)
         self.setValue('convenience', [0,0,0])
+        self.setValue('carsInCell', [0,0,0])
         self.urbanThreshold = earth.para['urbanThreshold']
         
         self.conveniences = list()
@@ -1197,14 +1196,14 @@ class Cell(Location):
 
 
     def getConnCellsPlus(self):
-        self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
-        self.connNodeList = [edge.target for edge in edges ]
-        return self.weights, edges.indices, self.connNodeList    
-
+         self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
+         self.connNodeList = [edge.target for edge in edges ]
+         return self.weights, edges.indices, self.connNodeList    
+ 
     def _getConnCellsPlusOld(self):
-        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
-        self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
-        return self.weights, self.eIDs, self.connNodeList
+         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
+         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
+         return self.weights, self.eIDs, self.connNodeList
 
     
     def getHHs(self):

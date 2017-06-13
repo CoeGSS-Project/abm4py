@@ -545,20 +545,20 @@ def initAgentOutput(earth):
     
 
 def calGreenNeigbourhoodShareDist(earth):
-    
-    #%%
-    import matplotlib.pylab as pl
-    
-    relarsPerNeigborhood = np.zeros([len(earth.nodeList[_pers]),3])
-    for i, persId in enumerate(earth.nodeList[_pers]):
-        person = earth.entDict[persId]
-        x,__ = person.getConnNodeValues('mobType',_pers)
-        for mobType in range(3):
-            relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
+    if parameters.showFigures:
+        #%%
+        import matplotlib.pylab as pl
         
-    n, bins, patches = pl.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
-                            label=['brown', 'green', 'other'])
-    pl.legend()
+        relarsPerNeigborhood = np.zeros([len(earth.nodeList[_pers]),3])
+        for i, persId in enumerate(earth.nodeList[_pers]):
+            person = earth.entDict[persId]
+            x,__ = person.getConnNodeValues('mobType',_pers)
+            for mobType in range(3):
+                relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
+            
+        n, bins, patches = pl.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
+                                label=['brown', 'green', 'other'])
+        pl.legend()
     
     #%%
 def runModel(earth, parameters):
@@ -590,7 +590,7 @@ def runModel(earth, parameters):
         earth.step() # looping over all cells
         print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
         plt.figure()
-        calGreenNeigbourhoodShareDist(earth)
+        #calGreenNeigbourhoodShareDist(earth)
         plt.show()
         tt = time.time()
         earth.writeAgentFile()
@@ -710,7 +710,7 @@ if __name__ == '__main__':
 #with PyCallGraph(output=GraphvizOutput()):
         
     parameters = Bunch() 
-    parameters.scenario       = 1
+    parameters.scenario       = 0
     parameters.showFigures    = 1
     
     
