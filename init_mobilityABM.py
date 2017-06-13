@@ -117,7 +117,8 @@ def scenarioTestSmall(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False   
+    setup.omniscientAgents = False
+    setup.omniscientBurnIn = False
     
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -139,10 +140,10 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps         = 485     # number of simulation steps
+    setup.nSteps         = 250     # number of simulation steps
     setup.timeUint       = _month  # unit of time per step
     setup.startDate      = [01,2005]
-    setup.burnIn         = 5
+    setup.burnIn         = 10
     
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -182,8 +183,9 @@ def scenarioTestMedium(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = True
-
+    setup.omniscientAgents = False
+    setup.omniscientBurnIn = True
+    
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
     maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
@@ -248,8 +250,8 @@ def scenarioNiedersachsen(parameters):
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents  = False
-    
+    setup.omniscientAgents = False
+    setup.omniscientBurnIn = False    
     
     
     maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
@@ -294,7 +296,7 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(250., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(250., 400.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
     
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             

@@ -71,8 +71,8 @@ class Earth(World):
         # transfer all parameters to earth
         self.setParameters(Bunch.toDict(parameters))
         
-        if self.para['omniscientAgents']:
-            self.step = self.stepOmniscient 
+        #if self.para['omniscientAgents']:
+        #    self.step = self.stepOmniscient 
         
         try: 
             import git
@@ -220,53 +220,24 @@ class Earth(World):
             cell.step(self.market.kappa)
         
         #update global data
-        self.globalData['stock'].set(self.time,self.market.stockbyMobType)
+        self.globalData['stock'].set(self.time,self.market.stockByMobType)
         
         # Iterate over households with a progress bar
-        for agent in tqdm.tqdm(self.iterNodes(_hh)):
-            #agent = self.agDict[agID]
-            agent.step(self)
-        
+        if self.para['omniscientAgents'] or (self.time < self.para['burnIn'] and self.para['omniscientBurnIn']):       
+            for agent in tqdm.tqdm(self.iterNodes(_hh)):
+                #agent = self.agDict[agID]
+                agent.stepOmniscient(self)        
+        else:
+            for agent in tqdm.tqdm(self.iterNodes(_hh)):
+                #agent = self.agDict[agID]
+                agent.step(self)
+            
         for adult in tqdm.tqdm(self.iterNodes(_pers)):
             adult.weightFriendExperience(self)   
         
         # proceed step
         self.writeAgentFile()
 
-    def stepOmniscient(self):
-        """ 
-        Method to proceed the next time step
-        """
-        self.time += 1
-        
-        # progressing time
-        if self.timeUnit == 1: #months
-            self.date[0] += 1  
-            if self.date[0] == 13:
-                self.date[0] = 1
-                self.date[1] += 1
-        elif self.timeUnit == 1: # years
-            self.date[1] +=1
-            
-        
-        # proceed market in time
-        self.market.step() # Statistics are computed here
-                
-        #loop over cells
-        for cell in self.iterNodes(_cell):
-            cell.step(self.market.kappa)
-        
-        #update global data
-        self.globalData['stock'].set(self.time,self.market.stockByMobType)
-        
-        # Iterate over households with a progress bar
-        for agent in tqdm.tqdm(self.iterNodes(_hh)):
-            #agent = self.agDict[agID]
-            agent.stepOmniscient(self)
-
-        # proceed step
-        self.writeAgentFile()        
-                
         
     def finalize(self):
         
@@ -428,8 +399,8 @@ class Market():
             
     def computeTechnicalProgress(self):
             # calculate growth rates per brand:
-            #oldCarsPerLabel = copy.copy(self.carsPerLabel)
-            #self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
+            # oldCarsPerLabel = copy.copy(self.carsPerLabel)
+            # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
             for i in range(self.nMobTypes):
                 if not self.allTimeProduced[i] == 0.:
                     newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
@@ -481,24 +452,27 @@ class Market():
         #remove brand from the market
         del self.mobilityProp[label]
     
-    def buyCar(self, mobType, eID):
+    def currentCarProperties(self, mobTypeIdx):
+        eta = self.techProgress[int(mobTypeIdx)]
         # draw the actual car property with a random component
-        eta = self.techProgress[int(mobType)]
-        #print eta
-        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobType], (1 + np.random.randn(self.nProp)*self.propRelDev))]
+        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobTypeIdx], (1 + np.random.randn(self.nProp)*self.propRelDev))]
+        return prop
+    
+    def buyCar(self, mobTypeIdx, eID):
+        prop = self.currentCarProperties(mobTypeIdx)
         if self.time > self.burnIn:
-            self.sales[int(mobType)] += 1
+            self.sales[int(mobTypeIdx)] += 1
             
         if len(self.freeSlots) > 0:
             mobID = self.freeSlots.pop()
-            self.stock[mobID] = [mobType] + prop
-            self.owners[mobID] = (eID, mobType)
+            self.stock[mobID] = [mobTypeIdx] + prop
+            self.owners[mobID] = (eID, mobTypeIdx)
         else:
-            self.stock = np.vstack(( self.stock, [mobType] + prop))
-            self.owners.append((eID, mobType))
+            self.stock = np.vstack(( self.stock, [mobTypeIdx] + prop))
+            self.owners.append((eID, mobTypeIdx))
             mobID = len(self.owners)-1
         #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] += 1
-        self.stockByMobType[int(mobType)] += 1
+        self.stockByMobType[int(mobTypeIdx)] += 1
         #self.computeStatistics()
         
         return mobID, prop
@@ -877,11 +851,6 @@ class Household(Agent):
     def bestMobilityChoice(self, earth, forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
         market = earth.market
         if len(self.adults) > 0 :
-        #    try:
-        #        combinedActions = cartesian(actionsList)
-        #    except:
-        #        import pdb
-        #        pdb.set_trace()
             combinedActions = self.possibleActions(earth, forcedTryAll)            
             utilities = list()
             
@@ -906,7 +875,7 @@ class Household(Agent):
                         adult.node['lastAction'] = oldLastAction[adultIdx]
                     else:
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                        adult.node['prop'] = market.mobilityProp[adult.node['mobType']]
+                        adult.node['prop'] = market.currentCarProperties(adult.node['mobType'])
                         adult.node['lastAction'] = 0                    
                     self.node['expenses'] += adult.node['prop'][1]
                 
@@ -936,10 +905,6 @@ class Household(Agent):
                 self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)     
                 self.calculateConsequences(market)
                 self.util = self.evalUtility()
-#            else:
-                #print utilities[bestUtilIdx]                
-                #print oldUtil
-                #print oldMobType
               
         else:
             pass
@@ -951,11 +916,11 @@ class Household(Agent):
         
         for adultIdx, adult in enumerate(self.adults):
             if forcedTryAll or (adult.node['lastAction'] > earth.para['newPeriod']) or (earth.time < earth.para['burnIn']):
-                actionsList.append(range(nMobTypes))
+                actionsList.append([-1]+range(nMobTypes))
             else:
                 actionsList.append([-1])
-        if len(actionsList) > 7:                            # to avoid the problem of too many possibilities (if more than 7 adults)
-            minNoAction = len(actionsList) - 7              # minum number of adults not to take action    
+        if len(actionsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
+            minNoAction = len(actionsList) - 6              # minum number of adults not to take action    
             while len(filter(lambda x: x == [-1], actionsList)) < minNoAction:
                 randIdx = np.random.randint(len(actionsList))
                 actionsList[randIdx] = [-1]
