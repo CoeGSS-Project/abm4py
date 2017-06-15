@@ -83,7 +83,7 @@ def scenarioTestSmall(parameters):
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
     setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
           
     #spatial
     setup.reductionFactor = 50000
@@ -146,6 +146,7 @@ def scenarioTestMedium(parameters):
     setup.startDate        = [01,2005]   
     setup.burnIn           = 100
     setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+
         
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -298,8 +299,8 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(380., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
-    
+    earth.initBrand('green',(380., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+ 
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
     return earth

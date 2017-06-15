@@ -741,7 +741,7 @@ class Household(Agent):
     
     def CESUtil(self, x,alpha):
         uti = 0
-        s = 3.5    # elasticity of substitution        
+        s = 2    # elasticity of substitution        
         for i in range(len(x)):
             uti += alpha[i]**(1/s)*x[i]**((s-1)/s)             
         utility = uti**(s/(s-1))
@@ -991,7 +991,7 @@ class Household(Agent):
             while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
                 randIdx = np.random.randint(len(actionIdsList))
                 actionIdsList[randIdx] = [-1]
-                eUtilsList[randIdx] = [ eUtilsList[randIdx][0] ]
+                eUtilsList[randIdx] =  [adult.node['util']]#[ eUtilsList[randIdx][0] ]
             #print 'large Household'
         
         combActions = cartesian(actionIdsList)
@@ -1273,28 +1273,6 @@ class Cell(Location):
         self.setValue('convenience', convAll)
         self.trafficMixture()
 
-
-    def step2(self, kappa):
-        """
-        Manages the deletion og observation after a while
-        """
-        self.kappa = kappa
-        #self.deleteQueue.append(self.currDelList) # add current list to the queue for later
-        #delList = self.deleteQueue.popleft()      # takes the list to delete
-        #for obsID in delList:
-        #    self.obsMemory.remMeme(obsID)         # removes the obs from memory
-        #self.currDelList = list()                 # restarts the list for the next step
-        
-        #write cell traffic to graph
-        if len(self.traffic.values()) > 1:
-            self.setValue('carsInCell', tuple(self.traffic.values()))
-        else:
-            self.setValue('carsInCell', self.traffic.values()[0])
-            
-        convAll = self.calculateConveniences()
-        self.setValue('convenience', convAll)
-        self.trafficMixture()
-        
     
     def registerObs(self, hhID, prop, util, label):
         """
