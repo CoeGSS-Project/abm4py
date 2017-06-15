@@ -109,8 +109,9 @@ def scenarioTestSmall(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.newPeriod  = 24 # months
+    setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
+    setup.puplicTransBonus = 10
     
     #agents
     setup.util             = 'cobb'
@@ -144,7 +145,7 @@ def scenarioTestMedium(parameters):
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
     setup.burnIn           = 100
-    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
         
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
@@ -175,8 +176,9 @@ def scenarioTestMedium(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.newPeriod  = 18 # months
+    setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
+    setup.puplicTransBonus = 20
     
     #agents
     setup.util             = 'ces'
@@ -206,12 +208,12 @@ def scenarioNiedersachsen(parameters):
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]
     setup.burnIn           = 100
-    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
     
     #spatial
     setup.isSpatial     = True
-    setup.connRadius    = 2.1      # radíus of cells that get an connection
-    setup.reductionFactor = 200
+    setup.connRadius    = 2.5      # radíus of cells that get an connection
+    setup.reductionFactor = 200.
     setup.landLayer= gt.load_array_from_tiff(parameters.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = setup.landLayer.astype(int)
@@ -231,7 +233,7 @@ def scenarioNiedersachsen(parameters):
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.minFriends    = 50       # number of desired friends
-    setup.memoryTime    = 12       # length of the periode for which memories are stored
+    setup.memoryTime    = 20       # length of the periode for which memories are stored
     setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
@@ -242,9 +244,9 @@ def scenarioNiedersachsen(parameters):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.newPeriod  = 24 # months
+    setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-
+    setup.puplicTransBonus = 30
     
     #agents
     setup.util             = 'ces'
@@ -252,7 +254,7 @@ def scenarioNiedersachsen(parameters):
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
     setup.omniscientAgents = False    
-    
+    setup.incomeShareForMobility = 0.2
     
     maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
     minCarConvenience = 1 + parameters.kappa
@@ -290,13 +292,13 @@ def mobilitySetup(earth, parameters):
         return conv
     
     def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold)))
+        conv = paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold + cell.puplicTransBonus)))
         return conv
     
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(250., 400.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(380., 500.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
     
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
@@ -338,6 +340,7 @@ def householdSetup(earth, parameters, calibration=False):
     for x,y in tqdm.tqdm(earth.locDict.keys()):
         #print x,y
         nAgentsCell = int(parameters.population[x,y])
+        #print nAgentsCell
         while True:
              
             #creating persons as agents
@@ -611,6 +614,7 @@ def runModel(earth, parameters):
         #plt.show()
         tt = time.time()
         earth.writeAgentFile()
+        
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
         
     
@@ -619,10 +623,13 @@ def runModel(earth, parameters):
     if parameters.writeOutput:
         earth.finalizeAgentFile()
     earth.finalize()        
-
+    
 
 def evaluateError(earth):
     err = earth.globalData['stock'].evaluateRelativeError()
+    fid = open(earth.para['outPath'] + '/error','w')
+    fid.writelines(str(err))
+    fid.close()
     print 'The simulation error is: ' + str(err) 
 
 def onlinePostProcessing(earth):
@@ -717,7 +724,8 @@ def setupHouseholdsWithOptimalChoice():
 
 
 #%%###################################################################################
-########## Run of the simulation model ###############################################   
+########## 
+   
 ######################################################################################
 
 if __name__ == '__main__':
@@ -727,11 +735,7 @@ if __name__ == '__main__':
 #with PyCallGraph(output=GraphvizOutput()):
         
     parameters = Bunch() 
-    parameters.scenario       = 1
-    parameters.showFigures    = 1
-    
-    
-    
+
     dirPath = os.path.dirname(os.path.realpath(__file__))
     # got csv file containing parameters
     if len(sys.argv) > 1:
@@ -804,6 +808,11 @@ if __name__ == '__main__':
             earth.view('output/graph.png')
       
         #%% run of the model ################################################
+        print '####### Running model with paramertes: #########################'
+        import pprint 
+        pprint.pprint(parameters.toDict())
+        print '################################################################'
+        
         runModel(earth, parameters)
         
         if earth.para['showFigures']:

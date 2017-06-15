@@ -13,6 +13,8 @@ import numpy as np
 import os
 import sys
 sys.path.append('/media/sf_shared/python/modules/biokit')
+sys.path.append('/home/geiges/database/modules/folium/')
+sys.path.append('/home/geiges/database/')
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
@@ -28,11 +30,11 @@ printCellMaps     = 1
 emissionsPerLabel = 1
 
 nBurnIn = 100
-withoutBurnIn = True 
+withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
 
-path = 'output/sim0912/'
+path = 'output/sim0931/'
 
 
 
@@ -372,7 +374,7 @@ if emissionsPerLabel:
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
     plt.legend(legStr,loc=0)    
 
-plt.show()
+#plt.show()
 #%% loading cell agent file
 
 
@@ -443,7 +445,8 @@ if printCellMaps:
     foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
     from branca.utilities import color_brewer
     cols = color_brewer('YlGn',6)
-    cmap = folium.LinearColormap(cols,index = minmax, caption='test')
+    cmap = folium.LinearColormap(cols,vmin=float(minmax[0]),vmax=float(minmax[1]), caption='Electric car share')
+    
     foMap.map.add_child(cmap)
     foMap.view()
     #%%

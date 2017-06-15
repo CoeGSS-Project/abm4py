@@ -51,7 +51,7 @@ _pers = 3
 
 #%% --- Global classes ---
 class Earth(World):
-    
+
     def __init__(self, parameters):
         
         World.__init__(self, parameters.isSpatial)
@@ -299,7 +299,7 @@ class Market():
         self.stdDist            = 1.
         self.innovationWeig     = [1- earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]
         self.allTimeProduced    = list()                   # list of previous produced numbers -> for technical progress
-        self.newPeriod          = earth.para['mobNewPeriod']
+        self.mobNewPeriod          = earth.para['mobNewPeriod']
         self.innoDevRange       = earth.para['innoDevRange']
         
     def getNTypes(self):
@@ -329,6 +329,7 @@ class Market():
         else:
             self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
             self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+        
         distances = list()         
         for mobID in range(len(self.stock)):
             properties = self.stock[mobID,1:]
@@ -740,7 +741,7 @@ class Household(Agent):
     
     def CESUtil(self, x,alpha):
         uti = 0
-        s = 2.    # elasticity of substitution        
+        s = 3.5    # elasticity of substitution        
         for i in range(len(x)):
             uti += alpha[i]**(1/s)*x[i]**((s-1)/s)             
         utility = uti**(s/(s-1))
@@ -818,7 +819,7 @@ class Household(Agent):
             person.node['prop']      = properties
             person.node['obsID']     = None
             if earth.time <  earth.para['burnIn']:
-                person.node['lastAction'] = np.random.randint(0, 2*earth.para['newPeriod'])
+                person.node['lastAction'] = np.random.randint(0, 2*earth.para['mobNewPeriod'])
             else:
                 person.node['lastAction'] = 0
             # add cost of mobility to the expenses
@@ -855,12 +856,10 @@ class Household(Agent):
             
             actionIdx = adult.node['mobType']
             mobProps = adult.node['prop']
-            if actionIdx != 2:
-                carInHh = True
                 
             # calculate convenience:
-            if (adult.node['lastAction'] > 2*market.newPeriod) and (actionIdx != 2):
-                decay = math.exp(-(adult.node['lastAction'] - 2*market.newPeriod)**2)
+            if (adult.node['lastAction'] > 2*market.mobNewPeriod) and (actionIdx != 2):
+                decay = math.exp(-(adult.node['lastAction'] - 2*market.mobNewPeriod)**2)
             else:
                 decay = 1.
                 
@@ -949,7 +948,7 @@ class Household(Agent):
         nMobTypes = earth.market.nMobTypes
         
         for adultIdx, adult in enumerate(self.adults):
-            if forcedTryAll or (adult.node['lastAction'] > earth.para['newPeriod']) or (earth.time < earth.para['burnIn']):
+            if forcedTryAll or (adult.node['lastAction'] > earth.para['mobNewPeriod']) or (earth.time < earth.para['burnIn']):
                 actionsList.append([-1]+range(nMobTypes))
             else:
                 actionsList.append([-1])
@@ -971,7 +970,7 @@ class Household(Agent):
 
         for iAdult, adult in enumerate(self.adults):
             
-            if adult.node['lastAction'] > earth.para['newPeriod'] or (earth.time < earth.para['burnIn']):
+            if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
                 actionIds, eUtils = adult.getExpectedUtility(earth)
             else:
                 actionIds, eUtils = [-1], [adult.node['util']]
@@ -1019,7 +1018,7 @@ class Household(Agent):
 
         if earth.time < earth.para['burnIn']:
             doCheckMobAlternatives = True
-        elif any( [adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults]):
+        elif any( [adult.node['lastAction']> earth.para['mobNewPeriod'] for adult in self.adults]):
             doCheckMobAlternatives = True
                 
             
@@ -1055,7 +1054,7 @@ class Household(Agent):
         actionTaken = False
         doCheckMobAlternatives = False
 
-        if earth.time < earth.para['burnIn'] or (any([adult.node['lastAction']> earth.para['newPeriod'] for adult in self.adults])) :
+        if earth.time < earth.para['burnIn'] or (any([adult.node['lastAction']> earth.para['mobNewPeriod'] for adult in self.adults])) :
             doCheckMobAlternatives = True
                             
         if doCheckMobAlternatives:            
@@ -1175,6 +1174,7 @@ class Cell(Location):
         self.setValue('convenience', [0,0,0])
         self.setValue('carsInCell', [0,0,0])
         self.urbanThreshold = earth.para['urbanThreshold']
+        self.puplicTransBonus = earth.para['puplicTransBonus']
         
         self.conveniences = list()
         
