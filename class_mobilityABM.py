@@ -1323,7 +1323,7 @@ class Opinion():
 #        cs = float(cs)**2
         
         # priority of ecology
-        ce = 0
+        ce = 2
         if sex == 2:
             ce +=2
         if income>self.minIncomeEco:

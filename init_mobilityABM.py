@@ -300,7 +300,7 @@ def mobilitySetup(earth, parameters):
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
     earth.initBrand('green',(380., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
- 
+
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
     return earth
@@ -628,7 +628,7 @@ def runModel(earth, parameters):
 
 def evaluateError(earth):
     err = earth.globalData['stock'].evaluateRelativeError()
-    fid = open(earth.para['outPath'] + '/error','w')
+    fid = open('error.out','w')
     fid.writelines(str(err))
     fid.close()
     print 'The simulation error is: ' + str(err) 
@@ -753,7 +753,7 @@ if __name__ == '__main__':
         
  
     parameters.scenario       = 1
-    parameters.showFigures    = 1
+    parameters.showFigures    = 0
 
         
     if parameters.scenario in [0,1]:
