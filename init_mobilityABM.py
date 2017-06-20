@@ -75,9 +75,14 @@ _year  = 2
 
 #%% Scenario definition without calibraton parameters
 
-def scenarioTestSmall(parameters):
+def scenarioTestSmall(calibatationInput):
     setup = Bunch()
-
+    
+    #general 
+    setup.scenario = 0
+    setup.resourcePath = dirPath + '/resources_nie/'
+    
+    
     #time
     setup.nSteps           = 340     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
@@ -95,9 +100,8 @@ def scenarioTestSmall(parameters):
     setup.population = setup.landLayer* np.random.randint(5,20,setup.landLayer.shape)
     
     #social
-    setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 30       # number of desired friends
+    setup.minFriends    = 50       # number of desired friends
     setup.memoryTime    = 20       # length of the periode for which memories are stored
     setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
@@ -111,36 +115,62 @@ def scenarioTestSmall(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 10
-    
+    setup.puplicTransBonus = 30
+    setup.urbanThreshold    = 90    # population density threshold that seperates urban and rural
+    setup.urbanCritical     = 150   # population density for minimal convenience [?]
+    setup.charAge           = 10          # [0 10]
+    setup.initialGreen      = 800    # inertia of green technical change
+    setup.initialBrown      = 5000000 # inertia of brown technical change
+    setup.initialOther      = 10000 # inertia of other technical change
+    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
     #agents
-    setup.util             = 'cobb'
+    setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents = False
+    setup.omniscientAgents = False    
+    setup.incomeShareForMobility = 0.2
     
-    minPop = np.nanmin(setup.population[setup.population!=0])
-    maxPop = np.nanmax(setup.population)
-    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
-    minCarConvenience = 1 + parameters.kappa
-    parameters.convB =  minCarConvenience / (maxDeviation)
 
-    # redefinition of setup parameters by input
-    setup.update(parameters.toDict())
+
+    # utility
+    setup.convA = 0.8           # max convenience [.7 1]
+    setup.convC = 0.3           # max convenience of other [0 1]
+    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
+    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
+    setup.innoPriority = 0.2      # weight of priority of innovation [0 0.5]
+    setup.mobIncomeShare = 0.15   # [0.1 0.4]
+    setup.individualPrio = 0.33  # individual random component of priorities
+
+    setup.charIncome = 5000   # [100 5000]
+    setup.minIncomeEco  = 2000  # [1000 5000]
+    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
+    setup.innoDevRange = 5     # extend of the area within the innovation distribution
+
+    # redefinition of setup parameters used for automatic calibration
+    setup.update(calibatationInput.toDict())
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
     
     return setup
 
 
     
-def scenarioTestMedium(parameters):
+def scenarioTestMedium(calibatationInput):
     from scipy import signal
     
     setup = Bunch()
 
-    #time
 
+    #general 
+    setup.scenario = 1
+    setup.resourcePath = dirPath + '/resources_nie/'
+    
+    
+    #time
     setup.nSteps           = 340     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
@@ -163,11 +193,10 @@ def scenarioTestMedium(parameters):
     setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)
     
     #social
-    setup.tolerance     = 1.       # tolerance of friends when connecting to others (deviation in preferences)    
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.minFriends    = 50       # number of desired friends
     setup.memoryTime    = 20       # length of the periode for which memories are stored
-    setup.utilObsError  = 1
+    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
@@ -179,30 +208,55 @@ def scenarioTestMedium(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 20
+    setup.puplicTransBonus = 30
+    setup.urbanThreshold    = 110    # population density threshold that seperates urban and rural
+    setup.urbanCritical     = 200   # population density for minimal convenience [?]
+    setup.charAge           = 10          # [0 10]
+    setup.initialGreen      = 2000    # inertia of green technical change
+    setup.initialBrown      = 500000 # inertia of brown technical change
+    setup.initialOther      = 500000 # inertia of other technical change
+    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
     
     #agents
     setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.incomeShareForMobility = 0.2
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents = False
+    setup.omniscientAgents = False    
+    setup.incomeShareForMobility = 0.2
+    
+    # utility
+    setup.convA = 1.0           # max convenience [.7 1]
+    setup.convC = 0.2           # max convenience of other [0 1]
+    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
+    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
+    setup.innoPriority = 0.4      # weight of priority of innovation [0 0.5]
+    setup.mobIncomeShare = 0.2   # [0.1 0.4]
+    setup.individualPrio = 0.33  # individual random component of priorities
 
-    minPop = np.nanmin(setup.population[setup.population!=0])
-    maxPop = np.nanmax(setup.population)
-    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
-    minCarConvenience = 1 + parameters.kappa
-    parameters.convB =  minCarConvenience / (maxDeviation)
+    setup.charIncome = 5000   # [100 5000]
+    setup.minIncomeEco  = 1000  # [1000 5000]
+    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
+    setup.innoDevRange = 5     # extend of the area within the innovation distribution
 
-    # redefinition of setup parameters by input
-    setup.update(parameters.toDict())
+    # redefinition of setup parameters used for automatic calibration
+    setup.update(calibatationInput.toDict())
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
     
     return setup
     
     
-def scenarioNiedersachsen(parameters):
+def scenarioNiedersachsen(calibatationInput):
     setup = Bunch()
+    
+    #general 
+    setup.scenario = 2
+    setup.resourcePath = dirPath + '/resources_nie/'
+    
     
     #time
     setup.nSteps           = 340     # number of simulation steps
@@ -248,6 +302,13 @@ def scenarioNiedersachsen(parameters):
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
     setup.puplicTransBonus = 30
+    setup.urbanThreshold    = 110    # population density threshold that seperates urban and rural
+    setup.urbanCritical     = 200   # population density for minimal convenience [?]
+    setup.charAge           = 10          # [0 10]
+    setup.initialGreen      = 2000    # inertia of green technical change
+    setup.initialBrown      = 500000 # inertia of brown technical change
+    setup.initialOther      = 500000 # inertia of other technical change
+    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
     
     #agents
     setup.util             = 'ces'
@@ -257,20 +318,43 @@ def scenarioNiedersachsen(parameters):
     setup.omniscientAgents = False    
     setup.incomeShareForMobility = 0.2
     
-    maxDeviation = (parameters.urbanCritical - parameters.urbanThreshold)**2
-    minCarConvenience = 1 + parameters.kappa
-    parameters.convB =  minCarConvenience / (maxDeviation)
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
+
+    # utility
+    setup.convA = 1.0           # max convenience [.7 1]
+    setup.convC = 0.2           # max convenience of other [0 1]
+    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
+    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
+    setup.innoPriority = 0.4      # weight of priority of innovation [0 0.5]
+    setup.mobIncomeShare = 0.2   # [0.1 0.4]
+    setup.individualPrio = 0.33  # individual random component of priorities
+
+    setup.charIncome = 5000   # [100 5000]
+    setup.minIncomeEco  = 1000  # [1000 5000]
+    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
+    setup.innoDevRange = 5     # extend of the area within the innovation distribution
+
+
+
 
 
     assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     print 'Running with ' + str(nAgents) + ' agents'
     
-    # redefinition of setup parameters by input
-    setup.update(parameters.toDict())
+    # redefinition of setup parameters used for automatic calibration
+    setup.update(calibatationInput.toDict())
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
+    
     
     return setup
     
-def scenarioChina(parameters):
+def scenarioChina(calibatationInput):
     pass
     
     
@@ -735,53 +819,50 @@ if __name__ == '__main__':
 #
 #with PyCallGraph(output=GraphvizOutput()):
         
-    parameters = Bunch() 
+    
 
     dirPath = os.path.dirname(os.path.realpath(__file__))
-    # got csv file containing parameters
+    
     if len(sys.argv) > 1:
-        
+        # got calibration id
 
-        fileName = sys.argv[1]
-        parameters = Bunch()
-        for item in csv.DictReader(open(fileName)):
-            parameters[item['name']] = convertStr(item['value'])
-                
-        
-    # no csv file given
-    #else:
-        
- 
-    parameters.scenario       = 1
-    parameters.showFigures    = 0
+        calID = int(sys.argv[1])
+        calibrationParameters = Bunch()
+        df = pd.read_csv('calPara.csv', index_col= 0, header = 0, skiprows = range(1,calID+1), nrows = 1)
 
+        for colName in df.columns:
+            print 'Setting "' + colName + '" to value: ' + str(df[colName][calID]) 
+            calibrationParameters[colName] = df[colName][calID]
+    
+    
+    else:
+        # no csv file given
+        print "no input of parameters"
         
-    if parameters.scenario in [0,1]:
-        fileName = "parameters.csv"
-    if parameters.scenario == 2:
-        fileName = "parameters_nie.csv"
-        
-    for item in csv.DictReader(open(fileName)):
-        parameters[item['name']] = convertStr(item['value'])
-        
+    parameters = Bunch() 
+    scenario       = 1
+    showFigures    = 0
     
 
-    if parameters.scenario == 0:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestSmall(parameters)
-   
-    elif parameters.scenario == 1:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestMedium(parameters)
-    
-    elif parameters.scenario == 2:
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioNiedersachsen(parameters)
+    if scenario == 0:
+        
+        parameters = scenarioTestSmall(calibrationParameters)
+        
+    elif scenario == 1:
+        
+        parameters = scenarioTestMedium(calibrationParameters)
+        
+    elif scenario == 2:
+        
+        parameters = scenarioNiedersachsen(calibrationParameters)
         
         
-    if parameters.scenario == 4:
+    if scenario == 4:
+        # test scenario 
+        
         parameters.resourcePath = dirPath + '/resources_nie/'
         parameters = scenarioTestMedium(parameters)
+        parameters.showFigures = showFigures
         #parameters = scenarioNiedersachsen(parameters)
         earth = initEarth(parameters)
         mobilitySetup(earth, parameters)
@@ -789,6 +870,8 @@ if __name__ == '__main__':
         earth = setupHouseholdsWithOptimalChoice()
     else:
         #%% Init 
+        parameters.showFigures = showFigures
+        
         earth = initEarth(parameters)
         
         mobilitySetup(earth, parameters)

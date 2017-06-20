@@ -703,7 +703,7 @@ class Person(Agent):
             for i, id_ in enumerate(observedActions[1:]):
                 
                 tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
-                tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
+                #tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
         else:
             for i, id_ in enumerate(observedActions[1:]):
                 tmpWeights[i,obsMat[:,-1] == id_] = 1
