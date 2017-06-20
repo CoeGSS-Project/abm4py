@@ -141,10 +141,10 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps           = 145     # number of simulation steps
+    setup.nSteps           = 170     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 25
+    setup.burnIn           = 50
     setup.omniscientBurnIn = 20       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
         
@@ -182,12 +182,12 @@ def scenarioTestMedium(parameters):
     setup.puplicTransBonus = 5
     
     #agents
-    setup.util             = 'ces'
+    setup.util             = 'cobb'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.15
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents = True
+    setup.omniscientAgents = False
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -620,11 +620,10 @@ def runModel(earth, parameters):
         
     
     #%% Finishing the simulation    
-    print "Finalizing the simulation:"
+    print "Finalizing the simulation (No." + str(earth.simNo) +"):"
     if parameters.writeOutput:
         earth.finalizeAgentFile()
     earth.finalize()        
-    
 
 def evaluateError(earth):
     err = earth.globalData['stock'].evaluateRelativeError()
@@ -753,7 +752,7 @@ if __name__ == '__main__':
         
  
     parameters.scenario       = 1
-    parameters.showFigures    = 1
+    parameters.showFigures    = 0
 
         
     if parameters.scenario in [0,1]:
