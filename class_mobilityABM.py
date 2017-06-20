@@ -672,8 +672,8 @@ class Person(Agent):
         
         weigList   = [1./len(connList)]*len(connList)    
         return friendList, connList, weigList
-        
-    
+
+
     def getExpectedUtility(self,world):
         """ 
         return all possible actions with their expected consequences
@@ -712,8 +712,7 @@ class Person(Agent):
         #maxid = np.argmax(avgUtil)
         observedUtil[1:] = avgUtil
         return observedActions.tolist(), observedUtil.tolist()
-
-    
+          
 
 class Household(Agent):
 
@@ -884,6 +883,7 @@ class Household(Agent):
 
     def bestMobilityChoice(self, earth, forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
         market = earth.market
+        actionTaken = True
         if len(self.adults) > 0 :
             combinedActions = self.possibleActions(earth, forcedTryAll)            
             utilities = list()
@@ -933,15 +933,19 @@ class Household(Agent):
             if utilities[bestUtilIdx] > oldUtil:
                 persons = np.array(self.adults)
                 actionIds = np.array(bestCombination)
-                actors = persons[ actionIds != -1 ]         # remove persons that don't take action
+                actors = persons[ actionIds != -1 ] # remove persons that don't take action
+                if len(actors) == 0:
+                    actionTaken = False
                 actions = actionIds[ actionIds != -1]
                 self.undoActions(earth, actors)                  
                 self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)     
                 self.calculateConsequences(market)
                 self.util = self.evalUtility()
-              
+             
         else:
-            pass
+            actionTaken = False
+        
+        return actionTaken
 
 
     def possibleActions(self, earth, forcedTryAll = False):               
@@ -969,7 +973,7 @@ class Household(Agent):
         actionIdsList   = list()
         eUtilsList      = list()
 
-        for iAdult, adult in enumerate(self.adults):
+        for adult in self.adults:
             
             if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
                 actionIds, eUtils = adult.getExpectedUtility(earth)
@@ -985,8 +989,8 @@ class Household(Agent):
         if len(actionIdsList) == 0:
             return None, None, None
         
-        elif len(actionIdsList) > 7:                            # to avoid the problem of too many possibilities (if more than 7 adults)
-            minNoAction = len(actionIdsList) - 7              # minum number of adults not to take action    
+        elif len(actionIdsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
+            minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
             #import pdb
             #pdb.set_trace()
             while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
@@ -1031,7 +1035,7 @@ class Household(Agent):
             if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
             
                 # the propbabilty of taking action is equal to the expected raise of the expected utility
-                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand():
+                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand() or (earth.time < earth.para['burnIn']):
                     actionTaken = True                   
                            
             # the action is only performed if flag is True
@@ -1059,7 +1063,7 @@ class Household(Agent):
             doCheckMobAlternatives = True
                             
         if doCheckMobAlternatives:            
-            self.bestMobilityChoice(earth)
+            actionTaken = self.bestMobilityChoice(earth)
             self.calculateConsequences(earth.market)
             self.util = self.evalUtility()
             

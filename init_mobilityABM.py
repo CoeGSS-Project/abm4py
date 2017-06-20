@@ -176,7 +176,7 @@ def scenarioTestMedium(calibatationInput):
 
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 25
+    setup.burnIn           = 50
     setup.omniscientBurnIn = 20       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
         
@@ -221,7 +221,7 @@ def scenarioTestMedium(calibatationInput):
     setup.mobNewPeriod      = 12    # period in which the mobility type does not change
 
     #agents
-    setup.util             = 'ces'
+    setup.util             = 'cobb'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
@@ -708,11 +708,10 @@ def runModel(earth, parameters):
         
     
     #%% Finishing the simulation    
-    print "Finalizing the simulation:"
+    print "Finalizing the simulation (No." + str(earth.simNo) +"):"
     if parameters.writeOutput:
         earth.finalizeAgentFile()
     earth.finalize()        
-    
 
 def writeSummary(earth, calRunId, paraDf):
     err = earth.globalData['stock'].evaluateRelativeError()
@@ -857,9 +856,9 @@ if __name__ == '__main__':
     if scenario == 0:
         
         parameters = scenarioTestSmall(calibrationParameters)
-        
+
     elif scenario == 1:
-        
+
         parameters = scenarioTestMedium(calibrationParameters)
         
     elif scenario == 2:
