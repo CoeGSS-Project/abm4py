@@ -79,11 +79,11 @@ def scenarioTestSmall(parameters):
     setup = Bunch()
 
     #time
-    setup.nSteps           = 340     # number of simulation steps
+    setup.nSteps           = 300     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.burnIn           = 10
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
           
     #spatial
     setup.reductionFactor = 50000
@@ -111,10 +111,10 @@ def scenarioTestSmall(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 10
+    setup.puplicTransBonus = 5
     
     #agents
-    setup.util             = 'cobb'
+    setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.incomeShareForMobility = 0.2
@@ -141,11 +141,11 @@ def scenarioTestMedium(parameters):
 
     #time
 
-    setup.nSteps           = 340     # number of simulation steps
+    setup.nSteps           = 145     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.burnIn           = 25
+    setup.omniscientBurnIn = 20       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
         
     #spatial
@@ -179,15 +179,15 @@ def scenarioTestMedium(parameters):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 20
+    setup.puplicTransBonus = 5
     
     #agents
     setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.incomeShareForMobility = 0.2
+    setup.incomeShareForMobility = 0.15
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
-    setup.omniscientAgents = False
+    setup.omniscientAgents = True
 
     minPop = np.nanmin(setup.population[setup.population!=0])
     maxPop = np.nanmax(setup.population)
@@ -299,7 +299,7 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(380., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
  
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
