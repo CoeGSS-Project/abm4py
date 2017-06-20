@@ -299,7 +299,7 @@ class Market():
         self.stdDist            = 1.
         self.innovationWeig     = [1- earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]
         self.allTimeProduced    = list()                   # list of previous produced numbers -> for technical progress
-        self.mobNewPeriod          = earth.para['mobNewPeriod']
+        self.mobNewPeriod       = earth.para['mobNewPeriod']
         self.innoDevRange       = earth.para['innoDevRange']
         
     def getNTypes(self):
@@ -322,13 +322,13 @@ class Market():
         #print self.percentiles
         
         
-        if self.time < self.burnIn:
+        #if self.time < self.burnIn:
             #self.setInitialStatistics([1000.,5.,300.])
-            self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
-            self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
-        else:
-            self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
-            self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+         #   self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
+         #   self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+        #else:
+        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
+        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
         
         distances = list()         
         for mobID in range(len(self.stock)):
@@ -728,7 +728,7 @@ class Household(Agent):
             self.utilFunc = self.CESUtil
  #       self.consequences = list()
 
-    def cobbDouglasUtil(self, x,alpha):
+    def cobbDouglasUtil(self, x, alpha):
         utility = 1.
         factor = 100        
         for i in range(len(x)):
@@ -739,11 +739,12 @@ class Household(Agent):
         return utility
 
     
-    def CESUtil(self, x,alpha):
-        uti = 0
-        s = 2    # elasticity of substitution        
+    def CESUtil(self, x, alpha):
+        uti = 0.
+        s = 2.    # elasticity of substitution, has to be float!        
         for i in range(len(x)):
-            uti += alpha[i]**(1/s)*x[i]**((s-1)/s)             
+            uti += (alpha[i]*x[i]**(s-1))**(1/s)
+            #print uti 
         utility = uti**(s/(s-1))
         if  np.isnan(utility) or np.isinf(utility):
             import pdb
@@ -1156,6 +1157,9 @@ class Reporter(Household):
         Household.__init__(self, world, nodeType , xPos, yPos)
         self.writer = Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
+        
+        #self.writer.write(
+        
     
 class Cell(Location):
     

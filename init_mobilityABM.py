@@ -84,11 +84,11 @@ def scenarioTestSmall(calibatationInput):
     
     
     #time
-    setup.nSteps           = 340     # number of simulation steps
+    setup.nSteps           = 300     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.burnIn           = 10
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
           
     #spatial
     setup.reductionFactor = 50000
@@ -115,7 +115,7 @@ def scenarioTestSmall(calibatationInput):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 30
+    setup.puplicTransBonus = 5
     setup.urbanThreshold    = 90    # population density threshold that seperates urban and rural
     setup.urbanCritical     = 150   # population density for minimal convenience [?]
     setup.charAge           = 10          # [0 10]
@@ -123,6 +123,7 @@ def scenarioTestSmall(calibatationInput):
     setup.initialBrown      = 5000000 # inertia of brown technical change
     setup.initialOther      = 10000 # inertia of other technical change
     setup.mobNewPeriod      = 12    # period in which the mobility type does not change
+
     #agents
     setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
@@ -172,10 +173,11 @@ def scenarioTestMedium(calibatationInput):
     
     #time
     setup.nSteps           = 340     # number of simulation steps
+
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    setup.burnIn           = 25
+    setup.omniscientBurnIn = 20       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
         
     #spatial
@@ -208,7 +210,8 @@ def scenarioTestMedium(calibatationInput):
     setup.properties    = ['emmisions','TCO']
     setup.mobNewPeriod  = 12 # months
     setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 30
+
+    setup.puplicTransBonus = 5
     setup.urbanThreshold    = 110    # population density threshold that seperates urban and rural
     setup.urbanCritical     = 200   # population density for minimal convenience [?]
     setup.charAge           = 10          # [0 10]
@@ -216,14 +219,14 @@ def scenarioTestMedium(calibatationInput):
     setup.initialBrown      = 500000 # inertia of brown technical change
     setup.initialOther      = 500000 # inertia of other technical change
     setup.mobNewPeriod      = 12    # period in which the mobility type does not change
-    
+
     #agents
     setup.util             = 'ces'
     setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
     setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
     setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
     setup.omniscientAgents = False    
-    setup.incomeShareForMobility = 0.2
+    setup.incomeShareForMobility = 0.15
     
     # utility
     setup.convA = 1.0           # max convenience [.7 1]
@@ -233,6 +236,7 @@ def scenarioTestMedium(calibatationInput):
     setup.innoPriority = 0.4      # weight of priority of innovation [0 0.5]
     setup.mobIncomeShare = 0.2   # [0.1 0.4]
     setup.individualPrio = 0.33  # individual random component of priorities
+
 
     setup.charIncome = 5000   # [100 5000]
     setup.minIncomeEco  = 1000  # [1000 5000]
@@ -383,7 +387,7 @@ def mobilitySetup(earth, parameters):
                          #(emmisions, TCO)         
     earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(380., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
 
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
@@ -710,11 +714,17 @@ def runModel(earth, parameters):
     earth.finalize()        
     
 
-def evaluateError(earth):
+def writeSummary(earth, calRunId, paraDf):
     err = earth.globalData['stock'].evaluateRelativeError()
-    fid = open('error.out','w')
+    fid = open('summary.out','w')
+    fid.writelines('Calibration run id: ' + str(calRunId) + '\n')
+    fid.writelines('Parameters:')
+    paraDf.to_csv(fid)
+    fid.writelines('Error:')
     fid.writelines(str(err))
     fid.close()
+    print 'Calibration Run: ' + str(calRunId)
+    print paraDf
     print 'The simulation error is: ' + str(err) 
 
 def onlinePostProcessing(earth):
@@ -823,24 +833,24 @@ if __name__ == '__main__':
 
     dirPath = os.path.dirname(os.path.realpath(__file__))
     
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 2:
         # got calibration id
-
-        calID = int(sys.argv[1])
+        paraFileName = sys.argv[1]
+        colID = int(sys.argv[2])
         calibrationParameters = Bunch()
-        df = pd.read_csv('calPara.csv', index_col= 0, header = 0, skiprows = range(1,calID+1), nrows = 1)
-
-        for colName in df.columns:
-            print 'Setting "' + colName + '" to value: ' + str(df[colName][calID]) 
-            calibrationParameters[colName] = df[colName][calID]
-    
+        calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
+        calRunID = calParaDf.index[0]
+        for colName in calParaDf.columns:
+            print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
+            calibrationParameters[colName] = calParaDf[colName][calRunID]
+        
     
     else:
         # no csv file given
         print "no input of parameters"
         
     parameters = Bunch() 
-    scenario       = 1
+    scenario       = 0
     showFigures    = 0
     
 
@@ -902,7 +912,7 @@ if __name__ == '__main__':
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
         
-        evaluateError(earth)
+        writeSummary(earth, calRunID, calParaDf)
     
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         #%%
