@@ -208,16 +208,16 @@ def scenarioTestMedium(calibatationInput):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.mobNewPeriod  = 12 # months
+    setup.mobNewPeriod  = 24 # months
     setup.randomCarPropDeviationSTD = 0.01
 
     setup.puplicTransBonus = 5
-    setup.urbanThreshold    = 110    # population density threshold that seperates urban and rural
-    setup.urbanCritical     = 200   # population density for minimal convenience [?]
+    setup.urbanThreshold    = 90    # population density threshold that seperates urban and rural
+    setup.urbanCritical     = 150   # population density for minimal convenience [?]
     setup.charAge           = 10          # [0 10]
-    setup.initialGreen      = 2000    # inertia of green technical change
-    setup.initialBrown      = 500000 # inertia of brown technical change
-    setup.initialOther      = 500000 # inertia of other technical change
+    setup.initialGreen      = 100    # inertia of green technical change
+    setup.initialBrown      = 200000 # inertia of brown technical change
+    setup.initialOther      = 10000 # inertia of other technical change
     setup.mobNewPeriod      = 12    # period in which the mobility type does not change
 
     #agents
@@ -229,17 +229,17 @@ def scenarioTestMedium(calibatationInput):
     setup.incomeShareForMobility = 0.15
     
     # utility
-    setup.convA = 1.0           # max convenience [.7 1]
-    setup.convC = 0.2           # max convenience of other [0 1]
-    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
-    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
-    setup.innoPriority = 0.4      # weight of priority of innovation [0 0.5]
+    setup.convA = 0.8           # max convenience [.7 1]
+    setup.convC = 0.3           # max convenience of other [0 1]
+    setup.convD = 0.06          # rate how fast convenience changes with population density [0.01 0.1]
+    setup.kappa = -0.2          # initial desadvantage of green infrastructure [-0.5 -0.05]
+    setup.innoPriority = 0.15      # weight of priority of innovation [0 0.5]
     setup.mobIncomeShare = 0.2   # [0.1 0.4]
-    setup.individualPrio = 0.33  # individual random component of priorities
+    setup.individualPrio = 0.15  # individual random component of priorities
 
 
     setup.charIncome = 5000   # [100 5000]
-    setup.minIncomeEco  = 1000  # [1000 5000]
+    setup.minIncomeEco  = 2500  # [1000 5000]
     setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
     setup.innoDevRange = 5     # extend of the area within the innovation distribution
 
@@ -849,8 +849,8 @@ if __name__ == '__main__':
         print "no input of parameters"
         
     parameters = Bunch() 
-    scenario       = 0
-    showFigures    = 0
+    scenario       = 1
+    showFigures    = 1
     
 
     if scenario == 0:
