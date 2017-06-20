@@ -160,7 +160,7 @@ def scenarioTestSmall(calibatationInput):
 
 
     
-def scenarioTestMedium(calibatationInput):
+def scenarioTestMedium(parameterInput):
     from scipy import signal
     
     setup = Bunch()
@@ -172,18 +172,13 @@ def scenarioTestMedium(calibatationInput):
     
     
     #time
-    setup.nSteps           = 340     # number of simulation steps
-
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 50
-    setup.omniscientBurnIn = 20       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
         
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
-    setup.connRadius    = 2.5      # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
                               [0, 1, 0, 0, 0, 1, 1, 1, 0],
                               [1, 1, 1, 0, 0, 1, 0, 0, 0],
@@ -196,9 +191,6 @@ def scenarioTestMedium(calibatationInput):
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 50       # number of desired friends
-    setup.memoryTime    = 20       # length of the periode for which memories are stored
-    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
@@ -208,43 +200,13 @@ def scenarioTestMedium(calibatationInput):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.mobNewPeriod  = 24 # months
-    setup.randomCarPropDeviationSTD = 0.01
-
-    setup.puplicTransBonus = 5
-    setup.urbanThreshold    = 90    # population density threshold that seperates urban and rural
-    setup.urbanCritical     = 150   # population density for minimal convenience [?]
-    setup.charAge           = 10          # [0 10]
-    setup.initialGreen      = 100    # inertia of green technical change
-    setup.initialBrown      = 200000 # inertia of brown technical change
-    setup.initialOther      = 10000 # inertia of other technical change
-    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
 
     #agents
-    setup.util             = 'cobb'
-    setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
-    setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
+    setup.randomAgents     = False
     setup.omniscientAgents = False    
-    setup.incomeShareForMobility = 0.15
-    
-    # utility
-    setup.convA = 0.8           # max convenience [.7 1]
-    setup.convC = 0.3           # max convenience of other [0 1]
-    setup.convD = 0.06          # rate how fast convenience changes with population density [0.01 0.1]
-    setup.kappa = -0.2          # initial desadvantage of green infrastructure [-0.5 -0.05]
-    setup.innoPriority = 0.15      # weight of priority of innovation [0 0.5]
-    setup.mobIncomeShare = 0.2   # [0.1 0.4]
-    setup.individualPrio = 0.15  # individual random component of priorities
-
-
-    setup.charIncome = 5000   # [100 5000]
-    setup.minIncomeEco  = 2500  # [1000 5000]
-    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
-    setup.innoDevRange = 5     # extend of the area within the innovation distribution
 
     # redefinition of setup parameters used for automatic calibration
-    setup.update(calibatationInput.toDict())
+    setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
@@ -832,38 +794,45 @@ if __name__ == '__main__':
 
     dirPath = os.path.dirname(os.path.realpath(__file__))
     
+    
+    # loading of standart parameters
+    fileName = sys.argv[1]
+    parameters = Bunch()
+    for item in csv.DictReader(open(fileName)):
+        parameters[item['name']] = convertStr(item['value'])
+    
+    
+    # loading of changing calibration parameters
     if len(sys.argv) > 2:
         # got calibration id
-        paraFileName = sys.argv[1]
-        colID = int(sys.argv[2])
-        calibrationParameters = Bunch()
+        paraFileName = sys.argv[2]
+        colID = int(sys.argv[3])
         calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
         calRunID = calParaDf.index[0]
         for colName in calParaDf.columns:
             print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
-            calibrationParameters[colName] = calParaDf[colName][calRunID]
+            parameters[colName] = calParaDf[colName][calRunID]
         
     
     else:
         # no csv file given
         print "no input of parameters"
         
-    parameters = Bunch() 
     scenario       = 1
     showFigures    = 1
     
 
     if scenario == 0:
         
-        parameters = scenarioTestSmall(calibrationParameters)
+        parameters = scenarioTestSmall(parameters)
 
     elif scenario == 1:
 
-        parameters = scenarioTestMedium(calibrationParameters)
+        parameters = scenarioTestMedium(parameters)
         
     elif scenario == 2:
         
-        parameters = scenarioNiedersachsen(calibrationParameters)
+        parameters = scenarioNiedersachsen(parameters)
         
         
     if scenario == 4:
