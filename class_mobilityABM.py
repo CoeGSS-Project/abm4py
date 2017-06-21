@@ -101,7 +101,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in tqdm.tqdm(self.iterNodes(_cell)):
+        for location in tqdm.tqdm(self.iterNodes(_cell), 'Init cell memory'):
             location.initCellMemory(memoryTime, memeLabels)
 #    
 #    def initObsAtLoc(self,properties):
@@ -177,7 +177,7 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
-        for agent, x in tqdm.tqdm(self.iterNodeAndID(_pers)):
+        for agent, x in tqdm.tqdm(self.iterNodeAndID(_pers), 'Generating friend network'):
             
             frList, edges, weights = agent.generateFriendNetwork(self,nFriendsPerPerson)
             edgeList += edges
@@ -189,7 +189,7 @@ class Earth(World):
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
         tt = time.time()
-        for node in tqdm.tqdm(self.entList):
+        for node in tqdm.tqdm(self.entList, 'Updating edges'):
             node.updateEdges()
         print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
@@ -225,15 +225,15 @@ class Earth(World):
 
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
-            for agent in tqdm.tqdm(self.iterNodes(_hh)):
+            for household in tqdm.tqdm(self.iterNodes(_hh),'Itterating households'):
                 #agent = self.agDict[agID]
-                agent.stepOmniscient(self)        
+                household.stepOmniscient(self)        
         else:
-            for agent in tqdm.tqdm(self.iterNodes(_hh)):
+            for household in tqdm.tqdm(self.iterNodes(_hh),'Itterating households'):
                 #agent = self.agDict[agID]
-                agent.step(self)
+                household.step(self)
             
-        for adult in tqdm.tqdm(self.iterNodes(_pers)):
+        for adult in tqdm.tqdm(self.iterNodes(_pers), 'Itterating persons'):
             adult.weightFriendExperience(self)   
         
         # proceed step

@@ -75,7 +75,7 @@ _year  = 2
 
 #%% Scenario definition without calibraton parameters
 
-def scenarioTestSmall(calibatationInput):
+def scenarioTestSmall(parameterInput):
     setup = Bunch()
     
     #general 
@@ -84,12 +84,9 @@ def scenarioTestSmall(calibatationInput):
     
     
     #time
-    setup.nSteps           = 300     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
-    setup.burnIn           = 10
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-          
+
     #spatial
     setup.reductionFactor = 50000
     setup.isSpatial       = True
@@ -101,9 +98,6 @@ def scenarioTestSmall(calibatationInput):
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 50       # number of desired friends
-    setup.memoryTime    = 20       # length of the periode for which memories are stored
-    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
@@ -113,43 +107,13 @@ def scenarioTestSmall(calibatationInput):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.mobNewPeriod  = 12 # months
-    setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 5
-    setup.urbanThreshold    = 90    # population density threshold that seperates urban and rural
-    setup.urbanCritical     = 150   # population density for minimal convenience [?]
-    setup.charAge           = 10          # [0 10]
-    setup.initialGreen      = 800    # inertia of green technical change
-    setup.initialBrown      = 5000000 # inertia of brown technical change
-    setup.initialOther      = 10000 # inertia of other technical change
-    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
 
     #agents
-    setup.util             = 'ces'
-    setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
-    setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
+    setup.randomAgents     = False
     setup.omniscientAgents = False    
-    setup.incomeShareForMobility = 0.2
-    
-
-
-    # utility
-    setup.convA = 0.8           # max convenience [.7 1]
-    setup.convC = 0.3           # max convenience of other [0 1]
-    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
-    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
-    setup.innoPriority = 0.2      # weight of priority of innovation [0 0.5]
-    setup.mobIncomeShare = 0.15   # [0.1 0.4]
-    setup.individualPrio = 0.33  # individual random component of priorities
-
-    setup.charIncome = 5000   # [100 5000]
-    setup.minIncomeEco  = 2000  # [1000 5000]
-    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
-    setup.innoDevRange = 5     # extend of the area within the innovation distribution
 
     # redefinition of setup parameters used for automatic calibration
-    setup.update(calibatationInput.toDict())
+    setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
@@ -216,7 +180,7 @@ def scenarioTestMedium(parameterInput):
     return setup
     
     
-def scenarioNiedersachsen(calibatationInput):
+def scenarioNiedersachsen(parameterInput):
     setup = Bunch()
     
     #general 
@@ -235,11 +199,11 @@ def scenarioNiedersachsen(calibatationInput):
     setup.isSpatial     = True
     setup.connRadius    = 2.5      # radíus of cells that get an connection
     setup.reductionFactor = 200.
-    setup.landLayer= gt.load_array_from_tiff(parameters.resourcePath + 'land_layer_62x118.tiff')
+    setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = setup.landLayer.astype(int)
     
-    setup.population = gt.load_array_from_tiff(parameters.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.population = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
     if False:
         try:
             #plt.imshow(setup.landLayer)
@@ -253,9 +217,6 @@ def scenarioNiedersachsen(calibatationInput):
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.minFriends    = 50       # number of desired friends
-    setup.memoryTime    = 20       # length of the periode for which memories are stored
-    setup.utilObsError  = 5
     setup.recAgent      = []       # reporter agents that return a diary
     
     #output
@@ -265,58 +226,22 @@ def scenarioNiedersachsen(calibatationInput):
     
     #cars and infrastructure
     setup.properties    = ['emmisions','TCO']
-    setup.mobNewPeriod  = 12 # months
-    setup.randomCarPropDeviationSTD = 0.01
-    setup.puplicTransBonus = 30
-    setup.urbanThreshold    = 110    # population density threshold that seperates urban and rural
-    setup.urbanCritical     = 200   # population density for minimal convenience [?]
-    setup.charAge           = 10          # [0 10]
-    setup.initialGreen      = 2000    # inertia of green technical change
-    setup.initialBrown      = 500000 # inertia of brown technical change
-    setup.initialOther      = 500000 # inertia of other technical change
-    setup.mobNewPeriod      = 12    # period in which the mobility type does not change
-    
+
     #agents
-    setup.util             = 'ces'
-    setup.randPref         = 1 # 0: only exteme preferences (e.g. 0,0,1) - 1: random weighted preferences
-    setup.radicality       = 3 # exponent of the preferences -> high values lead to extreme differences
-    setup.randomAgents     = 0    # 0: prefrences dependent on agent properties - 1: random distribution
+    setup.randomAgents     = False
     setup.omniscientAgents = False    
-    setup.incomeShareForMobility = 0.2
-    
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
 
-    # utility
-    setup.convA = 1.0           # max convenience [.7 1]
-    setup.convC = 0.2           # max convenience of other [0 1]
-    setup.convD = 0.07          # rate how fast convenience changes with population density [0.01 0.1]
-    setup.kappa = -0.3          # initial desadvantage of green infrastructure [-0.5 -0.05]
-    setup.innoPriority = 0.4      # weight of priority of innovation [0 0.5]
-    setup.mobIncomeShare = 0.2   # [0.1 0.4]
-    setup.individualPrio = 0.33  # individual random component of priorities
-
-    setup.charIncome = 5000   # [100 5000]
-    setup.minIncomeEco  = 1000  # [1000 5000]
-    setup.innoWeigPrice = 0.25    # innoWeigEmmisions = 1 - innoWeigPrice [0 1]
-    setup.innoDevRange = 5     # extend of the area within the innovation distribution
-
-
-
-
-
-    assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    print 'Running with ' + str(nAgents) + ' agents'
-    
     # redefinition of setup parameters used for automatic calibration
-    setup.update(calibatationInput.toDict())
+    setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
     
+    
+    assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
+    print 'Running with ' + str(nAgents) + ' agents'
     
     return setup
     
@@ -585,9 +510,11 @@ def initGlobalRecords(earth, parameters):
         if column in calDataDfEV.columns[1:]:
             value[1] = (calDataDfEV[column]['re_1518'] + calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
         
-        
+    
         timeIdxs.append(timeIdx)
         values.append(value)
+    import pdb
+    pdb.set_trace()            
     earth.globalData['stock'].addCalibrationData(timeIdxs,values)
     
 def initAgentOutput(earth):
