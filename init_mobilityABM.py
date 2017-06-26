@@ -52,7 +52,7 @@ import pandas as pd
 from bunch import Bunch
 from copy import copy
 import csv
-
+from scipy import signal
 
 
 overallTime = time.time()
@@ -79,9 +79,8 @@ def scenarioTestSmall(parameterInput):
     setup = Bunch()
     
     #general 
-    setup.scenario = 0
     setup.resourcePath = dirPath + '/resources_nie/'
-    
+    setup.progressBar  = True
     
     #time
     setup.timeUint         = _month  # unit of time per step
@@ -94,6 +93,8 @@ def scenarioTestSmall(parameterInput):
     setup.landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
                               [0, 0, 1, 0, 0, 0],
                               [0, 0, 1, 1, 1, 1]])
+    setup.regionIdRaster    = setup.landLayer*1518
+    setup.regionIdRaster[0:,0:2] = 6321
     setup.population = setup.landLayer* np.random.randint(5,20,setup.landLayer.shape)
     
     #social
@@ -119,21 +120,26 @@ def scenarioTestSmall(parameterInput):
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
+ 
+    # only for packing with care
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
+    del dummy
     
     return setup
 
 
     
 def scenarioTestMedium(parameterInput):
-    from scipy import signal
+
     
     setup = Bunch()
 
 
     #general 
-    setup.scenario = 1
     setup.resourcePath = dirPath + '/resources_nie/'
-    
+    setup.progressBar  = True
     
     #time
     setup.timeUint         = _month  # unit of time per step
@@ -144,11 +150,13 @@ def scenarioTestMedium(parameterInput):
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
-                              [0, 1, 0, 0, 0, 1, 1, 1, 0],
-                              [1, 1, 1, 0, 0, 1, 0, 0, 0],
-                              [1, 1, 1, 1, 1, 1, 0, 0, 0],
-                              [1, 1, 1, 1, 1, 1, 1, 0, 0],
-                              [1, 1, 1, 1, 0, 0, 0, 0, 0]])    
+                                    [0, 1, 0, 0, 0, 1, 1, 1, 0],
+                                    [1, 1, 1, 0, 0, 1, 0, 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 0, 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 1, 0, 0],
+                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]])    
+    setup.regionIdRaster    = setup.landLayer*1518
+    setup.regionIdRaster[3:,0:3] = 6321
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
     setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)
@@ -177,6 +185,12 @@ def scenarioTestMedium(parameterInput):
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
     
+    # only for packing with care
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
+    del dummy
+    
     return setup
     
     
@@ -184,9 +198,8 @@ def scenarioNiedersachsen(parameterInput):
     setup = Bunch()
     
     #general 
-    setup.scenario = 2
     setup.resourcePath = dirPath + '/resources_nie/'
-    
+    setup.progressBar  = True
     
     #time
     setup.nSteps           = 340     # number of simulation steps
@@ -199,11 +212,19 @@ def scenarioNiedersachsen(parameterInput):
     setup.isSpatial     = True
     setup.connRadius    = 2.5      # radíus of cells that get an connection
     setup.reductionFactor = 200.
+    
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+        
     setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = setup.landLayer.astype(int)
     
-    setup.population = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    
+    
     if False:
         try:
             #plt.imshow(setup.landLayer)
@@ -232,6 +253,9 @@ def scenarioNiedersachsen(parameterInput):
     setup.omniscientAgents = False    
 
     # redefinition of setup parameters used for automatic calibration
+    print "setting up the parameters from file"
+    print parameterInput
+    print "####################################"
     setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
@@ -313,7 +337,7 @@ def householdSetup(earth, parameters, calibration=False):
         
     opinion =  Opinion(earth)
     
-    for x,y in tqdm.tqdm(earth.locDict.keys()):
+    for x,y in tqdm.tqdm(earth.locDict.keys():
         #print x,y
         nAgentsCell = int(parameters.population[x,y])
         #print nAgentsCell
@@ -390,18 +414,23 @@ def householdSetup(earth, parameters, calibration=False):
 
 def initEarth(parameters):
     tt = time.time()
-    if parameters.writeOutput:
-        # get simulation number
-        fid = open("simNumber","r")
-        parameters.simNo = int(fid.readline())
-        fid = open("simNumber","w")
-        fid.writelines(str(parameters.simNo+1))
-        fid.close()
-    else:
-        parameters.simNo = None
-    
-    
+    if not parameters['calibration']:
         
+        if parameters.writeOutput: 
+            # get simulation number
+            try:
+                fid = open("simNumber","r")
+                parameters.simNo = int(fid.readline())
+                fid = open("simNumber","w")
+                fid.writelines(str(parameters.simNo+1))
+                fid.close()
+            except:
+                parameters.simNo = 0
+        else:
+            parameters.simNo = None
+    
+    
+    
 
 
     earth = Earth(parameters)
@@ -413,9 +442,10 @@ def initEarth(parameters):
     connList= earth.computeConnectionList(parameters.connRadius)
     earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
     
-    
-    
-    
+    if hasattr(parameters,'regionIdRaster'):
+        
+        for cell in earth.iterNodes(_cell):
+            cell.node['regionId'] = parameters.regionIdRaster[cell.x,cell.y]
     
     
     earth.initMarket(earth,
@@ -496,7 +526,7 @@ def initMobilityTypes(earth, parameters):
     earth.market.setInitialStatistics([1000.,2.,500.])
  
 def initGlobalRecords(earth, parameters):
-    earth.registerRecord('stock', 'total use per mobility type', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord('stockBremen', 'total use per mobility type - Bremen', earth.enums['mobilityTypes'].values(), style ='plot')
     
     calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
     calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
@@ -506,16 +536,33 @@ def initGlobalRecords(earth, parameters):
         value = [np.nan]*3
         year = int(column)
         timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-        value[0] = (calDataDfCV[column]['re_1518'] + calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
+        value[0] = (calDataDfCV[column]['re_1518'] ) / parameters['reductionFactor']
         if column in calDataDfEV.columns[1:]:
-            value[1] = (calDataDfEV[column]['re_1518'] + calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
+            value[1] = (calDataDfEV[column]['re_1518'] ) / parameters['reductionFactor']
         
     
         timeIdxs.append(timeIdx)
         values.append(value)
-    import pdb
-    pdb.set_trace()            
-    earth.globalData['stock'].addCalibrationData(timeIdxs,values)
+          
+    earth.globalData['stockBremen'].addCalibrationData(timeIdxs,values)
+ 
+    earth.registerRecord('stockNiedersachsen', 'total use per mobility type - Niedersachsen', earth.enums['mobilityTypes'].values(), style ='plot')
+    
+    timeIdxs = list()
+    values   = list()
+    for column in calDataDfCV.columns[1:]:
+        value = [np.nan]*3
+        year = int(column)
+        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+        value[0] = ( calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
+        if column in calDataDfEV.columns[1:]:
+            value[1] = ( calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
+        
+    
+        timeIdxs.append(timeIdx)
+        values.append(value)
+         
+    earth.globalData['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
     
 def initAgentOutput(earth):
     #%% Init of agent file
@@ -603,17 +650,21 @@ def runModel(earth, parameters):
     earth.finalize()        
 
 def writeSummary(earth, calRunId, paraDf):
-    err = earth.globalData['stock'].evaluateRelativeError()
+    errBremen = earth.globalData['stockBremen'].evaluateRelativeError()
+    errNiedersachsen = earth.globalData['stockNiedersachsen'].evaluateRelativeError()
     fid = open('summary.out','w')
     fid.writelines('Calibration run id: ' + str(calRunId) + '\n')
     fid.writelines('Parameters:')
     paraDf.to_csv(fid)
     fid.writelines('Error:')
-    fid.writelines(str(err))
+    fid.writelines('Bremen: ' + str(errBremen))
+    fid.writelines('Niedersachsen: ' + str(errNiedersachsen))
+    fid.writelines('Gesammt:')
+    fid.writelines(str(errBremen + errNiedersachsen))
     fid.close()
     print 'Calibration Run: ' + str(calRunId)
     print paraDf
-    print 'The simulation error is: ' + str(err) 
+    print 'The simulation error is: ' + str(errBremen + errNiedersachsen) 
 
 def onlinePostProcessing(earth):
     # calculate the mean and standart deviation of priorities
@@ -718,7 +769,6 @@ if __name__ == '__main__':
 #with PyCallGraph(output=GraphvizOutput()):
         
     
-
     dirPath = os.path.dirname(os.path.realpath(__file__))
     
     
@@ -727,10 +777,11 @@ if __name__ == '__main__':
     parameters = Bunch()
     for item in csv.DictReader(open(fileName)):
         parameters[item['name']] = convertStr(item['value'])
-    
+    print 'Setting loaded:'
+    print parameters.toDict()
     
     # loading of changing calibration parameters
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
         # got calibration id
         paraFileName = sys.argv[2]
         colID = int(sys.argv[3])
@@ -740,29 +791,31 @@ if __name__ == '__main__':
             print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
             parameters[colName] = calParaDf[colName][calRunID]
         
-    
+        parameters['calibration'] = True
+        parameters['simNo']       = 9999
     else:
+        parameters['calibration'] = False
+        
         # no csv file given
         print "no input of parameters"
         
-    scenario       = 1
-    showFigures    = 1
+    showFigures    = 0
     
 
-    if scenario == 0:
+    if parameters.scenario == 0:
         
         parameters = scenarioTestSmall(parameters)
 
-    elif scenario == 1:
+    elif parameters.scenario == 1:
 
         parameters = scenarioTestMedium(parameters)
         
-    elif scenario == 2:
+    elif parameters.scenario == 2:
         
         parameters = scenarioNiedersachsen(parameters)
         
         
-    if scenario == 4:
+    if parameters.scenario == 4:
         # test scenario 
         
         parameters.resourcePath = dirPath + '/resources_nie/'

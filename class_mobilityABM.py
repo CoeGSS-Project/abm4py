@@ -221,8 +221,13 @@ class Earth(World):
 
 
         #update global data
-        self.globalData['stock'].set(self.time,self.market.stockByMobType)
+        for cell in self.iterNodes(_cell):
+            if cell.node['regionId'] == 6321:
+                self.globalData['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
+            elif cell.node['regionId'] == 1518:
+                self.globalData['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
 
+                
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
             for household in tqdm.tqdm(self.iterNodes(_hh),'Itterating households'):
@@ -1035,7 +1040,9 @@ class Household(Agent):
             if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
             
                 # the propbabilty of taking action is equal to the expected raise of the expected utility
-                if (expectedUtil / self.node['util'] ) - 1 > np.random.rand() or (earth.time < earth.para['burnIn']):
+                if self.node['util'] == 0:
+                    actionTaken = True                   
+                elif (expectedUtil / self.node['util'] ) - 1 > np.random.rand() or (earth.time < earth.para['burnIn']):
                     actionTaken = True                   
                            
             # the action is only performed if flag is True
