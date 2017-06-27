@@ -453,7 +453,7 @@ class World:
                     id +=1
         fullConnectionList = list()
         fullWeightList     = list()
-        for (x,y), loc in tqdm.tqdm(self.locDict.items(), 'Init spatial layer'):
+        for (x,y), loc in self.locDict.items():
             
             srcID = loc.nID
             #print loc.nID

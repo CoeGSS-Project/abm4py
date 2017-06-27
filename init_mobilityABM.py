@@ -337,7 +337,7 @@ def householdSetup(earth, parameters, calibration=False):
         
     opinion =  Opinion(earth)
     
-    for x,y in tqdm.tqdm(earth.locDict.keys():
+    for x,y in earth.locDict.keys():
         #print x,y
         nAgentsCell = int(parameters.population[x,y])
         #print nAgentsCell
@@ -414,10 +414,12 @@ def householdSetup(earth, parameters, calibration=False):
 
 def initEarth(parameters):
     tt = time.time()
-    if not parameters['calibration']:
-        
-        if parameters.writeOutput: 
-            # get simulation number
+    if parameters.writeOutput: 
+        if not parameters['calibration']:
+            
+           
+                
+            # get simulation number from file
             try:
                 fid = open("simNumber","r")
                 parameters.simNo = int(fid.readline())
@@ -426,10 +428,12 @@ def initEarth(parameters):
                 fid.close()
             except:
                 parameters.simNo = 0
-        else:
-            parameters.simNo = None
+        
+    else:
+        parameters.simNo = None
     
-    
+    print 'simulation number is: ' + str(parameters.simNo)
+    exit()
     
 
 
@@ -609,7 +613,7 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in tqdm.tqdm(earth.iterNodes(_hh)):
+    for household in earth.iterNodes(_hh):
         
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
         #for adult in household.adults:
@@ -618,7 +622,7 @@ def runModel(earth, parameters):
     for cell in earth.iterNodes(_cell):
         cell.step(earth.market.kappa)
         
-    for household in tqdm.tqdm(earth.iterNodes(_hh)):
+    for household in earth.iterNodes(_hh):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
         household.shareExperience(earth)
@@ -738,7 +742,7 @@ def setupHouseholdsWithOptimalChoice():
     householdSetup(earth, parameters)            
     initMobilityTypes(earth, parameters)    
     #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in tqdm.tqdm(earth.iterNodes(_hh)):    
+    for household in earth.iterNodes(_hh):    
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
 
     for cell in earth.iterNodes(_cell):
@@ -746,7 +750,7 @@ def setupHouseholdsWithOptimalChoice():
     
     earth.market.setInitialStatistics([1000.,5.,300.])
 
-    for household in tqdm.tqdm(earth.iterNodes(_hh)):
+    for household in earth.iterNodes(_hh):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
         
@@ -785,14 +789,25 @@ if __name__ == '__main__':
         # got calibration id
         paraFileName = sys.argv[2]
         colID = int(sys.argv[3])
+        parameters['calibration'] = True
+        
+        if parameters.mpi:
+            from mpi4py import MPI
+    
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            colID = rank
+            parameters['simNo']       = rank
+        else:
+            
+            parameters['simNo']       = 9999
         calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
         calRunID = calParaDf.index[0]
         for colName in calParaDf.columns:
             print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
-            parameters[colName] = calParaDf[colName][calRunID]
+            parameters[colName] = convertStr(str(calParaDf[colName][calRunID]))
         
-        parameters['calibration'] = True
-        parameters['simNo']       = 9999
+
     else:
         parameters['calibration'] = False
         

@@ -101,7 +101,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in tqdm.tqdm(self.iterNodes(_cell), 'Init cell memory'):
+        for location in self.iterNodes(_cell):
             location.initCellMemory(memoryTime, memeLabels)
 #    
 #    def initObsAtLoc(self,properties):
@@ -177,7 +177,7 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
-        for agent, x in tqdm.tqdm(self.iterNodeAndID(_pers), 'Generating friend network'):
+        for agent, x in self.iterNodeAndID(_pers):
             
             frList, edges, weights = agent.generateFriendNetwork(self,nFriendsPerPerson)
             edgeList += edges
@@ -189,7 +189,7 @@ class Earth(World):
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
         tt = time.time()
-        for node in tqdm.tqdm(self.entList, 'Updating edges'):
+        for node in self.entList:
             node.updateEdges()
         print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
@@ -230,15 +230,15 @@ class Earth(World):
                 
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
-            for household in tqdm.tqdm(self.iterNodes(_hh),'Itterating households'):
+            for household in self.iterNodes(_hh):
                 #agent = self.agDict[agID]
                 household.stepOmniscient(self)        
         else:
-            for household in tqdm.tqdm(self.iterNodes(_hh),'Itterating households'):
+            for household in self.iterNodes(_hh):
                 #agent = self.agDict[agID]
                 household.step(self)
             
-        for adult in tqdm.tqdm(self.iterNodes(_pers), 'Itterating persons'):
+        for adult in self.iterNodes(_pers):
             adult.weightFriendExperience(self)   
         
         # proceed step
@@ -271,7 +271,8 @@ class Earth(World):
                 self.globalData[key].plot(self.para['outPath'] + '/rec')
             #except:
         #    pass
-          
+        if self.para['mpi']:
+            os.system("tar -zcvf mobilityABM/rootfs/mnt/ssd/geiges/python/agModel/output.tar.gz mobilityABM/rootfs/mnt/ssd/geiges/python/agModel/" + self.para['outPath'])
 
         
 class Market():
