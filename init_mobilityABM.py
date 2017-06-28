@@ -433,7 +433,7 @@ def initEarth(parameters):
         parameters.simNo = None
     
     print 'simulation number is: ' + str(parameters.simNo)
-    exit()
+
     
 
 
@@ -522,7 +522,7 @@ def cellTest(earth, parameters):
 def generateNetwork(earth, parameters):
     # %% Generate Network
     tt = time.time()
-    earth.genFriendNetwork(parameters.minFriends)
+    earth.genFriendNetwork(_pers,_cpp)
     print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
     
 def initMobilityTypes(earth, parameters):

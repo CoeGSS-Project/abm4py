@@ -169,7 +169,7 @@ class Earth(World):
         return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon, prImi
     
     
-    def genFriendNetwork(self, nFriendsPerPerson):
+    def genFriendNetwork(self, nodeType, edgeType):
         """ 
         Function for the generation of a simple network that regards the 
         distance between the agents and their similarity in their preferences
@@ -177,14 +177,14 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
-        for agent, x in self.iterNodeAndID(_pers):
+        for agent, x in self.iterNodeAndID(nodeType):
             
-            frList, edges, weights = agent.generateFriendNetwork(self,nFriendsPerPerson)
+            frList, edges, weights = agent.generateFriendNetwork(self)
             edgeList += edges
             weigList += weights
         eStart = self.graph.ecount()
         self.graph.add_edges(edgeList)
-        self.graph.es[eStart:]['type'] = _cpp
+        self.graph.es[eStart:]['type'] = edgeType
         self.graph.es[eStart:]['weig'] = weigList
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
@@ -610,11 +610,13 @@ class Person(Agent):
 #        plt.show
 
                     
-    def generateFriendNetwork(self, world, nFriends):
+    def generateFriendNetwork(self, world):
         """
         Method to generate a preliminary friend network that accounts for 
         proximity in space, priorities and income
         """
+        
+        nFriends = np.random.randint(world.para['minFriends'],world.para['maxFriends'])
         
         friendList = list()
         connList   = list()
@@ -660,13 +662,17 @@ class Person(Agent):
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         
-        weights = propWeigList * spatWeigList
+        weights = propWeigList * spatWeigList * incoWeigList
         weights = weights / np.sum(weights)
 
         if len(weights)-1 < nFriends:
             print "reducting the number of friends"
-        nFriends = min(len(weights)-1,nFriends)
-        ids = np.random.choice(len(weights), nFriends, replace=False, p=weights)
+        nFriends = min(np.sum(weights>0)-1,nFriends)
+        try:
+            ids = np.random.choice(len(weights), nFriends, replace=False, p=weights)
+        except:
+            import pdb
+            pdb.set_trace()
         friendList = [ contactIds[idx] for idx in ids ]
         connList   = [(self.nID, contactIds[idx]) for idx in ids]
         
@@ -1008,17 +1014,34 @@ class Household(Agent):
         combActions = cartesian(actionIdsList)
         overallUtil = np.sum(cartesian(eUtilsList),axis=1)
 
-        #best action 
-        bestActionIds = np.argmax(overallUtil)
-        actions = combActions[bestActionIds]
         
+        
+        
+        return combActions, overallUtil
+    
+    def maxUtilChoice(self, combActions, overallUtil):
+        #best action 
+        bestActionIdx = np.argmax(overallUtil)
+        actions = combActions[bestActionIdx]
         # return persons that buy a new car (action is not -1)
         actors = np.array(self.adults)[ actions != -1]
         actions = actions[ actions != -1]     
-        if overallUtil[bestActionIds] is None:
+        if overallUtil[bestActionIdx] is None:
             print 1
-        return actors, actions, overallUtil[bestActionIds]
-        
+        return actors, actions, overallUtil[bestActionIdx]
+    
+    def propUtilChoice(self, combActions, overallUtil):
+        weig = np.asarray(overallUtil) - np.min(np.asarray(overallUtil))
+        weig =weig / np.sum(weig)
+        propActionIdx = np.random.choice(range(len(weig)), p=weig)
+        actions = combActions[propActionIdx]
+        # return persons that buy a new car (action is not -1)
+        actors = np.array(self.adults)[ actions != -1]
+        actions = actions[ actions != -1]     
+        if overallUtil[propActionIdx] is None:
+            print 1
+        return actors, actions, overallUtil[propActionIdx]
+    
         
     def step(self, earth):
         for adult in self.adults:
@@ -1036,7 +1059,12 @@ class Household(Agent):
         if doCheckMobAlternatives:
             
             # return persons that are potentially performing an action, the action and the expected overall utility
-            personsToTakeAction, actions, expectedUtil = self.evaluateExpectedUtility(earth)
+            
+            
+            combActions, overallUtil = self.evaluateExpectedUtility(earth)
+            
+            #personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
+            personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
             
             if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
             
