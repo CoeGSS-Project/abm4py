@@ -115,11 +115,11 @@ if __name__ == '__main__':
     def computeCars():
     
         # for the agent nodes
-        for agent in earth.iterNode(_agent):
+        for agent in earth.iterNodes(_agent):
             #print agent.nID
             nBrownCars = 0
             nGreenCars = 0
-            neigList = agent.getAllNeighNodes()
+            neigList = agent.getConnNodes(_agent)
             for neigbour in neigList:
                 if neigbour['type'] == _car:
                     nBrownCars +=1
@@ -130,10 +130,10 @@ if __name__ == '__main__':
             agent.setValue('nGreenCars',nGreenCars)
         
         # for spatial nodes
-        for location in earth.iterNode(_location):
+        for location in earth.iterNodes(_location):
             nCars = 0
             #reach all agents of the nodes and their cars => neighboorhood order of 2
-            neigList = location.getNeigbourhood(order = 2) 
+            neigList, neigIDList = location.getNeigbourhood(order = 2) 
             for neigbour in neigList:
                 if neigbour['type'] == _car or neigbour['type'] == _grCar:
                     nCars +=1
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                     
     # step of the environment
     def environmentStep(deltaCars):
-        for location in earth.iterNode(_location):
+        for location in earth.iterNodes(_location):
             location.setValue('deltaCars',deltaCars[location.x,location.y])
     
     
@@ -149,10 +149,10 @@ if __name__ == '__main__':
     def simulationStep(deltaCars):
         
         
-        for loc in earth.iterNode(_location):
+        for loc in earth.iterNodes(_location):
             
             print 'location is ' + str(loc.x) + ' x '+ str(loc.y)
-            agList = loc.getAgentOfCell(edgeType=_locAgLink)
+            agList = loc.getAgentOfCell(nodeType=_agent)
     
             while loc.getValue('deltaCars') > 0:
     
@@ -164,12 +164,13 @@ if __name__ == '__main__':
                 ownedCars = agent.getValue('nCars')
                 print'own cars: ' + str(ownedCars),
                 #ownedGreenCars = agent.getValue('nGreenCars')
-                
-                sumGreenCars = np.sum(agent.getNeighNodeValues('nGreenCars',edgeType=_agAgLink))
+                tmp, __ = agent.getConnNodeValues('nGreenCars',nodeType=_agent)
+                sumGreenCars = np.sum(tmp)
                 print 'Sum Green Cars: ' + str(sumGreenCars),
-                sumCars = np.sum(agent.getNeighNodeValues('nCars',edgeType=_agAgLink))
+                tmp, __ = agent.getConnNodeValues('nCars',nodeType=_agent)
+                sumCars = np.sum(tmp)
                 print 'SumCars: ' + str(sumCars)     
-                print agent.getNeighNodeValues('nCars',edgeType=_agAgLink)
+                print agent.getConnNodeValues('nCars',nodeType=_agent)
                 
                 green_pressure = sumGreenCars / sumCars
                 if green_pressure > 0:
@@ -215,6 +216,18 @@ if __name__ == '__main__':
      
     #%% ######################### INITIALIZATION ##########################   
     earth = World(spatial=flgSpatial)
+    _inactive = 0
+    _location = 1
+    _agent    = 2
+    _car      = 3
+    _grCar    = 4
+    
+    # edge types
+    earth.registerEdgeType('locLocLink')
+    earth.registerEdgeType('locAgLink')
+    earth.registerEdgeType('agAgLink')
+    earth.registerEdgeType('agCarLink')
+    earth.registerEdgeType('agGrCarLink')
     connList= earth.computeConnectionList(connRadius)
     earth.initSpatialLayerNew(landLayer, connList)
     
@@ -232,7 +245,7 @@ if __name__ == '__main__':
     earth.graph.vs['nGreenCars'] = 0  
     
     # add social connections
-    for ag in earth.iterNode(_agent):
+    for ag in earth.iterNodes(_agent):
     
         nFriends = np.random.randint(3)+1
         
@@ -255,7 +268,7 @@ if __name__ == '__main__':
     indices = np.where(nCarsArray > 0 )
     for x,y in zip(*indices):
         loc = earth.locDict[(x,y)]
-        agList= loc.getAgentOfCell(edgeType= _locAgLink)
+        agList= loc.getAgentOfCell(nodeType= _agent)
         for iCar in range(nCarsArray[x,y]):    
             agID = np.random.choice(agList)
             

@@ -964,11 +964,14 @@ class Household(Agent):
         actionsList = list()
         nMobTypes = earth.market.nMobTypes
         
-        for adultIdx, adult in enumerate(self.adults):
-            if forcedTryAll or (adult.node['lastAction'] > earth.para['mobNewPeriod']) or (earth.time < earth.para['burnIn']):
-                actionsList.append([-1]+range(nMobTypes))
-            else:
-                actionsList.append([-1])
+        if forcedTryAll or (earth.time < earth.para['burnIn']):
+            actionsList = [[-1]+range(nMobTypes)]*len(self.adults)
+        else:
+            for adult in self.adults:
+                if adult.node['lastAction'] > earth.para['mobNewPeriod'] :
+                    actionsList.append([-1]+range(nMobTypes))
+                else:
+                    actionsList.append([-1])
         if len(actionsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
             minNoAction = len(actionsList) - 6              # minum number of adults not to take action    
             while len(filter(lambda x: x == [-1], actionsList)) < minNoAction:
@@ -999,7 +1002,7 @@ class Household(Agent):
                 print 1
         
         if len(actionIdsList) == 0:
-            return None, None, None
+            return None, None
         
         elif len(actionIdsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
             minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
@@ -1063,10 +1066,11 @@ class Household(Agent):
             
             combActions, overallUtil = self.evaluateExpectedUtility(earth)
             
-            #personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
-            personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
+            if combActions is not None:
+                #personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
+                personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
             
-            if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
+            if (combActions is not None) and len(personsToTakeAction) > 0:
             
                 # the propbabilty of taking action is equal to the expected raise of the expected utility
                 if self.node['util'] == 0:
@@ -1104,8 +1108,6 @@ class Household(Agent):
             self.util = self.evalUtility()
             
             if actionTaken:                
-                for adult in self.adults:
-                    adult.weightFriendExperience(earth)
                 self.shareExperience(earth)
 
                                 

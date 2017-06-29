@@ -197,18 +197,7 @@ class Entity():
                 values.append(node[prop])
         
         return values, neighbourIDs
-    
-    def getConnNodeValuesNew(self, prop, nodeType=0, mode='out'):
-        nodeList = self.node.neighbors(mode=mode, type=nodeType)
-        neighbourIDs     = list()
-        values          = list()
-
-        for node in nodeList:
-            neighbourIDs.append(node['name'])   
-            values.append(node[prop])
-        
-        return values, neighbourIDs
-    
+  
     
     def _old2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
         neighIDs = self.graph.neighborhood(self.nID)
@@ -254,7 +243,7 @@ class Location(Entity):
         world.registerLocation(self)
         self.world = world
         
-    def getAgentOfCell(self,edgeType):
+    def getAgentOfCell(self,nodeType):
         return self.getConnNodeIDs( nodeType=2, mode='in')
         
         
@@ -368,6 +357,7 @@ class World:
     
       
     def iterNodes(self,nodeType, random=True):
+        import numpy as np 
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
         nodeList = self.nodeList[nodeType]
