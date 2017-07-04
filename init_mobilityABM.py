@@ -808,11 +808,9 @@ if __name__ == '__main__':
         for colName in calParaDf.columns:
             print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
             parameters[colName] = convertStr(str(calParaDf[colName][calRunID]))
-        
-
     else:
         parameters['calibration'] = False
-        
+        calParaDf = pd.DataFrame()
         # no csv file given
         print "no input of parameters"
         
@@ -876,8 +874,11 @@ if __name__ == '__main__':
         
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
-        
-        writeSummary(earth, calRunID, calParaDf)
+            
+        if parameters['calibration']:
+            writeSummary(earth, calRunID, calParaDf)
+        else:
+            writeSummary(earth, earth.simNo, calParaDf)
     
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         #%%
@@ -891,4 +892,17 @@ if __name__ == '__main__':
         print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
         print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
         
- 
+        
+        cellList = earth.graph.vs[earth.nodeList[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+        
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+        
+        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(carsInBremen)*1000)
+        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(carsInBremen)*1000)
+        
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(carsInNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(carsInNieder)*1000)
+        
