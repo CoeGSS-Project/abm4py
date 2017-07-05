@@ -114,7 +114,7 @@ class Earth(World):
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
         for cell in self.iterNodes(_cell):
-            cell.traffic[brandID] = 0
+            #cell.traffic[brandID] = 0
             cell.convFunctions.append(convFunction)
             
         if 'brands' not in self.enums.keys():
@@ -1195,7 +1195,7 @@ class Cell(Location):
         self.carsToBuy = 0
         self.deleteQueue =1
         self.currID = 0
-        self.traffic = dict()
+        #self.traffic = dict()
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
@@ -1242,19 +1242,19 @@ class Cell(Location):
     
     def getConnLoc(self,edgeType=1):
         return self.getAgentOfCell(edgeType=1)
-    
-    
-    def addToTraffic(self,brandID):
-        self.traffic[brandID] += 1      
         
-    def remFromTraffic(self,label):
-        self.traffic[label] -= 1
+    def addToTraffic(self,mobTypeID):
+        self.addValue('carsInCell', 1, idx=int(mobTypeID))
+            
+    def remFromTraffic(self,mobTypeID):
+        self.addValue('carsInCell', -1, idx=int(mobTypeID))
         
     def trafficMixture(self):
-        total = sum(self.traffic.values()) 
+        carsInCell = self.getValue('carsInCell')
+        total = sum(carsInCell) 
         shares = list()
-        for key in self.traffic.keys():         
-            shares.append(float(self.traffic[key])/total)       
+        for idx in range(len(carsInCell)):         
+            shares.append(float(carsInCell[idx])/total)       
         self.brandShares = shares
             
     def getX(self, choice):
@@ -1293,10 +1293,10 @@ class Cell(Location):
         self.currDelList = list()                 # restarts the list for the next step
         
         #write cell traffic to graph
-        if len(self.traffic.values()) > 1:
-            self.setValue('carsInCell', tuple(self.traffic.values()))
-        else:
-            self.setValue('carsInCell', self.traffic.values()[0])
+        #if len(self.traffic.values()) > 1:
+        #    self.setValue('carsInCell', tuple(self.traffic.values()))
+        #else:
+        #    self.setValue('carsInCell', self.traffic.values()[0])
             
         convAll = self.calculateConveniences()
         self.setValue('convenience', convAll)
@@ -1317,12 +1317,12 @@ class Cell(Location):
         #self.currID +=1
         return obsID
         
-    def removeObs(self, label):
-        """
-        Removes a car for the pool of observations
-        - not used right now -
-        """
-        self.traffic[label] -= 1
+#    def removeObs(self, label):
+#        """
+#        Removes a car for the pool of observations
+#        - not used right now -
+#        """
+#        self.traffic[label] -= 1
 
         
 class Opinion():
