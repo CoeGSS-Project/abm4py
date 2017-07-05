@@ -25,7 +25,6 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 import igraph as ig
 import numpy as np
-import tqdm
 
 
 ################ ENTITY CLASS #########################################    
@@ -101,7 +100,7 @@ class Entity():
         # Thus, the node is set to inactive and removed from the iterator lists
         # This is due to the library, but the problem is general and pose a challenge.
         Earth.graph.vs[nID]['type'] = 0
-        Earth.nodeList[self.type].remove(nID)
+        Earth.nodeDict[self.type].remove(nID)
         #remove edges        
         eIDSeq = self.graph.es.select(_target=self.nID).indices        
         self.graph.delete_edges(eIDSeq)
@@ -187,11 +186,11 @@ class Entity():
         return [x['name'] for x in neigbours if x['type'] == nodeType]
         
     def getConnNodeValues(self, prop, nodeType=0, mode='out'):
-        nodeList = self.node.neighbors(mode)
+        nodeDict = self.node.neighbors(mode)
         neighbourIDs     = list()
         values          = list()
 
-        for node in nodeList:
+        for node in nodeDict:
             if node['type'] == nodeType:
                 neighbourIDs.append(node['name'])   
                 values.append(node[prop])
@@ -199,11 +198,11 @@ class Entity():
         return values, neighbourIDs
     
     def getConnNodeValuesNew(self, prop, nodeType=0, mode='out'):
-        nodeList = self.node.neighbors(mode=mode, type=nodeType)
+        nodeDict = self.node.neighbors(mode=mode, type=nodeType)
         neighbourIDs     = list()
         values          = list()
 
-        for node in nodeList:
+        for node in nodeDict:
             neighbourIDs.append(node['name'])   
             values.append(node[prop])
         
@@ -306,7 +305,7 @@ class World:
         self.spatial  = spatial
         self.graph    = ig.Graph(directed=True)
         self.graph.queueEdge = self.queueEdge
-        self.nodeList = dict()    
+        self.nodeDict = dict()    
         self.graph.nodeProperies = dict()
         self.entList   = list()
         self.entDict   = dict()
@@ -364,28 +363,28 @@ class World:
     def registerNode(self, agent, typ):
         self.entList.append(agent)
         self.entDict[agent.nID] = agent
-        self.nodeList[typ].append(agent.nID)
+        self.nodeDict[typ].append(agent.nID)
     
       
     def iterNodes(self,nodeType, random=True):
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
-        nodeList = self.nodeList[nodeType]
+        nodeDict = self.nodeDict[nodeType]
         if random:
-            shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
             return [self.entList[i] for i in shuffled_list]
         else:
-            return  [self.entList[i] for i in nodeList]
+            return  [self.entList[i] for i in nodeDict]
         
     def iterNodeAndID(self,nodeType, random=True):
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
-        nodeList = self.nodeList[nodeType]
+        nodeDict = self.nodeDict[nodeType]
         if random:
-            shuffled_list = sorted(nodeList, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
             return  [(self.entList[i], i) for i in shuffled_list]
         else:
-            return  [(self.entList[i], i) for i in nodeList]
+            return  [(self.entList[i], i) for i in nodeDict]
 
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):
@@ -402,7 +401,7 @@ class World:
     
     def nodeDegreeHist(self,nodeType,nbars=20):
         import matplotlib.pyplot as plt
-        plt.hist(self.graph.vs[self.nodeList[nodeType]].degree().nbars)
+        plt.hist(self.graph.vs[self.nodeDict[nodeType]].degree().nbars)
         
  
     def computeConnectionList(self,radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
@@ -439,7 +438,7 @@ class World:
 
         # create vertices 
         id = 0
-        #self.spatialNodeList = []
+        #self.spatialnodeDict = []
         for x in range(nodeArray.shape[0]):
             for y in range(nodeArray.shape[1]):
 
@@ -449,7 +448,6 @@ class World:
                     loc = LocClassObject(self,x,y)
                     self.registerLocation(loc)
                     self.registerNode(loc,1)
-                    self.locDict[(x,y)] = loc
                     id +=1
         fullConnectionList = list()
         fullWeightList     = list()
@@ -512,7 +510,7 @@ class World:
                         
     def updateSpatialLayer(self,propName,array):
         nodetype = self.getNodeType('lo')
-        for nId in self.nodeList[nodetype]:
+        for nId in self.nodeDict[nodetype]:
             [x,y] = self.graph.vs[nId]['pos']
             self.graph.vs[nId][propName] = array[x,y]
     
@@ -544,7 +542,7 @@ class World:
         nodeType = len(self.graph.nodeTypes)
         self.graph.nodeTypes[nodeType] = typeStr
         self.graph.nodeProperies[nodeType] = ['label', 'type']
-        self.nodeList[nodeType]= list()
+        self.nodeDict[nodeType]= list()
         
 
         # init queue for the specific type
@@ -670,8 +668,8 @@ class World:
                 pass
             
         self.agentRec[typ] = Record()
-        self.agentRec[typ].ag2FileIdx = self.nodeList[typ]
-        nAgents = len(self.nodeList[typ])
+        self.agentRec[typ].ag2FileIdx = self.nodeDict[typ]
+        nAgents = len(self.nodeDict[typ])
         self.agentRec[typ].attributes = list()
         attributes = self.graph.vs.attribute_names()
         self.agentRec[typ].nAttr = 0

@@ -502,8 +502,8 @@ def initEarth(parameters):
 
 def cellTest(earth, parameters):   
     #%% cell convenience test
-    convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeList[1])])
-    popArray = np.zeros([len(earth.nodeList[1])])
+    convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeDict[1])])
+    popArray = np.zeros([len(earth.nodeDict[1])])
     for i, cell in enumerate(earth.iterNodes(_cell)):
         convAll, population = cell.selfTest()
         convArray[:,i] = convAll
@@ -583,8 +583,8 @@ def calGreenNeigbourhoodShareDist(earth):
         #%%
         import matplotlib.pylab as pl
         
-        relarsPerNeigborhood = np.zeros([len(earth.nodeList[_pers]),3])
-        for i, persId in enumerate(earth.nodeList[_pers]):
+        relarsPerNeigborhood = np.zeros([len(earth.nodeDict[_pers]),3])
+        for i, persId in enumerate(earth.nodeDict[_pers]):
             person = earth.entDict[persId]
             x,__ = person.getConnNodeValues('mobType',_pers)
             for mobType in range(3):
@@ -598,8 +598,8 @@ def plotIncomePerNetwork(earth):
     #%%
         import matplotlib.pylab as pl
         
-        incomeList = np.zeros([len(earth.nodeList[_pers]),1])
-        for i, persId in enumerate(earth.nodeList[_pers]):
+        incomeList = np.zeros([len(earth.nodeDict[_pers]),1])
+        for i, persId in enumerate(earth.nodeDict[_pers]):
             person = earth.entDict[persId]
             x, friends = person.getConnNodeValues('mobType',_pers)
             incomes = [earth.entDict[friend].hh.node['income'] for friend in friends]
@@ -674,7 +674,7 @@ def onlinePostProcessing(earth):
     # calculate the mean and standart deviation of priorities
     if True:
         df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-        for agID in earth.nodeList[3]:
+        for agID in earth.nodeDict[3]:
             df.loc[agID] = earth.graph.vs[agID]['preferences']
         
         
@@ -700,7 +700,7 @@ def onlinePostProcessing(earth):
     # calculate the correlation between weights and differences in priorities        
     if True:
         pref = np.zeros([earth.graph.vcount(), 4])
-        pref[earth.nodeList[_pers],:] = np.array(earth.graph.vs[earth.nodeList[_pers]]['preferences'])
+        pref[earth.nodeDict[_pers],:] = np.array(earth.graph.vs[earth.nodeDict[_pers]]['preferences'])
         idx = list()
         for edge in earth.iterEdges(_cpp):
             edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
@@ -725,14 +725,14 @@ def prioritiesCalibrationTest():
              
     householdSetup(earth, parameters, calibration=True)
     df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeList[3]:
+    for agID in earth.nodeDict[3]:
         df.loc[agID] = earth.graph.vs[agID]['preferences']
 
 #    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-#    for agID in earth.nodeList[3]:
+#    for agID in earth.nodeDict[3]:
 #        df.loc[agID] = earth.graph.vs[agID]['preferences']
 
-    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeList[3]]['preferences']))
+    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeDict[3]]['preferences']))
 
     return earth 
 
@@ -754,7 +754,7 @@ def setupHouseholdsWithOptimalChoice():
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
         
-    for hh in iter(earth.nodeList[_hh]):
+    for hh in iter(earth.nodeDict[_hh]):
         oldEarth = copy(earth)
         earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)    
     return earth    
@@ -880,9 +880,9 @@ if __name__ == '__main__':
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         #%%
         nPeople = np.nansum(parameters.population)
-        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])!=2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==0))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==1))
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
         print 'Number of agents: ' + str(nPeople)
         print 'Number of agents: ' + str(nCars)
         print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)

@@ -31,6 +31,22 @@ import pandas as pd
 import seaborn as sns
 import pickle
 
+def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
+    """
+    Method for easy computing a connections list of regular grids
+    """
+    connList = []  
+    
+    intRad = int(radius)
+    for x in range(-intRad,intRad+1):
+        for y in range(-intRad,intRad+1):
+            if (x**2 +y**2)**.5 < radius:
+                if x**2 +y**2 > 0:
+                    weig  = weightingFunc(x,y)
+                else:
+                    weig = ownWeight
+                connList.append((x,y,weig))
+    return connList
 
 def cartesian(arrays, out=None):
     """
@@ -237,4 +253,5 @@ class Record():
         
         else:
             return None
+        
         

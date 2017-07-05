@@ -1240,13 +1240,13 @@ class Cell(Location):
 
     def getConnCellsPlus(self):
          self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
-         self.connNodeList = [edge.target for edge in edges ]
-         return self.weights, edges.indices, self.connNodeList    
+         self.connnodeDict = [edge.target for edge in edges ]
+         return self.weights, edges.indices, self.connnodeDict    
  
     def _getConnCellsPlusOld(self):
          self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
-         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
-         return self.weights, self.eIDs, self.connNodeList
+         self.connnodeDict = [self.graph.es[x].target for x in self.eIDs ]
+         return self.weights, self.eIDs, self.connnodeDict
 
     
     def getHHs(self):
