@@ -1066,6 +1066,7 @@ class Household(Agent):
             
             combActions, overallUtil = self.evaluateExpectedUtility(earth)
             
+
             if combActions is not None:
 
                 personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)

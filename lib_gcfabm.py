@@ -222,7 +222,7 @@ class Entity():
             neighbours = self.graph.vs[neighIDs]
         
         return neighbours[prop], neighbours['name']
-        
+
     def _alt2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
         neighIds = self.graph.neighborhood(self.nID, mode=mode)
         
