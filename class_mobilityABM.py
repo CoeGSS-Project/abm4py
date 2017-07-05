@@ -279,34 +279,34 @@ class Market():
 
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
-        self.time               = time
-        self.properties         = properties                 # (currently: emissions, price)
-        self.mobilityProp       = dict()                     # mobType -> [properties]
-        self.nProp              = len(properties)
-        self.stock              = np.zeros([0,self.nProp+1]) # first column gives the brandID  (rest: properties, sorted by car ID)
-        self.owners             = list()                     # List of (ownerID, brandID) index: mobID
-        self.propRelDev         = propRelDev                 # relative deviation of the actual car propeties
-        self.obsDict            = dict()                     # time -> other dictionary (see next line)
-        self.obsDict[self.time] = dict()                # (used by agents, observations (=utilities) also saved in locations)
-        self.freeSlots          = list()
-        self.stockByMobType     = list()                     # stock by brands 
-        self.nMobTypes          = 0
-        self.mobilityLables     = dict()                     # brandID -> label
-        self.mobilityInitDict   = dict()
-        self.mobilityTypesToInit  = list()                     # list of brand labels
-        self.carsPerLabel       = list()
-        self.mobilityGrowthRates = list()                  # list of growth rates of brand
-        self.techProgress       = list()                     # list of productivities of brand
-        self.burnIn             = burnIn
-        self.greenInfraMalus    = greenInfraMalus
-        self.kappa              = self.greenInfraMalus
-        self.sales              = list()
-        self.meanDist           = 0.
-        self.stdDist            = 1.
-        self.innovationWeig     = [1- earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]
-        self.allTimeProduced    = list()                   # list of previous produced numbers -> for technical progress
-        self.mobNewPeriod       = earth.para['mobNewPeriod']
-        self.innoDevRange       = earth.para['innoDevRange']
+        self.time                = time
+        self.graph               = earth.graph
+        self.nodeList            = earth.nodeList
+        self.properties          = properties                 # (currently: emissions, price)
+        self.mobilityProp        = dict()                     # mobType -> [properties]
+        self.nProp               = len(properties)
+        #self.stock               = np.zeros([0,self.nProp+1]) # first column gives the mobTypeID  (rest: properties, sorted by car ID)
+        #self.owners              = list()                     # List of (ownerID, mobTypeID) index: mobID
+        self.propRelDev          = propRelDev                 # relative deviation of the actual car propeties
+        self.obsDict             = dict()                     # time -> other dictionary (see next line)
+        self.obsDict[self.time]  = dict()                     # (used by agents, observations (=utilities) also saved in locations)
+        self.stockByMobType      = list()                     # list of total numbers per mobility type 
+        self.nMobTypes           = 0                          # number of different mobility types
+        self.mobilityLables      = dict()                     # mobTypeID -> label
+        self.mobilityInitDict    = dict()                     # list of (list of) initial values for each mobility type
+        self.mobilityTypesToInit = list()                     # list of (mobility type) labels
+        self.mobilityGrowthRates = list()                     # list of growth rates of brand
+        self.techProgress        = list()                     # list of productivities of brand
+        self.burnIn              = burnIn
+        self.greenInfraMalus     = greenInfraMalus
+        self.kappa               = self.greenInfraMalus
+        self.sales               = list()
+        self.meanDist            = 0.
+        self.stdDist             = 1.
+        self.innovationWeig      = [1-earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]   # weights for calculating innovation distance
+        self.allTimeProduced     = list()                     # list of previous produced numbers -> for technical progress
+        self.mobNewPeriod        = earth.para['mobNewPeriod']
+        self.innoDevRange        = earth.para['innoDevRange']
         
     def getNTypes(self):
         return self.nMobTypes
@@ -318,31 +318,22 @@ class Market():
         # actually puts the car on the market
         for label, propertyTuple, _, brandID, allTimeProduced in  self.mobilityInitDict[0]:
              self.addBrand2Market(label, propertyTuple, brandID)
+
     
     def computeStatistics(self):
         distances=list()
-        # prct = self.percentiles.keys()
-        # for item in self.percentiles.keys():
-        #    self.percentiles[item] = np.percentile
-        #self.percentiles = np.percentile(self.stock[:,1:],self.prctValues,axis=0)
-        #print self.percentiles
-        
-        
-        #if self.time < self.burnIn:
-            #self.setInitialStatistics([1000.,5.,300.])
-         #   self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
-         #   self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
-        #else:
-        self.mean = np.mean(self.stock[:,1:],axis=0)                           # list of means of properties
-        self.std  = np.std(self.stock[:,1:],axis=0)                            # same for std
+        stock = np.asarray(self.graph.vs[self.nodeList[_pers]]['prop'])
+        self.mean = np.mean(stock[:,:],axis=0)                           # list of means of properties
+        self.std  = np.std(stock[:,:],axis=0)                            # same for std
         
         distances = list()         
-        for mobID in range(len(self.stock)):
-            properties = self.stock[mobID,1:]
+        for idx in range(len(stock)):
+            properties = stock[idx,:]
             distance = self.distanceFromMean(properties)
             distances.append(distance)
         self.meanDist = np.mean(distances)
         self.stdDist = np.std(distances)
+
 
     def distanceFromMean(self, properties):        
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
@@ -351,6 +342,7 @@ class Market():
     def getDistanceFromMean(self, properties): 
         distance = (self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]  - self.meanDist)/self.stdDist          
         return distance
+
         
     def setInitialStatistics(self, typeQuantities):
         total = sum(typeQuantities[mobIdx] for mobIdx in range(self.nMobTypes))
@@ -387,8 +379,8 @@ class Market():
         # check if a new car is entering the market
         if self.time in self.mobilityInitDict.keys():
                 
-            for label, propertyTuple, _, brandID in  self.mobilityInitDict[self.time]:
-                self.addBrand2Market(label, propertyTuple, brandID)
+            for label, propertyTuple, _, mobTypeID in  self.mobilityInitDict[self.time]:
+                self.addBrand2Market(label, propertyTuple, mobTypeID)
         
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
@@ -396,15 +388,14 @@ class Market():
         
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.sales)]
+        
         # reset sales
-        #print self.sales
         self.sales = [0]*len(self.sales)
         
         #compute new statistics        
         self.computeStatistics()
         
-        
-            
+                    
     def computeTechnicalProgress(self):
             # calculate growth rates per brand:
             # oldCarsPerLabel = copy.copy(self.carsPerLabel)
@@ -424,10 +415,8 @@ class Market():
             # technical process of infrastructure -> given to cells                
             self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
             
-
         
-    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):
-        
+    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
         mobType = self.nMobTypes
         self.nMobTypes +=1 
         self.mobilityGrowthRates.append(0.)
@@ -435,7 +424,6 @@ class Market():
         self.sales.append(0)
         self.stockByMobType.append(0)
         self.allTimeProduced.append(allTimeProduced)
-        self.carsPerLabel = np.zeros(self.nMobTypes)
         self.mobilityTypesToInit.append(label)
         if initTimeStep not in self.mobilityInitDict.keys():
             self.mobilityInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , mobType, allTimeProduced]]
@@ -444,18 +432,15 @@ class Market():
        
         return mobType
     
-    def addBrand2Market(self, label, propertyTuple, mobType):
-        
-        #add brand to the market
-           
+    def addBrand2Market(self, label, propertyTuple, mobType):        
+        #add brand to the market           
         self.stockByMobType[mobType] = 0
         self.mobilityProp[mobType]   = propertyTuple
         self.mobilityLables[mobType] = label
         #self.buyCar(brandID,0)
         #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] -= 1
         self.obsDict[self.time][mobType] = list()
-        
-        
+                
     def remBrand(self,label):
         #remove brand from the market
         del self.mobilityProp[label]
@@ -466,32 +451,30 @@ class Market():
         prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobTypeIdx], (1 + np.random.randn(self.nProp)*self.propRelDev))]
         return prop
     
-    def buyCar(self, mobTypeIdx, eID):
+    def buyCar(self, mobTypeIdx):
         prop = self.currentCarProperties(mobTypeIdx)
         if self.time > self.burnIn:
-            self.sales[int(mobTypeIdx)] += 1
-            
-        if len(self.freeSlots) > 0:
-            mobID = self.freeSlots.pop()
-            self.stock[mobID] = [mobTypeIdx] + prop
-            self.owners[mobID] = (eID, mobTypeIdx)
-        else:
-            self.stock = np.vstack(( self.stock, [mobTypeIdx] + prop))
-            self.owners.append((eID, mobTypeIdx))
-            mobID = len(self.owners)-1
-        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] += 1
-        self.stockByMobType[int(mobTypeIdx)] += 1
-        #self.computeStatistics()
-        
-        return mobID, prop
+            self.sales[int(mobTypeIdx)] += 1            
+        #if len(self.freeSlots) > 0:
+        #    mobID = self.freeSlots.pop()
+        #    self.stock[mobID] = [mobTypeIdx] + prop
+        #    self.owners[mobID] = (eID, mobTypeIdx)
+        #else:
+        #    self.stock = np.vstack(( self.stock, [mobTypeIdx] + prop))
+        #    self.owners.append((eID, mobTypeIdx))
+        #    mobID = len(self.owners)-1
+        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] += 1        
+        self.stockByMobType[int(mobTypeIdx)] += 1        
+        return prop    #return mobID, prop
     
-    def sellCar(self, mobID):
-        self.stock[mobID] = np.Inf
-        self.freeSlots.append(mobID)
-        mobType = self.owners[mobID][1]
-        self.owners[mobID] = None
-        #self.stockByMobType.loc[self.stockByMobType.index[-1],label] -= 1
-        self.stockByMobType[int(mobType)] -= 1
+    #def sellCar(self, mobID):
+    #    self.stock[mobID] = np.Inf
+    #    self.freeSlots.append(mobID)
+    #    mobType = self.owners[mobID][1]
+    #    self.owners[mobID] = None
+    #    #self.stockByMobType.loc[self.stockByMobType.index[-1],label] -= 1
+    #    self.stockByMobType[int(mobType)] -= 1
+
 
 # %% --- entity classes ---
 
@@ -823,11 +806,11 @@ class Household(Agent):
         """
         for person, actionIdx in zip(persons, actionIds):
             
-            mobID, properties = earth.market.buyCar(actionIdx, self.nID)
+            properties = earth.market.buyCar(actionIdx)
             self.loc.addToTraffic(actionIdx)
             
             person.node['mobType']   = int(actionIdx)
-            person.node['mobID']     = int(mobID)
+            #person.node['mobID']     = int(mobID)
             person.node['prop']      = properties
             person.node['obsID']     = None
             if earth.time <  earth.para['burnIn']:
@@ -838,18 +821,15 @@ class Household(Agent):
             self.node['expenses'] += properties[1]
             
  
-    def undoActions(self,world, persons):
+    def undoActions(self, persons):  
         """
         Method to undo actions
         """
         for adult in persons:
-            mobID = adult.node['mobID']
-            world.market.sellCar(mobID)
-            self.loc.remFromTraffic(adult.node['mobType'])
-            
-            # remove cost of mobility to the expenses
+            #mobID = adult.node['mobID']
+            #earth.market.sellCar(mobID)
+            self.loc.remFromTraffic(adult.node['mobType'])            
             self.node['expenses'] -= adult.node['prop'][1]
-
 
 
     def calculateConsequences(self, market):
@@ -949,7 +929,7 @@ class Household(Agent):
                 if len(actors) == 0:
                     actionTaken = False
                 actions = actionIds[ actionIds != -1]
-                self.undoActions(earth, actors)                  
+                self.undoActions(actors)                  
                 self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)     
                 self.calculateConsequences(market)
                 self.util = self.evalUtility()
@@ -1084,7 +1064,7 @@ class Household(Agent):
             # the action is only performed if flag is True
           
             if actionTaken:
-                self.undoActions(earth, personsToTakeAction)
+                self.undoActions(personsToTakeAction)
                 self.takeAction(earth, personsToTakeAction, actions)
 
             self.calculateConsequences(earth.market)

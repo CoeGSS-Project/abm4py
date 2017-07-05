@@ -29,12 +29,11 @@ meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
 
-nBurnIn = 100
+nBurnIn       = 100
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
 
-
-path = 'output/sim0999/'
+path = 'output/sim0251/'
 
 
 
