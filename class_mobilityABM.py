@@ -999,7 +999,7 @@ class Household(Agent):
                 print 1
         
         if len(actionIdsList) == 0:
-            return None, None, None
+            return None, None
         
         elif len(actionIdsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
             minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
@@ -1063,8 +1063,8 @@ class Household(Agent):
             
             combActions, overallUtil = self.evaluateExpectedUtility(earth)
             
-            #personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
-            personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
+            personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
+            #personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
             
             if (personsToTakeAction is not None) and len(personsToTakeAction) > 0:
             

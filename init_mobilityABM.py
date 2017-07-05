@@ -75,7 +75,7 @@ _year  = 2
 
 #%% Scenario definition without calibraton parameters
 
-def scenarioTestSmall(parameterInput):
+def scenarioTestSmall(parameterInput, dirPath):
     setup = Bunch()
     
     #general 
@@ -131,7 +131,7 @@ def scenarioTestSmall(parameterInput):
 
 
     
-def scenarioTestMedium(parameterInput):
+def scenarioTestMedium(parameterInput, dirPath):
 
     
     setup = Bunch()
@@ -194,7 +194,7 @@ def scenarioTestMedium(parameterInput):
     return setup
     
     
-def scenarioNiedersachsen(parameterInput):
+def scenarioNiedersachsen(parameterInput, dirPath):
     setup = Bunch()
     
     #general 
@@ -320,6 +320,7 @@ def householdSetup(earth, parameters, calibration=False):
                                    'util',
                                    'expenses'])
     earth.registerNodeType('pers', ['type',
+                                   'hhID',
                                    'preferences',
                                    'prefTyp',
                                    'genders',
@@ -376,6 +377,7 @@ def householdSetup(earth, parameters, calibration=False):
                 prefTuple = opinion.getPref(ages[iPers],genders[iPers],nKids,nPers,income,parameters.radicality)
                 prefTyp = np.argmax(prefTuple)
                 pers.node['preferences']    = prefTuple
+                pers.node['hhID']           = hh.nID
                 pers.node['prefTyp']        = prefTyp
                 pers.node['genders']        = genders[iPers]
                 pers.node['ages']           = ages[iPers]
@@ -819,22 +821,22 @@ if __name__ == '__main__':
 
     if parameters.scenario == 0:
         
-        parameters = scenarioTestSmall(parameters)
+        parameters = scenarioTestSmall(parameters, dirPath)
 
     elif parameters.scenario == 1:
 
-        parameters = scenarioTestMedium(parameters)
+        parameters = scenarioTestMedium(parameters, dirPath)
         
     elif parameters.scenario == 2:
         
-        parameters = scenarioNiedersachsen(parameters)
+        parameters = scenarioNiedersachsen(parameters, dirPath)
         
         
     if parameters.scenario == 4:
         # test scenario 
         
         parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestMedium(parameters)
+        parameters = scenarioTestMedium(parameters, dirPath)
         parameters.showFigures = showFigures
         #parameters = scenarioNiedersachsen(parameters)
         earth = initEarth(parameters)
