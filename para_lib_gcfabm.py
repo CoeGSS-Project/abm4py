@@ -40,39 +40,139 @@ from mpi4py import MPI
 import time 
 
 from class_auxiliary import computeConnectionList
+
 class Queue():
 
     def __init__(self, world):
         self.graph = world.graph
-        self.edges          = dict()
+        self.edgeList       = dict()
         self.edgeProperties = dict()
-        self.nodes          = dict()    
-        self.nodeProperties = dict()
+        
+        self.currNodeID     = None
+        self.nodeList       = list()
+        self.nodeTypeList   = dict()
+        self.nodeProperties = dict()        
         
         
-    def addEdgeType(self, edgeTypeIdx, propertyList):
-        self.edges[edgeTypeIdx]             = list() #(nodeTuple list,)
-        self.edgeProperties[edgeTypeIdx]    = dict()
-        for prop in propertyList:
-            self.edgeProperties[edgeTypeIdx][prop] = list()
+    def addVertex(self, nodeType, **kwProperties):
+        #print kwProperties.keys()
+        if len(self.nodeList) == 0:
+            self.currNodeID = len(self.graph.vs)
+        
+        if nodeType not in self.nodeProperties.keys():
+            # init of new nodeType
+            propertiesOfType = self.graph.nodeProperies[nodeType]
+            #print propertiesOfType
+            assert all([prop in propertiesOfType for prop in kwProperties.keys()]) # check that all given properties are registered
             
+            self.nodeProperties[nodeType] = dict()
+            self.nodeTypeList[nodeType]   =list()
             
-    def addNodeType(self, edgeTypeIdx, propertyList):
-        pass
+            self.nodeProperties[nodeType]['nodeID'] = list()
+            for prop in kwProperties.keys():
+                #print prop
+                self.nodeProperties[nodeType][prop] = list()
+                
+        # adding of the data
+        nID = self.currNodeID
+        self.nodeList.append(nID)               # nID to general list
+        kwProperties.update({'nodeID': nID})
         
+        self.nodeTypeList[nodeType].append(self.currNodeID) # nID to type list
+        self.currNodeID += 1                                # moving index 
+        
+        for prop, value in kwProperties.iteritems():
+            self.nodeProperties[nodeType][prop].append(value)  # properties        
+            
+        return nID
+
+    def dequeueVertices(self, world):
+        
+        assert self.nodeList[0] == self.graph.vcount() # check that the queuing idx is consitent
+        #print self.nodeProperties
+        #adding all nodes first
+        self.graph.add_vertices(len(self.nodeList))
+        
+        # adding data per type
+        for nodeType in self.nodeTypeList.keys():
+            
+            nodeSeq = self.graph.vs[self.nodeTypeList[nodeType]]    # node sequence of specified type
+            nodeSeq['type'] = nodeType                                # adding type to graph
+            
+            for prop in self.nodeProperties[nodeType].keys():
+                nodeSeq[prop] = self.nodeProperties[nodeType][prop] # adding properties 
+
+        for i, entity in enumerate([world.entList[i] for i in self.nodeList]):
+            entity.node = self.graph.vs[self.nodeList[i]]
+            assert entity.nID == entity.node['nodeID']
+
+        # reset queue
+        self.currNodeID     = None
+        self.nodeList       = list()
+        self.nodeTypeList   = dict()
+        self.nodeProperties = dict()  
+
+                    
+    def addEdge(self, IDTuple, edgeType, propDict):
+        
+        #possible init
+        if edgeType not in self.edgeList.keys():
+            self.edgeList[edgeType] = list
+            self.edgeProperties[edgeType] = list
+            
+        # add edge source-target-tuple            
+        self.edgeList[edgeType].append(IDTuple)
+
+        # add properties
+        self.edgeProperties[edgeType]['type'].append(edgeType)
+        for propKey in propDict.keys():
+            self.edgeProperties[edgeType][propKey].append(propDict[propKey])
+
+  
+
+    def dequeueEdges(self):
+        
+        for edgeType in self.nodeTypeList.keys():
+            
+            eStart = self.graph.ecount()
+            self.graph.add_edges(self.edgeList[edgeType])
+            for prop in self.graph.edgeProperties[edgeType].keys():
+                self.graph.es[eStart:][prop] = self.graph.edgePropQueues[edgeType][prop]
+            
+
+        #for node in self.entList:
+        #    node.updateEdges()
+
+        # empty queue
+        self.edgeList       = list()
+        self.edgeProperties = dict()  
+        
+        # if all queues are done, set complete flag
+        #if len(self.graph.edgeQueues) == 0:
+        #    self.graph.edgesComplete = True
+      
 ################ ENTITY CLASS #########################################    
 # general ABM entity class for objects connected with the graph
 
 class Entity():
         
-    def __init__(self, world, nodeType):
+    def __init__(self, world, nodeType, **kwProperties):
         len(world.graph.nodeTypes) >=  nodeType
         self.graph= world.graph
-        self.nID  = len(self.graph.vs)
         self.gID  = self.__getGlobID__(world)
-        self.graph.add_vertex(self.nID, type=nodeType, gID=self.gID)
-        # short cuts for value access
-        self.node = self.graph.vs[self.nID]
+
+        if world.queuing:
+            # add vertex to queue
+            kwProperties.update({'gID':self.gID})
+            self.nID = world.queue.addVertex(nodeType=nodeType, **kwProperties)
+            self.node = None
+        else:
+            # add vertex to graph
+            self.nID  = len(self.graph.vs)
+            self.graph.add_vertex(nodeID = self.nID, type=nodeType, gID=self.gID)
+            self.node = self.graph.vs[self.nID]            # short cuts for value access
+            
+            
         self.edges = dict()                
         
 class Agent(Entity):
@@ -102,8 +202,8 @@ class Location(Entity):
         return world.globIDGen.next()
     
     def __init__(self, world, nodeType, owner, xPos, yPos):
-        Entity.__init__(self,world,nodeType)
-        self.graph.vs[self.nID]['pos']= (xPos,yPos)
+        Entity.__init__(self,world,nodeType, pos=(xPos,yPos))
+        #self.graph.vs[self.nID]['pos']= 
         self.mpiOwner = int(owner)
         
 class GhostLocation(Entity):
@@ -114,8 +214,8 @@ class GhostLocation(Entity):
         return None
     
     def __init__(self, world, nodeType, xPos, yPos, owner):
-        Entity.__init__(self,world,nodeType)
-        self.graph.vs[self.nID]['pos']= (xPos,yPos)
+        Entity.__init__(self,world,nodeType,pos=(xPos,yPos))
+        #self.graph.vs[self.nID]['pos']= (xPos,yPos)
         self.mpiOwner = int(owner)
         
         
@@ -129,6 +229,8 @@ class World:
         self.maxNodes = int(maxNodes)
         self.globIDGen = self.__globIDGen__()
         
+        self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
+        
                
         #GRAPH
         self.graph    = ig.Graph(directed=True)
@@ -139,15 +241,15 @@ class World:
         self.graph.nodeProperies = dict()
         self.graph.edgeProperies = dict()
         # queues
-        self.graph.queue = Queue(self)
+        self.queue = Queue(self)
 
         # MPI communication
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
-        self.graph.mpiIn  = dict()
-        self.graph.mpiOut = dict()
-        self.graph.mpiPeers = list()        
+        self.graph.mpiGhostIn  = dict()     # ghost vertices on this process that receive information
+        self.graph.mpiGhostOut = dict()     # vertices on this process that provide information to ghost nodes on other process
+        self.graph.mpiPeers    = list()     # list of ranks of all processes that have ghost duplicates of this process   
 
         
         # enumerations
@@ -201,8 +303,8 @@ class World:
         nodeTypeIdx = len(self.graph.nodeTypes)
         self.graph.nodeTypes.append(typeStr)
         self.graph.nodeProperies[nodeTypeIdx] = propertyList
-        self.nodeDict[nodeTypeIdx]= list()
-        
+        self.nodeDict[nodeTypeIdx]      = list()
+        self.ghostNodeDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
         return nodeTypeIdx
         
@@ -212,8 +314,8 @@ class World:
         
         edgeTypeIdx = len(self.graph.edgeTypes)
         self.graph.edgeTypes.append(typeStr)
-        self.graph.nodeProperies[edgeTypeIdx] = propertyList
-        self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)
+        self.graph.edgeProperies[edgeTypeIdx] = propertyList
+        #self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)
         self.enums[typeStr] = edgeTypeIdx            
 
         return  edgeTypeIdx            
@@ -226,22 +328,19 @@ class World:
         else:
             self.nodeDict[typ].append(agent.nID)
         
-    def registerLocation(self, location):
+    def registerLocation(self, location, x, y):
         
-        self.locDict[location.node['pos']] = location
+        self.locDict[x,y] = location
             
-    def initSpatialLayerMpi(self, rankArray, connList, nodeType, LocClassObject=Location, GhstLocClassObject=GhostLocation):
+    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject=Location, GhstLocClassObject=GhostLocation):
         """
         Auiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
         
         """
         nodeArray = ((rankArray * 0) +1)
-        #print nodeArray
-        self.graph.IdArray = nodeArray * np.nan
-        self.graph.IdArray[nodeArray == 1] = xrange(int(np.nansum(nodeArray)))
-        IDArray = self.graph.IdArray.astype(int)
-        IDArray[np.isnan(rankArray)] = -1
+        #print rankArray
+        IDArray = nodeArray * np.nan
         #print IDArray
         # spatial extend
         xOrg = 0
@@ -255,17 +354,40 @@ class World:
             for y in range(nodeArray.shape[1]):
 
                 # only add an vertex if spatial location exist     
-                if not np.isnan(rankArray[x,y]):
-                    if rankArray[x,y] == self.rank:
+                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.rank:
 
-                        loc = LocClassObject(self,nodeType, xPos=x, yPos=y, owner=rankArray[x,y])
-                        self.registerLocation(loc)          # only for real cells
-                        self.registerNode(loc,nodeType)     # only for real cells
-                    else:
-                        loc = GhstLocClassObject(self, nodeType, xPos=x, yPos=y, owner=rankArray[x,y],)
+                    loc = LocClassObject(self,nodeType, xPos=x, yPos=y, owner=rankArray[x,y])
+                    IDArray[x,y] = loc.nID
+                    self.registerLocation(loc, x, y)          # only for real cells
+                    self.registerNode(loc,nodeType)     # only for real cells
+        
+        #print self.locDict
+        # create ghost location nodes 
+        for (x,y), loc in self.locDict.items():
+
+            srcID = loc.nID
+            for (dx,dy,weight) in connList:
+            
+                xDst = x + dx
+                yDst = y + dy
+                
+                # check boundaries of the destination node
+                if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
+                    
+
+                    if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.rank:  # location lives on another process
+                        
+                        loc = GhstLocClassObject(self, nodeType, xPos=xDst, yPos=yDst, owner=rankArray[xDst,yDst],)
+                        #print 'rank: ' +  str(self.rank) + ' '  + str(loc.nID)
+                        IDArray[xDst,yDst] = loc.nID
+                        #print IDArray
                         # so far ghost nodes are not in entDict, nodeDict, entList
-                        self.registerNode(loc,nodeType)
+                        self.registerLocation(loc, x, y)
+                        self.registerNode(loc,nodeType,ghost=True)
                         ghostLocationList.append(loc)
+        self.graph.IDArray = IDArray
+        
+        self.queue.dequeueVertices(self)
 
         fullConnectionList = list()
         fullWeightList     = list()
@@ -289,7 +411,7 @@ class World:
                     trgID = IDArray[xDst,yDst]
                     
 
-                    if trgID !=-1:
+                    if not np.isnan(trgID):
                         destList.append(int(trgID))
                         weigList.append(weight)
                         connectionList.append((int(srcID),int(trgID)))
@@ -306,36 +428,49 @@ class World:
         self.graph.es[eStart:]['type'] = 1
         self.graph.es[eStart:]['weig'] = fullWeightList
         
-        
+        return ghostLocationList
+    
+    def initMpiCommunication(self, ghostLocationList):        
         tt = time.time()
         # acquire the global IDs for the ghostNodes
-        mpiReq = dict()
+        mpiRequest = dict()
+        mpiReqIDList = dict()
+        print self.graph.IDArray
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             x,y   = ghLoc.node['pos']
-            if owner not in mpiReq:
-                mpiReq[owner] = (list(), 'gID')
-            mpiReq[owner][0].append(IDArray[x,y])
-            
-        for mpiDest in mpiReq.keys():
+            if owner not in mpiRequest:
+                mpiRequest[owner]   = (list(), 'gID')
+                mpiReqIDList[owner] = list()
+                
+            mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
+            mpiReqIDList[owner].append(ghLoc.nID)
+        print 'rank' + str(self.rank) + 'mpiReqIDList: ' + str(mpiReqIDList)
+        
+        for mpiDest in mpiRequest.keys():
             
             if mpiDest not in self.graph.mpiPeers:
                 self.graph.mpiPeers.append(mpiDest)
+            
             # send request of global IDs
-            self.comm.send(mpiReq[mpiDest], dest=mpiDest)
+            print str(self.rank) + ' ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest])
+            self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
             
-            self.graph.mpiIn[_cell, mpiDest] = self.graph.vs[mpiReq[mpiDest][0]]
             
+            self.graph.mpiGhostIn[_cell, mpiDest] = self.graph.vs[mpiReqIDList[mpiDest]]
+
             # receive request of global IDs
             incRequest = self.comm.recv(source=mpiDest)
-            self.graph.mpiOut[_cell, mpiDest] = self.graph.vs[incRequest[0]]
+            iDList = [int(self.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
+            print 'idlist:' + str(iDList)
+            self.graph.mpiGhostOut[_cell, mpiDest] = self.graph.vs[iDList]
             
             # send requested global IDs
             self.comm.send(self.graph.vs[incRequest[0]][incRequest[1]], dest=mpiDest)
             #receive requested global IDs
             globIDList = self.comm.recv(source=mpiDest)
             
-            self.graph.vs[mpiReq[mpiDest][0]]['gID'] = globIDList
+            self.graph.vs[mpiRequest[mpiDest][0]]['gID'] = globIDList
         print 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds'
 
     def syncNodesMpi(self, nodeType, propertyList='all'):
@@ -349,19 +484,22 @@ class World:
             
             for i, prop in enumerate(propertyList):
                 #check if out sync is registered for nodetype and pee
-                if (nodeType, peer) in self.graph.mpiOut:
-                    #print self.graph.mpiOut[(nodeType, peer)][prop]
-                    self.comm.isend(self.graph.mpiOut[(nodeType, peer)][prop], peer, tag=i)
+                if (nodeType, peer) in self.graph.mpiGhostOut:
+                    print self.graph.mpiGhostOut[(nodeType, peer)][prop]
+                    self.comm.isend(self.graph.mpiGhostOut[(nodeType, peer)][prop], peer, tag=i)
             
                 #check if in sync is registered for nodetype and peer
-                if (nodeType, peer) in self.graph.mpiIn:
+                if (nodeType, peer) in self.graph.mpiGhostIn:
                     buffers[peer,i] = self.comm.irecv(source=peer, tag=i)
                     #data = buf.wait()
             
         for key in buffers.keys():
+            print str(self.rank) + ' ' + 'key:' + str(key)
+            
             data = buffers[key].wait()
-            #print data
-            self.graph.mpiOut[(nodeType, key[0])][propertyList[key[1]]] = data
+            print 'data ' + str(data)
+            print self.graph.mpiGhostIn
+            self.graph.mpiGhostIn[(nodeType, key[0])][propertyList[key[1]]] = data
         print 'MPI commmunication required: ' + str(time.time()-tt) + ' seconds'
         
     
@@ -392,7 +530,7 @@ class World:
             hsv =  next(colors)[0:3]
             colorDictEdge[i] = hsv.tolist()
         
-        self.graph.vs["label"] = self.graph.vs["name"]
+        self.graph.vs["label"] = self.graph.vs["nodeID"]
         edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
         
         visual_style = {}
@@ -430,10 +568,10 @@ if __name__ == '__main__':
     #landLayer = np.load('rankMap.npy')
     connList = computeConnectionList(1.5)
     #print connList
-    _cell    = earth.registerNodeType('cell')
+    _cell    = earth.registerNodeType('cell',propertyList = ['type', 'gID','pos'])
     _cLocLoc = earth.registerEdgeType('cellCell')
-    earth.initSpatialLayerMpi(landLayer, connList, _cell, Location, GhostLocation)
-    
+    ghostLocationList = earth.initSpatialLayer(landLayer, connList, _cell, Location, GhostLocation)
+    earth.initMpiCommunication(ghostLocationList)
     
     for cell in earth.iterNodesRandom(_cell):
         cell.node['value'] = earth.rank
@@ -449,3 +587,6 @@ if __name__ == '__main__':
     
     print earth.graph.vs['value']
     print earth.graph.vs['value2']
+    
+    print earth.graph.mpiGhostIn
+    print earth.graph.mpiGhostOut
