@@ -66,6 +66,11 @@ class Queue():
         #print kwProperties.keys()
         if len(self.nodeList) == 0:
             self.currNodeID = len(self.graph.vs)
+
+        # adding of the data
+        nID = self.currNodeID
+        self.nodeList.append(nID)               # nID to general list
+        kwProperties.update({'nID': nID})
         
         if nodeType not in self.nodeProperties.keys():
             # init of new nodeType
@@ -76,15 +81,12 @@ class Queue():
             self.nodeProperties[nodeType] = dict()
             self.nodeTypeList[nodeType]   =list()
             
-            self.nodeProperties[nodeType]['nodeID'] = list()
+            self.nodeProperties[nodeType]['nID'] = list()
             for prop in kwProperties.keys():
                 #print prop
                 self.nodeProperties[nodeType][prop] = list()
                 
-        # adding of the data
-        nID = self.currNodeID
-        self.nodeList.append(nID)               # nID to general list
-        kwProperties.update({'nID': nID})
+
         
         self.nodeTypeList[nodeType].append(self.currNodeID) # nID to type list
         self.currNodeID += 1                                # moving index 
@@ -105,11 +107,14 @@ class Queue():
         
         # adding data per type
         for nodeType in self.nodeTypeList.keys():
-            
+
             nodeSeq = self.graph.vs[self.nodeTypeList[nodeType]]    # node sequence of specified type
             nodeSeq['type'] = nodeType                                # adding type to graph
             
             for prop in self.nodeProperties[nodeType].keys():
+                print prop
+                print nodeType
+                print self.nodeProperties[nodeType][prop]
                 nodeSeq[prop] = self.nodeProperties[nodeType][prop] # adding properties 
 
         for i, entity in enumerate([world.entList[i] for i in self.nodeList]):
@@ -142,19 +147,19 @@ class Queue():
         for propKey in kwProperties.keys():
             self.edgeProperties[edgeType][propKey].append(kwProperties[propKey])
 
-  
 
     def dequeueEdges(self):
 
         if len(self.edgeList) ==0:
             return
-        
-        for edgeType in self.nodeTypeList.keys():
-            
+        print "dequeuing edges"
+        print self.edgeList.keys()
+        for edgeType in self.edgeList.keys():
+            print 'creating edges: ' + str(self.edgeList[edgeType])
             eStart = self.graph.ecount()
             self.graph.add_edges(self.edgeList[edgeType])
-            for prop in self.graph.edgeProperties[edgeType].keys():
-                self.graph.es[eStart:][prop] = self.graph.edgePropQueues[edgeType][prop]
+            for prop in self.edgeProperties[edgeType].keys():
+                self.graph.es[eStart:][prop] = self.edgeProperties[edgeType][prop]
             
 
         #for node in self.entList:
@@ -176,11 +181,14 @@ class Queue():
 
 class Entity():
         
-    def __init__(self, world, nodeType, nID = None, **kwProperties):
-        len(world.graph.nodeTypes) >=  nodeType
-        self.graph= world.graph
-        self.gID  = self.__getGlobID__(world)
-
+    def __init__(self, world, nID = None, **kwProperties):
+        nodeType =  world.graph.class2NodeType[self.__class__]
+        #len(world.graph.nodeTypes) >=  nodeType
+        self.graph  = world.graph
+        self.queue  = world.queue
+        self.gID    = self.__getGlobID__(world)
+        self.edges  = dict()
+       
         # create instance from existing node
         if nID is not None:
             
@@ -205,41 +213,168 @@ class Entity():
             
             
         self.edges = dict()                
+
+
+
+    def __updateEdges__(self):
+        #TODO re-think this approach            
+        self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
+        for typ in self.graph.edgeTypes:
+            self.edges[typ] = self.edgesAll.select(type=typ)
+
+
+    def getNeigbourhood(self, order):
+        
+        neigIDList = self.graph.neighborhood(self.nID, order)
+        neigbours = []
+        for neigID in neigIDList:
+            neigbours.append(self.graph.vs[neigID])
+        return neigbours, neigIDList
+        
+    def queueConnection(self, friendID, edgeType, **kwpropDict):
+        kwpropDict.update({'type': edgeType})
+        self.queue.addEdge(self.nID,friendID, **kwpropDict)    
+
+    def addConnection(self, friendID, edgeType, **kwpropDict):
+        kwpropDict.update({'type': edgeType})
+        self.graph.add_edge(self.nID,friendID, **kwpropDict)   
+        self.__updateEdges__()
+            
+    def remConnection(self, friendID,edgeType):
+        eID = self.graph.get_eid(self.nID,friendID)
+        self.graph.delete_edges(eID)
+        self.__updateEdges__()
+
+    def setValue(self,prop,value):
+        self.node[prop] = value
+        
+    def getValue(self,prop):
+        return self.node[prop]
+    
+    def addValue(self, prop, value, idx = None):
+        if idx is None:
+            self.node[prop] += value
+        else:
+            self.node[prop][idx] += value
+    
+    def delete(self,Earth):
+        nID = self.nID
+        
+        #self.graph.delete_vertices(nID) # not really possible at the current igraph lib
+        # Thus, the node is set to inactive and removed from the iterator lists
+        # This is due to the library, but the problem is general and pose a challenge.
+        Earth.graph.vs[nID]['type'] = 0
+        Earth.nodeDict[self.type].remove(nID)
+        #remove edges        
+        eIDSeq = self.graph.es.select(_target=self.nID).indices        
+        self.graph.delete_edges(eIDSeq)
+        eIDSeq = self.graph.es.select(_source=self.nID).indices        
+        self.graph.delete_edges(eIDSeq)
+
+    def getEdgeValues(self, prop, edgeType=None, mode="out"):
+        values = [] 
+        edges  = []
+        eList  = self.graph.incident(self.nID,mode)
+
+        if edgeType is not None:
+            for eIdx in eList:
+                if self.graph.es[eIdx]['type'] == edgeType:
+                    values.append(self.graph.es[eIdx][prop])   
+                    edges.append(eIdx)
+        else:
+            for edge in eList:
+                values.append(self.graph.es[eIdx][prop])        
+                edges.append(eIdx)
+        return values, edges
+        
+    def getEdges(self, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges
+    
+    def getEdgeValuesFast(self, prop, edgeType=0):
+        edges = self.edges[edgeType]
+        return edges[prop], edges
+
+    def getConnNodes(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x for x in neigbours if x['type'] == nodeType]
+
+    def getConnNodeIDs(self, nodeType=0, mode='out'):
+        if mode is None:
+            neigbours = self.node.neighbors()
+        else:
+            neigbours = self.node.neighbors(mode)
+    
+        return [x['nID'] for x in neigbours if x['type'] == nodeType]
+        
+    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
+        nodeDict = self.node.neighbors(mode)
+        neighbourIDs     = list()
+        values          = list()
+
+        for node in nodeDict:
+            if node['type'] == nodeType:
+                neighbourIDs.append(node['nID'])   
+                values.append(node[prop])
+        
+        return values, neighbourIDs
+
+
         
 class Agent(Entity):
     
     def __getGlobID__(self,world):
         return world.globIDGen.next()
         
-    def __init__(self, world, nodeType, **kwProperties):
-        Entity.__init__(self, world, nodeType, **kwProperties)
+    def __init__(self, world, **kwProperties):
+        Entity.__init__(self, world, **kwProperties)
         self.mpiOwner =  int(world.mpi.rank)
 
+    def getLocationValue(self,prop):
+    
+        return self.loc.node[prop] 
+    
+    def register(self, world):
+            world.registerNode(self, self.node['type'], ghost=False)
+            
 class GhostAgent(Entity):
     
     def __getGlobID__(self,world):
         
-        #TODO add request for global ID
-        return None
+        return None # global ID need to be aquired via MPI communication
         
-    def __init__(self, world, nodeType, owner, nID = None):
-        Entity.__init__(self, world, nodeType, nID)
+    def __init__(self, world, owner, nID = None):
+        Entity.__init__(self, world, nID)
         self.mpiOwner =  int(owner)
 
+    def getLocationValue(self,prop):
+    
+        return self.loc.node[prop] 
+    
+    def register(self, world):
+            world.registerNode(self, self.node['type'], ghost=True)
+            
 ################ LOCATION CLASS #########################################      
 class Location(Entity):
 
     def __getGlobID__(self,world):
         return world.globIDGen.next()
     
-    def __init__(self, world, nodeType, **kwProperties):
-        Entity.__init__(self,world, nodeType, **kwProperties)
+    def __init__(self, world, **kwProperties):
+        Entity.__init__(self,world, **kwProperties)
         #self.graph.vs[self.nID]['pos']= 
         self.mpiOwner = int(world.mpi.rank)
         self.mpiPeers = list()
         self.queuing = world.queuing
     
-    def registerEntity(self, world, entity, edgeType):
+    def register(self, world):
+        world.registerNode(self, self.node['type'], ghost=False)
+    
+    def registerEntity(self, world, entity, nodeType, edgeType):
         print edgeType
         if self.queuing:
             world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
@@ -248,7 +383,7 @@ class Location(Entity):
         entity.loc = self
         
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
-            nodeType = entity.node['type']
+            #nodeType = entity.node['type']
             for mpiPeer in self.mpiPeers:
                 world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity)
 
@@ -260,11 +395,14 @@ class GhostLocation(Entity):
         
         return None
     
-    def __init__(self, world, nodeType, pos,  owner):
-        Entity.__init__(self,world,nodeType,pos=pos)
+    def __init__(self, world, pos,  owner):
+        Entity.__init__(self,world,pos=pos)
         #self.graph.vs[self.nID]['pos']= (xPos,yPos)
         self.mpiOwner = int(owner)
         self.queuing = world.queuing
+
+    def register(self, world):
+        world.registerNode(self, self.node['type'], ghost=True)
         
     def registerEntity(self, world, entity, edgeType):
         print edgeType
@@ -692,7 +830,7 @@ class World:
         self.maxNodes = int(maxNodes)
         self.globIDGen = self.__globIDGen__()
         
-        self.queuing = False     # flag that indicates the vertexes and edges are queued and not added immediately
+        self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
         self.para     = dict()
                
         #GRAPH
@@ -705,7 +843,8 @@ class World:
         self.graph.edgeTypes = list()
         
         # dict of classes to init node automatically
-        self.graph.nodeClass = dict()
+        self.graph.nodeType2Class = dict()
+        self.graph.class2NodeType = dict()
         
         # list of properties per type
         self.graph.nodeProperies = dict()
@@ -772,7 +911,7 @@ class World:
                 # only add an vertex if spatial location exist     
                 if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.mpi.rank:
 
-                    loc = LocClassObject(self,nodeType, pos= (x, y))
+                    loc = LocClassObject(self, pos= (x, y))
                     IDArray[x,y] = loc.nID
                     self.registerLocation(loc, x, y)          # only for real cells
                     self.registerNode(loc,nodeType)     # only for real cells
@@ -793,7 +932,7 @@ class World:
 
                     if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.mpi.rank:  # location lives on another process
                         
-                        loc = GhstLocClassObject(self, nodeType, pos= (xDst, yDst), owner=rankArray[xDst,yDst],)
+                        loc = GhstLocClassObject(self, pos= (xDst, yDst), owner=rankArray[xDst,yDst],)
                         #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
                         print IDArray
@@ -901,7 +1040,10 @@ class World:
         nodeTypeIdx = len(self.graph.nodeTypes)
         self.graph.nodeTypes.append(typeStr)
         self.graph.nodeProperies[nodeTypeIdx] = propertyList
-        self.graph.nodeClass[nodeTypeIdx] = AgentClass, GhostAgentClass
+        # same nodeType for ghost and non-ghost
+        self.graph.nodeType2Class[nodeTypeIdx] = AgentClass, GhostAgentClass
+        self.graph.class2NodeType[AgentClass]       = nodeTypeIdx 
+        self.graph.class2NodeType[GhostAgentClass]  = nodeTypeIdx
         self.nodeDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
@@ -1008,7 +1150,7 @@ if __name__ == '__main__':
     import sys
     sys.stdout = log_file
 
-    landLayer   = np.asarray([[0, 0, 0, 0, 1],
+    mpiRankLayer   = np.asarray([[0, 0, 0, 0, 1],
                               [np.nan, np.nan, np.nan, 1, 1]])
     
     #landLayer = np.load('rankMap.npy')
@@ -1024,13 +1166,14 @@ if __name__ == '__main__':
     
     _ag      = earth.registerNodeType('agent', AgentClass=Agent   , GhostAgentClass= GhostAgent, 
                                       propertyList = ['type', 
-                                                      'pos',
                                                       'nID', 
                                                       'gID',
+                                                      'pos',
                                                       'value3'])
     _cLocLoc = earth.registerEdgeType('cellCell')
     _cLocAg = earth.registerEdgeType('cellAgent')
-    ghostLocationList = earth.initSpatialLayer(landLayer, connList, _cell, Location, GhostLocation)
+    _cAgAg = earth.registerEdgeType('AgAg')
+    ghostLocationList = earth.initSpatialLayer(mpiRankLayer, connList, _cell, Location, GhostLocation)
     earth.mpi.initCommunicationViaLocations(ghostLocationList)
     
     for cell in earth.iterEntRandom(_cell):
@@ -1039,10 +1182,14 @@ if __name__ == '__main__':
         
         if cell.node['pos'][0] == 0:
             x,y = cell.node['pos']
-            agent = Agent(earth, _ag, value3=np.random.randn(),pos=(x+ np.random.randn()*.1,  y + np.random.randn()*.1))
+            agent = Agent(earth, value3=np.random.randn(),pos=(x+ np.random.randn()*.1,  y + np.random.randn()*.1))
             earth.registerNode(agent,_ag) 
-            cell.registerEntity(earth, agent,_cLocAg)
+            cell.registerEntity(earth, agent,_ag,_cLocAg)
     
+    earth.queue.dequeueVertices(earth)
+    earth.queue.dequeueEdges()
+    #            if agent.node['nID'] == 10:
+#                agent.addConnection(8,_cAgAg)
     
     #earth.mpi.syncNodes(_cell,['value', 'value2'])
     earth.mpi.updateGhostNodes([_cell])
@@ -1062,7 +1209,8 @@ if __name__ == '__main__':
     earth.mpi.sendGhostNodes(earth)
     dataDict = earth.mpi.recvGhostNodes(earth)
    
-    earth.view(str(earth.mpi.rank) + '.png')    
+    earth.view(str(earth.mpi.rank) + '.png')
+    
     print str(earth.mpi.rank) + ' ' + str(earth.graph.vs['nID'])
     print str(earth.mpi.rank) + ' ' + str(earth.graph.vs['value3'])
     
