@@ -70,7 +70,7 @@ class Queue():
         # adding of the data
         nID = self.currNodeID
         self.nodeList.append(nID)               # nID to general list
-        kwProperties.update({'nID': nID})
+        #kwProperties.update({'nID': nID})
         
         if nodeType not in self.nodeProperties.keys():
             # init of new nodeType
@@ -81,7 +81,7 @@ class Queue():
             self.nodeProperties[nodeType] = dict()
             self.nodeTypeList[nodeType]   =list()
             
-            self.nodeProperties[nodeType]['nID'] = list()
+            #self.nodeProperties[nodeType]['nID'] = list()
             for prop in kwProperties.keys():
                 #print prop
                 self.nodeProperties[nodeType][prop] = list()
@@ -119,8 +119,7 @@ class Queue():
 
         for i, entity in enumerate([world.entList[i] for i in self.nodeList]):
             entity.node = self.graph.vs[self.nodeList[i]]
-            assert entity.nID == entity.node['nID']
-
+            assert entity.nID == entity.node.index
         # reset queue
         self.currNodeID     = None
         self.nodeList       = list()
@@ -309,7 +308,7 @@ class Entity():
         else:
             neigbours = self.node.neighbors(mode)
     
-        return [x['nID'] for x in neigbours if x['type'] == nodeType]
+        return [x.index for x in neigbours if x['type'] == nodeType]
         
     def getConnNodeValues(self, prop, nodeType=0, mode='out'):
         nodeDict = self.node.neighbors(mode)
@@ -318,7 +317,7 @@ class Entity():
 
         for node in nodeDict:
             if node['type'] == nodeType:
-                neighbourIDs.append(node['nID'])   
+                neighbourIDs.append(node.index)   
                 values.append(node[prop])
         
         return values, neighbourIDs
@@ -491,7 +490,7 @@ class World:
                 rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType)
                 self.attributes = world.graph.nodeProperies[nodeType][:]
                 self.attributes.remove('type')
-                self.attributes.remove('nID')
+
                 
                 for attr in self.attributes:
                     #check if first property of first entity is string
@@ -662,9 +661,9 @@ class World:
                 globIDList = self.comm.recv(source=mpiDest)
                 print 'receiving:'
                 print 'globIDList:' + str(globIDList)
-                print 'localDList:' + str(self.ghostNodeIn[_cell, mpiDest]['nID'])
+                print 'localDList:' + str(self.ghostNodeIn[_cell, mpiDest].indices)
                 self.ghostNodeIn[_cell, mpiDest]['gID'] = globIDList
-                for nID, gID in zip(self.ghostNodeIn[_cell, mpiDest]['nID'], globIDList):
+                for nID, gID in zip(self.ghostNodeIn[_cell, mpiDest].indices, globIDList):
                     print nID, gID
                     self.world.glob2loc[gID] = nID
                     self.world.loc2glob[nID] = gID
@@ -707,7 +706,6 @@ class World:
                 self.ghostNodeOut[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.nodeProperies[nodeType][:]
                 print propList
-                propList.remove('nID')
                 packageDict = self.__packData__(packageDict, nodeType, mpiPeer, nodeSeq,  propList, connList)
             
             
@@ -1114,7 +1112,7 @@ class World:
             hsv =  next(colors)[0:3]
             colorDictEdge[i] = hsv.tolist()
         
-        self.graph.vs["label"] = self.graph.vs["nID"]
+        self.graph.vs["label"] = self.graph.vs.indices
         edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
         
         visual_style = {}
@@ -1158,7 +1156,6 @@ if __name__ == '__main__':
     #print connList
     _cell    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation, 
                                       propertyList = ['type', 
-                                                      'nID', 
                                                       'gID',
                                                       'pos', 
                                                       'value', 
@@ -1166,7 +1163,6 @@ if __name__ == '__main__':
     
     _ag      = earth.registerNodeType('agent', AgentClass=Agent   , GhostAgentClass= GhostAgent, 
                                       propertyList = ['type', 
-                                                      'nID', 
                                                       'gID',
                                                       'pos',
                                                       'value3'])
@@ -1185,15 +1181,15 @@ if __name__ == '__main__':
             agent = Agent(earth, value3=np.random.randn(),pos=(x+ np.random.randn()*.1,  y + np.random.randn()*.1))
             earth.registerNode(agent,_ag) 
             cell.registerEntity(earth, agent,_ag,_cLocAg)
-    
+            
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges()
-    #            if agent.node['nID'] == 10:
+#            if agent.node['nID'] == 10:
 #                agent.addConnection(8,_cAgAg)
     
     #earth.mpi.syncNodes(_cell,['value', 'value2'])
     earth.mpi.updateGhostNodes([_cell])
-    
+    print earth.graph.vs.attribute_names()
     print str(earth.mpi.rank) + ' values' + str(earth.graph.vs['value'])
     print str(earth.mpi.rank) + ' values2: ' + str(earth.graph.vs['value2'])
     
@@ -1209,9 +1205,10 @@ if __name__ == '__main__':
     earth.mpi.sendGhostNodes(earth)
     dataDict = earth.mpi.recvGhostNodes(earth)
    
+    cell.getConnNodeIDs(nodeType=_cell, mode='out')
     earth.view(str(earth.mpi.rank) + '.png')
     
-    print str(earth.mpi.rank) + ' ' + str(earth.graph.vs['nID'])
+    print str(earth.mpi.rank) + ' ' + str(earth.graph.vs.indices)
     print str(earth.mpi.rank) + ' ' + str(earth.graph.vs['value3'])
     
     for agent in earth.iterEntRandom(_ag):
