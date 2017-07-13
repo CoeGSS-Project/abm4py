@@ -39,9 +39,9 @@ sys.path.append(home + '/python/modules/')
 import numpy as np
 import time
 import mod_geotiff as gt
-from class_mobilityABM import Person, Household, Reporter, Cell,  Earth, Opinion
+from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
 
-from class_auxiliary  import convertStr
+import class_auxiliary  as aux #convertStr
 import matplotlib
 matplotlib.use('TKAgg')
 import seaborn as sns; sns.set()
@@ -90,12 +90,12 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.reductionFactor = 50000
     setup.isSpatial       = True
     setup.connRadius      = 2.1      # radíus of cells that get an connection
-    setup.landLayer   = np.asarray([[1, 1, 1, 0, 0, 0],
-                              [0, 0, 1, 0, 0, 0],
-                              [0, 0, 1, 1, 1, 1]])
+    setup.landLayer   = np.asarray([[1     , 1     , 1, 0 , np.nan, np.nan],
+                                    [np.nan, np.nan, 1, 0 , np.nan, 0     ],
+                                    [np.nan, np.nan, 1, 0 , 0     , 0     ]])
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[0:,0:2] = 6321
-    setup.population = setup.landLayer* np.random.randint(5,20,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -154,7 +154,9 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 0, 0, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
-                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]])    
+                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]]).astype(float)
+    setup.landLayer[setup.landLayer== 0] = np.nan
+    setup.landLayer[:,:3] = setup.landLayer[:,:3]*0
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[3:,0:3] = 6321
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
@@ -310,26 +312,7 @@ def householdSetup(earth, parameters, calibration=False):
     idx = 0
     nAgents = 0
     nHH     = 0
-    
-    # init additional properties of nodes 
-    earth.registerNodeType('hh',   ['type',
-                                   'hhSize',
-                                   'nKids',
-                                   'income',
-                                   'expUtil',
-                                   'util',
-                                   'expenses'])
-    earth.registerNodeType('pers', ['type',
-                                   'hhID',
-                                   'preferences',
-                                   'prefTyp',
-                                   'genders',
-                                   'ages',
-                                   'expUtil',
-                                   'util',
-                                   'mobType',
-                                   'prop',
-                                   'consequences'])
+
     
     if not parameters.randomAgents:
         parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
@@ -342,6 +325,7 @@ def householdSetup(earth, parameters, calibration=False):
         #print x,y
         nAgentsCell = int(parameters.population[x,y])
         #print nAgentsCell
+        loc = earth.entDict[earth.locDict[x,y].nID]
         while True:
              
             #creating persons as agents
@@ -353,16 +337,16 @@ def householdSetup(earth, parameters, calibration=False):
             nKids = np.sum(ages<18)
             
             # creating houshold
-            hh = Household(earth,'hh', x, y)
+            hh = Household(earth, pos= (x, y),
+                                  hhSize=nPers,
+                                  nKids=nKids,
+                                  income=income,
+                                  expUtil=0,
+                                  util=0,
+                                  expenses=0)
             hh.adults = list()
-            hh.node['hhSize']   = nPers
-            hh.node['nKids']    = nKids
-            hh.node['income']   = income
-            hh.node['expUtil']  = 0
-            hh.node['util']     = 0
-            hh.node['expenses'] = 0
-            hh.register(earth)
-            hh.connectGeoNode(earth)
+            hh.register(earth, parentEntity=loc, edgeType=_clh)
+            #hh.registerAtLocation(earth,x,y,_hh,_clh)
             
             hh.loc.node['population'] += nPers
             
@@ -370,26 +354,26 @@ def householdSetup(earth, parameters, calibration=False):
                 
                 if ages[iPers]< 18:
                     continue    #skip kids
-                
-                pers = Person(earth,'pers')
-                pers.hh = hh
-                pers.register(earth)
                 prefTuple = opinion.getPref(ages[iPers],genders[iPers],nKids,nPers,income,parameters.radicality)
                 prefTyp = np.argmax(prefTuple)
-                pers.node['preferences']    = prefTuple
-                pers.node['hhID']           = hh.nID
-                pers.node['prefTyp']        = prefTyp
-                pers.node['genders']        = genders[iPers]
-                pers.node['ages']           = ages[iPers]
-                pers.node['expUtil']        = 0
-                pers.node['util']           = 0
-                pers.node['mobType']        = 0
-                pers.node['prop']           = [0]*len(parameters.properties)
-                pers.node['consequences']   = [0]*len(prefTuple)
-                pers.node['lastAction']     = 0
-                pers.innovatorDegree = np.random.randn()
-                pers.queueConnection(hh.nID,edgeType=_chp)
-                pers.registerAtGeoNode(earth, hh.loc.nID)
+                
+                pers = Person(earth, preferences =prefTuple,
+                                     hhID        = hh.nID,
+                                     prefTyp     = prefTyp,
+                                     gender     = genders[iPers],
+                                     age         = ages[iPers],
+                                     expUtil     = 0,
+                                     noisyUtil   = 0,
+                                     util        = 0,
+                                     mobType     = 0,
+                                     prop        = [0]*len(parameters.properties),
+                                     consequences= [0]*len(prefTuple),
+                                     lastAction  = 0,
+                                     innovatorDegree = np.random.randn())
+                
+                pers.register(earth, parentEntity=hh, edgeType=_chp)
+                #pers.queueConnection(hh.nID,edgeType=_chp)
+                #pers.registerAtLocation(earth, x,y)
                 
                 # adding reference to the person to household
                 hh.adults.append(pers)
@@ -403,11 +387,23 @@ def householdSetup(earth, parameters, calibration=False):
             
             if nAgentsCell <= 0:
                     break
+    earth.queue.dequeueVertices(earth)
+    earth.queue.dequeueEdges(earth)
     
-    if not(calibration):
-        earth.dequeueEdges(_clh)
-        earth.dequeueEdges(_chp)
-
+    earth.mpi.sendGhostNodes(earth)
+    earth.mpi.recvGhostNodes(earth)
+ 
+    earth.queue.dequeueVertices(earth)
+    earth.queue.dequeueEdges(earth)
+    
+    earth.view(str(earth.mpi.rank) + '.png')
+    
+    for ghostCell in earth.iterEntRandom(_cell, ghosts = True, random=False):
+        ghostCell.updatePeList(earth.graph)
+        ghostCell.updateHHList(earth.graph)
+    
+    
+    
     print str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s'
     return earth
 
@@ -416,44 +412,10 @@ def householdSetup(earth, parameters, calibration=False):
 
 def initEarth(parameters):
     tt = time.time()
-    if parameters.writeOutput: 
-        if not parameters['calibration']:
-            
-           
-                
-            # get simulation number from file
-            try:
-                fid = open("simNumber","r")
-                parameters.simNo = int(fid.readline())
-                fid = open("simNumber","w")
-                fid.writelines(str(parameters.simNo+1))
-                fid.close()
-            except:
-                parameters.simNo = 0
-        
-    else:
-        parameters.simNo = None
     
-    print 'simulation number is: ' + str(parameters.simNo)
-
+    earth = Earth(parameters,maxNodes=1000)
     
 
-
-    earth = Earth(parameters)
-    earth.registerEdgeType('cell-cell', ['type','weig'])
-    earth.registerEdgeType('cell-hh')
-    earth.registerEdgeType('hh-hh')
-    earth.registerEdgeType('hh-pers')
-    earth.registerEdgeType('pers-pers', ['type','weig'])
-    connList= earth.computeConnectionList(parameters.connRadius, ownWeight=1)
-    earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
-    
-    if hasattr(parameters,'regionIdRaster'):
-        
-        for cell in earth.iterNodes(_cell):
-            cell.node['regionId'] = parameters.regionIdRaster[cell.x,cell.y]
-    
-    
     earth.initMarket(earth,
                      parameters.properties, 
                      parameters.randomCarPropDeviationSTD, 
@@ -464,7 +426,7 @@ def initEarth(parameters):
     earth.market.std = np.array([100.,50.])
     #init location memory
     earth.enums = dict()
-    earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
+    
 
     
     earth.enums['priorities'] = dict()
@@ -498,7 +460,66 @@ def initEarth(parameters):
     earth.nPrefTypes = [0]* earth.nPref
     
     print 'Init finished after -- ' + str( time.time() - tt) + ' s'
-    return earth                  
+    return earth 
+    
+def initTypes(earth, parameters):
+    _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell, 
+                                  propertyList = ['type', 
+                                                  'gID',
+                                                  'pos',
+                                                  'population',
+                                                  'convenience',
+                                                  'regionId',
+                                                  'carsInCell',])
+    _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold, 
+                                  propertyList =  ['type', 
+                                                   'gID',
+                                                   'pos',
+                                                   'hhSize',
+                                                   'nKids',
+                                                   'income',
+                                                   'expUtil',
+                                                   'util',
+                                                   'expenses'])
+    _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson, 
+                                  propertyList = ['type', 
+                                                  'gID',
+                                                  'pos',
+                                                  'hhID',
+                                                  'preferences',
+                                                  'prefTyp',
+                                                  'gender',
+                                                  'age',
+                                                  'expUtil',
+                                                  'noisyUtil',
+                                                  'util',
+                                                  'mobType',
+                                                  'prop',
+                                                  'consequences',
+                                                  'lastAction',
+                                                  'innovatorDegree'])
+    
+    earth.registerEdgeType('cell-cell',_cell, _cell, ['type','weig'])
+    earth.registerEdgeType('cell-hh', _cell, _hh)
+    earth.registerEdgeType('hh-hh', _hh,_hh)
+    earth.registerEdgeType('hh-pers',_hh,_pers)
+    earth.registerEdgeType('pers-pers',_pers,_pers, ['type','weig'])
+
+
+    
+    return _cell, _hh, _pers
+
+def initSpatialLayer(earth, parameters):
+    connList= aux.computeConnectionList(parameters.connRadius, ownWeight=1)
+    earth.initSpatialLayer(parameters.landLayer, connList, _cell, LocClassObject=Cell, GhstLocClassObject=GhostCell)  
+    
+    if hasattr(parameters,'regionIdRaster'):
+        
+        for cell in earth.iterEntRandom(_cell):
+            cell.node['regionId'] = parameters.regionIdRaster[cell.node['pos']]
+    
+    earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
+                     
 
     
 
@@ -506,7 +527,7 @@ def cellTest(earth, parameters):
     #%% cell convenience test
     convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeDict[1])])
     popArray = np.zeros([len(earth.nodeDict[1])])
-    for i, cell in enumerate(earth.iterNodes(_cell)):
+    for i, cell in enumerate(earth.iterEntRandom(_cell)):
         convAll, population = cell.selfTest()
         convArray[:,i] = convAll
         popArray[i] = population
@@ -574,9 +595,12 @@ def initAgentOutput(earth):
     #%% Init of agent file
 
     tt = time.time()
-    earth.initAgentFile(typ = _hh)
-    earth.initAgentFile(typ = _pers)
-    earth.initAgentFile(typ = _cell)
+    #earth.initAgentFile(typ = _hh)
+    #earth.initAgentFile(typ = _pers)
+    #earth.initAgentFile(typ = _cell)
+    earth.io.initNodeFile(earth, [_cell, _hh, _pers])
+    
+
     print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
     
 
@@ -615,16 +639,16 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.iterNodes(_hh):
+    for household in earth.iterEntRandom(_hh):
         
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
         #for adult in household.adults:
             #adult.setValue('lastAction', 0)
         
-    for cell in earth.iterNodes(_cell):
+    for cell in earth.iterEntRandom(_cell):
         cell.step(earth.market.kappa)
         
-    for household in earth.iterNodes(_hh):
+    for household in earth.iterEntRandom(_hh):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
         household.shareExperience(earth)
@@ -644,15 +668,16 @@ def runModel(earth, parameters):
         #calGreenNeigbourhoodShareDist(earth)
         #plt.show()
         tt = time.time()
-        earth.writeAgentFile()
-        
+        #earth.writeAgentFile()
+        earth.io.gatherNodeData(earth.time)
+        earth.io.writeDataToFile()
         print ' - agent file written in ' +  str(time.time()-tt) + ' s'
         
     
     #%% Finishing the simulation    
     print "Finalizing the simulation (No." + str(earth.simNo) +"):"
     if parameters.writeOutput:
-        earth.finalizeAgentFile()
+        earth.io.finalizeAgentFile()
     earth.finalize()        
 
 def writeSummary(earth, calRunId, paraDf):
@@ -687,7 +712,7 @@ def onlinePostProcessing(earth):
         
         print 'Preferences - standart deviation within friends'
         avgStd= np.zeros([1,4])    
-        for agent in earth.iterNodes(_hh): 
+        for agent in earth.iterEntRandom(_hh): 
             friendList = agent.getConnNodeIDs(nodeType=_hh)
             if len(friendList)> 1:
                 #print df.ix[friendList].std()
@@ -744,15 +769,15 @@ def setupHouseholdsWithOptimalChoice():
     householdSetup(earth, parameters)            
     initMobilityTypes(earth, parameters)    
     #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in earth.iterNodes(_hh):    
+    for household in earth.iterEntRandom(_hh):    
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
 
-    for cell in earth.iterNodes(_cell):
+    for cell in earth.iterEntRandom(_cell):
         cell.step(earth.market.kappa) 
     
     earth.market.setInitialStatistics([1000.,5.,300.])
 
-    for household in earth.iterNodes(_hh):
+    for household in earth.iterEntRandom(_hh):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
         
@@ -782,7 +807,7 @@ if __name__ == '__main__':
     fileName = sys.argv[1]
     parameters = Bunch()
     for item in csv.DictReader(open(fileName)):
-        parameters[item['name']] = convertStr(item['value'])
+        parameters[item['name']] = aux.convertStr(item['value'])
     print 'Setting loaded:'
     print parameters.toDict()
     
@@ -793,21 +818,11 @@ if __name__ == '__main__':
         colID = int(sys.argv[3])
         parameters['calibration'] = True
         
-        if parameters.mpi:
-            from mpi4py import MPI
-    
-            comm = MPI.COMM_WORLD
-            rank = comm.Get_rank()
-            colID = rank
-            parameters['simNo']       = rank
-        else:
-            
-            parameters['simNo']       = 9999
         calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
         calRunID = calParaDf.index[0]
         for colName in calParaDf.columns:
             print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
-            parameters[colName] = convertStr(str(calParaDf[colName][calRunID]))
+            parameters[colName] = aux.convertStr(str(calParaDf[colName][calRunID]))
         
 
     else:
@@ -850,6 +865,13 @@ if __name__ == '__main__':
         
         earth = initEarth(parameters)
         
+        log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+        sys.stdout = log_file
+        
+        _cell, _hh, _pers = initTypes(earth,parameters)
+        
+        initSpatialLayer(earth, parameters)
+        
         mobilitySetup(earth, parameters)
         
         householdSetup(earth, parameters)
@@ -861,7 +883,7 @@ if __name__ == '__main__':
         initMobilityTypes(earth, parameters)
         
         initGlobalRecords(earth, parameters)
-        
+        earth.view(str(earth.mpi.rank) + '.png')
         initAgentOutput(earth)
         
         if parameters.scenario == 0:

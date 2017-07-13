@@ -24,8 +24,10 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from para_lib_gcfabm import World, Agent, Location
-from class_auxiliary import Record, Memory, Writer, cartesian
+from para_lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation
+
+import class_auxiliary as aux # Record, Memory, Writer, cartesian
+
 import igraph as ig
 import numpy as np
 import pandas as pd
@@ -52,10 +54,12 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters):
+    def __init__(self, parameters, maxNodes = 1e6):
         
-        World.__init__(self, parameters.isSpatial)
-        self.simNo      = parameters.simNo
+        World.__init__(self, parameters.isSpatial, maxNodes = maxNodes)
+        
+        self.simNo = aux.getSimulationNumber(self.mpi.comm)
+        
         self.agentRec   = dict()   
         self.time       = 0
         self.date       = list(parameters.startDate)
@@ -69,6 +73,7 @@ class Earth(World):
         self.globalData  = dict() # storage of global data
         
         # transfer all parameters to earth
+        parameters.simNo = self.simNo
         self.setParameters(Bunch.toDict(parameters))
         
         if self.para['omniscientBurnIn']>self.para['burnIn']:
@@ -85,7 +90,8 @@ class Earth(World):
         if not os.path.isdir('output'):
             os.mkdir('output')
         
-        if not self.simNo is None:
+        
+        if not self.simNo is None and self.mpi.comm.rank==0:
             self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
             if not os.path.isdir(self.para['outPath']):
                 os.mkdir(self.para['outPath'])
@@ -93,7 +99,7 @@ class Earth(World):
                 os.mkdir(self.para['outPath'] + '/rec')
                 
     def registerRecord(self, name, title, colLables, style ='plot'):
-        self.globalData[name] = Record(name, colLables, self.nSteps, title, style)
+        self.globalData[name] = aux.Record(name, colLables, self.nSteps, title, style)
         
     # init car market    
     def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
@@ -101,7 +107,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in self.iterNodes(_cell):
+        for location in self.iterEntRandom(_cell):
             location.initCellMemory(memoryTime, memeLabels)
 #    
 #    def initObsAtLoc(self,properties):
@@ -113,7 +119,7 @@ class Earth(World):
     def initBrand(self, label, propertyTuple, convFunction, initTimeStep, allTimeProduced):
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
-        for cell in self.iterNodes(_cell):
+        for cell in self.iterEntRandom(_cell):
             cell.traffic[brandID] = 0
             cell.convFunctions.append(convFunction)
             
@@ -139,7 +145,7 @@ class Earth(World):
         if label in self.market.mobilityLables.itervalues():
             brandID = self.market.mobilityLables.keys()[self.market.mobilityLables.values().index(label)]
             
-            for cell in self.iterNodes(_cell):
+            for cell in self.iterEntRandom(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
         #Zm = ma.masked_invalid(traffic)
         plt.clf()
@@ -177,7 +183,7 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
-        for agent, x in self.iterNodeAndID(nodeType):
+        for agent, x in self.iterEntAndIDRandom(nodeType):
             
             frList, edges, weights = agent.generateFriendNetwork(self)
             edgeList += edges
@@ -189,8 +195,8 @@ class Earth(World):
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
         tt = time.time()
-        for node in self.entList:
-            node.updateEdges()
+        for entity in self.entList:
+            entity.__updateEdges__()
         print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
@@ -200,6 +206,7 @@ class Earth(World):
         Method to proceed the next time step
         """
         self.time += 1
+        self.timeStep = self.time
         
         # progressing time
         if self.timeUnit == 1: #months
@@ -216,12 +223,12 @@ class Earth(World):
         
         
         #loop over cells
-        for cell in self.iterNodes(_cell):
+        for cell in self.iterEntRandom(_cell):
             cell.step(self.market.kappa)
 
 
         #update global data
-        for cell in self.iterNodes(_cell):
+        for cell in self.iterEntRandom(_cell):
             if cell.node['regionId'] == 6321:
                 self.globalData['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
             elif cell.node['regionId'] == 1518:
@@ -230,15 +237,17 @@ class Earth(World):
                 
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
-            for household in self.iterNodes(_hh):
+            for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.stepOmniscient(self)        
         else:
-            for household in self.iterNodes(_hh):
+            for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.step(self)
-            
-        for adult in self.iterNodes(_pers):
+        
+        self.mpi.updateGhostNodes([_pers])
+        
+        for adult in self.iterEntRandom(_pers):
             adult.weightFriendExperience(self)   
         
         # proceed step
@@ -495,16 +504,21 @@ class Market():
 
 # %% --- entity classes ---
 
+
 class Person(Agent):
-    def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
-        Agent.__init__(self, world, nodeType,  xPos, yPos)
+    
+    def __init__(self, world, **kwProperties):
+        Agent.__init__(self, world, **kwProperties)
         self.obs  = dict()
         #self.innovatorDegree = 0.
         
-    def registerAtGeoNode(self, world, cellID):
-        self.loc = world.entDict[cellID]        
-        self.loc.peList.append(self.nID)
+    def register(self, world, parentEntity=None, edgeType=None):
         
+        Agent.register(self, world)
+        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        self.loc = parentEntity.loc 
+        self.loc.peList.append(self.nID)
+        self.hh = parentEntity
 
     def shareExperience(self, world):
         
@@ -581,8 +595,9 @@ class Person(Agent):
         
         if len(idxT) < 10:
             return
-
+        print 'friendUtil' + str(friendUtil)
         diff = np.asarray(friendUtil)[idxT] - ownUtil
+        print diff
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
@@ -632,7 +647,8 @@ class Person(Agent):
 
         #get spatial weights to all connected cells
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
-        
+        print cellConnWeights
+        print [world.graph.vs[i]['gID']  for i in cellIds]
         
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
             
@@ -724,12 +740,42 @@ class Person(Agent):
         #maxid = np.argmax(avgUtil)
         observedUtil[1:] = avgUtil
         return observedActions.tolist(), observedUtil.tolist()
-          
+ 
+class GhostPerson(GhostAgent):
+    
+    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
+        GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
+    
+    def register(self, world, parentEntity=None, edgeType=None):
+        
+        GhostAgent.register(self, world)
+        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        self.loc = parentEntity.loc 
+        self.loc.peList.append(self.nID)
+        self.hh = parentEntity
+    
+class GhostHousehold(GhostAgent):       
+    
+    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
+        GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
 
+    def registerChild(self, world, entity, edgeType):
+        if self.queuing:
+            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
+        else:
+            world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+
+    def register(self, world, parentEntity=None, edgeType=None):
+        GhostAgent.register(self, world)
+        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        #self.queueConnection(locID,_clh)         
+        self.loc = parentEntity
+        self.loc.hhList.append(self.nID)        
+        
 class Household(Agent):
 
-    def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
-        Agent.__init__(self, world, nodeType,  xPos, yPos)
+    def __init__(self, world, **kwProperties):
+        Agent.__init__(self, world, **kwProperties)
         
  #       self.car  = dict()
         self.util = 0
@@ -786,14 +832,36 @@ class Household(Agent):
 #                    world.setEdgeValues(edgeIDs,'weig',post)
 #                else:
 #                    print 'updating failed, sum of weights are zero'
-                    
-    def connectGeoNode(self, world):
-        geoNodeID = int(self.graph.IdArray[int(self.x),int(self.y)])
+
+                        
+    #def registerAtLocation(self, world,x,y, nodeType, edgeType):
+    def register(self, world, parentEntity=None, edgeType=None):
         
-        self.queueConnection(geoNodeID,_clh)         
-        self.loc = world.entDict[geoNodeID]        
+        
+        Agent.register(self, world)
+        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        #self.queueConnection(locID,_clh)         
+        self.loc = parentEntity
         self.loc.hhList.append(self.nID)
         
+        #self.mpiPeers = self.loc.registerEntityAtLocation(world, self, edgeType)
+        
+    def registerChild(self, world, entity, edgeType):
+        if edgeType is not None:
+            print edgeType
+            if self.queuing:
+                world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
+            else:
+                world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+        entity.loc = self
+        
+        if len(self.mpiPeers) > 0: # node has ghosts on other processes
+            for mpiPeer in self.mpiPeers:
+                print 'adding node ' + str(entity.nID) + ' as ghost'
+                nodeType = world.graph.class2NodeType[entity.__class__]
+                world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+        
+        return self.mpiPeers
     
     
     def shareExperience(self, world):
@@ -887,7 +955,7 @@ class Household(Agent):
             # get innovation consequence
             #imitation = self.loc.brandShares[action]
             distance   = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
-            innovation = math.exp(-((adult.innovatorDegree - distance)**2)/ market.innoDevRange)
+            innovation = math.exp(-((adult.node['innovatorDegree'] - distance)**2)/ market.innoDevRange)
 
             
             adult.node['consequences'] = [convenience, ecology, money, innovation]
@@ -977,7 +1045,7 @@ class Household(Agent):
                 actionsList[randIdx] = [-1]
             #print 'large Household'
                                           
-        possibilities = cartesian(actionsList)
+        possibilities = aux.cartesian(actionsList)
         return possibilities    
             
             
@@ -1012,8 +1080,8 @@ class Household(Agent):
                 eUtilsList[randIdx] =  [adult.node['util']]#[ eUtilsList[randIdx][0] ]
             #print 'large Household'
         
-        combActions = cartesian(actionIdsList)
-        overallUtil = np.sum(cartesian(eUtilsList),axis=1)
+        combActions = aux.cartesian(actionIdsList)
+        overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1)
 
         
         
@@ -1197,16 +1265,18 @@ class Reporter(Household):
     
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Household.__init__(self, world, nodeType , xPos, yPos)
-        self.writer = Writer(world, str(self.nID) + '_diary')
+        self.writer = aux.Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
         
         #self.writer.write(
-        
+
+
     
 class Cell(Location):
     
-    def __init__(self, earth,  xPos, yPos):
-        Location.__init__(self, earth,  xPos, yPos)
+    def __init__(self, earth,  **kwProperties):
+        kwProperties.update({'population': 0, 'convenience': [0,0,0], 'carsInCell':[0,0,0]})
+        Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()
         self.carsToBuy = 0
@@ -1216,9 +1286,7 @@ class Cell(Location):
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
-        self.setValue('population', 0)
-        self.setValue('convenience', [0,0,0])
-        self.setValue('carsInCell', [0,0,0])
+        
         self.urbanThreshold = earth.para['urbanThreshold']
         self.puplicTransBonus = earth.para['puplicTransBonus']
         
@@ -1237,7 +1305,7 @@ class Cell(Location):
         from collections import deque
         self.deleteQueue = deque([list()]*(memoryLen+1))
         self.currDelList = list()
-        self.obsMemory   = Memory(memeLabels)
+        self.obsMemory   = aux.Memory(memeLabels)
 
 
     def getConnCellsPlus(self):
@@ -1341,6 +1409,23 @@ class Cell(Location):
         """
         self.traffic[label] -= 1
 
+class GhostCell(GhostLocation, Cell):
+    getPersons = Cell.__dict__['getPersons']    
+        
+    def __init__(self, earth, **kwProperties):
+        GhostLocation.__init__(self, earth, **kwProperties)
+        self.hhList = list()
+        self.peList = list()
+
+    def updateHHList(self, graph):
+        nodeType = graph.class2NodeType[Household]
+        hhIDList = self.getConnNodeIDs(nodeType)
+        self.hhList = graph.vs[hhIDList]
+        
+    def updatePeList(self, graph):
+        nodeType = graph.class2NodeType[Person]
+        hhIDList = self.getConnNodeIDs(nodeType)
+        self.hhList = graph.vs[hhIDList]
         
 class Opinion():
     import numpy as np
