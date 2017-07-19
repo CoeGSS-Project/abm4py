@@ -244,7 +244,7 @@ class Earth(World):
             for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.step(self)
-        
+        self.mpi.comm.Barrier()
         self.mpi.updateGhostNodes([_pers])
         
         for adult in self.iterEntRandom(_pers):
@@ -252,7 +252,7 @@ class Earth(World):
         
         # proceed step
         #self.writeAgentFile()
-
+        self.mpi.comm.Barrier()
         
     def finalize(self):
         
@@ -595,9 +595,9 @@ class Person(Agent):
         
         if len(idxT) < 10:
             return
-        print 'friendUtil' + str(friendUtil)
+        #print 'friendUtil' + str(friendUtil)
         diff = np.asarray(friendUtil)[idxT] - ownUtil
-        print diff
+        #print diff
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
         #TODO  try of an bayesian update - check for right math
@@ -647,8 +647,8 @@ class Person(Agent):
 
         #get spatial weights to all connected cells
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
-        print cellConnWeights
-        print [world.graph.vs[i]['gID']  for i in cellIds]
+        #print cellConnWeights
+        #print [world.graph.vs[i]['gID']  for i in cellIds]
         
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
             
@@ -848,7 +848,7 @@ class Household(Agent):
         
     def registerChild(self, world, entity, edgeType):
         if edgeType is not None:
-            print edgeType
+            #print edgeType
             if self.queuing:
                 world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
             else:
@@ -857,7 +857,7 @@ class Household(Agent):
         
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiPeers:
-                print 'adding node ' + str(entity.nID) + ' as ghost'
+                #print 'adding node ' + str(entity.nID) + ' as ghost'
                 nodeType = world.graph.class2NodeType[entity.__class__]
                 world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
         

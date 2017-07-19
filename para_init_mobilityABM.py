@@ -93,6 +93,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer   = np.asarray([[1     , 1     , 1, 0 , np.nan, np.nan],
                                     [np.nan, np.nan, 1, 0 , np.nan, 0     ],
                                     [np.nan, np.nan, 1, 0 , 0     , 0     ]])
+    #setup.landLayer = setup.landLayer*0
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[0:,0:2] = 6321
     setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
@@ -154,14 +155,19 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 0, 0, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
-                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]]).astype(float)
-    setup.landLayer[setup.landLayer== 0] = np.nan
-    setup.landLayer[:,:3] = setup.landLayer[:,:3]*0
-    setup.regionIdRaster    = setup.landLayer*1518
-    setup.regionIdRaster[3:,0:3] = 6321
+                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]])
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)
+    setup.population = 10*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*0
+    
+    setup.landLayer  = setup.landLayer.astype(float)
+    setup.landLayer[setup.landLayer== 0] = np.nan
+    setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
+    setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
+    setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
+    setup.regionIdRaster    = setup.landLayer*1518
+    setup.regionIdRaster[3:,0:3] = 6321
+    
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -313,7 +319,7 @@ def householdSetup(earth, parameters, calibration=False):
     nAgents = 0
     nHH     = 0
 
-    
+    earth.view(str(earth.mpi.rank) + '.png')
     if not parameters.randomAgents:
         parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
         #dfSynPop = pd.read_csv(parameters.synPopPath)
@@ -391,11 +397,12 @@ def householdSetup(earth, parameters, calibration=False):
     earth.queue.dequeueEdges(earth)
     
     earth.mpi.sendGhostNodes(earth)
+    earth.mpi.comm.Barrier()
     earth.mpi.recvGhostNodes(earth)
  
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
-    
+    earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     earth.view(str(earth.mpi.rank) + '.png')
     
     for ghostCell in earth.iterEntRandom(_cell, ghosts = True, random=False):
@@ -403,17 +410,17 @@ def householdSetup(earth, parameters, calibration=False):
         ghostCell.updateHHList(earth.graph)
     
     
-    
+    earth.mpi.comm.Barrier()
     print str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s'
     return earth
 
 
 
 
-def initEarth(parameters):
+def initEarth(parameters, maxNodes):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=1000)
+    earth = Earth(parameters,maxNodes=maxNodes)
     
 
     earth.initMarket(earth,
@@ -484,7 +491,6 @@ def initTypes(earth, parameters):
     _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson, 
                                   propertyList = ['type', 
                                                   'gID',
-                                                  'pos',
                                                   'hhID',
                                                   'preferences',
                                                   'prefTyp',
@@ -863,10 +869,10 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters)
+        earth = initEarth(parameters, maxNodes=10000)
         
-        log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-        sys.stdout = log_file
+        #log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+        #sys.stdout = log_file
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         
@@ -883,7 +889,7 @@ if __name__ == '__main__':
         initMobilityTypes(earth, parameters)
         
         initGlobalRecords(earth, parameters)
-        earth.view(str(earth.mpi.rank) + '.png')
+        #earth.view(str(earth.mpi.rank) + '.png')
         initAgentOutput(earth)
         
         if parameters.scenario == 0:
