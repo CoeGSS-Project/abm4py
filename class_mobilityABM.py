@@ -905,11 +905,12 @@ class Household(Agent):
             oldProp = list()
             oldLastAction = list()
             for adult in self.adults:
-                oldMobType.append(copy.copy(adult.node['mobType']))
-                oldProp.append(copy.copy(adult.node['prop']))
-                oldLastAction.append(copy.copy(adult.node['lastAction']))             
-            oldExpenses = copy.copy(self.node['expenses'])
+                oldMobType.append(adult.node['mobType'])
+                oldProp.append(adult.node['prop'])
+                oldLastAction.append(adult.node['lastAction'])            
+            oldExpenses = self.node['expenses']
             oldUtil = copy.copy(self.util)
+    
             
             # try all mobility combinations
             for combinationIdx in range(len(combinedActions)):
@@ -1080,6 +1081,7 @@ class Household(Agent):
                     actionTaken = True                   
                 elif (expectedUtil / self.node['util'] ) - 1 > np.random.rand() or (earth.time < earth.para['burnIn']):
                     actionTaken = True                   
+
                            
             # the action is only performed if flag is True
           

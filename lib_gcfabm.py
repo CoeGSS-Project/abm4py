@@ -307,7 +307,7 @@ class Agent(Entity):
 #        eIDSeq = self.graph.es.select(_target=self.nID,type=_locAgLink).indices[0]       
 #        return self.graph.vs[synEarth.graph.es[eIDSeq].source][prop]
     
-        return self.graph.vs[self.loc.nID][prop]
+        return self.graph.vs[self.loc.nID][prop] 
 
 
 

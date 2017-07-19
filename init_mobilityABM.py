@@ -445,7 +445,7 @@ def initEarth(parameters):
     earth.registerEdgeType('hh-hh')
     earth.registerEdgeType('hh-pers')
     earth.registerEdgeType('pers-pers', ['type','weig'])
-    connList= earth.computeConnectionList(parameters.connRadius)
+    connList= earth.computeConnectionList(parameters.connRadius, ownWeight=1)
     earth.initSpatialLayerNew(parameters.landLayer, connList, Cell)
     
     if hasattr(parameters,'regionIdRaster'):
@@ -810,6 +810,8 @@ if __name__ == '__main__':
             parameters[colName] = convertStr(str(calParaDf[colName][calRunID]))
     else:
         parameters['calibration'] = False
+
+        calRunID = -999
         calParaDf = pd.DataFrame()
         # no csv file given
         print "no input of parameters"
@@ -883,14 +885,42 @@ if __name__ == '__main__':
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         #%%
         nPeople = np.nansum(parameters.population)
+<<<<<<< Updated upstream
         nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])!=2))
         nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==0))
         nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeList[_pers]]['mobType'])==1))
+=======
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
+
+>>>>>>> Stashed changes
         print 'Number of agents: ' + str(nPeople)
         print 'Number of agents: ' + str(nCars)
         print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
         print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
         print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+
+
+        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+
+        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+
+        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(carsInBremen)*1000)
+        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(carsInBremen)*1000)
+
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(carsInNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(carsInNieder)*1000)
+
+
+
+
         
         
         cellList = earth.graph.vs[earth.nodeList[_cell]]
