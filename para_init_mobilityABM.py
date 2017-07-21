@@ -89,8 +89,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #spatial
     setup.reductionFactor = 50000
     setup.isSpatial       = True
-    setup.connRadius      = 2.1      # radíus of cells that get an connection
-    setup.landLayer   = np.asarray([[1     , 1     , 1, 0 , np.nan, np.nan],
+    setup.connRadius      = 1.5     # radíus of cells that get an connection
+    setup.landLayer   = np.asarray([[2     , 2     , 1, 1 , np.nan, np.nan],
                                     [np.nan, np.nan, 1, 0 , np.nan, 0     ],
                                     [np.nan, np.nan, 1, 0 , 0     , 0     ]])
     #setup.landLayer = setup.landLayer*0
@@ -162,9 +162,11 @@ def scenarioTestMedium(parameterInput, dirPath):
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
+    #setup.landLayer[:,:4] = setup.landLayer[:,:4]*0
     setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
     setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
     setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
+    
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[3:,0:3] = 6321
     
@@ -396,9 +398,9 @@ def householdSetup(earth, parameters, calibration=False):
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
     
-    earth.mpi.sendGhostNodes(earth)
-    earth.mpi.comm.Barrier()
-    earth.mpi.recvGhostNodes(earth)
+    earth.mpi.sendRecvGhostNodes(earth)
+    #earth.mpi.comm.Barrier()
+    #earth.mpi.recvGhostNodes(earth)
  
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
@@ -871,8 +873,8 @@ if __name__ == '__main__':
         
         earth = initEarth(parameters, maxNodes=10000)
         
-        #log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-        #sys.stdout = log_file
+        log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+        sys.stdout = log_file
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         

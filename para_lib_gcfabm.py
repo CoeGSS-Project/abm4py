@@ -51,7 +51,8 @@ import igraph as ig
 import numpy as np
 from mpi4py import MPI
 import time 
-import array
+#import array
+#from pprint import pprint
 
 from class_auxiliary import computeConnectionList, getsize
 
@@ -569,6 +570,7 @@ class World:
             
     class Mpi():
         
+        
         def __init__(self, world):
             
             self.world = world
@@ -580,11 +582,11 @@ class World:
             self.ghostNodeQueue = dict()
             #self.ghostEdgeQueue = dict()
             
-            self.ghostNodeIn  = dict()     # ghost vertices on this process that receive information
-            self.ghostNodeOut = dict()     # vertices on this process that provide information to ghost nodes on other process
-            self.buffer       = dict()
-            self.messageSize   = dict()
-            self.sendReqList  = list()
+            self.ghostNodeSend  = dict()     # ghost vertices on this process that receive information
+            self.ghostNodeRecv  = dict()     # vertices on this process that provide information to ghost nodes on other process
+            self.buffer         = dict()
+            self.messageSize    = dict()
+            self.sendReqList    = list()
             #self.ghostEdgeIn  = dict()     # ghost edves on this process that receive information
             #self.ghostEdgeOut = dict()     # edges on this process that provide information to ghost nodes on other process
             
@@ -593,51 +595,69 @@ class World:
             
             world.isend = self.comm.isend    
             world.irecv = self.comm.irecv
+            
+            self.__clearBuffer__()
+        
         #%% Privat functions
-        def __packData__(self, packageDict, nodeType, mpiPeer, nodeSeq, propList, connList=None):
+        def __clearBuffer__(self):
+            self.a2aBuff = []
+            for x in range(self.comm.size):
+                self.a2aBuff.append([])
+                
+        def __add2Buffer__(self, mpiPeer, data):
+            #print 'adding to:',mpiPeer
+            self.a2aBuff[mpiPeer].append(data)
+            
+        def __all2allSync__(self):
+            recvBuffer = self.comm.alltoall(self.a2aBuff)
+            self.__clearBuffer__()
+            return recvBuffer
+        
+        
+        def __packData__(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
 
             nNodes = len(nodeSeq)
-            packageDict[nodeType, mpiPeer] = list()
-            packageDict[nodeType, mpiPeer].append(nNodes)
+            dataPackage = list()
+            dataPackage.append((nNodes,nodeType))
             for prop in propList:
-                packageDict[nodeType, mpiPeer].append(nodeSeq[prop])                            
+                dataPackage.append(nodeSeq[prop])                            
             
             if connList is not None:
-                packageDict[nodeType, mpiPeer].append(connList)
-            if nodeType in [2,3]:
+                dataPackage.append(connList)
+            #if nodeType in [2,3]:
                 #print propList
-                #print packageDict
+                #print dataPackage
                 #print 'finished'
                 
-                def saveObj(obj, name ):
-                    import pickle
-                    with open( name + '.pkl', 'wb') as f:
-                        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-                saveObj(packageDict,'package' + str(mpiPeer))
+#                def saveObj(obj, name ):
+#                    import pickle
+#                    with open( name + '.pkl', 'wb') as f:
+#                        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+#                saveObj(dataPackage,'package' + str(mpiPeer))
                         
-            return packageDict
+            return dataPackage
                 
             
-        def __sendDataAnnouncement__(self, announcements):    
-            #%% Sending of announcments and data
-            for mpiPeer in self.peers:
-                # send what nodetypes to expect
-                if mpiPeer in announcements.keys():
-                    request = self.comm.isend(announcements[mpiPeer], dest=mpiPeer, tag=9999)
-                    self.sendReqList.append(request)
-                else:
-                    request =  self.comm.isend([], dest=mpiPeer, tag=9999)
-                    self.sendReqList.append(request)
+#        def __sendDataAnnouncement__(self, announcements):    
+#            #%% Sending of announcments and data
+#            for mpiPeer in self.peers:
+#                # send what nodetypes to expect
+#                if mpiPeer in announcements.keys():
+#                    request = self.comm.isend(announcements[mpiPeer], dest=mpiPeer, tag=9999)
+#                    self.sendReqList.append(request)
+#                else:
+#                    request =  self.comm.isend([], dest=mpiPeer, tag=9999)
+#                    self.sendReqList.append(request)
                     
-        def __sendData__(self, packageDict):
-            for nodeType, mpiPeer in packageDict:
-                request = self.comm.isend(packageDict[nodeType, mpiPeer], dest=mpiPeer, tag=nodeType)
-                self.sendReqList.append(request)
+#        def __sendData__(self, packageDict):
+#            for nodeType, mpiPeer in packageDict:
+#                request = self.comm.isend(packageDict[nodeType, mpiPeer], dest=mpiPeer, tag=nodeType)
+#                self.sendReqList.append(request)
                 
-        def __clearSendRequests__(self):
-            for req in self.sendReqList:
-                req.wait()
-            self.sendReqList = list()
+#        def __clearSendRequests__(self):
+#            for req in self.sendReqList:
+#                req.wait()
+#            self.sendReqList = list()
         #%% Puplic functions        
 
         def syncNodes(self, nodeType, propertyList='all'):
@@ -688,6 +708,7 @@ class World:
             #print self.world.graph.IDArray
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
+                #print owner
                 x,y   = ghLoc.node['pos']
                 if owner not in mpiRequest:
                     mpiRequest[owner]   = (list(), 'gID')
@@ -704,37 +725,55 @@ class World:
                 
                 # send request of global IDs
                 #print str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest])
-                self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
+                #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
+                    self.__add2Buffer__(mpiDest, mpiRequest[mpiDest])
+            
+            #print 'requestOut:'
+            #pprint(self.a2aBuff)
+            requestIn = self.__all2allSync__()
+            #print 'requestIn:'
+            #pprint(requestIn)
+            
+            
+            for mpiDest in mpiRequest.keys():
                 
+                self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
                 
-                self.ghostNodeIn[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
-    
                 # receive request of global IDs
-                incRequest = self.comm.recv(source=mpiDest)
+                #incRequest = self.comm.recv(source=mpiDest)
+                incRequest = requestIn[mpiDest][0]
+                #pprint(incRequest)
                 iDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
                 #print str(self.rank) + ' - idlist:' + str(iDList)
-                
-                self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
+                self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[iDList]
+                #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
                 #print str(self.rank) + ' - gIDs:' + str(self.ghostNodeOut[locNodeType, mpiDest]['gID'])
+                
                 for entity in [self.world.entList[i] for i in iDList]:
                     entity.mpiPeers.append(mpiDest)
                 
                 # send requested global IDs
                 #print str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]])
-                self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
+                
+                self.__add2Buffer__(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
+            
+            requestRecv = self.__all2allSync__()
+            
+            for mpiDest in mpiRequest.keys():
+                #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
                 #receive requested global IDs
-                globIDList = self.comm.recv(source=mpiDest)
+                globIDList = requestRecv[mpiDest][0]
                 print 'receiving:'
-                #print 'globIDList:' + str(globIDList)
+                print 'globIDList:' + str(globIDList)
                 #print 'localDList:' + str(self.ghostNodeIn[locNodeType, mpiDest].indices)
-                self.ghostNodeIn[locNodeType, mpiDest]['gID'] = globIDList
-                for nID, gID in zip(self.ghostNodeIn[locNodeType, mpiDest].indices, globIDList):
+                self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
+                for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
                     self.world.glob2loc[gID] = nID
                     self.world.loc2glob[nID] = gID
-                self.world.mpi.comm.Barrier()
+                #self.world.mpi.comm.Barrier()
             print 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds'            
-
+            
 
         #%% Nodes            
         def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
@@ -749,12 +788,12 @@ class World:
 
         
 
-        def sendGhostNodes(self, world):
+        def sendRecvGhostNodes(self, world):
             
             
             #%%Packing of data
-            packageDict = dict()        # indexed by (nodeType, mpiDest)
-            announcements = dict()      # indexed by (mpiDest) containing nodeTypes
+            
+            #announcements = dict()      # indexed by (mpiDest) containing nodeTypes
             
             for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
                 
@@ -769,139 +808,125 @@ class World:
                 nodeSeq = world.graph.vs[IDsList]
                 
                 # setting up ghost out Comm
-                self.ghostNodeOut[nodeType, mpiPeer] = nodeSeq
+                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.nodeProperies[nodeType][:]
                 #print propList
-                packageDict = self.__packData__(packageDict, nodeType, mpiPeer, nodeSeq,  propList, connList)
+                dataPackage = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                self.__add2Buffer__(mpiPeer, dataPackage)
+#                if mpiPeer not in announcements:
+#                    announcements[mpiPeer] = list()
+#                announcements[mpiPeer].append((nodeType, getsize(packageDict)))            
+#            
+#            self.__sendDataAnnouncement__(announcements) #only required for initial communication
+            recvBuffer = self.__all2allSync__()
 
-                if mpiPeer not in announcements:
-                    announcements[mpiPeer] = list()
-                announcements[mpiPeer].append((nodeType, getsize(packageDict)))            
+            #pprint(recvBuffer[mpiPeer])
             
-            self.__sendDataAnnouncement__(announcements) #only required for initial communication
-            self.__sendData__( packageDict)
-
-        
-        def recvGhostNodes(self, world):
-            #%%Reading announcements
-            announcements = dict()
-            requestDict  = dict()
-            # get expected nodetypes
             for mpiPeer in self.peers:
-                announcements[mpiPeer] = self.comm.irecv(source=mpiPeer, tag=9999).wait()
+                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
+                    pass  
                 
-            for mpiPeer in self.peers:
-                if len(announcements[mpiPeer]) > 0: # will receive a message
+                for dataPackage in recvBuffer[mpiPeer]:
                     
-                    for nodeType, messageSize in announcements[mpiPeer]:
-                        #print 'received Agents: ' + str(nAgents)
-
-                        self.messageSize[nodeType, mpiPeer] = int(messageSize *1.5)
-                        buf = array.array('b', self.messageSize[nodeType, mpiPeer]*[0])
-                        requestDict[nodeType, mpiPeer] = self.comm.irecv(buf=buf,source=mpiPeer, tag=nodeType)
-
-            #%% Receiving of data
-            dataDict = dict()
-            for nodeType, mpiPeer in requestDict.keys():
-                dataDict[nodeType, mpiPeer] = requestDict[nodeType, mpiPeer].wait()
+            
+#            for nodeType, mpiPeer in requestDict.keys():
+#                dataDict[nodeType, mpiPeer] = requestDict[nodeType, mpiPeer].wait()
+                    
                 #print 'data: ' + str(dataDict)
             #return dataDict
         
             #%% create ghost agents from dataDict 
             
-            for key in sorted(dataDict.keys()):
-                nodeType, mpiSrc = key
-                data = dataDict[key]
-                nNodes = data[0]
-                
-                nIDStart= world.graph.vcount()
-                nIDs = range(nIDStart,nIDStart+nNodes)
-                world.graph.add_vertices(nNodes)
-                nodeSeq = world.graph.vs[nIDs]
-                
-                # setting up ghostIn communicator
-                self.ghostNodeIn[nodeType, mpiPeer] = nodeSeq
-                
-                propList = world.graph.nodeProperies[nodeType][:]
-                #print propList
-                #propList.remove('nID')
-                
-                
-                for i, prop in enumerate(propList):
-                    nodeSeq[prop] = data[i+1]
-                
-                gIDsCells = data[-1]
-                #print 'creating ' + str(len(nIDs)) + ' ghost agents of type' + str(nodeType)
-                for nID, gID in zip(nIDs, gIDsCells):
+                    nNodes, nodeType = dataPackage[0]
                     
-                    GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+                    nIDStart= world.graph.vcount()
+                    nIDs = range(nIDStart,nIDStart+nNodes)
+                    world.graph.add_vertices(nNodes)
+                    nodeSeq = world.graph.vs[nIDs]
                     
-                    agent = GhostAgentClass(world, mpiSrc, nID=nID)
-                    #print 'creating ghost with nID: ' + str(nID)
-                    #world.registerNode(agent,nodeType) 
+                    # setting up ghostIn communicator
+                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
                     
-                    parentEntity = world.entDict[world.glob2loc[gID]]
-                    edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
-
-                    #print 'edgeType' + str(edgeType)
-                    agent.register(world, parentEntity, edgeType)
-                    #cell.registerEntityAtLocation(world, agent, edgeType)
-                # create entity with nodes (queing)
-                # deque
-                # set data from buffer
+                    propList = world.graph.nodeProperies[nodeType][:]
+                    #print propList
+                    #propList.remove('nID')
+                    
+                
+                    for i, prop in enumerate(propList):
+                        nodeSeq[prop] = dataPackage[i+1]
+                
+                    gIDsCells = dataPackage[-1]
+                    #print 'creating ' + str(len(nIDs)) + ' ghost agents of type' + str(nodeType)
+                    for nID, gID in zip(nIDs, gIDsCells):
+                        
+                        GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+                        
+                        agent = GhostAgentClass(world, mpiPeer, nID=nID)
+                        #print 'creating ghost with nID: ' + str(nID)
+                        #world.registerNode(agent,nodeType) 
+                        
+                        parentEntity = world.entDict[world.glob2loc[gID]]
+                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
+    
+                        #print 'edgeType' + str(edgeType)
+                        agent.register(world, parentEntity, edgeType)
+                        #cell.registerEntityAtLocation(world, agent, edgeType)
+                    # create entity with nodes (queing)
+                    # deque
+                    # set data from buffer
             
-            self.__clearSendRequests__()
+            #self.__clearSendRequests__()
+            
         
-        def sendGhostUpdate(self, nodeTypeList='all', propertyList='all'):
+        
+        def sendRecvGhostUpdate(self, nodeTypeList='all', propertyList='all'):
             
-            dataDict = dict()
+            #dataDict = dict()
 
-            for (nodeType, mpiPeer) in self.ghostNodeOut.keys():
+            for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
-                    nodeSeq = self.ghostNodeOut[nodeType, mpiPeer]
+                    nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
                 
                     if propertyList == 'all':
                         propertyList = self.world.graph.nodeProperies[nodeType][:]
                         propertyList.remove('gID')
                         
-                    dataDict = self.__packData__(dataDict, nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    dataPackage = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    self.__add2Buffer__(mpiPeer, dataPackage)
+            recvBuffer = self.__all2allSync__()
             
-            self.__sendData__( dataDict)
         
-        def recvGhostUpdate(self, nodeTypeList= 'all', propertyList='all'):
-            
-            dataDict  = dict()
-            requestDict = dict()
-            
-            for nodeType, mpiPeer in self.ghostNodeIn.keys():
-                if nodeTypeList == 'all' or nodeType in nodeTypeList:
+#            for nodeType, mpiPeer in self.ghostNodeIn.keys():
+#                if nodeTypeList == 'all' or nodeType in nodeTypeList:
                     #print nodeType, mpiPeer
                     #buf2 = array.array('b', self.messageSize[nodeType, mpiPeer]*[0])
                     #requestDict[nodeType, mpiPeer] = self.comm.irecv(buf=buf2, source=mpiPeer, tag=nodeType)
 
                  
                     #dataDict[nodeType, mpiPeer] = requestDict[nodeType, mpiPeer].wait()
-                    
-                    dataDict[nodeType, mpiPeer] = self.comm.recv( source=mpiPeer, tag=nodeType)
+            for mpiPeer in self.peers:
+                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
+                      
                 
-            for (nodeType, mpiSrc), data in dataDict.iteritems():
-                
-                if propertyList == 'all':
-                    propertyList= self.world.graph.nodeProperies[nodeType][:]
-                    #print propertyList
-                    propertyList.remove('gID')
-               
-                nodeSeq = self.ghostNodeIn[nodeType, mpiPeer]
-                for i, prop in enumerate(propertyList):
-                    nodeSeq[prop] = data[i+1]
+                    for dataPackage in recvBuffer[mpiPeer]:
+                        mNodes, nodeType = dataPackage[0]
+                        
+                        if propertyList == 'all':
+                            propertyList= self.world.graph.nodeProperies[nodeType][:]
+                            #print propertyList
+                            propertyList.remove('gID')
+                       
+                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
+                        for i, prop in enumerate(propertyList):
+                            nodeSeq[prop] = dataPackage[i+1]
            
-            self.__clearSendRequests__()
+            #self.__clearSendRequests__()
             
         def updateGhostNodes(self, nodeTypeList= 'all', propertyList='all'):
             tt = time.time()
             
-            self.sendGhostUpdate(nodeTypeList, propertyList)
-            self.recvGhostUpdate(nodeTypeList, propertyList)
+            self.sendRecvGhostUpdate(nodeTypeList, propertyList)
+            #self.recvGhostUpdate(nodeTypeList, propertyList)
             
             print 'Ghost update required: ' + str(time.time()-tt) + ' seconds'    
             
@@ -1205,8 +1230,9 @@ class World:
         for i in range(len(self.graph.edgeTypes)):
             hsv =  next(colors)[0:3]
             colorDictEdge[i] = hsv.tolist()
+        self.graph.vs["label"] = [str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
         
-        self.graph.vs["label"] = [str(x) + '->' + str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
+        #self.graph.vs["label"] = [str(x) + '->' + str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
         edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
         
         visual_style = {}
