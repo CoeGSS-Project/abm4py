@@ -56,15 +56,25 @@ class Earth(World):
 
     def __init__(self, parameters, maxNodes = 1e6):
         
-        World.__init__(self, parameters.isSpatial, maxNodes = maxNodes)
+        nSteps     = parameters.nSteps
+        
         
         self.simNo = aux.getSimulationNumber(self.mpi.comm)
+        
+        if self.simNo is not None and self.mpi.comm.rank==0:
+            self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
+            if not os.path.isdir(self.para['outPath']):
+                os.mkdir(self.para['outPath'])
+            if not os.path.isdir(self.para['outPath'] + '/rec'):
+                os.mkdir(self.para['outPath'] + '/rec')        
+        
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, self.para['outPath'])
         
         self.agentRec   = dict()   
         self.time       = 0
         self.date       = list(parameters.startDate)
         self.timeUnit   = parameters.timeUint
-        self.nSteps     = parameters.nSteps
+        
         self.reporter   = list()
         self.nAgents    = 0
         self.brandDict  = dict()
@@ -91,12 +101,7 @@ class Earth(World):
             os.mkdir('output')
         
         
-        if not self.simNo is None and self.mpi.comm.rank==0:
-            self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
-            if not os.path.isdir(self.para['outPath']):
-                os.mkdir(self.para['outPath'])
-            if not os.path.isdir(self.para['outPath'] + '/rec'):
-                os.mkdir(self.para['outPath'] + '/rec')
+        
                 
     def registerRecord(self, name, title, colLables, style ='plot'):
         self.globalData[name] = aux.Record(name, colLables, self.nSteps, title, style)

@@ -35,7 +35,23 @@ Communication is managed via the spatial location
 
 Thus, the function "location.registerEntity" does initialize ghost copies
     
-    
+TODOs:
+
+soon:    
+- per node collecting of communting and waiting times
+- mpi load of the synthetic population data (or even correct load)
+- IO of connections and their attributes
+- partitioning of the cell grid via metis or some other graph partioner
+- reach usage of 100 parallell processes (96)
+
+later:
+- movement of agents between processes
+- implement mpi communication of string attributes
+- implement output of string attributes
+- reach usage of 1000 parallell processes (960) -> how to do with only 3800 Locations??
+    - multipthreading within locatons??
+
+  
 """
 from __future__ import division
 
@@ -51,6 +67,7 @@ import igraph as ig
 import numpy as np
 from mpi4py import MPI
 import time 
+from bunch import Bunch
 #import array
 #from pprint import pprint
 
@@ -455,13 +472,59 @@ class GhostLocation(Entity):
 ################ WORLD CLASS #########################################            
 class World:
     #%% World sub-classes
+    
+    class Globals(Bunch):
+        """ This class manages global variables that are assigned on all processes
+        and are synced via mpi. Global variables need to be registered together with
+        the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
+        
+        #TODO
+        - implement mean, deviation, std as reduce operators
+        
+        
+        """
+        def __init__(self, comm):
+            
+            self.comm = comm
+            self.reduceDict = dict()
+            self.operations = dict()
+            
+            self.operations['sum'] = MPI.SUM
+            self.operations['prod'] = MPI.PROD
+            self.operations['min'] = MPI.MIN
+            self.operations['max'] = MPI.MAX
+            #self.operations['std'] = MPI.Op.Create(np.std)
+            
+        def register(self,globName, value, reduceType):
+            self[globName] = value
+            if reduceType not in self.reduceDict.keys():
+                self.reduceDict[reduceType] = list()
+            self.reduceDict[reduceType].append(globName)
+            
+        def sync(self, varName=None):
+            
+            if varName is None:
+                for redType in self.reduceDict.keys():
+                    op = self.operations[redType]
+                    for globName in self.reduceDict[redType]:
+                        self[globName] = self.comm.allreduce(self[globName],op)
+            
+            
     class IO():  
         
+        class synthInput():
+            """ MPI conform loading of synthetic population data"""
+            pass # ToDo
         
         
         class Record():
+            """ This calls manages the translation of different graph attributes to
+            the output format as a numpy array. Vectora of values automatically get
+            assigned the propper matrix dimensions and indices. 
             
-            def __init__(self, nAgents, agIds, nAgentsGlob, loc2GlobIdx, nodeType):
+            So far, only integer and float are supported
+            """
+            def __init__(self, nAgents, agIds, nAgentsGlob, loc2GlobIdx, nodeType, timeStepMag):
                 self.ag2FileIdx = agIds
                 self.nAgents = nAgents
                 self.nAttr = 0
@@ -472,7 +535,7 @@ class World:
                 self.nAgentsGlob = nAgentsGlob
                 self.loc2GlobIdx = loc2GlobIdx
                 self.nodeType    = nodeType
-                
+                self.timeStepMag = timeStepMag
                 
             
             def addAttr(self, name, nProp):
@@ -495,12 +558,13 @@ class World:
                             
             def writeData(self, h5File):
                 #print self.header
-                path = '/' + str(self.nodeType)+ '/' + str(self.timeStep)
+                path = '/' + str(self.nodeType)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
                 #print 'IO-path: ' + path
                 self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
                 self.dset[self.loc2GlobIdx,] = self.data
-                         
-        def __init__(self, world): # of IO
+        
+        #%% Init of the IO class                 
+        def __init__(self, world, nSteps, outputPath = ''): # of IO
             import h5py  
             
             self.graph      = world.graph
@@ -508,7 +572,7 @@ class World:
             self.h5File    =  h5py.File('nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
             self.comm       = world.mpi.comm
             self.outData    = dict()
-            
+            self.timeStepMag = int(np.ceil(np.log10(nSteps)))
               
             
         def initNodeFile(self, world, nodeTypes):
@@ -529,7 +593,7 @@ class World:
                 loc2GlobIdx = range(cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
                 #print loc2GlobIdx
                 
-                rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType)
+                rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 self.attributes = world.graph.nodeProperies[nodeType][:]
                 self.attributes.remove('type')
 
@@ -590,6 +654,7 @@ class World:
             #self.ghostEdgeIn  = dict()     # ghost edves on this process that receive information
             #self.ghostEdgeOut = dict()     # edges on this process that provide information to ghost nodes on other process
             
+            self.reduceDict = dict()
             world.send = self.comm.send
             world.recv = self.comm.recv    
             
@@ -603,9 +668,12 @@ class World:
             self.a2aBuff = []
             for x in range(self.comm.size):
                 self.a2aBuff.append([])
-                
+            #print self.a2aBuff
+            #print len(self.a2aBuff)
+            
         def __add2Buffer__(self, mpiPeer, data):
             #print 'adding to:',mpiPeer
+            #print 'mpiPeer',mpiPeer
             self.a2aBuff[mpiPeer].append(data)
             
         def __all2allSync__(self):
@@ -624,81 +692,10 @@ class World:
             
             if connList is not None:
                 dataPackage.append(connList)
-            #if nodeType in [2,3]:
-                #print propList
-                #print dataPackage
-                #print 'finished'
-                
-#                def saveObj(obj, name ):
-#                    import pickle
-#                    with open( name + '.pkl', 'wb') as f:
-#                        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-#                saveObj(dataPackage,'package' + str(mpiPeer))
+
                         
             return dataPackage
-                
-            
-#        def __sendDataAnnouncement__(self, announcements):    
-#            #%% Sending of announcments and data
-#            for mpiPeer in self.peers:
-#                # send what nodetypes to expect
-#                if mpiPeer in announcements.keys():
-#                    request = self.comm.isend(announcements[mpiPeer], dest=mpiPeer, tag=9999)
-#                    self.sendReqList.append(request)
-#                else:
-#                    request =  self.comm.isend([], dest=mpiPeer, tag=9999)
-#                    self.sendReqList.append(request)
-                    
-#        def __sendData__(self, packageDict):
-#            for nodeType, mpiPeer in packageDict:
-#                request = self.comm.isend(packageDict[nodeType, mpiPeer], dest=mpiPeer, tag=nodeType)
-#                self.sendReqList.append(request)
-                
-#        def __clearSendRequests__(self):
-#            for req in self.sendReqList:
-#                req.wait()
-#            self.sendReqList = list()
-        #%% Puplic functions        
-
-        def syncNodes(self, nodeType, propertyList='all'):
-            tt = time.time()
-            buffers = dict()
-            
-            if propertyList=='all':
-                #print self.graph.nodeProperies
-                propertyList = self.world.graph.nodeProperies[nodeType][:]
-                propertyList.remove('type')
-                propertyList.remove('gID')
-            else:
-                if not isinstance(propertyList,list):
-                    propertyList = [propertyList]
-                
-                assert all([prop in self.world.graph.nodeProperies[nodeType] for prop in propertyList])
-                
-    
-                
-            for peer in self.peers:
-                
-                for i, prop in enumerate(propertyList):
-                    #check if out sync is registered for nodetype and pee
-                    if (nodeType, peer) in self.ghostNodeOut:
-                        #print self.ghostNodeOut[(nodeType, peer)][prop]
-                        self.comm.isend(self.ghostNodeOut[(nodeType, peer)][prop], peer, tag=i)
-                
-                    #check if in sync is registered for nodetype and peer
-                    if (nodeType, peer) in self.ghostNodeIn:
-                        buffers[peer,i] = self.comm.irecv(source=peer, tag=i)
-                        #data = buf.wait()
-                
-            for key in buffers.keys():
-                #print str(self.rank) + ' ' + 'key:' + str(key)
-                
-                data = buffers[key].wait()
-                #print 'data ' + str(data)
-                #print self.ghostNodeIn
-                self.ghostNodeIn[(nodeType, key[0])][propertyList[key[1]]] = data
-            print 'MPI commmunication required: ' + str(time.time()-tt) + ' seconds'
-        
+  
         def initCommunicationViaLocations(self, ghostLocationList, locNodeType): 
             
             tt = time.time()
@@ -930,10 +927,10 @@ class World:
             
             print 'Ghost update required: ' + str(time.time()-tt) + ' seconds'    
             
-        
+
             
     #%% INIT WORLD            
-    def __init__(self,spatial=True, maxNodes = 1e6):
+    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, outputPath=''):
         
         self.timeStep = 0
         
@@ -941,6 +938,7 @@ class World:
         self.spatial  = spatial
         self.maxNodes = int(maxNodes)
         self.globIDGen = self.__globIDGen__()
+        self.nSteps   = nSteps
         
         self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
         self.para     = dict()
@@ -948,6 +946,7 @@ class World:
         #GRAPH
         self.graph    = ig.Graph(directed=True)
        
+        
         
         
         # list of types
@@ -969,7 +968,10 @@ class World:
         self.mpi = self.Mpi(self)
         
         # IO
-        self.io = self.IO(self)
+        self.io = self.IO(self, nSteps, outputPath)
+        
+        # Globally synced variables
+        self.glob     = self.Globals(self.mpi.comm)
         
         # enumerations
         self.enums = dict()
@@ -1267,7 +1269,12 @@ class World:
                 ig.plot(self.graph, filename, layout=layout, **visual_style )  
 if __name__ == '__main__':
     
-    earth = World(maxNodes = 1e2)
+    earth = World(maxNodes = 1e2, nSteps = 10)
+#    
+    earth.glob.register('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.glob.sync()
+    print earth.glob['test']
+#    exit()
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
     #log_file = open("message.log","w")
@@ -1322,8 +1329,8 @@ if __name__ == '__main__':
     print str(earth.mpi.rank) + ' values' + str(earth.graph.vs['value'])
     print str(earth.mpi.rank) + ' values2: ' + str(earth.graph.vs['value2'])
     
-    print earth.mpi.ghostNodeIn
-    print earth.mpi.ghostNodeOut
+    print earth.mpi.ghostNodeRecv
+    print earth.mpi.ghostNodeSend
     
     print earth.graph.vs.attribute_names()
     
@@ -1331,8 +1338,8 @@ if __name__ == '__main__':
     
     print str(earth.mpi.rank) + ' SendQueue ' + str(earth.mpi.ghostNodeQueue)
     
-    earth.mpi.sendGhostNodes(earth)
-    earth.mpi.recvGhostNodes(earth)
+    earth.mpi.sendRecvGhostNodes(earth)
+    #earth.mpi.recvGhostNodes(earth)
 
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
@@ -1350,7 +1357,7 @@ if __name__ == '__main__':
 
     earth.io.initNodeFile(earth, [_cell, _ag])
     
-    earth.io.gatherNodeData()
+    earth.io.gatherNodeData(0)
     earth.io.writeDataToFile()
     
     print str(earth.mpi.rank) + ' ' + str(earth.graph.vs['value3'])

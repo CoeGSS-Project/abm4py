@@ -227,9 +227,14 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         # overwrite the standart parameter
         setup.reductionFactor = parameterInput.reductionFactor
         
-    setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = setup.landLayer.astype(int)
+    #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    setup.landLayer = np.load(setup.resourcePath + 'rankMap.npy')
+    setup.landLayer = setup.landLayer[1:-1,1:-1]
+    #setup.landLayer = setup.landLayer
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    
+    print 'max rank:',np.nanmax(setup.landLayer)
     
     setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
     setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
@@ -243,7 +248,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
             plt.colorbar()
         except:
             pass
-    setup.landLayer[setup.landLayer == 1 & np.isnan(setup.population)] =0
+    setup.landLayer[np.isnan(setup.population)] = np.nan
     nAgents    = np.nansum(setup.population)
     
     #social
@@ -274,7 +279,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     setup.convB =  minCarConvenience / (maxDeviation)
     
     
-    assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
+    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     print 'Running with ' + str(nAgents) + ' agents'
     
     return setup
@@ -404,8 +409,8 @@ def householdSetup(earth, parameters, calibration=False):
  
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
-    earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
-    earth.view(str(earth.mpi.rank) + '.png')
+    #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
+    #earth.view(str(earth.mpi.rank) + '.png')
     
     for ghostCell in earth.iterEntRandom(_cell, ghosts = True, random=False):
         ghostCell.updatePeList(earth.graph)
@@ -422,7 +427,7 @@ def householdSetup(earth, parameters, calibration=False):
 def initEarth(parameters, maxNodes):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=maxNodes)
+    earth = Earth(parameters,maxNodes=maxNodes, earth.para['outPath'])
     
 
     earth.initMarket(earth,
