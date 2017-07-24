@@ -162,10 +162,10 @@ def scenarioTestMedium(parameterInput, dirPath):
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
-    #setup.landLayer[:,:4] = setup.landLayer[:,:4]*0
-    setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
-    setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
-    setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
+    setup.landLayer[:,:4] = setup.landLayer[:,:4]*0
+    #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
+    #setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
+    #setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
     
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[3:,0:3] = 6321
@@ -427,7 +427,7 @@ def householdSetup(earth, parameters, calibration=False):
 def initEarth(parameters, maxNodes):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=maxNodes, earth.para['outPath'])
+    earth = Earth(parameters,maxNodes=maxNodes)
     
 
     earth.initMarket(earth,

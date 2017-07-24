@@ -58,17 +58,8 @@ class Earth(World):
         
         nSteps     = parameters.nSteps
         
-        
-        self.simNo = aux.getSimulationNumber(self.mpi.comm)
-        
-        if self.simNo is not None and self.mpi.comm.rank==0:
-            self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
-            if not os.path.isdir(self.para['outPath']):
-                os.mkdir(self.para['outPath'])
-            if not os.path.isdir(self.para['outPath'] + '/rec'):
-                os.mkdir(self.para['outPath'] + '/rec')        
-        
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, self.para['outPath'])
+       
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -269,7 +260,7 @@ class Earth(World):
         
         # writing global records to file
         for key in self.globalData:    
-            self.globalData[key].saveCSV(self.para['outPath'] + '/rec')
+            self.globalData[key].saveCSV(self.para['outPath'])
 
 
         # saving enumerations            
@@ -282,7 +273,7 @@ class Earth(World):
         if self.para['showFigures']:
             # plotting and saving figures
             for key in self.globalData:
-                self.globalData[key].plot(self.para['outPath'] + '/rec')
+                self.globalData[key].plot(self.para['outPath'])
             #except:
         #    pass
         if self.para['mpi']:

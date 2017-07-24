@@ -37,18 +37,20 @@ Thus, the function "location.registerEntity" does initialize ghost copies
     
 TODOs:
 
-soon:    
-- per node collecting of communting and waiting times
-- mpi load of the synthetic population data (or even correct load)
-- IO of connections and their attributes
-- partitioning of the cell grid via metis or some other graph partioner
-- reach usage of 100 parallell processes (96)
-
+soon:
+    - redirect all output to the correct folder
+    - mpi load of the synthetic population data (or even correct load)
+    - IO of connections and their attributes
+    - per node collecting of communting and waiting times
+    - reach usage of 100 parallell processes (96)
+    - partitioning of the cell grid via metis or some other graph partioner
+    - debug flag to control additional output
+    - (optional) write attribute names to hdf5 file
 later:
-- movement of agents between processes
-- implement mpi communication of string attributes
-- implement output of string attributes
-- reach usage of 1000 parallell processes (960) -> how to do with only 3800 Locations??
+    - movement of agents between processes
+    - implement mpi communication of string attributes
+    - implement output of string attributes
+    - reach usage of 1000 parallell processes (960) -> how to do with only 3800 Locations??
     - multipthreading within locatons??
 
   
@@ -71,7 +73,8 @@ from bunch import Bunch
 #import array
 #from pprint import pprint
 
-from class_auxiliary import computeConnectionList, getsize
+
+import class_auxiliary as aux # Record, Memory, Writer, cartesian
 
 class Queue():
 
@@ -566,10 +569,10 @@ class World:
         #%% Init of the IO class                 
         def __init__(self, world, nSteps, outputPath = ''): # of IO
             import h5py  
-            
+            self.outputPath = outputPath
             self.graph      = world.graph
             #self.timeStep   = world.timeStep
-            self.h5File    =  h5py.File('nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
+            self.h5File    =  h5py.File(outputPath + '/nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
             self.comm       = world.mpi.comm
             self.outData    = dict()
             self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -579,7 +582,10 @@ class World:
             """ Initialized the internal data structure for later I/O""" 
             
             for nodeType in nodeTypes:
-                self.h5File.create_group(str(nodeType))
+                group = self.h5File.create_group(str(nodeType))
+                
+                    #group = self.latMinMax = node._f_getattr('LATMINMAX')
+                    
                 
                 nAgents = len(world.nodeDict[nodeType])
                 self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
@@ -615,6 +621,7 @@ class World:
                 # allocate storage
                 rec.initStorage()
                 self.outData[nodeType] = rec
+
                 
         def gatherNodeData(self, timeStep):                
             """ Transfers data from the graph to the I/O storage"""
@@ -631,7 +638,12 @@ class World:
         
         def finalizeAgentFile(self):
             self.h5File.close()
+            from class_auxiliary import saveObj
             
+            for nodeType in self.outData.keys():
+                record = self.outData[nodeType]
+                #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
+                saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
     class Mpi():
         
         
@@ -930,7 +942,7 @@ class World:
 
             
     #%% INIT WORLD            
-    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, outputPath=''):
+    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, debug = False):
         
         self.timeStep = 0
         
@@ -945,9 +957,7 @@ class World:
                
         #GRAPH
         self.graph    = ig.Graph(directed=True)
-       
-        
-        
+
         
         # list of types
         self.graph.nodeTypes = list()
@@ -966,9 +976,33 @@ class World:
 
         # MPI communication
         self.mpi = self.Mpi(self)
+        if self.mpi.comm.rank == 0:
+            self.isRoot = True
+        else:
+            self.isRoot = False
+        
+        if not debug :
+            self.simNo = aux.getSimulationNumber(self.mpi.comm)
+        else:
+            self.simNo = 0
+            print "######### DEBUG MODE #########################"
+            print "simulation number is set to zero in debug mode"
+            print "##############################################"
+        # acquire simulation number if process is rank 0        
+        
+
+        self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
+        
+        if self.isRoot:
+            
+            if not os.path.isdir(self.para['outPath']):
+                os.mkdir(self.para['outPath'])
+        
+            
+            
         
         # IO
-        self.io = self.IO(self, nSteps, outputPath)
+        self.io = self.IO(self, nSteps, self.para['outPath'])
         
         # Globally synced variables
         self.glob     = self.Globals(self.mpi.comm)
@@ -1018,6 +1052,7 @@ class World:
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
+        self.cellMapIdxList = list()
 
         # create vertices 
         for x in range(nodeArray.shape[0]):
@@ -1050,6 +1085,8 @@ class World:
                         loc = GhstLocClassObject(self, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
                         #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
+                        
+                        #self.cellMapIdxList.append(np.ravel_multi_index((xDst,yDst), dims=IDArray.shape))
                         #print IDArray
                         # so far ghost nodes are not in entDict, nodeDict, entList
                         
@@ -1285,7 +1322,7 @@ if __name__ == '__main__':
                               [np.nan, np.nan, np.nan, 1, 1]])
     
     #landLayer = np.load('rankMap.npy')
-    connList = computeConnectionList(1.5)
+    connList = aux.computeConnectionList(1.5)
     #print connList
     _cell    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation, 
                                       propertyList = ['type', 
