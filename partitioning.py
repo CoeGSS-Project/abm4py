@@ -31,7 +31,7 @@ plt.imshow(population)
 plt.colorbar()
 
 
-nClusters = 4
+nClusters = 12
 factorSurr = 20
 radius = 3.5
 nSimulatneously = 5

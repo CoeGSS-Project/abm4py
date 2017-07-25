@@ -397,23 +397,23 @@ class Market():
         
                     
     def computeTechnicalProgress(self):
-            # calculate growth rates per brand:
-            # oldCarsPerLabel = copy.copy(self.carsPerLabel)
-            # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
-            for i in range(self.nMobTypes):
-                if not self.allTimeProduced[i] == 0.:
-                    newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
-                else: 
-                    newGrowthRate = 0
-                self.mobilityGrowthRates[i] = newGrowthRate          
+        # calculate growth rates per brand:
+        # oldCarsPerLabel = copy.copy(self.carsPerLabel)
+        # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
+        for i in range(self.nMobTypes):
+            if not self.allTimeProduced[i] == 0.:
+                newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
+            else: 
+                newGrowthRate = 0
+            self.mobilityGrowthRates[i] = newGrowthRate          
+        
+        # technological progress:
+        oldEtas = copy.copy(self.techProgress)
+        for brandID in range(self.nMobTypes):
+            self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
             
-            # technological progress:
-            oldEtas = copy.copy(self.techProgress)
-            for brandID in range(self.nMobTypes):
-                self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
-                
-            # technical process of infrastructure -> given to cells                
-            self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
+        # technical process of infrastructure -> given to cells                
+        self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
             
         
     def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
