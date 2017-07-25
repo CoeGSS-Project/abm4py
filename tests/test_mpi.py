@@ -23,6 +23,17 @@ array_size = int(sys.argv[1])
 print rank   
 #print "Sending package0 does work"     
 
+x = comm.allreduce(rank*2,MPI.SUM)
+print 'sum rnK: ',x
+
+if rank ==0:
+    out = comm.alltoall([[],[rank]])
+    print out
+else:
+    out = comm.alltoall([[rank],[]])
+    print out
+    
+
 if rank == 0:
 
     data = np.random.randn(array_size).astype(np.float64)

@@ -220,7 +220,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     
     #spatial
     setup.isSpatial     = True
-    setup.connRadius    = 2.5      # radíus of cells that get an connection
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
     setup.reductionFactor = 200.
     
     if hasattr(parameterInput, "reductionFactor"):
@@ -229,7 +229,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         
     #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = np.load(setup.resourcePath + 'rankMap.npy')
+    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust20_x_radius3.5.npy')
     setup.landLayer = setup.landLayer[1:-1,1:-1]
     #setup.landLayer = setup.landLayer
     #setup.landLayer[np.isnan(setup.landLayer)] = 0

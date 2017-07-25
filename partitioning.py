@@ -31,9 +31,10 @@ plt.imshow(population)
 plt.colorbar()
 
 
-nClusters = 48
-factorSurr = 10
+nClusters = 4
+factorSurr = 20
 radius = 3.5
+nSimulatneously = 5
 sumPop = int(np.nansum(population))
 
 positions = np.zeros([sumPop,2])
@@ -127,7 +128,7 @@ iMax = 100000
 i = 0
 success = 0
 successPerDir = [0]*4
-nSimulatneously = 2
+
 dirList = [np.array([-1,0]),np.array([1,0]),np.array([0,-1]),np.array([0,-1])]
 brush0 = np.asarray([[0,-1,0],
                      [0,1,0],
@@ -175,6 +176,8 @@ while True:
     diff[nanIdx] = np.nan
     #plt.imshow(diff)
     diff = np.abs(diff[diff >0])
+    if len(diff) < nSimulatneously:
+        continue
     
     #plt.colorbar()
     
@@ -228,4 +231,5 @@ plt.colorbar()
 plt.imshow(population)
 plt.colorbar()   
 
-np.save('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius),'.npy',clusterMap)   
+np.save('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius)+'.npy',clusterMap)   
+#xx = np.load('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius) + '.npy')   

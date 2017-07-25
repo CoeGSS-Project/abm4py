@@ -27,12 +27,14 @@ utilPerLabel      = 1
 incomePerLabel    = 0
 meanPrefPerLabel  = 1
 meanConsequencePerLabel = 1
-printCellMaps     = 1
+printCellMaps     = 0
 emissionsPerLabel = 1
+doFolium = 0
 
 nBurnIn = 100
 withoutBurnIn = False 
 years         = True                        # only applicable in plots without burn-in
+
 
 
 simNo = sys.argv[1]
@@ -460,29 +462,33 @@ if printCellMaps:
             arrayData = copy.copy(res)
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
-        plt.pcolormesh(res)
+        plt.pcolormesh(np.flipud(res))
         #plt.clim([0,1])
         plt.colorbar()
         plt.title(enums['brands'][iBrand] + ' cars per cells')
     print 1
-    sys.path.append('/media/sf_shared/python/modules')
-    sys.path.append('/media/sf_shared/python/database')
-    import class_map
-    import matplotlib
-    import folium
-    foMap = class_map.Map()
-    cm = matplotlib.cm.get_cmap('YlGn')
-    normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,98) - np.nanpercentile(arrayData,5))
-    minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,98)
-    colored_data = cm(normed_data)
-    foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
-    from branca.utilities import color_brewer
-    cols = color_brewer('YlGn',6)
-    cmap = folium.LinearColormap(cols,vmin=float(minmax[0]),vmax=float(minmax[1]), caption='Electric car share')
-    
-    foMap.map.add_child(cmap)
-    foMap.view()
+    if doFolium:        
+        sys.path.append('/media/sf_shared/python/modules')
+        sys.path.append('/media/sf_shared/python/database')
+        import class_map
+        import matplotlib
+        import folium
+        foMap = class_map.Map()
+        cm = matplotlib.cm.get_cmap('YlGn')
+        normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,98) - np.nanpercentile(arrayData,5))
+        minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,98)
+        colored_data = cm(normed_data)
+        foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
+        from branca.utilities import color_brewer
+        cols = color_brewer('YlGn',6)
+        cmap = folium.LinearColormap(cols,vmin=float(minmax[0]),vmax=float(minmax[1]), caption='Electric car share')
+        
+        foMap.map.add_child(cmap)
+        foMap.view()
     #%%
+    plt.figure()
+    plt.imshow(parameters['landLayer'])
+    plt.colorbar()
     plt.figure()
     plt.clf()
     landLayer = np.zeros(np.max(cellMat[step,:,cellPropDict['pos']]+1,axis=1).astype(int).tolist())
@@ -500,20 +506,23 @@ if printCellMaps:
         test = test + res
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
-        plt.pcolormesh(res)
+        plt.pcolormesh(np.flipud(res))
         #plt.clim([0,1])
         plt.colorbar()
         plt.title('convenience of ' + enums['brands'][iBrand] + ' cars per cells')
     print 1
 #%%
-plt.figure()
-res = landLayer*1.0
-res[posArray[0],posArray[1]] = cellMat[0,:,cellPropDict['population']][0]
-plt.pcolormesh(res)
-#plt.clim([0,1])
-plt.colorbar()
-plt.title('population')
-print 1
+    plt.figure()
+    res = landLayer*1.0
+    
+    
+    res[posArray[0],posArray[1]] = cellMat[0,:,cellPropDict['population']][0]
+    
+    plt.pcolormesh(np.flipud(res))
+    #plt.clim([0,1])
+    plt.colorbar()
+    plt.title('population')
+    print 1
 plt.show()
 
 #sys.path.append('/media/sf_shared/python/database')

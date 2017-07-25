@@ -215,6 +215,9 @@ class Earth(World):
             
         
         # proceed market in time
+        print 'sales before sync: ',self.glob['sales']
+        self.glob.sync()
+        print 'sales after sync: ',self.glob['sales']
         self.market.step() # Statistics are computed here
         
         
@@ -283,7 +286,10 @@ class Earth(World):
 class Market():
 
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
-
+        
+        #import global variables
+        self.glob               = earth.glob
+        self.glob.register('sales' , np.asarray([0]),'sum')
         self.time               = time
         self.properties         = properties                 # (currently: emissions, price)
         self.mobilityProp       = dict()                     # mobType -> [properties]
@@ -305,7 +311,7 @@ class Market():
         self.burnIn             = burnIn
         self.greenInfraMalus    = greenInfraMalus
         self.kappa              = self.greenInfraMalus
-        self.sales              = list()
+        #self.sales              = list()
         self.meanDist           = 0.
         self.stdDist            = 1.
         self.innovationWeig     = [1- earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]
@@ -400,10 +406,10 @@ class Market():
             self.computeTechnicalProgress()
         
         # add sales to allTimeProduced
-        self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.sales)]
+        self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
         # reset sales
         #print self.sales
-        self.sales = [0]*len(self.sales)
+        self.glob['sales'] = self.glob['sales']*0
         
         #compute new statistics        
         self.computeStatistics()
@@ -416,7 +422,7 @@ class Market():
             # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
             for i in range(self.nMobTypes):
                 if not self.allTimeProduced[i] == 0.:
-                    newGrowthRate = (self.sales[i])/float(self.allTimeProduced[i])
+                    newGrowthRate = (self.glob['sales'][i])/float(self.allTimeProduced[i])
                 else: 
                     newGrowthRate = 0
                 self.mobilityGrowthRates[i] = newGrowthRate          
@@ -437,7 +443,7 @@ class Market():
         self.nMobTypes +=1 
         self.mobilityGrowthRates.append(0.)
         self.techProgress.append(1.)
-        self.sales.append(0)
+        self.glob['sales'] = np.asarray([0]*self.nMobTypes)
         self.stockByMobType.append(0)
         self.allTimeProduced.append(allTimeProduced)
         self.carsPerLabel = np.zeros(self.nMobTypes)
@@ -472,10 +478,11 @@ class Market():
         return prop
     
     def buyCar(self, mobTypeIdx, eID):
+        #print time
         prop = self.currentCarProperties(mobTypeIdx)
         if self.time > self.burnIn:
-            self.sales[int(mobTypeIdx)] += 1
-            
+            self.glob['sales'][int(mobTypeIdx)] += 1
+            print self.glob['sales']
         if len(self.freeSlots) > 0:
             mobID = self.freeSlots.pop()
             self.stock[mobID] = [mobTypeIdx] + prop
@@ -886,7 +893,7 @@ class Household(Agent):
         Method to execute the optimal actions for selected persons of the household
         """
         for person, actionIdx in zip(persons, actionIds):
-            
+            #print 1
             mobID, properties = earth.market.buyCar(actionIdx, self.nID)
             self.loc.addToTraffic(actionIdx)
             

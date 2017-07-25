@@ -505,11 +505,13 @@ class World:
             self.reduceDict[reduceType].append(globName)
             
         def sync(self, varName=None):
-            
+            print self.reduceDict
             if varName is None:
                 for redType in self.reduceDict.keys():
                     op = self.operations[redType]
+                    print op
                     for globName in self.reduceDict[redType]:
+                        print globName
                         self[globName] = self.comm.allreduce(self[globName],op)
             
             
