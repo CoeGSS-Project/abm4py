@@ -90,8 +90,11 @@ class Entity():
     def getValue(self,prop):
         return self.node[prop]
     
-    def addValue(self,prop,value):
-        self.node[prop] += value
+    def addValue(self, prop, value, idx = None):
+        if idx is None:
+            self.node[prop] += value
+        else:            
+            self.node[prop][idx] += value
 
     def delete(self,Earth):
         nID = self.nID
@@ -210,10 +213,10 @@ class Entity():
                 values.append(node[prop])
         
         return values, neighbourIDs
-    
 
     def _alt3_getConnNodeValues(self, prop, nodeType=0, mode='out'):
         neighIDs = [ neig['name'] for neig in self.node.neighbors(mode)]
+
 
         if nodeType is not None:
             neighbours = self.graph.vs[neighIDs].select(type=nodeType)
@@ -221,8 +224,8 @@ class Entity():
             neighbours = self.graph.vs[neighIDs]
         
         return neighbours[prop], neighbours['name']
-    
-    
+
+
     def _alt2_getConnNodeValues(self, prop, nodeType=None, mode="OUT"):
         neighIds = self.graph.neighborhood(self.nID, mode=mode)
         
@@ -267,7 +270,7 @@ class Location(Entity):
         world.registerLocation(self)
         self.world = world
         
-    def getAgentOfCell(self,edgeType):
+    def getAgentOfCell(self,nodeType):
         return self.getConnNodeIDs( nodeType=2, mode='in')
         
         
@@ -307,7 +310,7 @@ class Agent(Entity):
 #        eIDSeq = self.graph.es.select(_target=self.nID,type=_locAgLink).indices[0]       
 #        return self.graph.vs[synEarth.graph.es[eIDSeq].source][prop]
     
-        return self.graph.vs[self.loc.nID][prop]
+        return self.graph.vs[self.loc.nID][prop] 
 
 
 
@@ -381,6 +384,7 @@ class World:
     
       
     def iterNodes(self,nodeType, random=True):
+        import numpy as np 
         if isinstance(nodeType,str):
             nodeType = self.types.index(nodeType)
         nodeDict = self.nodeDict[nodeType]

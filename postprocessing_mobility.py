@@ -20,27 +20,42 @@ sns.set_color_codes("dark")
 
 plotRecords       = 0
 plotCarStockBar   = 1
-plotCarSales      = 1
+plotCarSales      = 0
 prefPerLabel      = 0
-utilPerLabel      = 1
+utilPerLabel      = 0
 incomePerLabel    = 0
-meanPrefPerLabel  = 1
-meanConsequencePerLabel = 1
-printCellMaps     = 1
-emissionsPerLabel = 1
-
-nBurnIn = 100
-withoutBurnIn = False 
-years         = True                        # only applicable in plots without burn-in
+meanPrefPerLabel  = 0
+meanConsequencePerLabel = 0
+printCellMaps     = 0
+emissionsPerLabel = 0
+printPopulation   = 0
 
 
+if len(sys.argv) > 2:
+    simNo = sys.argv[1]
+    path = 'output/sim' + str(simNo).zfill(4) + '/'
+else:
+    path = 'output/sim0112/'
+
+<<<<<<< HEAD
 path = 'output/sim0999/'
+=======
+simParas   = loadObj(path + 'simulation_parameters')
+
+nBurnIn       = simParas['burnIn']
+withoutBurnIn = True
+years         = True         # only applicable in plots without burn-in
+
+print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
+print 'burn-in phase: ' + str(nBurnIn)
+print 'of which omniscient burn-in: ' + str(simParas['omniscientBurnIn'])
+>>>>>>> origin/master
 
 
 
 #%% init
     
-from class_auxiliary import loadObj
+
 
 #%% plotting of the records
 if plotRecords:
@@ -69,16 +84,58 @@ enums        = loadObj(path + 'enumerations')
 nSteps, nPers, nPersProp = persMat.shape
 nSteps, nHhs,  nHhProp   = hhMat.shape
 
-
+parameters= loadObj(path + 'simulation_parameters')
 nPrior = len(enums['priorities'])
 
+greenHH = list()
+for time in range(nSteps):
+    nIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
+    hhIDs = [np.where(hhMat[time,:,hhPropDict['name'][0]]==nID)[0][0] for nID in nIDsofHH]
+    greenHH.append(np.asarray(hhIDs))
 
+#%%
+res = np.zeros([nSteps,3])
+for time in range(nSteps):
+    for mobType in range(3):
+        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['ages'][0]])
+
+fig = plt.figure()
+plt.plot(res)
+#plt.title(enums['brands'][carLabel])
+if withoutBurnIn:
+    plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+plt.title('Average age of mobility actors')  
+
+#%%
+
+res = np.zeros([nSteps,3])
+for time in range(nSteps):
+    for mobType in range(3):
+        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['genders'][0]])-1
+
+fig = plt.figure()
+plt.plot(res)
+#plt.title(enums['brands'][carLabel])
+if withoutBurnIn:
+    plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+plt.title('Share of women')  
+
+      
 #%%  plot car stock as bar plot
 legStr = list()
 
 carMat = np.zeros([nSteps,3])
 for time in range(nSteps):
-    carMat[time,:]= np.bincount(persMat[time,:,persPropDict['mobType'][0]].astype(int),minlength=3).astype(float)
+    carMat[time,:]= np.bincount(persMat[time,:,persPropDict['mobType'][0]].astype(int),minlength=3).astype(float)*200
+
 if plotCarStockBar:
     plt.figure()
     enums   = loadObj(path + 'enumerations')
@@ -97,7 +154,18 @@ if plotCarStockBar:
             years = (nSteps - nBurnIn) / 12
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
-    plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+
+#%%
+plt.figure()
+plt.plot(carMat)
+if withoutBurnIn:
+    plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
+plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
 
 #%% plot sales per mobility type
 
@@ -259,22 +327,44 @@ if utilPerLabel:
     plt.title('Average utility by mobility type')
 
 #%% income per car label
-#
-#if incomePerLabel:
-#    res = np.zeros([nSteps,len(enums['brands'])])
-#    for time in range(nSteps):
-#        for carLabel in range(len(enums['brands'])):
-#            idx = agMat[step,:,propDic['type'][0]] == carLabel
-#            res[step, carLabel] = np.mean(agMat[step,idx,propDic['income'][0]])
-#    legStr = list()
-#    for label in range(0,len(enums['brands'])):
-#        legStr.append(enums['brands'][label])        
-#    fig = plt.figure()
-#    plt.plot(res)
-#    plt.title('Average income by brand')
-#    if withoutBurnIn: 
-#        plt.xlim([burnIn,stepsTotal])
-#    plt.legend(legStr,loc=0)    
+incomePerLabel= True
+if incomePerLabel:
+    res = np.zeros([nSteps,2])
+    std = np.zeros([nSteps,2])
+    for time in range(nSteps):
+        for carLabel in range(len(enums['brands'])):
+            idx = hhMat[time,:,hhPropDict['type'][0]] == carLabel
+            res[time, 0] = np.mean(hhMat[time,:,hhPropDict['income'][0]])
+            std[time, 0] = np.std(hhMat[time,:,hhPropDict['income'][0]])
+            idx = np.zeros(hhMat.shape[1])
+            idx[list(greenHH[time])]
+            res[time, 1] = np.mean(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+            std[time, 1] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+    legStr = list()
+    for label in range(0,len(enums['brands'])):
+        legStr.append(enums['brands'][label])        
+    fig = plt.figure()
+    plt.plot(res)
+    
+    plt.fill_between(range(0,nSteps), res[:,0]+ std[:,0], res[:,0]- std[:,0], facecolor='blue', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,0]+ std[:,0],'b--', linewidth = 1)
+    plt.plot(res[:,0]- std[:,0],'b--', linewidth = 1)
+    plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='green', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,1]+ std[:,1],'g--', linewidth = 1)
+    plt.plot(res[:,1]- std[:,1],'g--', linewidth = 1)
+    #ax.fill_between(x, y1, y2, where=y2 <= y1, facecolor='red', interpolate=True)
+    
+    #plt.plot(res- std,'--')
+    plt.title('Equalized household income')
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
+    plt.legend(['Average Household', 'Household income using an electic car', 'Avg STD', 'Elec STD',''],loc=3) 
+
+print ''
+
 
 #%% mean priority per car label
 
@@ -403,6 +493,17 @@ if printCellMaps:
     plt.plot(meanCon)
     plt.legend(enums['brands'].values())
     plt.title('convenience, mean over cells')
+
+    #print tous
+    time = 339
+    #Bremen
+    ids =  np.where(cellMat[time,:,cellPropDict['regionId'][0]]== 1518)
+    tmp =  np.sum(cellMat[time,ids,cellPropDict['carsInCell'][1]]) /  np.sum(cellMat[time,:,cellPropDict['carsInCell']][:,ids])
+    print 'Green cars per 1000 people Bremen: ' + str(tmp*1000)
+    
+    ids =  np.where(cellMat[time,:,cellPropDict['regionId'][0]]== 6321)
+    tmp =  np.sum(cellMat[time,ids,cellPropDict['carsInCell'][1]]) /  np.sum(cellMat[time,:,cellPropDict['carsInCell']][:,ids])
+    print 'Green cars per 1000 people Niedersachsen: ' + str(tmp*1000)
     
     #%%
     
@@ -473,14 +574,20 @@ if printCellMaps:
         plt.title('convenience of ' + enums['brands'][iBrand] + ' cars per cells')
     print 1
 #%%
-plt.figure()
-res = landLayer*1.0
-res[landLayer] = cellMat[0,:,cellPropDict['population']][0]
-plt.pcolormesh(res)
-#plt.clim([0,1])
-plt.colorbar()
-plt.title('population')
-print 1
+if printPopulation:
+    plt.figure()
+    res = landLayer*1.0
+    res[landLayer] = cellMat[0,:,cellPropDict['population']][0]
+    plt.pcolormesh(res)
+    #plt.clim([0,1])
+    plt.colorbar()
+    plt.title('population')
+    print 1
+
+
+
+
+
 plt.show()
 
 #sys.path.append('/media/sf_shared/python/database')
