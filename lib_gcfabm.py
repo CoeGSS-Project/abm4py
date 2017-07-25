@@ -91,8 +91,11 @@ class Entity():
     def getValue(self,prop):
         return self.node[prop]
     
-    def addValue(self,prop,value):
-        self.node[prop] += value
+    def addValue(self, prop, value, idx = None):
+        if idx is None:
+            self.node[prop] += value
+        else:            
+            self.node[prop][idx] += value
 
     def delete(self,Earth):
         nID = self.nID

@@ -30,7 +30,6 @@ printCellMaps     = 0
 emissionsPerLabel = 0
 printPopulation   = 0
 
-from class_auxiliary import loadObj
 
 if len(sys.argv) > 2:
     simNo = sys.argv[1]

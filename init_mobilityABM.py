@@ -132,10 +132,8 @@ def scenarioTestSmall(parameterInput, dirPath):
 
     
 def scenarioTestMedium(parameterInput, dirPath):
-
     
     setup = Bunch()
-
 
     #general 
     setup.resourcePath = dirPath + '/resources_nie/'
