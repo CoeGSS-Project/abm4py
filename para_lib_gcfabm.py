@@ -486,9 +486,12 @@ class World:
         
         
         """
-        def __init__(self, comm):
+        def __init__(self, world):
             
-            self.comm = comm
+            self.comm = world.mpi.comm
+            self.dprint = world.dprint
+            
+            # simple reductions
             self.reduceDict = dict()
             self.operations = dict()
             
@@ -496,25 +499,124 @@ class World:
             self.operations['prod'] = MPI.PROD
             self.operations['min'] = MPI.MIN
             self.operations['max'] = MPI.MAX
+            
+            #staticical reductions/aggregations
+            self.statsDict      = dict()
+            self.values         = dict()
+            self.nValues        = dict()
+            self.statOperations = dict()
+            self.statOperations['mean'] = np.mean
+            self.statOperations['std'] = np.std
+            self.statOperations['var'] = np.std
+            
+            
             #self.operations['std'] = MPI.Op.Create(np.std)
             
-        def register(self,globName, value, reduceType):
+        #%% simple global reductions       
+        def registerValue(self,globName, value, reduceType):
             self[globName] = value
             if reduceType not in self.reduceDict.keys():
                 self.reduceDict[reduceType] = list()
             self.reduceDict[reduceType].append(globName)
             
-        def sync(self, varName=None):
-            print self.reduceDict
-            if varName is None:
-                for redType in self.reduceDict.keys():
-                    op = self.operations[redType]
-                    print op
-                    for globName in self.reduceDict[redType]:
-                        print globName
-                        self[globName] = self.comm.allreduce(self[globName],op)
+        def syncReductions(self):
+
+            for redType in self.reduceDict.keys():
+                
+                op = self.operations[redType]
+                #print op
+                for globName in self.reduceDict[redType]:
+                    #print globName
+                    self[globName] = self.comm.allreduce(self[globName],op)
+
+    
+        #%% statistical global reductions/aggregations
+        def registerStat(self, globName, values, statType):
+            #statfunc = self.statOperations[statType]
             
+            self.values[globName]   = values
+            self.nValues[globName] = len(values)    
+            self[globName]          = None # e.g. compution mean, std, var
+
+            if statType not in self.reduceDict.keys():
+                self.statsDict[statType] = list()
+            self.statsDict[statType].append(globName)
+        
+        def updateStatValues(self, globName, values):
+            self.values[globName]   = values
             
+        def syncStats(self):
+            for redType in self.statsDict.keys():
+                if redType == 'mean':
+                    
+                    for globName in self.statsDict[redType]:
+                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        
+                        tmp = np.asarray(self.comm.alltoall(tmp))
+                        globValue = np.sum(np.prod(tmp,axis=1)) # means * size
+                        globSize = np.sum(tmp[:,1])             # sum(size)
+                        self[globName] = globValue/ globSize    # glob mean
+                    
+                elif redType == 'std':
+                    for globName in self.statsDict[redType]:
+                        
+                        locSTD = [np.std(self.values[globName])] * self.comm.size
+                        locSTD = np.asarray(self.comm.alltoall(locSTD))
+                        self.dprint('loc std: ',locSTD)
+                        
+                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        tmp = np.asarray(self.comm.alltoall(tmp))
+                        
+                        locMean = tmp[:,0]
+                        self.dprint('loc mean: ', locMean)
+                        
+                        locNVar = tmp[:,1]
+                        self.dprint('loc number of var: ',locNVar)
+                        
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
+                        self.dprint('global mean: ', globMean)
+                        
+                        diffSqrMeans = (locMean - globMean)**2
+                        
+                        deviationOfMeans = np.sum(locNVar * diffSqrMeans)
+                        
+                        globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
+                        
+                        self[globName] = np.sqrt(globVariance)
+
+                elif redType == 'var':
+                    for globName in self.statsDict[redType]:
+                        
+                        locSTD = [np.std(self.values[globName])]* self.comm.size
+                        locSTD = np.asarray(self.comm.alltoall(locSTD))
+                        #print 'loc std: ',locSTD
+                        
+                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        tmp = np.asarray(self.comm.alltoall(tmp))
+                        
+                        locMean = tmp[:,0]
+                        #print 'loc mean: ', locMean
+                        
+                        locNVar = tmp[:,1]
+                        #print 'loc number of var: ',locNVar
+                        
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
+                        #print 'global mean: ', globMean
+                        
+                        diffSqrMeans = (locMean - globMean)**2
+                        
+                        deviationOfMeans = np.sum(locNVar * diffSqrMeans)
+                        
+                        globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
+                        
+                        self[globName] = globVariance
+
+        def sync(self):
+
+            self.syncStats()            
+            self.syncReductions()
+            
+                
     class IO():  
         
         class synthInput():
@@ -571,12 +673,12 @@ class World:
         #%% Init of the IO class                 
         def __init__(self, world, nSteps, outputPath = ''): # of IO
             import h5py  
-            self.outputPath = outputPath
-            self.graph      = world.graph
+            self.outputPath  = outputPath
+            self.graph       = world.graph
             #self.timeStep   = world.timeStep
-            self.h5File    =  h5py.File(outputPath + '/nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
-            self.comm       = world.mpi.comm
-            self.outData    = dict()
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
+            self.comm        = world.mpi.comm
+            self.outData     = dict()
             self.timeStepMag = int(np.ceil(np.log10(nSteps)))
               
             
@@ -953,13 +1055,28 @@ class World:
         self.maxNodes = int(maxNodes)
         self.globIDGen = self.__globIDGen__()
         self.nSteps   = nSteps
-        
+        self.debug    = debug
         self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
         self.para     = dict()
                
         #GRAPH
         self.graph    = ig.Graph(directed=True)
-
+        
+        
+        # setting additional debug output
+        if self.debug:
+            # inint pprint as additional output
+            import pprint
+            def debugPrint(*argv):
+                pprint.pprint('DEBUG:' + str(argv))
+            self.dprint = debugPrint
+        else:
+            # init dummy that does nothing
+            def debugDummy(*argv):
+                pass
+            self.dprint = debugDummy
+        
+        
         
         # list of types
         self.graph.nodeTypes = list()
@@ -983,7 +1100,7 @@ class World:
         else:
             self.isRoot = False
         
-        if not debug :
+        if not self.debug :
             self.simNo = aux.getSimulationNumber(self.mpi.comm)
         else:
             self.simNo = 0
@@ -991,6 +1108,7 @@ class World:
             print "simulation number is set to zero in debug mode"
             print "##############################################"
         # acquire simulation number if process is rank 0        
+        
         
 
         self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
@@ -1007,7 +1125,9 @@ class World:
         self.io = self.IO(self, nSteps, self.para['outPath'])
         
         # Globally synced variables
-        self.glob     = self.Globals(self.mpi.comm)
+        self.glob     = self.Globals(self)
+        
+
         
         # enumerations
         self.enums = dict()
@@ -1309,13 +1429,24 @@ class World:
 if __name__ == '__main__':
     
     earth = World(maxNodes = 1e2, nSteps = 10)
-#    
-    earth.glob.register('test' , np.asarray(earth.mpi.comm.rank),'max')
+# 
+    log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+    sys.stdout = log_file   
+    earth.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
+    earth.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
+    print earth.glob['test']
+    print earth.glob['meantest']
+    print 'mean of values: ',earth.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
+    print 'std od values:  ',earth.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
     earth.glob.sync()
     print earth.glob['test']
+    print 'global mean: ', earth.glob['meantest']
+    print 'global std: ', earth.glob['stdtest']
+    
+    
 #    exit()
-    log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-    sys.stdout = log_file
+
     #log_file = open("message.log","w")
     import sys
     

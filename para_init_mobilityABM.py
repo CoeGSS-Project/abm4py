@@ -156,6 +156,10 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
                                     [1, 1, 1, 1, 0, 0, 0, 0, 0]])
+    
+    setup.regionIdRaster    = setup.landLayer*1518
+    setup.regionIdRaster[3:,0:3] = 6321
+
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
     setup.population = 10*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*0
@@ -167,8 +171,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     #setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
     #setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
     
-    setup.regionIdRaster    = setup.landLayer*1518
-    setup.regionIdRaster[3:,0:3] = 6321
+
     
     
     #social
@@ -229,7 +232,87 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         
     #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust20_x_radius3.5.npy')
+    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust12_x_radius3.5.npy')
+    setup.landLayer = setup.landLayer[1:-1,1:-1]
+    #setup.landLayer = setup.landLayer
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    
+    print 'max rank:',np.nanmax(setup.landLayer)
+    
+    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    
+    
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    setup.landLayer[np.isnan(setup.population)] = np.nan
+    nAgents    = np.nansum(setup.population)
+    
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+    
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+    
+    #cars and infrastructure
+    setup.properties    = ['emmisions','TCO']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False    
+
+    # redefinition of setup parameters used for automatic calibration
+    print "setting up the parameters from file"
+    print parameterInput
+    print "####################################"
+    setup.update(parameterInput.toDict())
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
+    
+    
+    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
+    print 'Running with ' + str(nAgents) + ' agents'
+    
+    return setup
+
+def scenarioNBH(parameterInput, dirPath):
+    setup = Bunch()
+    
+    #general 
+    setup.resourcePath = dirPath + '/resources_NBH/'
+    setup.progressBar  = True
+    
+    #time
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUint         = _month  # unit of time per step
+    setup.startDate        = [01,2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    
+    #spatial
+    setup.isSpatial     = True
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
+    setup.reductionFactor = 200.
+    
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+        
+    #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust12_x_radius3.5.npy')
     setup.landLayer = setup.landLayer[1:-1,1:-1]
     #setup.landLayer = setup.landLayer
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
@@ -326,6 +409,7 @@ def householdSetup(earth, parameters, calibration=False):
     nAgents = 0
     nHH     = 0
 
+    print earth.graph.vcount()
     earth.view(str(earth.mpi.rank) + '.png')
     if not parameters.randomAgents:
         parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
@@ -424,10 +508,10 @@ def householdSetup(earth, parameters, calibration=False):
 
 
 
-def initEarth(parameters, maxNodes):
+def initEarth(parameters, maxNodes, debug):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=maxNodes)
+    earth = Earth(parameters,maxNodes=maxNodes, debug = debug)
     
 
     earth.initMarket(earth,
@@ -457,6 +541,7 @@ def initEarth(parameters, maxNodes):
     earth.enums['nodeTypes'] = dict()
     earth.enums['nodeTypes'][1] = 'cell'
     earth.enums['nodeTypes'][2] = 'household'
+    earth.enums['nodeTypes'][3] = 'pers'
     
     earth.enums['consequences'] = dict()
     earth.enums['consequences'][0] = 'convenience'
@@ -603,6 +688,24 @@ def initGlobalRecords(earth, parameters):
         values.append(value)
          
     earth.globalData['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
+
+    earth.registerRecord('stockHamburg', 'total use per mobility type - Hamburg', earth.enums['mobilityTypes'].values(), style ='plot')
+    
+    timeIdxs = list()
+    values   = list()
+    for column in calDataDfCV.columns[1:]:
+        value = [np.nan]*3
+        year = int(column)
+        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+        value[0] = ( calDataDfCV[column]['re_1520']) / parameters['reductionFactor']
+        if column in calDataDfEV.columns[1:]:
+            value[1] = ( calDataDfEV[column]['re_1520']) / parameters['reductionFactor']
+        
+    
+        timeIdxs.append(timeIdx)
+        values.append(value)
+         
+    earth.globalData['stockHamburg'].addCalibrationData(timeIdxs,values)
     
 def initAgentOutput(earth):
     #%% Init of agent file
@@ -693,7 +796,7 @@ def runModel(earth, parameters):
         earth.io.finalizeAgentFile()
     earth.finalize()        
 
-def writeSummary(earth, calRunId, paraDf):
+def writeSummary(earth, calRunId, paraDf, parameters):
     errBremen = earth.globalData['stockBremen'].evaluateRelativeError()
     errNiedersachsen = earth.globalData['stockNiedersachsen'].evaluateRelativeError()
     fid = open('summary.out','w')
@@ -709,6 +812,81 @@ def writeSummary(earth, calRunId, paraDf):
     print 'Calibration Run: ' + str(calRunId)
     print paraDf
     print 'The simulation error is: ' + str(errBremen + errNiedersachsen) 
+
+
+    if parameters.scenario == 2:
+        nPeople = np.nansum(parameters.population)
+
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
+
+        print 'Number of agents: ' + str(nPeople)
+        print 'Number of agents: ' + str(nCars)
+        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+
+
+        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+
+        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+
+        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
+        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
+
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+
+        
+     
+        
+        
+    elif parameters.scenario == 3:
+        
+        nPeople = np.nansum(parameters.population)
+
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
+
+        print 'Number of agents: ' + str(nPeople)
+        print 'Number of agents: ' + str(nCars)
+        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+
+
+        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+        cellListHamb   = cellList.select(regionId_eq=1520)
+
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+        carsInHamb   = np.asarray(cellListHamb['carsInCell'])
+
+
+        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+        nPeopleHamb   = np.nansum(parameters.population[parameters.regionIdRaster==1520])
+
+
+        print 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
+        print 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
+        print 'Hamburg - brown cars per 1000 people: ' + str(np.sum(carsInHamb[:,0])/np.sum(nPeopleHamb)*1000)
+
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+        print 'Hamburg       - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleHamb)*1000)
+
+
 
 def onlinePostProcessing(earth):
     # calculate the mean and standart deviation of priorities
@@ -860,6 +1038,9 @@ if __name__ == '__main__':
         
         parameters = scenarioNiedersachsen(parameters, dirPath)
         
+    elif parameters.scenario == 3:
+        
+        parameters = scenarioNBH(parameters, dirPath)  
         
     if parameters.scenario == 4:
         # test scenario 
@@ -876,7 +1057,7 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=10000)
+        earth = initEarth(parameters, maxNodes=100000, debug =True)
         
         log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
         sys.stdout = log_file
@@ -913,7 +1094,7 @@ if __name__ == '__main__':
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
         
-        writeSummary(earth, calRunID, calParaDf)
+        writeSummary(earth, calRunID, calParaDf, parameters)
     
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         #%%
@@ -923,19 +1104,26 @@ if __name__ == '__main__':
         nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
 
         print 'Number of agents: ' + str(nPeople)
-        print 'Number of agents: ' + str(nCars)
+        print 'Number of cars: ' + str(nCars)
         print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
         print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
         print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
 
 
         cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        print len(cellList)
         cellListBremen = cellList.select(regionId_eq=1518)
         cellListNieder = cellList.select(regionId_eq=6321)
+
+        print len(cellListBremen)
+        print len(cellListNieder)
 
         carsInBremen = np.asarray(cellListBremen['carsInCell'])
         carsInNieder = np.asarray(cellListNieder['carsInCell'])
 
+        print carsInBremen.shape
+        print carsInNieder.shape
+        
         nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
         nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
 

@@ -54,12 +54,12 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters, maxNodes = 1e6):
+    def __init__(self, parameters, maxNodes, debug):
         
         nSteps     = parameters.nSteps
         
        
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes)
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -214,9 +214,11 @@ class Earth(World):
             self.date[1] +=1
             
         
-        # proceed market in time
+        
         print 'sales before sync: ',self.glob['sales']
         self.glob.sync()
+        
+        # proceed market in time
         print 'sales after sync: ',self.glob['sales']
         self.market.step() # Statistics are computed here
         
@@ -287,9 +289,11 @@ class Market():
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
         #import global variables
+        self.dprint = earth.dprint
         self.glob               = earth.glob
-        self.glob.register('sales' , np.asarray([0]),'sum')
-        
+        self.glob.registerValue('sales' , np.asarray([0]),'sum')
+        #self.glob.registerStat('meanProp' , np.asarray([0]*len(properties)),'mean')
+        #self.glob.registerStat('stdProp' , np.asarray([0]*len(properties)),'std')
         self.time                = time
         self.graph               = earth.graph
         self.nodeDict            = earth.nodeDict
@@ -334,9 +338,11 @@ class Market():
     def computeStatistics(self):
         distances=list()
         stock = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
-        self.mean = np.mean(stock[:,:],axis=0)                           # list of means of properties
-        self.std  = np.std(stock[:,:],axis=0)                            # same for std
+        #self.glob['sumProp'] = np.sum(stock, axis=0)
+        self.mean = np.mean(stock,axis=0)                           # list of means of properties
+        self.std  = np.std(stock,axis=0)                            # same for std
         
+        self.dprint('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
         distances = list()         
         for idx in range(len(stock)):
             properties = stock[idx,:]
@@ -345,6 +351,9 @@ class Market():
         self.meanDist = np.mean(distances)
         self.stdDist = np.std(distances)
 
+#    def updateGlobStatData(self):
+#        propertiesArray = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
+#        self.glob.updateStatValues(self, 'meanProp')
 
     def distanceFromMean(self, properties):        
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
@@ -400,6 +409,7 @@ class Market():
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
         
+        self.dprint('new value of allTimeProduced: ' + str(self.allTimeProduced))
         # reset sales
         self.glob['sales'] = self.glob['sales']*0
 
@@ -407,18 +417,22 @@ class Market():
         #compute new statistics        
         self.computeStatistics()
         
+
                     
     def computeTechnicalProgress(self):
         # calculate growth rates per brand:
         # oldCarsPerLabel = copy.copy(self.carsPerLabel)
         # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
+        print 'sales in market: ',self.glob['sales']
         for i in range(self.nMobTypes):
             if not self.allTimeProduced[i] == 0.:
+                
                 newGrowthRate = (self.glob['sales'][i])/float(self.allTimeProduced[i])
             else: 
                 newGrowthRate = 0
             self.mobilityGrowthRates[i] = newGrowthRate          
         
+        self.dprint('growth rate: ' + str(newGrowthRate))
         # technological progress:
         oldEtas = copy.copy(self.techProgress)
         for brandID in range(self.nMobTypes):
@@ -427,6 +441,7 @@ class Market():
         # technical process of infrastructure -> given to cells                
         self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
             
+        self.dprint('techProgress: ' + str(self.techProgress))
         
     def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
         mobType = self.nMobTypes

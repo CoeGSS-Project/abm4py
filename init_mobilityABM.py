@@ -266,6 +266,82 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     print 'Running with ' + str(nAgents) + ' agents'
     
     return setup
+
+def scenarioNBH(parameterInput, dirPath):
+    setup = Bunch()
+    
+    #general 
+    setup.resourcePath = dirPath + '/resources_NBH/'
+    setup.progressBar  = True
+    
+    #time
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUint         = _month  # unit of time per step
+    setup.startDate        = [01,2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    
+    #spatial
+    setup.isSpatial     = True
+    setup.connRadius    = 2.5      # radíus of cells that get an connection
+    setup.reductionFactor = 200.
+    
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+        
+    setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    setup.landLayer[np.isnan(setup.landLayer)] = 0
+    setup.landLayer = setup.landLayer.astype(int)
+    
+    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    
+    
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    setup.landLayer[setup.landLayer == 1 & np.isnan(setup.population)] =0
+    nAgents    = np.nansum(setup.population)
+    
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+    
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+    
+    #cars and infrastructure
+    setup.properties    = ['emmisions','TCO']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False    
+
+    # redefinition of setup parameters used for automatic calibration
+    print "setting up the parameters from file"
+    print parameterInput
+    print "####################################"
+    setup.update(parameterInput.toDict())
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
+    
+    
+    assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
+    print 'Running with ' + str(nAgents) + ' agents'
+    
+    return setup
+
     
 def scenarioChina(calibatationInput):
     pass
@@ -653,7 +729,7 @@ def runModel(earth, parameters):
         earth.finalizeAgentFile()
     earth.finalize()        
 
-def writeSummary(earth, calRunId, paraDf):
+def writeSummary(earth, calRunId, paraDf, parameters):
     errBremen = earth.globalData['stockBremen'].evaluateRelativeError()
     errNiedersachsen = earth.globalData['stockNiedersachsen'].evaluateRelativeError()
     fid = open('summary.out','w')
@@ -670,6 +746,79 @@ def writeSummary(earth, calRunId, paraDf):
     print paraDf
     print 'The simulation error is: ' + str(errBremen + errNiedersachsen) 
 
+    if parameters.scenario == 2:
+        nPeople = np.nansum(parameters.population)
+
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
+
+        print 'Number of agents: ' + str(nPeople)
+        print 'Number of agents: ' + str(nCars)
+        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+
+
+        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+
+        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+
+        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
+        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
+
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+
+        
+     
+        
+        
+    elif parameters.scenario == 3:
+        
+        nPeople = np.nansum(parameters.population)
+
+        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
+
+        print 'Number of agents: ' + str(nPeople)
+        print 'Number of agents: ' + str(nCars)
+        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
+        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
+        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+
+
+        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+        cellListBremen = cellList.select(regionId_eq=1518)
+        cellListNieder = cellList.select(regionId_eq=6321)
+        cellListHamb   = cellList.select(regionId_eq=1520)
+
+        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+        carsInHamb   = np.asarray(cellListHamb['carsInCell'])
+
+
+        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+        nPeopleHamb   = np.nansum(parameters.population[parameters.regionIdRaster==1520])
+
+
+        print 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
+        print 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
+        print 'Hamburg - brown cars per 1000 people: ' + str(np.sum(carsInHamb[:,0])/np.sum(nPeopleHamb)*1000)
+
+        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
+        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+        print 'Hamburg       - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleHamb)*1000)
+
+    
 def onlinePostProcessing(earth):
     # calculate the mean and standart deviation of priorities
     if True:
@@ -828,7 +977,10 @@ if __name__ == '__main__':
     elif parameters.scenario == 2:
         
         parameters = scenarioNiedersachsen(parameters, dirPath)
+   
+    elif parameters.scenario == 3:
         
+        parameters = scenarioNBH(parameters, dirPath)     
         
     if parameters.scenario == 4:
         # test scenario 
@@ -876,56 +1028,9 @@ if __name__ == '__main__':
             onlinePostProcessing(earth)
             
         if parameters['calibration']:
-            writeSummary(earth, calRunID, calParaDf)
+            writeSummary(earth, calRunID, calParaDf, parameters)
         else:
             writeSummary(earth, earth.simNo, calParaDf)
     
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-        #%%
-        nPeople = np.nansum(parameters.population)
-
-        nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
-
-        print 'Number of agents: ' + str(nPeople)
-        print 'Number of agents: ' + str(nCars)
-        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
-        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
-        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
-
-
-        cellList = earth.graph.vs[earth.nodeDict[_cell]]
-        cellListBremen = cellList.select(regionId_eq=1518)
-        cellListNieder = cellList.select(regionId_eq=6321)
-
-        carsInBremen = np.asarray(cellListBremen['carsInCell'])
-        carsInNieder = np.asarray(cellListNieder['carsInCell'])
-
-        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
-        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
-
-        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(carsInBremen)*1000)
-        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(carsInBremen)*1000)
-
-        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(carsInNieder)*1000)
-        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(carsInNieder)*1000)
-
-
-
-
-        
-        
-        cellList = earth.graph.vs[earth.nodeList[_cell]]
-        cellListBremen = cellList.select(regionId_eq=1518)
-        cellListNieder = cellList.select(regionId_eq=6321)
-        
-        carsInBremen = np.asarray(cellListBremen['carsInCell'])
-        carsInNieder = np.asarray(cellListNieder['carsInCell'])
-        
-        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(carsInBremen)*1000)
-        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(carsInBremen)*1000)
-        
-        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(carsInNieder)*1000)
-        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(carsInNieder)*1000)
         

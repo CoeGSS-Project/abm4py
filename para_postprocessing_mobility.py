@@ -15,21 +15,22 @@ import sys
 import tables as ta
 sys.path.append('/media/sf_shared/python/modules/biokit')
 sys.path.append('/home/geiges/database/modules/folium/')
-sys.path.append('/home/geiges/database/')
+#sys.path.append('/home/geiges/database/')
+sys.path.append('modules/')
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
 plotRecords       = 0
-plotCarStockBar   = 1
-plotCarSales      = 1
+plotCarStockBar   = 0
+plotCarSales      = 0
 prefPerLabel      = 0
-utilPerLabel      = 1
+utilPerLabel      = 0
 incomePerLabel    = 0
-meanPrefPerLabel  = 1
-meanConsequencePerLabel = 1
-printCellMaps     = 0
+meanPrefPerLabel  = 0
+meanConsequencePerLabel = 0
+printCellMaps     = 1
 emissionsPerLabel = 1
-doFolium = 0
+doFolium = 1
 
 nBurnIn = 100
 withoutBurnIn = False 
@@ -469,11 +470,11 @@ if printCellMaps:
     print 1
     if doFolium:        
         sys.path.append('/media/sf_shared/python/modules')
-        sys.path.append('/media/sf_shared/python/database')
+        #sys.path.append('/media/sf_shared/python/database')
         import class_map
         import matplotlib
         import folium
-        foMap = class_map.Map()
+        foMap = class_map.Map('toner')
         cm = matplotlib.cm.get_cmap('YlGn')
         normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,98) - np.nanpercentile(arrayData,5))
         minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,98)
@@ -518,7 +519,7 @@ if printCellMaps:
     
     res[posArray[0],posArray[1]] = cellMat[0,:,cellPropDict['population']][0]
     
-    plt.pcolormesh(np.flipud(res))
+    plt.imshow(np.flipud(res))
     #plt.clim([0,1])
     plt.colorbar()
     plt.title('population')
