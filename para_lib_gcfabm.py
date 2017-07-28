@@ -352,6 +352,11 @@ class Entity():
     
         return [x.index for x in neigbours if x['type'] == nodeType]
         
+    def getConnNodeSeq(self, nodeType=0, mode='out'):
+        idList = self.getConnNodeIDs(nodeType, mode='out')
+        
+        return self.graph.vs[idList]
+    
     def getConnNodeValues(self, prop, nodeType=0, mode='out'):
         nodeDict = self.node.neighbors(mode)
         neighbourIDs     = list()
@@ -538,12 +543,13 @@ class World:
             self.nValues[globName] = len(values)    
             self[globName]          = None # e.g. compution mean, std, var
 
-            if statType not in self.reduceDict.keys():
+            if statType not in self.statsDict.keys():
                 self.statsDict[statType] = list()
             self.statsDict[statType].append(globName)
         
         def updateStatValues(self, globName, values):
             self.values[globName]   = values
+            self.nValues[globName] = len(values)    
             
         def syncStats(self):
             for redType in self.statsDict.keys():
@@ -553,6 +559,8 @@ class World:
                         tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
                         
                         tmp = np.asarray(self.comm.alltoall(tmp))
+                        
+                        self.dprint('var[tmp] after alltoall:', tmp )
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
@@ -684,29 +692,34 @@ class World:
             
         def initNodeFile(self, world, nodeTypes):
             """ Initialized the internal data structure for later I/O""" 
-            
+            print 'start node init'
+            tt = time.time()
             for nodeType in nodeTypes:
+                print nodeType
                 group = self.h5File.create_group(str(nodeType))
                 
                     #group = self.latMinMax = node._f_getattr('LATMINMAX')
-                    
+                print 'group created after ' + str(time.time()-tt)  + ' seconds'  
                 
                 nAgents = len(world.nodeDict[nodeType])
                 self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
-
+                
                 self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)    
-                #print self.nAgentsAll 
+                
+                print 'nAgents exchanged after  ' + str(time.time()-tt)  + ' seconds'  
+                print self.nAgentsAll 
                 
                 nAgentsGlob = sum(self.nAgentsAll)
                 cumSumNAgents = np.zeros(self.comm.size+1).astype(int)
                 cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
                 loc2GlobIdx = range(cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
                 #print loc2GlobIdx
-                
+                print 'loc2GlobIdx exchanged after  ' + str(time.time()-tt)  + ' seconds'  
                 rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 self.attributes = world.graph.nodeProperies[nodeType][:]
                 self.attributes.remove('type')
 
+                print 'record created after  ' + str(time.time()-tt)  + ' seconds'  
                 
                 for attr in self.attributes:
                     #check if first property of first entity is string

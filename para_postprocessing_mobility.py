@@ -26,17 +26,20 @@ sns.set_color_codes("dark")
 
 #%% init
 plotRecords       = 0
-plotCarStockBar   = 1
+plotCarStockBar   = 0
 plotCarSales      = 0
+womanSharePerMobType = 0
+agePerMobType     = 0
 prefPerLabel      = 0
 utilPerLabel      = 0
-incomePerLabel    = 1
-greenPerIncome    = 1
+incomePerLabel    = 0
+greenPerIncome    = 0
+expectUtil        = 1
 meanPrefPerLabel  = 0
 meanConsequencePerLabel = 0
-printCellMaps     = 1
-emissionsPerLabel = 1
-doFolium = 1
+printCellMaps     = 0
+emissionsPerLabel = 0
+doFolium = 0
 
 
 
@@ -113,42 +116,53 @@ del persMatStep, hhMatStep
 
 
 #%%
-res = np.zeros([nSteps,3])
-for time in range(nSteps):
-    for mobType in range(3):
-        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
 
-fig = plt.figure()
-plt.plot(res)
-#plt.title(enums['brands'][carLabel])
-if withoutBurnIn:
-    plt.xlim([nBurnIn,nSteps])
-    if years:
-        years = (nSteps - nBurnIn) / 12
-        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
-plt.title('Average age of mobility actors')  
+if agePerMobType:
+    res = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
+    
+    fig = plt.figure()
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average age of mobility actors')  
+
+
+
 
 #%%
+if womanSharePerMobType:
+    res = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['gender'][0]])-1
+    
+    fig = plt.figure()
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Share of women')  
 
-res = np.zeros([nSteps,3])
-for time in range(nSteps):
-    for mobType in range(3):
-        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['gender'][0]])-1
 
-fig = plt.figure()
-plt.plot(res)
-#plt.title(enums['brands'][carLabel])
-if withoutBurnIn:
-    plt.xlim([nBurnIn,nSteps])
-    if years:
-        years = (nSteps - nBurnIn) / 12
-        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
-plt.title('Share of women')  
-
-
-
+if expectUtil  == 1:
+    fig = plt.figure()
+    data = np.asarray(persMat[:,:,persPropDict['expUtilNew']])
+    
+    plt.plot(np.mean(data,axis=1))
+    plt.title("Expectations for mobility types")    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
 #%%  plot car stock as bar plot
 legStr = list()
 
@@ -340,6 +354,7 @@ if utilPerLabel:
 if greenPerIncome or incomePerLabel:
     greenHH = list()
     for time in range(nSteps):
+        print time
         nIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
         hhIDs = [np.where(hhMat[time,:,hhPropDict['gID'][0]]==nID)[0][0] for nID in nIDsofHH]
         greenHH.append(np.asarray(hhIDs))

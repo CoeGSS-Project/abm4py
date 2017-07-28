@@ -193,9 +193,14 @@ class Earth(World):
         tt = time.time()
         for entity in self.entList:
             entity.__updateEdges__()
+            
         print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
+        tt = time.time()
+        for agent in self.iterEntRandom(nodeType):
+            agent.bufferFriendSeq(self)
+        print 'Buffered sequence of friends in -- ' + str( time.time() - tt) + ' s'    
 
     def step(self):
         """ 
@@ -216,6 +221,10 @@ class Earth(World):
         
         
         #print 'sales before sync: ',self.glob['sales']
+        self.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
         
         # proceed market in time
@@ -249,7 +258,7 @@ class Earth(World):
         self.mpi.updateGhostNodes([_pers])
         
         for adult in self.iterEntRandom(_pers):
-            adult.weightFriendExperience(self)   
+            adult.weightFriendExperienceNew(self)   
         
         # proceed step
         #self.writeAgentFile()
@@ -292,8 +301,10 @@ class Market():
         self.dprint = earth.dprint
         self.glob               = earth.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
-        #self.glob.registerStat('meanProp' , np.asarray([0]*len(properties)),'mean')
-        #self.glob.registerStat('stdProp' , np.asarray([0]*len(properties)),'std')
+        self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
+        self.glob.registerStat('stdEmm' , np.asarray([0]*len(properties)),'std')
+        self.glob.registerStat('meanPrc' , np.asarray([0]*len(properties)),'mean')
+        self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')        
         self.time                = time
         self.graph               = earth.graph
         self.nodeDict            = earth.nodeDict
@@ -339,8 +350,11 @@ class Market():
         distances=list()
         stock = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
         #self.glob['sumProp'] = np.sum(stock, axis=0)
-        self.mean = np.mean(stock,axis=0)                           # list of means of properties
-        self.std  = np.std(stock,axis=0)                            # same for std
+        #self.mean = np.mean(stock,axis=0)                           # list of means of properties
+        #self.std  = np.std(stock,axis=0)                            # same for std
+        
+        self.mean = [self.glob['meanEmm'], self.glob['meanPrc']]
+        self.std  = [self.glob['stdEmm'],  self.glob['stdPrc']]
         
         self.dprint('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
         distances = list()         
@@ -523,6 +537,9 @@ class Person(Agent):
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
 
+    #def shareExperienceNew(self, world):
+
+        
     def shareExperience(self, world):
         
         # adding noise to the observations
@@ -580,8 +597,27 @@ class Person(Agent):
         else:
             self.obs[locID] = [obsID], [time]
     
+    def weightFriendExperienceNew(self, world):
+        friendUtil = np.asarray(self.friendNodeSeq['expUtilNew'])[:,self.node['mobType']]
+        ownUtil  = self.getValue('util')
+        
+        edges = self.getEdges(_cpp)
+        
+        diff = friendUtil - ownUtil
+        prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
+        prop = prop / np.sum(prop)        
+        prior = np.asarray(edges['weig'])
+        post = prior * prop 
+
+        sumPrior = np.sum(prior)
+        post = post / np.sum(post) * sumPrior
+        if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
+            if np.sum(post) > 0:
+                edges['weig'] = post    
+    
     
     def weightFriendExperience(self, world):
+        
         friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _pers)
         carLabels, _        = self.getConnNodeValues( 'mobType' ,nodeType= _pers)
         #friendID            = self.getOutNeighNodes(edgeType=_chh)
@@ -672,10 +708,14 @@ class Person(Agent):
         propWeigList[nullIds] = 0 
         propWeigList = propWeigList / np.sum(propWeigList)
         
+        np.seterr(divide='ignore')
+
+
         incoWeigList = np.array(incoDiffList)    
         nullIds  = incoWeigList == 0
         incoWeigList = 1 / incoWeigList
         incoWeigList[nullIds] = 0 
+        np.seterr(divide='warn')
         incoWeigList = incoWeigList / np.sum(incoWeigList)
         
         spatWeigList = spatWeigList / np.sum(spatWeigList)
@@ -704,6 +744,18 @@ class Person(Agent):
         weigList   = [1./len(connList)]*len(connList)    
         return friendList, connList, weigList
 
+    def bufferFriendSeq(self, world):
+        self.friendNodeSeq = self.getConnNodeSeq( nodeType=_pers, mode='out')
+        #print self.friendNodeSeq['gID']
+    
+    def getExpectedUtilityNew(self, world):
+        #self.friendNodeSeq['expUtilNew']
+        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        
+        observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
+        self.node['expUtilNew'] = observedUtil.tolist()
+        return np.hstack([np.array([self.node['util']]), observedUtil])
+    
 
     def getExpectedUtility(self,world):
         """ 
@@ -871,7 +923,7 @@ class Household(Agent):
         for adult in self.adults:
             adult.shareExperience(world)
         
-    def evalUtility(self):
+    def evalUtility(self, world):
         """
         Method to evaluate the utilty of all persons and the overall household
         """
@@ -881,6 +933,7 @@ class Household(Agent):
             utility = self.utilFunc(adult.node['consequences'], adult.node['preferences'])
             assert not( np.isnan(utility) or np.isinf(utility)), utility
             
+            adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
             adult.node['util'] = utility
             hhUtility += utility
         
@@ -998,7 +1051,7 @@ class Household(Agent):
                     self.node['expenses'] += adult.node['prop'][1]
                 
                 self.calculateConsequences(market)
-                utility = self.evalUtility()
+                utility = self.evalUtility(earth)
                 utilities.append(utility)
             
             # reset old node values
@@ -1024,7 +1077,7 @@ class Household(Agent):
                 self.undoActions(earth, actors)                  
                 self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)     
                 self.calculateConsequences(market)
-                self.util = self.evalUtility()
+                self.util = self.evalUtility(earth)
              
         else:
             actionTaken = False
@@ -1060,7 +1113,10 @@ class Household(Agent):
         for adult in self.adults:
             
             if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
-                actionIds, eUtils = adult.getExpectedUtility(earth)
+                #actionIds, eUtils = adult.getExpectedUtility(earth)
+                eUtils = adult.getExpectedUtilityNew(earth)
+                
+                actionIds = [-1, 0, 1, 2]
             else:
                 actionIds, eUtils = [-1], [adult.node['util']]
             
@@ -1135,6 +1191,7 @@ class Household(Agent):
             
             combActions, overallUtil = self.evaluateExpectedUtility(earth)
             
+            
             if (combActions is not None):
                 personsToTakeAction, actions, expectedUtil = self.maxUtilChoice(combActions, overallUtil)
                 #personsToTakeAction, actions, expectedUtil = self.propUtilChoice(combActions, overallUtil)
@@ -1154,10 +1211,10 @@ class Household(Agent):
                 self.takeAction(earth, personsToTakeAction, actions)
 
             self.calculateConsequences(earth.market)
-            self.util = self.evalUtility()
+            self.util = self.evalUtility(earth)
             
-            if actionTaken:                
-                self.shareExperience(earth)
+            #if actionTaken:                
+            #    self.shareExperience(earth)
 
 
 
@@ -1174,12 +1231,12 @@ class Household(Agent):
         if doCheckMobAlternatives:            
             actionTaken = self.bestMobilityChoice(earth)
             self.calculateConsequences(earth.market)
-            self.util = self.evalUtility()
+            self.util = self.evalUtility(earth)
             
-            if actionTaken:                
-                for adult in self.adults:
-                    adult.weightFriendExperience(earth)
-                self.shareExperience(earth)
+            #if actionTaken:                
+            #    for adult in self.adults:
+            #        adult.weightFriendExperience(earth)
+            #    self.shareExperience(earth)
 
                                 
 
@@ -1402,7 +1459,7 @@ class Cell(Location):
         
         #self.currID +=1
         return obsID
-        
+#        
 #    def removeObs(self, label):
 #        """
 #        Removes a car for the pool of observations

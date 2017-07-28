@@ -104,7 +104,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer   = np.asarray([[ 1     , 1, 1 , np.nan, np.nan],
                                     [ np.nan, 1, 0 , np.nan, 0     ],
                                     [ np.nan, 1, 0 , 0     , 0     ]])
-    #setup.landLayer = setup.landLayer*0
+    setup.landLayer = setup.landLayer*0
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[0:,0:2] = 6321
     setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,5,setup.landLayer.shape)
@@ -315,12 +315,13 @@ def scenarioNBH(parameterInput, dirPath):
     #spatial
     setup.isSpatial     = True
     #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    setup.reductionFactor = 200.
+    #setup.reductionFactor = parameterInput['reductionFactor']
     
     if hasattr(parameterInput, "reductionFactor"):
         # overwrite the standart parameter
         setup.reductionFactor = parameterInput.reductionFactor
-        
+
+            
     #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
     setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust12_x_radius3.5.npy')
@@ -367,6 +368,10 @@ def scenarioNBH(parameterInput, dirPath):
     print "####################################"
     setup.update(parameterInput.toDict())
     
+    setup['initialGreen'] /= setup['reductionFactor']
+    setup['initialBrown'] /= setup['reductionFactor']
+    setup['initialOther'] /= setup['reductionFactor']
+    
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
     minCarConvenience = 1 + setup.kappa
@@ -411,6 +416,8 @@ def mobilitySetup(earth, parameters):
 
     earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
             
+    earth.para['nMobTypes'] = len(earth.enums['brands'])
+    
     return earth
     ##############################################################################
 
@@ -470,9 +477,10 @@ def householdSetup(earth, parameters, calibration=False):
                                      prefTyp     = prefTyp,
                                      gender     = genders[iPers],
                                      age         = ages[iPers],
-                                     expUtil     = 0,
-                                     noisyUtil   = 0,
-                                     util        = 0,
+                                     expUtilNew  = [50.]*earth.para['nMobTypes'],
+                                     expUtil     = 0.,
+                                     noisyUtil   = 0.,
+                                     util        = 0.,
                                      mobType     = 0,
                                      prop        = [0]*len(parameters.properties),
                                      consequences= [0]*len(prefTuple),
@@ -600,6 +608,7 @@ def initTypes(earth, parameters):
                                                   'gender',
                                                   'age',
                                                   'expUtil',
+                                                  'expUtilNew',
                                                   'noisyUtil',
                                                   'util',
                                                   'mobType',
@@ -656,13 +665,16 @@ def generateNetwork(earth, parameters):
     tt = time.time()
     earth.genFriendNetwork(_pers,_cpp)
     print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
-    #earth.view(str(earth.mpi.rank) + '.png')
+    if parameters.scenario == 0:
+        earth.view(str(earth.mpi.rank) + '.png')
+        
     
 def initMobilityTypes(earth, parameters):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,500.])
  
 def initGlobalRecords(earth, parameters):
+    tt = time.time()
     earth.registerRecord('stockBremen', 'total use per mobility type - Bremen', earth.enums['mobilityTypes'].values(), style ='plot')
     
     calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
@@ -719,6 +731,8 @@ def initGlobalRecords(earth, parameters):
          
     earth.globalData['stockHamburg'].addCalibrationData(timeIdxs,values)
     
+    print 'Global records initialized in ' + str( time.time() - tt) + ' s' 
+    
 def initAgentOutput(earth):
     #%% Init of agent file
 
@@ -772,14 +786,16 @@ def runModel(earth, parameters):
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
         #for adult in household.adults:
             #adult.setValue('lastAction', 0)
-        
+    print 'Initial actions done'
     for cell in earth.iterEntRandom(_cell):
         cell.step(earth.market.kappa)
-        
+    
+    print 'Initial market step done'
+    
     for household in earth.iterEntRandom(_hh):
         household.calculateConsequences(earth.market)
-        household.util = household.evalUtility()
-        household.shareExperience(earth)
+        household.util = household.evalUtility(earth)
+        #household.shareExperience(earth)
     print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
     
     #plotIncomePerNetwork(earth)
