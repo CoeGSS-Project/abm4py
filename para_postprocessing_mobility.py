@@ -13,28 +13,30 @@ import numpy as np
 import os
 import sys
 import tables as ta
+from os.path import expanduser
+home = expanduser("~")
 sys.path.append('/media/sf_shared/python/modules/biokit')
 sys.path.append('/home/geiges/database/modules/folium/')
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
 import seaborn as sns; sns.set()
+from class_auxiliary import loadObj
+
 sns.set_color_codes("dark")
 
+#%% init
 plotRecords       = 0
-plotCarStockBar   = 0
+plotCarStockBar   = 1
 plotCarSales      = 0
 prefPerLabel      = 0
 utilPerLabel      = 0
-incomePerLabel    = 0
+incomePerLabel    = 1
+greenPerIncome    = 1
 meanPrefPerLabel  = 0
 meanConsequencePerLabel = 0
 printCellMaps     = 1
 emissionsPerLabel = 1
 doFolium = 1
-
-nBurnIn = 100
-withoutBurnIn = False 
-years         = True                        # only applicable in plots without burn-in
 
 
 
@@ -42,10 +44,20 @@ simNo = sys.argv[1]
 path = 'output/sim'+ str(simNo).zfill(4) + '/'
 
 
+simParas   = loadObj(path + 'simulation_parameters')
 
-#%% init
+nBurnIn       = simParas['burnIn']
+withoutBurnIn = True
+years         = True         # only applicable in plots without burn-in
+
+print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
+print 'burn-in phase: ' + str(nBurnIn)
+print 'of which omniscient burn-in: ' + str(simParas['omniscientBurnIn'])
+
+
+
     
-from class_auxiliary import loadObj
+
 
 
 #%% loading agent file
@@ -97,6 +109,44 @@ del persMatStep, hhMatStep
 #
 #
 #nPrior = len(enums['priorities'])
+
+
+
+#%%
+res = np.zeros([nSteps,3])
+for time in range(nSteps):
+    for mobType in range(3):
+        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
+
+fig = plt.figure()
+plt.plot(res)
+#plt.title(enums['brands'][carLabel])
+if withoutBurnIn:
+    plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+plt.title('Average age of mobility actors')  
+
+#%%
+
+res = np.zeros([nSteps,3])
+for time in range(nSteps):
+    for mobType in range(3):
+        res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['gender'][0]])-1
+
+fig = plt.figure()
+plt.plot(res)
+#plt.title(enums['brands'][carLabel])
+if withoutBurnIn:
+    plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+plt.title('Share of women')  
+
 
 
 #%%  plot car stock as bar plot
@@ -284,23 +334,78 @@ if utilPerLabel:
     
     plt.title('Average utility by mobility type')
 
-#%% income per car label
+#%%  green cars per income
 #
-#if incomePerLabel:
-#    res = np.zeros([nSteps,len(enums['brands'])])
-#    for time in range(nSteps):
-#        for carLabel in range(len(enums['brands'])):
-#            idx = agMat[step,:,propDic['type'][0]] == carLabel
-#            res[step, carLabel] = np.mean(agMat[step,idx,propDic['income'][0]])
-#    legStr = list()
-#    for label in range(0,len(enums['brands'])):
-#        legStr.append(enums['brands'][label])        
-#    fig = plt.figure()
-#    plt.plot(res)
-#    plt.title('Average income by brand')
-#    if withoutBurnIn: 
-#        plt.xlim([burnIn,stepsTotal])
-#    plt.legend(legStr,loc=0)    
+
+if greenPerIncome or incomePerLabel:
+    greenHH = list()
+    for time in range(nSteps):
+        nIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
+        hhIDs = [np.where(hhMat[time,:,hhPropDict['gID'][0]]==nID)[0][0] for nID in nIDsofHH]
+        greenHH.append(np.asarray(hhIDs))
+
+
+if greenPerIncome:        
+    res = np.zeros([nSteps,2])
+    std = np.zeros([nSteps,2])
+    plt.figure()
+    for i,year in enumerate([2005, 2010, 2015, 2020, 2025, 2029]):
+        
+        plt.subplot(2,3,i+1)
+        time = (nBurnIn + (year-2005) * 12)-1
+        for carLabel in range(len(enums['brands'])):
+            #idx = hhMat[time,:,hhPropDict['type'][0]] == carLabel
+            plt.hist(hhMat[time,:,hhPropDict['income'][0]],bins=np.linspace(0,11000,30), color='black')
+            plt.title(str(year))
+            if len(greenHH[time]) > 0:
+                plt.hist(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]],bins=np.linspace(0,11000,30), color='green')
+                
+            else:
+                pass
+        if i < 2:
+            plt.xticks([])  
+
+if incomePerLabel:
+    
+       
+    res = np.zeros([nSteps,2])
+    std = np.zeros([nSteps,2])
+    for time in range(nSteps):
+        for carLabel in range(len(enums['brands'])):
+            #idx = hhMat[time,:,hhPropDict['type'][0]] == carLabel
+            res[time, 0] = np.mean(hhMat[time,:,hhPropDict['income'][0]])
+            std[time, 0] = np.std(hhMat[time,:,hhPropDict['income'][0]])
+            idx = np.zeros(hhMat.shape[1])
+            if len(greenHH[time]) > 0:
+                res[time, 1] = np.mean(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+                std[time, 1] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+            else:
+                res[time, 1] = np.nan
+                std[time, 1] = np.nan
+    legStr = list()
+    for label in range(0,len(enums['brands'])):
+        legStr.append(enums['brands'][label])        
+    fig = plt.figure()
+    plt.plot(res)
+    
+    plt.fill_between(range(0,nSteps), res[:,0]+ std[:,0], res[:,0]- std[:,0], facecolor='blue', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,0]+ std[:,0],'b--', linewidth = 1)
+    plt.plot(res[:,0]- std[:,0],'b--', linewidth = 1)
+    plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='green', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,1]+ std[:,1],'g--', linewidth = 1)
+    plt.plot(res[:,1]- std[:,1],'g--', linewidth = 1)
+    #ax.fill_between(x, y1, y2, where=y2 <= y1, facecolor='red', interpolate=True)
+    
+    #plt.plot(res- std,'--')
+    plt.title('Equalized household income')
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
+    plt.legend(['Average Household', 'Household income using an electic car', 'Avg STD', 'Elec STD',''],loc=3) 
+
+print ''
 
 #%% mean priority per car label
 
@@ -405,6 +510,17 @@ if emissionsPerLabel:
 
 
 if printCellMaps:
+    
+    
+    def cellDataAsMap(landLayer, posArray, cellData):
+
+        array = landLayer*1.0
+        #res[posArray[0],posArray[1]] = cellMat[step,:,cellPropDict['carsInCell'][iBrand]] / cellMat[step,:,cellPropDict['population']]
+    
+        array[posArray[0],posArray[1]] = cellData
+                
+        return array
+
     #%% loading cell agent file
     cellMatStep = getData(parameters,1,0)
 
@@ -423,7 +539,7 @@ if printCellMaps:
     #posList = [tuple(posArray[:, i]) for i in range(posArray.shape[1])]
     #locIdxList = np.ravel_multi_index((posArray[0], posArray[1]),population.shape)
 #%%    
-if printCellMaps:
+
 
     meanCon   = np.zeros([nSteps,3])
     meanEco   = np.zeros([nSteps,3])
@@ -468,30 +584,115 @@ if printCellMaps:
         plt.colorbar()
         plt.title(enums['brands'][iBrand] + ' cars per cells')
     print 1
-    if doFolium:        
+    if doFolium:  
+        bounds = (0,1)
         sys.path.append('/media/sf_shared/python/modules')
         #sys.path.append('/media/sf_shared/python/database')
         import class_map
         import matplotlib
         import folium
-        foMap = class_map.Map('toner')
-        cm = matplotlib.cm.get_cmap('YlGn')
-        normed_data = (arrayData - np.nanpercentile(arrayData,5)) / (np.nanpercentile(arrayData,98) - np.nanpercentile(arrayData,5))
-        minmax = np.nanpercentile(arrayData,5), np.nanpercentile(arrayData,98)
-        colored_data = cm(normed_data)
-        foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0)
+        foMap = class_map.Map('toner', location = [53.9167-62*0.04166666, 13.9167], zoom_start = 7)
+        geoFile = 'resources_NBH/regions.shp'
+        import mod_geojson as gjs
+        geoData = gjs.extractShapes(geoFile, [1518, 1520, 6321] , 'numID',None)
+        foMap.map.choropleth(geo_str=geoData, fill_color=None,fill_opacity=0.00, line_color='green', line_weight=3)
+        for year in [2005, 2010, 2015, 2020, 2025, 2030]:
+            
+            step = (nBurnIn + (year-2005) * 12)-1
+            if step > nSteps:
+                break
+            # green cars per 1000 people
+            data = cellMat[step,:,cellPropDict['carsInCell'][1]] / cellMat[step,:,cellPropDict['population']]*1000
+            arrayData = cellDataAsMap(landLayer,posArray, data)
+            # green cars per 1000 people
+            #arrayData = cellMat[step,:,cellPropDict['carsInCell'][1]] / (cellMat[step,:,cellPropDict['carsInCell'][0]] + cellMat[step,:,cellPropDict['carsInCell'][1]])
+            arrayData[np.isnan(arrayData)] = 0
+            bounds = np.min([bounds[0], np.nanpercentile(arrayData,2)]) , np.max([bounds[1], np.nanpercentile(arrayData,98)])
+        for year in  [2005, 2010, 2015, 2020, 2025, 2030]:
+            step = (nBurnIn + (year-2005) * 12)-1
+            if step > nSteps:
+                break    
+            # green cars per 1000 people
+            data = cellMat[step,:,cellPropDict['carsInCell'][1]] / cellMat[step,:,cellPropDict['population']]*1000
+            
+            # green cars per 1000 people
+            #data = cellMat[step,:,cellPropDict['carsInCell'][1]] / (cellMat[step,:,cellPropDict['carsInCell'][0]] + cellMat[step,:,cellPropDict['carsInCell'][1]])
+            
+            arrayData = cellDataAsMap(landLayer,posArray, data)
+            arrayData[np.isnan(arrayData)] = 0
+            cm = matplotlib.cm.get_cmap('YlGn')
+            normed_data = (arrayData - bounds[0]) / (bounds[1]- bounds[0])
+            #minmax = np.nanpercentile(arrayData,2), np.nanpercentile(arrayData,98)
+            colored_data = cm(normed_data)
+            foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0, name = str(year))
+            
         from branca.utilities import color_brewer
         cols = color_brewer('YlGn',6)
-        cmap = folium.LinearColormap(cols,vmin=float(minmax[0]),vmax=float(minmax[1]), caption='Electric car share')
+        cmap = folium.LinearColormap(cols,vmin=float(bounds[0]),vmax=float(bounds[1]), caption='Electric cars per 1000 people')
+        
         
         foMap.map.add_child(cmap)
-        foMap.view()
+        #foMap.map.add_child(xx)
+        foMap.save('carsPer1000.html')
+        
+        
+        
+        bounds = (0,1)
+        sys.path.append('/media/sf_shared/python/modules')
+        #sys.path.append('/media/sf_shared/python/database')
+        import class_map
+        import matplotlib
+        import folium
+        foMap = class_map.Map('toner',location = [53.9167-62*0.04166666, 13.9167], zoom_start = 7)
+        geoFile = 'resources_NBH/regions.shp'
+        import mod_geojson as gjs
+        geoData = gjs.extractShapes(geoFile, [1518, 1520, 6321] , 'numID',None)
+        foMap.map.choropleth(geo_str=geoData, fill_color=None,fill_opacity=0.00, line_color='green', line_weight=3)
+        for year in [2005, 2010, 2015, 2020, 2025, 2030]:
+            
+            step = (nBurnIn + (year-2005) * 12)-1
+            if step > nSteps:
+                break
+            # green cars per 1000 people
+            data = cellMat[step,:,cellPropDict['carsInCell'][1]] / cellMat[step,:,cellPropDict['population']]*1000
+            #arrayData = cellDataAsMap(landLayer,posArray, data)
+            # green cars per 1000 people
+            arrayData = cellMat[step,:,cellPropDict['carsInCell'][1]] / (cellMat[step,:,cellPropDict['carsInCell'][0]] + cellMat[step,:,cellPropDict['carsInCell'][1]])
+            arrayData[np.isnan(arrayData)] = 0
+            bounds = (0, 1)
+        for year in [2005, 2010, 2015, 2020, 2025, 2030]:
+            step = (nBurnIn + (year-2005) * 12)-1
+            if step > nSteps:
+                break    
+            # green cars per 1000 people
+            #data = cellMat[step,:,cellPropDict['carsInCell'][1]] / cellMat[step,:,cellPropDict['population']]*1000
+            # green cars per 1000 people
+            data = cellMat[step,:,cellPropDict['carsInCell'][1]] / (cellMat[step,:,cellPropDict['carsInCell'][0]] + cellMat[step,:,cellPropDict['carsInCell'][1]])
+            arrayData = cellDataAsMap(landLayer,posArray, data)
+            arrayData[np.isnan(arrayData)] = 0
+            cm = matplotlib.cm.get_cmap('YlGn')
+            normed_data = (arrayData - bounds[0]) / (bounds[1]- bounds[0])
+            #minmax = np.nanpercentile(arrayData,2), np.nanpercentile(arrayData,98)
+            colored_data = cm(normed_data)
+            foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0, name = str(year))
+            
+        from branca.utilities import color_brewer
+        cols = color_brewer('YlGn',6)
+        cmap = folium.LinearColormap(cols,vmin=float(bounds[0]),vmax=float(bounds[1]), caption='Electric car share')
+        
+        
+        foMap.map.add_child(cmap)
+        #foMap.map.add_child(xx)
+        foMap.save('greenCarShare.html')
+        
+        
     #%%
     plt.figure()
     plt.imshow(parameters['landLayer'])
     plt.colorbar()
     plt.figure()
     plt.clf()
+    step = nSteps-1
     landLayer = np.zeros(np.max(cellMat[step,:,cellPropDict['pos']]+1,axis=1).astype(int).tolist())
     for iCell in range(cellMat.shape[1]):
         x = cellMat[0,iCell,cellPropDict['pos'][0]].astype(int)

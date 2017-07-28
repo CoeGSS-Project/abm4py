@@ -22,6 +22,17 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
+
+
+TODOs
+
+short-term:
+    - include communication of experiences to ghost agents !!!!!!
+
+long-term:
+    - join the synthetic people of niedersachsen, bremen and hamburg
+    - jointly create their income
+    - place the correct people to the differen regions (different hh distributions)
 """
 
 #%%
@@ -90,13 +101,13 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.reductionFactor = 50000
     setup.isSpatial       = True
     setup.connRadius      = 1.5     # radíus of cells that get an connection
-    setup.landLayer   = np.asarray([[2     , 2     , 1, 1 , np.nan, np.nan],
-                                    [np.nan, np.nan, 1, 0 , np.nan, 0     ],
-                                    [np.nan, np.nan, 1, 0 , 0     , 0     ]])
+    setup.landLayer   = np.asarray([[ 1     , 1, 1 , np.nan, np.nan],
+                                    [ np.nan, 1, 0 , np.nan, 0     ],
+                                    [ np.nan, 1, 0 , 0     , 0     ]])
     #setup.landLayer = setup.landLayer*0
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[0:,0:2] = 6321
-    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,5,setup.landLayer.shape)
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -455,7 +466,7 @@ def householdSetup(earth, parameters, calibration=False):
                 prefTyp = np.argmax(prefTuple)
                 
                 pers = Person(earth, preferences =prefTuple,
-                                     hhID        = hh.nID,
+                                     hhID        = hh.gID,
                                      prefTyp     = prefTyp,
                                      gender     = genders[iPers],
                                      age         = ages[iPers],
@@ -645,6 +656,7 @@ def generateNetwork(earth, parameters):
     tt = time.time()
     earth.genFriendNetwork(_pers,_cpp)
     print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
+    #earth.view(str(earth.mpi.rank) + '.png')
     
 def initMobilityTypes(earth, parameters):
     earth.market.initialCarInit()
@@ -1057,10 +1069,13 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=100000, debug =True)
+        earth = initEarth(parameters, maxNodes=100000, debug =False)
         
-        log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-        sys.stdout = log_file
+        if earth.mpi.rank != 0:
+            olog_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+            sys.stdout = olog_file
+            elog_file  = open('err' + str(earth.mpi.rank) + '.txt', 'w')
+            sys.stderr = elog_file
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         
@@ -1091,12 +1106,15 @@ if __name__ == '__main__':
         
         runModel(earth, parameters)
         
+        
+        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+        
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
         
         writeSummary(earth, calRunID, calParaDf, parameters)
     
-        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+        
         #%%
         nPeople = np.nansum(parameters.population)
         nCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
@@ -1121,6 +1139,7 @@ if __name__ == '__main__':
         carsInBremen = np.asarray(cellListBremen['carsInCell'])
         carsInNieder = np.asarray(cellListNieder['carsInCell'])
 
+        print 'shape'
         print carsInBremen.shape
         print carsInNieder.shape
         

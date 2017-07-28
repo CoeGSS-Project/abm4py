@@ -215,11 +215,11 @@ class Earth(World):
             
         
         
-        print 'sales before sync: ',self.glob['sales']
+        #print 'sales before sync: ',self.glob['sales']
         self.glob.sync()
         
         # proceed market in time
-        print 'sales after sync: ',self.glob['sales']
+        #print 'sales after sync: ',self.glob['sales']
         self.market.step() # Statistics are computed here
         
         
@@ -237,7 +237,7 @@ class Earth(World):
 
                 
         # Iterate over households with a progress bar
-        if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):       
+        if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']) or np.random.rand()<1e-4:       
             for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.stepOmniscient(self)        
@@ -1493,7 +1493,7 @@ class Opinion():
         cm /= sumC
 
         # priority of innovation
-        ci = self.innovationPriority  
+        ci = self.innovationPriority
         
         # normalization
         sumC = cc +  ce + cm +ci
