@@ -39,7 +39,7 @@ TODOs:
 
 soon:
     - redirect all output to the correct folder
-    - mpi load of the synthetic population data (or even correct load)
+    - (done) mpi load of the synthetic population data (or even correct load)
     - IO of connections and their attributes
     - per node collecting of communting and waiting times
     - reach usage of 100 parallell processes (96)
@@ -1056,7 +1056,18 @@ class World:
             
             print 'Ghost update required: ' + str(time.time()-tt) + ' seconds'    
             
-
+        def all2all(self, value):
+            if isinstance(value,int):            
+                buff = np.empty(1*self.comm.size,dtype=np.int)
+                buff = self.comm.alltoall([value]*self.comm.size)
+            elif isinstance(value,float):
+                buff = np.empty(1*self.comm.size,dtype=np.float)
+                buff = self.comm.alltoall([value]*self.comm.size)
+            elif isinstance(value,str):
+                buff = np.empty(1*self.comm.size,dtype=np.str)
+                buff = self.comm.alltoall([value]*self.comm.size)
+                
+            return buff
             
     #%% INIT WORLD            
     def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, debug = False):

@@ -14,12 +14,12 @@ import os
 import sys
 sys.path.append('/media/sf_shared/python/modules/biokit')
 sys.path.append('/home/geiges/database/modules/folium/')
-sys.path.append('/home/geiges/database/')
+sys.path.append('modules/')
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 
 plotRecords       = 0
-plotCarStockBar   = 1
+plotCarStockBar   = 0
 plotCarSales      = 0
 prefPerLabel      = 0
 utilPerLabel      = 0
@@ -37,9 +37,7 @@ if len(sys.argv) > 2:
 else:
     path = 'output/sim0112/'
 
-<<<<<<< HEAD
-path = 'output/sim0999/'
-=======
+
 simParas   = loadObj(path + 'simulation_parameters')
 
 nBurnIn       = simParas['burnIn']
@@ -49,8 +47,6 @@ years         = True         # only applicable in plots without burn-in
 print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
 print 'burn-in phase: ' + str(nBurnIn)
 print 'of which omniscient burn-in: ' + str(simParas['omniscientBurnIn'])
->>>>>>> origin/master
-
 
 
 #%% init

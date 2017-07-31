@@ -12,6 +12,7 @@ Created on Mon Jul  3 09:21:15 2017
 import sys
 from os.path import expanduser
 home = expanduser("~")
+from copy import copy
 
 sys.path.append(home + '/python/modules/')
 
@@ -19,7 +20,7 @@ import numpy as np
 import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
-population2        = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_62x118.tiff')/100
+population2        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff')/100
 
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
@@ -82,7 +83,7 @@ def calcPopDeviation(population, clusterMap, nClusters):
     return deviation, devPerCluster, popPerCluster
 #%%
 #plt.figure()
-population2        = gt.load_array_from_tiff('resources_nie/pop_counts_ww_2005_62x118.tiff') / 200
+population2        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff') / 200
 
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
@@ -157,6 +158,7 @@ def getxyFromIdx(idx, xList,yList):
     return x,y, x2, y2
 oldLabels = [0]*nSimulatneously
 
+allTimeBestScore  = np.inf
 while True:
     i += 1 
     choice  =np.random.randint(4)
@@ -213,7 +215,10 @@ while True:
         successPerDir[choice] +=1
         print str(score1) + ',' + str(score2) + ':' + str(newScore)
         oldScore = newScore
-            
+        
+        if allTimeBestScore > newScore:
+            allTimeBestScore = newScore
+            bestClusterMap = copy(clusterMap)
     if i> iMax:
         break
             
@@ -223,13 +228,16 @@ plt.imshow( clusterMap_old)
 plt.figure()
 plt.imshow(clusterMap)
 plt.figure()
+
 score1, devPerCluster, popPerCluster = calcPopDeviation(population,clusterMap, nClusters)
 score2, popSurr = calPopSurrounging(population, clusterMap, nClusters, brush, intRad)
 plt.imshow(popPerCluster)
 plt.colorbar()      
+plt.figure()
+plt.imshow(bestClusterMap)
 
 plt.imshow(population)
 plt.colorbar()   
 
-np.save('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius)+'.npy',clusterMap)   
+np.save('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius)+'.npy',bestClusterMap)   
 #xx = np.load('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius) + '.npy')   

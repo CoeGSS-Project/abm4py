@@ -32,13 +32,13 @@ womanSharePerMobType = 0
 agePerMobType     = 0
 prefPerLabel      = 0
 utilPerLabel      = 0
-incomePerLabel    = 0
-greenPerIncome    = 0
+incomePerLabel    = 1
+greenPerIncome    = 1
 expectUtil        = 1
 meanPrefPerLabel  = 0
 meanConsequencePerLabel = 0
 printCellMaps     = 0
-emissionsPerLabel = 0
+emissionsPerLabel = 1
 doFolium = 0
 
 
@@ -354,7 +354,7 @@ if utilPerLabel:
 if greenPerIncome or incomePerLabel:
     greenHH = list()
     for time in range(nSteps):
-        print time
+        print time,
         nIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
         hhIDs = [np.where(hhMat[time,:,hhPropDict['gID'][0]]==nID)[0][0] for nID in nIDsofHH]
         greenHH.append(np.asarray(hhIDs))
