@@ -27,7 +27,8 @@ along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 TODOs
 
 short-term:
-    - include communication of experiences to ghost agents !!!!!!
+    - (done) include communication of experiences to ghost agents !!!!!!
+    
 
 long-term:
     - join the synthetic people of niedersachsen, bremen and hamburg
@@ -91,7 +92,9 @@ def scenarioTestSmall(parameterInput, dirPath):
     
     #general 
     setup.resourcePath = dirPath + '/resources_nie/'
+    setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
     setup.progressBar  = True
+    setup.allTypeObservations = False
     
     #time
     setup.timeUint         = _month  # unit of time per step
@@ -139,6 +142,10 @@ def scenarioTestSmall(parameterInput, dirPath):
     dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
     del dummy
     
+    print "Final setting of the parameters"
+    print parameterInput
+    print "####################################"
+    
     return setup
 
 
@@ -151,6 +158,9 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     #general 
     setup.resourcePath = dirPath + '/resources_nie/'
+    setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
+    setup.allTypeObservations = False
+    
     setup.progressBar  = True
     
     #time
@@ -215,6 +225,10 @@ def scenarioTestMedium(parameterInput, dirPath):
     dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
     del dummy
     
+    print "Final setting of the parameters"
+    print parameterInput
+    print "####################################"
+    
     return setup
     
     
@@ -224,7 +238,9 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     #general 
     setup.resourcePath = dirPath + '/resources_nie/'
     setup.progressBar  = True
+    setup.allTypeObservations = False
     
+    setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
     #time
     setup.nSteps           = 340     # number of simulation steps
     setup.timeUint         = _month  # unit of time per step
@@ -282,9 +298,6 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     setup.omniscientAgents = False    
 
     # redefinition of setup parameters used for automatic calibration
-    print "setting up the parameters from file"
-    print parameterInput
-    print "####################################"
     setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
@@ -292,6 +305,9 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
     
+    print "Final setting of the parameters"
+    print parameterInput
+    print "####################################"
     
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     print 'Running with ' + str(nAgents) + ' agents'
@@ -303,7 +319,9 @@ def scenarioNBH(parameterInput, dirPath):
     
     #general 
     setup.resourcePath = dirPath + '/resources_NBH/'
+    setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
     setup.progressBar  = True
+    setup.allTypeObservations = False
     
     #time
     setup.nSteps           = 340     # number of simulation steps
@@ -331,9 +349,9 @@ def scenarioNBH(parameterInput, dirPath):
     
     print 'max rank:',np.nanmax(setup.landLayer)
     
-    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
     setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    
+
     
     if False:
         try:
@@ -360,22 +378,29 @@ def scenarioNBH(parameterInput, dirPath):
 
     #agents
     setup.randomAgents     = False
-    setup.omniscientAgents = False    
+    setup.omniscientAgents = True    
 
-    # redefinition of setup parameters used for automatic calibration
-    print "setting up the parameters from file"
-    print parameterInput
-    print "####################################"
+    # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
     
+    # Correciton of population depend parameter by the reduction factor
     setup['initialGreen'] /= setup['reductionFactor']
     setup['initialBrown'] /= setup['reductionFactor']
     setup['initialOther'] /= setup['reductionFactor']
+    
+    setup['population']     /= setup['reductionFactor']
+    setup['urbanThreshold'] /= setup['reductionFactor']
+    setup['urbanCritical']  /= setup['reductionFactor']
     
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
+    
+ 
+    print "Final setting of the parameters"
+    print parameterInput
+    print "####################################"
     
     
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
@@ -410,11 +435,11 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(440., 200.), convienienceBrown, 0, earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(440., 200.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(350., 450.), convienienceGreen, 0, earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., 450.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
 
-    earth.initBrand('other',(120., 100.), convienienceOther, 0, earth.para['initialOther'])  # none or other
+    earth.initBrand('other',(120., 100.), convienienceOther, 'start', earth.para['initialOther'])  # none or other
             
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
@@ -442,15 +467,12 @@ def householdSetup(earth, parameters, calibration=False):
         print 'Vertex count: ',earth.graph.vcount()
         earth.view(str(earth.mpi.rank) + '.png')
     if not parameters.randomAgents:
-        parameters.synPopPath = parameters['resourcePath'] + 'hh_niedersachsen.csv'
-        #dfSynPop = pd.read_csv(parameters.synPopPath)
-        #hhMat = pd.read_csv(parameters.synPopPath).values
+
         hhMat = pd.read_csv(parameters.synPopPath, skiprows = agentStart, nrows= (agentEnd - agentStart)).values
-    
+        print 'size of hhMat: ',hhMat.shape
+
     # find the correct possition in file 
-    
     nPers = hhMat[idx,4] 
-    
     if np.sum(np.diff(hhMat[idx:idx+nPers,4])) !=0:
         
         #new index for start of a complete household
@@ -467,7 +489,7 @@ def householdSetup(earth, parameters, calibration=False):
              
             #creating persons as agents
             nPers = hhMat[idx,4]    
-            print nPers,'-',nAgents
+            #print nPers,'-',nAgents
             ages    = list(hhMat[idx:idx+nPers,12])
             genders = list(hhMat[idx:idx+nPers,13])
             income = hhMat[idx,16]
@@ -529,7 +551,7 @@ def householdSetup(earth, parameters, calibration=False):
             if nAgentsCell <= 0:
            
                     break
-    print 'agents load from file'
+    print 'agents loaded from file'
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)
     
@@ -758,6 +780,9 @@ def initGlobalRecords(earth, parameters):
          
     earth.globalData['stockHamburg'].addCalibrationData(timeIdxs,values)
     
+    earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord('infraKappa', 'Infrastructure kappa', ['Kappa'], style ='plot')
+    
     print 'Global records initialized in ' + str( time.time() - tt) + ' s' 
     
 def initAgentOutput(earth):
@@ -832,9 +857,9 @@ def runModel(earth, parameters):
     earth.time = -1 # hot bugfix to have both models running #TODO Fix later
     print "Starting the simulation:"
     for step in xrange(parameters.nSteps):
-        tt = time.time()
+        
         earth.step() # looping over all cells
-        print 'Step ' + str(step) + ' done in ' +  str(time.time()-tt) + ' s',
+        
         #plt.figure()
         #calGreenNeigbourhoodShareDist(earth)
         #plt.show()
@@ -1114,7 +1139,7 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=100000, debug =False)
+        earth = initEarth(parameters, maxNodes=100000, debug =True)
         
         if earth.mpi.rank != 0:
             olog_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
@@ -1137,7 +1162,7 @@ if __name__ == '__main__':
         initMobilityTypes(earth, parameters)
         
         initGlobalRecords(earth, parameters)
-        earth.view(str(earth.mpi.rank) + '.png')
+        #earth.view(str(earth.mpi.rank) + '.png')
         initAgentOutput(earth)
         
         if parameters.scenario == 0:
@@ -1147,6 +1172,9 @@ if __name__ == '__main__':
         print '####### Running model with paramertes: #########################'
         import pprint 
         pprint.pprint(parameters.toDict())
+        fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
+        pprint.pprint(parameters.toDict(), fidPara)
+        fidPara.close()
         print '################################################################'
         
         runModel(earth, parameters)

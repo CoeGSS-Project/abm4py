@@ -560,7 +560,7 @@ class World:
                         
                         tmp = np.asarray(self.comm.alltoall(tmp))
                         
-                        self.dprint('var[tmp] after alltoall:', tmp )
+                        #self.dprint('var[tmp] after alltoall:' + str( tmp ))
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
@@ -570,19 +570,19 @@ class World:
                         
                         locSTD = [np.std(self.values[globName])] * self.comm.size
                         locSTD = np.asarray(self.comm.alltoall(locSTD))
-                        self.dprint('loc std: ',locSTD)
+                        self.dprint('loc std: ' + str(locSTD))
                         
                         tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
                         tmp = np.asarray(self.comm.alltoall(tmp))
                         
                         locMean = tmp[:,0]
-                        self.dprint('loc mean: ', locMean)
+                        self.dprint('loc mean: ' + str(locMean))
                         
                         locNVar = tmp[:,1]
-                        self.dprint('loc number of var: ',locNVar)
+                        self.dprint('loc number of var: ' + str(locNVar))
                         
                         globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
-                        self.dprint('global mean: ', globMean)
+                        self.dprint('global mean: ' + str( globMean ))
                         
                         diffSqrMeans = (locMean - globMean)**2
                         
@@ -1091,8 +1091,8 @@ class World:
         if self.debug:
             # inint pprint as additional output
             import pprint
-            def debugPrint(*argv):
-                pprint.pprint('DEBUG:' + str(argv))
+            def debugPrint(argv):
+                pprint.pprint('DEBUG: ' + argv)
             self.dprint = debugPrint
         else:
             # init dummy that does nothing

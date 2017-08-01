@@ -26,20 +26,20 @@ sns.set_color_codes("dark")
 
 #%% init
 plotRecords       = 0
-plotCarStockBar   = 0
+plotCarStockBar   = 1
 plotCarSales      = 0
-womanSharePerMobType = 0
-agePerMobType     = 0
-prefPerLabel      = 0
-utilPerLabel      = 0
+womanSharePerMobType = 1
+agePerMobType     = 1
+prefPerLabel      = 1
+utilPerLabel      = 1
 incomePerLabel    = 1
 greenPerIncome    = 1
 expectUtil        = 1
-meanPrefPerLabel  = 0
+meanPrefPerLabel  = 1
 meanConsequencePerLabel = 0
-printCellMaps     = 0
+printCellMaps     = 1
 emissionsPerLabel = 1
-doFolium = 0
+doFolium = 1
 
 
 
@@ -50,7 +50,7 @@ path = 'output/sim'+ str(simNo).zfill(4) + '/'
 simParas   = loadObj(path + 'simulation_parameters')
 
 nBurnIn       = simParas['burnIn']
-withoutBurnIn = True
+withoutBurnIn = False
 years         = True         # only applicable in plots without burn-in
 
 print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
@@ -128,12 +128,12 @@ if agePerMobType:
     #plt.title(enums['brands'][carLabel])
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average age of mobility actors')  
-
+    plt.savefig(path + 'agePerMobType')
 
 
 
@@ -149,11 +149,12 @@ if womanSharePerMobType:
     #plt.title(enums['brands'][carLabel])
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Share of women')  
+    plt.savefig(path + 'womanShareGreen')
 
 
 if expectUtil  == 1:
@@ -161,8 +162,15 @@ if expectUtil  == 1:
     data = np.asarray(persMat[:,:,persPropDict['expUtilNew']])
     
     plt.plot(np.mean(data,axis=1))
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    
     plt.title("Expectations for mobility types")    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.savefig(path + 'expectedUtility')
 #%%  plot car stock as bar plot
 legStr = list()
 
@@ -183,14 +191,14 @@ if plotCarStockBar:
 #plt.legend(legStr)
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
     plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-
+    plt.savefig(path + 'carStock')
 #%% plot sales per mobility type
-
+asdas
 carSales = np.zeros([nSteps,3])
 for time in range(nSteps):
     for brand in range(0,len(enums['brands'])):
@@ -202,13 +210,13 @@ if plotCarSales:
     plt.plot(carSales)
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(enums['brands'].values(),loc=0)
     
     plt.title('sales per mobility Type')
-    
+    plt.savefig(path + 'salesPerMobType')
 #%% number of different cars per preference type:
 if False: 
     nUniqueCars = list()
@@ -318,9 +326,9 @@ if prefPerLabel:
         plt.title(enums['brands'][carLabel])
         if withoutBurnIn:
             plt.xlim([nBurnIn,nSteps])
-            if years:
-                years = (nSteps - nBurnIn) / 12
-                plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
         plt.legend(legStr,loc=0)
         
         fig.suptitle('n priority types per mobility types')
@@ -341,13 +349,13 @@ if utilPerLabel:
     plt.plot(res)
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
     plt.legend(legStr,loc=0)
     
     plt.title('Average utility by mobility type')
-
+    plt.savefig(path + 'utilPerMobType')
 #%%  green cars per income
 #
 
@@ -379,7 +387,7 @@ if greenPerIncome:
                 pass
         if i < 2:
             plt.xticks([])  
-
+    plt.savefig(path + 'greenPerIncomeClass')
 if incomePerLabel:
     
        
@@ -415,11 +423,12 @@ if incomePerLabel:
     plt.title('Equalized household income')
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
     plt.legend(['Average Household', 'Household income using an electic car', 'Avg STD', 'Elec STD',''],loc=3) 
-
+    
+    plt.savefig(path + 'incomePerMobType')
 print ''
 
 #%% mean priority per car label
@@ -446,15 +455,15 @@ if meanPrefPerLabel:
         #plt.legend(legStr,loc=0)
         if withoutBurnIn: 
             plt.xlim([nBurnIn,nSteps])
-            if years:
-                years = (nSteps - nBurnIn) / 12
-                plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr, loc = (1,1,0,0))
     plt.tight_layout()
 
     fig.suptitle('mean priority per mobility type')
-
+    plt.savefig(path + 'meanPriorityPerMobType')
 print 1
 
 #%% mean consequences per mobility type
@@ -482,14 +491,15 @@ if meanConsequencePerLabel:
         plt.title(enums['brands'][carLabel])        
         if withoutBurnIn: 
             plt.xlim([nBurnIn,nSteps])
-            if years:
-                years = (nSteps - nBurnIn) / 12
-                plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
     # plt.legend(legStr,loc=0)        
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr)
     plt.tight_layout()
     fig.suptitle('mean consequences per mobility type')
+    plt.savefig(path + 'meanConsequencesPerMobType')
 print 1
 
 #%% print consequences per mobility type
@@ -514,12 +524,12 @@ if emissionsPerLabel:
             plt.title('Average price by mobility type')
         if withoutBurnIn: 
             plt.xlim([nBurnIn,nSteps])
-            if years:
-                years = (nSteps - nBurnIn) / 12
-                plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
     plt.legend(legStr,loc=0)    
-
+    plt.savefig(path + 'meanEmmissionsPerMobType')
 #plt.show()
 #%% loading cell agent file
 
@@ -570,7 +580,7 @@ if printCellMaps:
     plt.plot(meanCon)
     plt.legend(enums['brands'].values())
     plt.title('convenience, mean over cells')
-    
+    plt.savefig(path + 'conveniencePerCell')
     #%%
     
     import copy
@@ -598,6 +608,7 @@ if printCellMaps:
         #plt.clim([0,1])
         plt.colorbar()
         plt.title(enums['brands'][iBrand] + ' cars per cells')
+        plt.savefig(path + 'carsPerCell')
     print 1
     if doFolium:  
         bounds = (0,1)
@@ -727,7 +738,7 @@ if printCellMaps:
         #plt.clim([0,1])
         plt.colorbar()
         plt.title('convenience of ' + enums['brands'][iBrand] + ' cars per cells')
-    print 1
+    plt.savefig(path + 'conveniencePerCell')
 #%%
     plt.figure()
     res = landLayer*1.0
@@ -736,10 +747,11 @@ if printCellMaps:
     res[posArray[0],posArray[1]] = cellMat[0,:,cellPropDict['population']][0]
     
     plt.imshow(np.flipud(res))
-    #plt.clim([0,1])
     plt.colorbar()
+    #plt.clim([0,1])
+    
     plt.title('population')
-    print 1
+    plt.savefig(path + 'population')
 plt.show()
 
 #sys.path.append('/media/sf_shared/python/database')

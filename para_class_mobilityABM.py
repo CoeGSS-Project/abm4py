@@ -206,6 +206,7 @@ class Earth(World):
         """ 
         Method to proceed the next time step
         """
+        tt = time.time()
         self.time += 1
         self.timeStep = self.time
         
@@ -220,12 +221,13 @@ class Earth(World):
             
         
         
-        #print 'sales before sync: ',self.glob['sales']
+        ttSync = time.time()
         self.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
         self.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
         self.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
+        self.dprint('globals synced in ' +str( ttSync-time.time()) + ' seconds')
         
         # proceed market in time
         #print 'sales after sync: ',self.glob['sales']
@@ -243,6 +245,8 @@ class Earth(World):
                 self.globalData['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
             elif cell.node['regionId'] == 1518:
                 self.globalData['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
+            elif cell.node['regionId'] == 1520:
+                self.globalData['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
 
                 
         # Iterate over households with a progress bar
@@ -254,15 +258,20 @@ class Earth(World):
             for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.step(self)
-        self.mpi.comm.Barrier()
+        ttSync = time.time()
         self.mpi.updateGhostNodes([_pers])
+        self.dprint('Ghosts synced in ' + str(ttSync-time.time()) + ' seconds')
         
         for adult in self.iterEntRandom(_pers):
             adult.weightFriendExperienceNew(self)   
         
         # proceed step
         #self.writeAgentFile()
-        self.mpi.comm.Barrier()
+        #self.mpi.comm.Barrier()
+        if self.para['omniscientAgents']:
+            print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
+        else:
+            print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
         
     def finalize(self):
         
@@ -298,6 +307,8 @@ class Market():
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
         #import global variables
+        self.globalData = earth.globalData
+        
         self.dprint = earth.dprint
         self.glob               = earth.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
@@ -342,7 +353,7 @@ class Market():
     
     def initialCarInit(self):
         # actually puts the car on the market
-        for label, propertyTuple, _, brandID, allTimeProduced in  self.mobilityInitDict[0]:
+        for label, propertyTuple, _, brandID, allTimeProduced in self.mobilityInitDict['start']:
              self.addBrand2Market(label, propertyTuple, brandID)
 
     
@@ -404,17 +415,18 @@ class Market():
 
         
     def step(self):
-        self.time +=1 
+        
         self.obsDict[self.time] = dict()
         #re-init key for next dict in new timestep
-        for key in self.obsDict[self.time-1]:
+        for key in self.obsDict[self.time]:
             self.obsDict[self.time][key] = list()
         
         # check if a new car is entering the market
         if self.time in self.mobilityInitDict.keys():
-                
-            for label, propertyTuple, _, mobTypeID in  self.mobilityInitDict[self.time]:
-                self.addBrand2Market(label, propertyTuple, mobTypeID)
+            
+            for mobTuple in self.mobilityInitDict[self.time]:
+                for label, propertyTuple, _, mobTypeID in  mobTuple:
+                    self.addBrand2Market(label, propertyTuple, mobTypeID)
         
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
@@ -431,7 +443,7 @@ class Market():
         #compute new statistics        
         self.computeStatistics()
         
-
+        self.time +=1 
                     
     def computeTechnicalProgress(self):
         # calculate growth rates per brand:
@@ -451,10 +463,14 @@ class Market():
         oldEtas = copy.copy(self.techProgress)
         for brandID in range(self.nMobTypes):
             self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
-            
+        
+        self.globalData['growthRate'].set(self.time, self.mobilityGrowthRates[brandID])
+        
         # technical process of infrastructure -> given to cells                
         self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
-            
+        
+        self.globalData['infraKappa'].set(self.time, self.kappa)
+        
         self.dprint('techProgress: ' + str(self.techProgress))
         
     def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
@@ -751,10 +767,31 @@ class Person(Agent):
     def getExpectedUtilityNew(self, world):
         #self.friendNodeSeq['expUtilNew']
         weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights = np.asarray(weights)
         
-        observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
-        self.node['expUtilNew'] = observedUtil.tolist()
-        return np.hstack([np.array([self.node['util']]), observedUtil])
+        if world.para['allTypeObservations']:
+            observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
+            
+            self.node['expUtilNew'] = observedUtil.tolist()
+            return np.hstack([np.array([self.node['util']]), observedUtil])
+        
+        else:
+            observedUtil= np.zeros(len(world.enums['mobilityTypes'])+1)
+            utilFriends = np.asarray(self.friendNodeSeq['expUtilNew'])
+            mobTypeFriends = np.asarray(self.friendNodeSeq['mobType'])
+            
+            observedUtil[0] = self.node['util']
+            for mobType in range(len(world.enums['mobilityTypes'])):
+                
+                boolList = mobTypeFriends == mobType
+                
+                if np.sum(boolList)> 2:
+                    
+                    observedUtil[mobType+1] = np.dot(weights[boolList],utilFriends[boolList,mobType])
+                else:
+                    observedUtil[mobType+1] = np.nan
+            
+            return observedUtil
     
 
     def getExpectedUtility(self,world):
@@ -1047,7 +1084,10 @@ class Household(Agent):
                     else:
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
                         adult.node['prop'] = market.currentCarProperties(adult.node['mobType'])
-                        adult.node['lastAction'] = 0                    
+                        if earth.time <  earth.para['burnIn']:
+                            adult.node['lastAction'] = np.random.randint(0, 2*earth.para['mobNewPeriod'])                    
+                        else:
+                            adult.node['lastAction'] = 0
                     self.node['expenses'] += adult.node['prop'][1]
                 
                 self.calculateConsequences(market)
@@ -1109,18 +1149,20 @@ class Household(Agent):
     
         actionIdsList   = list()
         eUtilsList      = list()
-
+        actionIds = np.asarray([-1, 0, 1, 2])
         for adult in self.adults:
             
-            if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
-                #actionIds, eUtils = adult.getExpectedUtility(earth)
-                eUtils = adult.getExpectedUtilityNew(earth)
-                
-                actionIds = [-1, 0, 1, 2]
-            else:
-                actionIds, eUtils = [-1], [adult.node['util']]
+            #if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
+            #actionIds, eUtils = adult.getExpectedUtility(earth)
+            eUtils = adult.getExpectedUtilityNew(earth)
             
-            actionIdsList.append(actionIds)
+            nonNanIdx = np.isnan(eUtils) == False
+            eUtils = eUtils[nonNanIdx]
+            actions = actionIds[nonNanIdx].tolist()
+#            else:
+#                actionIds, eUtils = [-1], [adult.node['util']]
+#            
+            actionIdsList.append(actions)
             eUtilsList.append(eUtils)
             
             if eUtils is None:
@@ -1133,6 +1175,7 @@ class Household(Agent):
             minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
             #import pdb
             #pdb.set_trace()
+            #print 'Action List: ',actionIdsList
             while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
                 randIdx = np.random.randint(len(actionIdsList))
                 actionIdsList[randIdx] = [-1]
