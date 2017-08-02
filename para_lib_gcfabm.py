@@ -1124,13 +1124,13 @@ class World:
         else:
             self.isRoot = False
         
-        if not self.debug :
-            self.simNo = aux.getSimulationNumber(self.mpi.comm)
-        else:
-            self.simNo = 0
-            print "######### DEBUG MODE #########################"
-            print "simulation number is set to zero in debug mode"
-            print "##############################################"
+        #if not self.debug :
+        self.simNo = aux.getSimulationNumber(self.mpi.comm)
+        #else:
+        #    self.simNo = 0
+        #    print "######### DEBUG MODE #########################"
+        #    print "simulation number is set to zero in debug mode"
+        #    print "##############################################"
         # acquire simulation number if process is rank 0        
         
         

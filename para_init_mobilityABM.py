@@ -46,11 +46,11 @@ import igraph as ig
 home = expanduser("~")
 #sys.path.append(home + '/python/decorators/')
 sys.path.append(home + '/python/modules/')
-
+sys.path.append(home + '/python/agModel/modules/')
 #from deco_util import timing_function
 import numpy as np
 import time
-import mod_geotiff as gt
+#import mod_geotiff as gt
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
 
 import class_auxiliary  as aux #convertStr
@@ -58,7 +58,7 @@ import matplotlib
 matplotlib.use('TKAgg')
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import tqdm
 import pandas as pd
 from bunch import Bunch
@@ -137,10 +137,10 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.convB =  minCarConvenience / (maxDeviation)
  
     # only for packing with care
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
-    del dummy
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
+    #del dummy
     
     print "Final setting of the parameters"
     print parameterInput
@@ -220,10 +220,12 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.convB =  minCarConvenience / (maxDeviation)
     
     # only for packing with care
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-    dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
-    del dummy
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
+    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
+    
+    #del dummy
     
     print "Final setting of the parameters"
     print parameterInput
@@ -349,9 +351,10 @@ def scenarioNBH(parameterInput, dirPath):
     
     print 'max rank:',np.nanmax(setup.landLayer)
     
-    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
-    setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
+    setup.population = np.save(setup.resourcePath + 'land_layer_62x118.npy')
+    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy')
     
     if False:
         try:
@@ -998,7 +1001,7 @@ def onlinePostProcessing(earth):
         df['ref'] = prfType
 
     # calculate the correlation between weights and differences in priorities        
-    if True:
+    if False:
         pref = np.zeros([earth.graph.vcount(), 4])
         pref[earth.nodeDict[_pers],:] = np.array(earth.graph.vs[earth.nodeDict[_pers]]['preferences'])
         idx = list()

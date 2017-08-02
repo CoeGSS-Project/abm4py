@@ -26,26 +26,26 @@ sns.set_color_codes("dark")
 
 #%% init
 plotRecords       = 0
-plotCarStockBar   = 1
+plotCarStockBar   = 0
 plotCarSales      = 0
-womanSharePerMobType = 1
-agePerMobType     = 1
-prefPerLabel      = 1
-utilPerLabel      = 1
-incomePerLabel    = 1
-greenPerIncome    = 1
-expectUtil        = 1
-meanPrefPerLabel  = 1
+womanSharePerMobType = 0
+agePerMobType     = 0
+averageCarAge     = 1
+prefPerLabel      = 0
+utilPerLabel      = 0
+incomePerLabel    = 0
+greenPerIncome    = 0
+expectUtil        = 0
+meanPrefPerLabel  = 0
 meanConsequencePerLabel = 0
-printCellMaps     = 1
-emissionsPerLabel = 1
-doFolium = 1
+printCellMaps     = 0
+emissionsPerLabel = 0
+doFolium = 0
 
 
 
 simNo = sys.argv[1]
 path = 'output/sim'+ str(simNo).zfill(4) + '/'
-
 
 simParas   = loadObj(path + 'simulation_parameters')
 
@@ -98,23 +98,28 @@ nSteps, nHhs,  nHhProp   = hhMat.shape
 nPrior = len(enums['priorities'])
 
 del persMatStep, hhMatStep
-#%% loading agent file
-#
-#persMat      = np.load(path + 'agentFile_type3.npy')
-#persPropDict = loadObj(path + 'attributeList_type3')
-#hhMat        = np.load(path + 'agentFile_type2.npy')
-#hhPropDict   = loadObj(path + 'attributeList_type2')
-#
-#enums        = loadObj(path + 'enumerations')
-#
-#nSteps, nPers, nPersProp = persMat.shape
-#nSteps, nHhs,  nHhProp   = hhMat.shape
-#
-#
-#nPrior = len(enums['priorities'])
 
+if averageCarAge:
+    res = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['lastAction'][0]])/12
+    
+    fig = plt.figure()
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average fleet age per mobility type')  
+    plt.savefig(path + 'fleetAge')
 
-
+    
+    
+    
 #%%
 
 if agePerMobType:
@@ -198,7 +203,7 @@ if plotCarStockBar:
     plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     plt.savefig(path + 'carStock')
 #%% plot sales per mobility type
-asdas
+
 carSales = np.zeros([nSteps,3])
 for time in range(nSteps):
     for brand in range(0,len(enums['brands'])):

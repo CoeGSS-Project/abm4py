@@ -26,7 +26,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import itertools
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import pandas as pd 
 import seaborn as sns
 import pickle
