@@ -57,7 +57,7 @@ class Earth(World):
     def __init__(self, parameters, maxNodes, debug):
         
         nSteps     = parameters.nSteps
-        
+        self.computeTime = 0
        
         World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug)
         
@@ -227,7 +227,7 @@ class Earth(World):
         self.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
-        self.dprint('globals synced in ' +str( ttSync-time.time()) + ' seconds')
+        self.dprint('globals synced in ' +str(time.time()- ttSync) + ' seconds')
         
         # proceed market in time
         #print 'sales after sync: ',self.glob['sales']
@@ -259,8 +259,11 @@ class Earth(World):
                 #agent = self.agDict[agID]
                 household.step(self)
         ttSync = time.time()
+        self.mpi.comm.Barrier()
+        self.dprint('Barrier waiting after step required ' + str(ttSync-time.time()) + ' seconds')
+        ttSync = time.time()
         self.mpi.updateGhostNodes([_pers])
-        self.dprint('Ghosts synced in ' + str(ttSync-time.time()) + ' seconds')
+        self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
         
         for adult in self.iterEntRandom(_pers):
             adult.weightFriendExperienceNew(self)   
@@ -268,10 +271,12 @@ class Earth(World):
         # proceed step
         #self.writeAgentFile()
         #self.mpi.comm.Barrier()
+        
         if self.para['omniscientAgents']:
             print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
         else:
             print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
+        self.computeTime += time.time()-tt
         
     def finalize(self):
         
@@ -543,6 +548,7 @@ class Person(Agent):
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
         self.obs  = dict()
+        
         #self.innovatorDegree = 0.
         
     def register(self, world, parentEntity=None, edgeType=None):
@@ -614,7 +620,7 @@ class Person(Agent):
             self.obs[locID] = [obsID], [time]
     
     def weightFriendExperienceNew(self, world):
-        friendUtil = np.asarray(self.friendNodeSeq['expUtilNew'])[:,self.node['mobType']]
+        friendUtil = np.asarray(self.friendNodeSeq['commUtil'])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
         
         edges = self.getEdges(_cpp)
@@ -764,6 +770,18 @@ class Person(Agent):
         self.friendNodeSeq = self.getConnNodeSeq( nodeType=_pers, mode='out')
         #print self.friendNodeSeq['gID']
     
+    def computeExpUtil(self,world):
+        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights = np.asarray(weights)
+        communityUtil = np.dot(weights,np.asarray(self.friendNodeSeq['commUtil']))
+        
+        selfUtil =self.node['selfUtil']
+        
+        
+        self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
+        
+        
+        
     def getExpectedUtilityNew(self, world):
         #self.friendNodeSeq['expUtilNew']
         weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
@@ -869,13 +887,14 @@ class Household(Agent):
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
         
+        
  #       self.car  = dict()
         self.util = 0
         if world.para['util'] == 'cobb':
             self.utilFunc = self.cobbDouglasUtil
         elif world.para['util'] == 'ces':
             self.utilFunc = self.CESUtil
- #       self.consequences = list()
+        self.computeTime = 0
 
     def cobbDouglasUtil(self, x, alpha):
         utility = 1.
@@ -956,11 +975,11 @@ class Household(Agent):
         return self.mpiPeers
     
     
-    def shareExperience(self, world):
-        for adult in self.adults:
-            adult.shareExperience(world)
+#    def shareExperience(self, world):
+#        for adult in self.adults:
+#            adult.shareExperience(world)
         
-    def evalUtility(self, world):
+    def evalUtility(self, world, actionTaken=False):
         """
         Method to evaluate the utilty of all persons and the overall household
         """
@@ -970,12 +989,65 @@ class Household(Agent):
             utility = self.utilFunc(adult.node['consequences'], adult.node['preferences'])
             assert not( np.isnan(utility) or np.isinf(utility)), utility
             
-            adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
+            #adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
             adult.node['util'] = utility
+            
+            
+            if actionTaken:
+                # self-util is only saved if an action is taken
+                adult.node['selfUtil'][adult.node['mobType']] = utility
+                
             hhUtility += utility
         
         self.node['util'] = hhUtility
+        
         return hhUtility
+
+    def evalExpectedUtility(self, earth):
+    
+        actionIdsList   = list()
+        eUtilsList      = list()
+        
+        for adult in self.adults:
+            
+            if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
+            #actionIds, eUtils = adult.getExpectedUtility(earth)
+                adult.computeExpUtil(earth)
+                actionIds = [-1, 0, 1, 2]
+                eUtils = [adult.node['util']] + adult.node['commUtil'].tolist()
+            #nonNanIdx = np.isnan(eUtils) == False
+            #eUtils = eUtils[nonNanIdx]
+            #actions = actionIds[nonNanIdx].tolist()
+            else:
+                actionIds, eUtils = [-1], [adult.node['util']]
+#               
+            actionIdsList.append(actionIds)
+            eUtilsList.append(eUtils)
+            
+
+        
+        if len(actionIdsList) == 0:
+            return None, None
+        
+        elif len(actionIdsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
+            minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
+            #import pdb
+            #pdb.set_trace()
+            #print 'Action List: ',actionIdsList
+            while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
+                randIdx = np.random.randint(len(actionIdsList))
+                actionIdsList[randIdx] = [-1]
+                eUtilsList[randIdx] =  [adult.node['util']]#[ eUtilsList[randIdx][0] ]
+            print 'large Household'
+        
+        combActions = aux.cartesian(actionIdsList)
+        overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1,keepdims=True)
+
+        if len(combActions) != len(overallUtil):
+            import pdb
+            pdb.set_trace()
+        
+        return combActions, overallUtil
              
 
     def takeAction(self, earth, persons, actionIds):
@@ -1145,56 +1217,17 @@ class Household(Agent):
         return possibilities    
             
             
-    def evaluateExpectedUtility(self, earth):
-    
-        actionIdsList   = list()
-        eUtilsList      = list()
-        actionIds = np.asarray([-1, 0, 1, 2])
-        for adult in self.adults:
-            
-            #if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
-            #actionIds, eUtils = adult.getExpectedUtility(earth)
-            eUtils = adult.getExpectedUtilityNew(earth)
-            
-            nonNanIdx = np.isnan(eUtils) == False
-            eUtils = eUtils[nonNanIdx]
-            actions = actionIds[nonNanIdx].tolist()
-#            else:
-#                actionIds, eUtils = [-1], [adult.node['util']]
-#            
-            actionIdsList.append(actions)
-            eUtilsList.append(eUtils)
-            
-            if eUtils is None:
-                print 1
-        
-        if len(actionIdsList) == 0:
-            return None, None
-        
-        elif len(actionIdsList) > 6:                            # to avoid the problem of too many possibilities (if more than 7 adults)
-            minNoAction = len(actionIdsList) - 6                # minum number of adults not to take action    
-            #import pdb
-            #pdb.set_trace()
-            #print 'Action List: ',actionIdsList
-            while len(filter(lambda x: x == [-1], actionIdsList)) < minNoAction:
-                randIdx = np.random.randint(len(actionIdsList))
-                actionIdsList[randIdx] = [-1]
-                eUtilsList[randIdx] =  [adult.node['util']]#[ eUtilsList[randIdx][0] ]
-            #print 'large Household'
-        
-        combActions = aux.cartesian(actionIdsList)
-        overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1)
-
-        
-        
-        
-        return combActions, overallUtil
     
     def maxUtilChoice(self, combActions, overallUtil):
         #best action 
         bestActionIdx = np.argmax(overallUtil)
+
+        if bestActionIdx > len(combActions):
+            import pdb
+            pdb.set_trace()        
         actions = combActions[bestActionIdx]
         # return persons that buy a new car (action is not -1)
+
         actors = np.array(self.adults)[ actions != -1]
         actions = actions[ actions != -1]     
         if overallUtil[bestActionIdx] is None:
@@ -1215,6 +1248,7 @@ class Household(Agent):
     
         
     def step(self, earth):
+        tt = time.time()
         for adult in self.adults:
             adult.addValue('lastAction', 1)
             #adult.node['lastAction'] += 1
@@ -1232,7 +1266,7 @@ class Household(Agent):
             # return persons that are potentially performing an action, the action and the expected overall utility
             
             
-            combActions, overallUtil = self.evaluateExpectedUtility(earth)
+            combActions, overallUtil = self.evalExpectedUtility(earth)
             
             
             if (combActions is not None):
@@ -1254,14 +1288,16 @@ class Household(Agent):
                 self.takeAction(earth, personsToTakeAction, actions)
 
             self.calculateConsequences(earth.market)
-            self.util = self.evalUtility(earth)
+            self.util = self.evalUtility(earth, actionTaken)
             
-            #if actionTaken:                
-            #    self.shareExperience(earth)
-
+#            if actionTaken:                
+#                self.shareExperience(earth)
+        self.computeTime += time.time() - tt
 
 
     def stepOmniscient(self, earth):
+        tt = time.time()
+        
         for adult in self.adults:
             adult.addValue('lastAction', 1)
             #adult.node['lastAction'] += 1
@@ -1274,96 +1310,10 @@ class Household(Agent):
         if doCheckMobAlternatives:            
             actionTaken = self.bestMobilityChoice(earth)
             self.calculateConsequences(earth.market)
-            self.util = self.evalUtility(earth)
+            self.util = self.evalUtility(earth, actionTaken)
             
-            #if actionTaken:                
-            #    for adult in self.adults:
-            #        adult.weightFriendExperience(earth)
-            #    self.shareExperience(earth)
-
-                                
-
-#    def step(self, world):
-#        self.addValue('carAge', 1)
-#        carBought = False
-#        self.setValue('predMeth',0)
-#        self.setValue('expUtil',0)
-#        # If the car is older than a constant, we have a 50% of searching
-#        # for a new car.
-#        if (self.getValue('lastAction') > world.para['newPeriod'] and np.random.rand(1)>.5) or world.time < world.para['burnIn']: 
-#            # Check what cars are owned by my friends, and what are their utilities,
-#            # and make a choice based on that.
-#            brandID, expUtil = self.optimalChoice(world)  
-#            
-#            if brandID is not None:
-#                # If the utility of the new choice is higher than
-#                # the current utility times 1.2, we perform a transaction
-#
-#                buySellBecauseOld = max(0.,self.getValue('lastAction') - 2*world.para['newPeriod'])/world.para['newPeriod'] > np.random.rand(1)
-#                
-#                # three reasons to buy a car:
-#                    # new car has a higher utility 
-#                    # current car is very old
-#                    # in the burn in phase, every time step a new car is chosen
-#                if expUtil > self.util *1.05 or buySellBecauseOld or world.time < world.para['burnIn']:
-#                    self.setValue('predMeth',1) # predition method
-#                    self.setValue('expUtil',expUtil) # expected utility
-#                    self.sellCar(world, self.getValue('mobID'))
-#                    self.buyCar(world, brandID)
-#                    carBought = True
-#                # Otherwise, we have a 25% chance of looking at properties
-#                # of cars owned by friends, and perform linear sensitivity
-#                # analysis based on the utility of your friends.
-#                
-#        self.calculateConsequences(world.market)
-#        self.util = self.evalUtility()               
-#        if carBought:
-#            self.weightFriendExperience(world)
-#        self.shareExperience(world)
-
-
-#    def evalIndividualConsequences(self,world):
-#        x = self.loc.getX(self.getValue('mobilityType'))
-#        x[-1] = max(0,1 - x[-1] / self.getValue('income'))
-#        self.setValue('x', x)
- 
-             
-    
-#    def optimalChoice(self,world):
-#        """ 
-#        Method for searching the optimal choice that lead to the highest
-#        expected utility
-#        return a_opt = arg_max (E(u(a)))
-#        """
-#        if len(self.obs) == 0:
-#            return None, None
-#
-#        obsMat    = self.getObservationsMat(world,['hhID', 'utility','label'])
-#       
-#        if obsMat.shape[0] == 0:
-#            return None
-#        
-#        mobIDs       = np.unique(obsMat[:,-1])
-#        
-#        tmpWeights = np.zeros([len(mobIDs),obsMat.shape[0]])
-#        weighted = True
-#        
-#        if weighted:
-#                
-#            weights, edges = self.getEdgeValuesFast('weig', edgeType=_chh) 
-#            target = [edge.target for edge in edges]
-#            srcDict =  dict(zip(target,weights))
-#            for i, id_ in enumerate(mobIDs):
-#                
-#                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
-#        else:
-#            for i, id_ in enumerate(mobIDs):
-#                tmpWeights[i,obsMat[:,-1] == id_] = 1
-#            
-#        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
-#        maxid = np.argmax(avgUtil)
-#        return mobIDs[maxid], avgUtil[maxid]
-    
+        self.computeTime += time.time() - tt
+            
 class Reporter(Household):
     
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
@@ -1439,13 +1389,13 @@ class Cell(Location):
     def remFromTraffic(self,mobTypeID):
         self.addValue('carsInCell', -1, idx=int(mobTypeID))
 
-    def trafficMixture(self):
-        carsInCell = self.getValue('carsInCell')
-        total = sum(carsInCell) 
-        shares = list()
-        for idx in range(len(carsInCell)):         
-            shares.append(float(carsInCell[idx])/total)       
-        self.brandShares = shares
+#    def trafficMixture(self):
+#        carsInCell = self.getValue('carsInCell')
+#        total = sum(carsInCell) 
+#        shares = list()
+#        for idx in range(len(carsInCell)):         
+#            shares.append(float(carsInCell[idx])/total)       
+#        self.brandShares = shares
 
             
     def getX(self, choice):
@@ -1486,7 +1436,7 @@ class Cell(Location):
         
         convAll = self.calculateConveniences()
         self.setValue('convenience', convAll)
-        self.trafficMixture()
+        #self.trafficMixture()
 
     
     def registerObs(self, hhID, prop, util, label):

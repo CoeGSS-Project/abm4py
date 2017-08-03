@@ -27,13 +27,26 @@ along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 TODOs
 
 short-term:
-    - (done) include communication of experiences to ghost agents !!!!!!
     
-
+    - combine self-experience with community-experience
+    - entropy on networks (distribution of weights)
+        - entire network
+        - per agent
+    - save connections + properties to output
+    - synthetic poplulations of bremen and hamburg
+    - (done) include communication of experiences to ghost agents !!!!!!
+    - add price incentive (4000 euro in 2017)
+    
 long-term:
+    - cut connections with near-zero weights
+    - replace removed connections with new ones
+        - rebuffering of sequences of nodes and edges
+    
     - join the synthetic people of niedersachsen, bremen and hamburg
     - jointly create their income
     - place the correct people to the differen regions (different hh distributions)
+    - add advertising to experience
+    
 """
 
 #%%
@@ -323,7 +336,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.resourcePath = dirPath + '/resources_NBH/'
     setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
     setup.progressBar  = True
-    setup.allTypeObservations = False
+    setup.allTypeObservations = True
     
     #time
     setup.nSteps           = 340     # number of simulation steps
@@ -344,7 +357,7 @@ def scenarioNBH(parameterInput, dirPath):
             
     #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust12_x_radius3.5.npy')
+    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust48.npy')
     setup.landLayer = setup.landLayer[1:-1,1:-1]
     #setup.landLayer = setup.landLayer
     #setup.landLayer = setup.landLayer * 0
@@ -352,7 +365,7 @@ def scenarioNBH(parameterInput, dirPath):
     print 'max rank:',np.nanmax(setup.landLayer)
     
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
-    setup.population = np.save(setup.resourcePath + 'land_layer_62x118.npy')
+    setup.population = np.load(setup.resourcePath + 'land_layer_62x118.npy')
     #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy')
     
@@ -381,7 +394,7 @@ def scenarioNBH(parameterInput, dirPath):
 
     #agents
     setup.randomAgents     = False
-    setup.omniscientAgents = True    
+    setup.omniscientAgents = False    
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
@@ -528,10 +541,9 @@ def householdSetup(earth, parameters, calibration=False):
                                      prefTyp     = prefTyp,
                                      gender     = genders[iPers],
                                      age         = ages[iPers],
-                                     expUtilNew  = [50.]*earth.para['nMobTypes'],
-                                     expUtil     = 0.,
-                                     noisyUtil   = 0.,
                                      util        = 0.,
+                                     commUtil    = [50.]*earth.para['nMobTypes'],
+                                     selfUtil    = [np.nan]*earth.para['nMobTypes'],
                                      mobType     = 0,
                                      prop        = [0]*len(parameters.properties),
                                      consequences= [0]*len(prefTuple),
@@ -659,10 +671,9 @@ def initTypes(earth, parameters):
                                                   'prefTyp',
                                                   'gender',
                                                   'age',
-                                                  'expUtil',
-                                                  'expUtilNew',
-                                                  'noisyUtil',
-                                                  'util',
+                                                  'util',     # current utility
+                                                  'commUtil', # comunity utility
+                                                  'selfUtil', # own utility at time of action
                                                   'mobType',
                                                   'prop',
                                                   'consequences',
@@ -687,7 +698,7 @@ def initSpatialLayer(earth, parameters):
         
         for cell in earth.iterEntRandom(_cell):
             cell.node['regionId'] = parameters.regionIdRaster[cell.node['pos']]
-    
+            
     earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
                      
 
@@ -1138,11 +1149,23 @@ if __name__ == '__main__':
         mobilitySetup(earth, parameters)
         #earth = prioritiesCalibrationTest()
         earth = setupHouseholdsWithOptimalChoice()
+        
+    if parameters.scenario == 5: #graph part
+      parameters = scenarioNBH(parameters, dirPath)  
+      parameters.landLayer = parameters.landLayer * 0
+      parameters.showFigures = showFigures
+      earth = initEarth(parameters, maxNodes=1000000, debug =True)
+      _cell, _hh, _pers = initTypes(earth,parameters)
+      initSpatialLayer(earth, parameters)
+      for cell in earth.iterEntRandom(_cell):
+            cell.node['population'] = parameters.population[cell.node['pos']]
+      aux.writeAdjFile(earth.graph,'outGraph.txt')
+      asd
     else:
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=100000, debug =True)
+        earth = initEarth(parameters, maxNodes=1000000, debug =True)
         
         if earth.mpi.rank != 0:
             olog_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
@@ -1153,10 +1176,12 @@ if __name__ == '__main__':
         _cell, _hh, _pers = initTypes(earth,parameters)
         
         initSpatialLayer(earth, parameters)
-        
+        #aux.writeAdjFile(earth.graph,'outGraph.txt')
+        #sdf
         mobilitySetup(earth, parameters)
         
         householdSetup(earth, parameters)
+        
         
         cellTest(earth, parameters)
 

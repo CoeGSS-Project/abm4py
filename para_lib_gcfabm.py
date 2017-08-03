@@ -57,8 +57,8 @@ later:
 """
 from __future__ import division
 
-#from os.path import expanduser
-#home = expanduser("~")
+from os.path import expanduser
+home = expanduser("~")
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 print dir_path
@@ -67,7 +67,7 @@ sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path
 
 import igraph as ig
 import numpy as np
-from mpi4py import MPI
+import mpi4py.MPI as MPI
 import time 
 from bunch import Bunch
 #import array
@@ -1390,66 +1390,69 @@ class World:
         
     
     def view(self,filename = 'none', vertexProp='none', dispProp='gID', layout=None):
-        import matplotlib.cm as cm
-        
-        # Nodes        
-        if vertexProp=='none':
-            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.nodeTypes)+1)))   
-            colorDictNode = {}
-            for i in range(len(self.graph.nodeTypes)+1):
+        try:
+            import matplotlib.cm as cm
+            
+            # Nodes        
+            if vertexProp=='none':
+                colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.nodeTypes)+1)))   
+                colorDictNode = {}
+                for i in range(len(self.graph.nodeTypes)+1):
+                    hsv =  next(colors)[0:3]
+                    colorDictNode[i] = hsv.tolist()
+                nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
+            else:
+                maxCars = max(self.graph.vs[vertexProp])
+                colors = iter(cm.rainbow(np.linspace(0, 1, maxCars+1)))
+                colorDictNode = {}
+                for i in range(maxCars+1):
+                    hsv =  next(colors)[0:3]
+                    colorDictNode[i] = hsv.tolist()
+                nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
+            # nodeValues[np.isnan(nodeValues)] = 0
+            # Edges            
+            colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.edgeTypes))))              
+            colorDictEdge = {}  
+            for i in range(len(self.graph.edgeTypes)):
                 hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
-        else:
-            maxCars = max(self.graph.vs[vertexProp])
-            colors = iter(cm.rainbow(np.linspace(0, 1, maxCars+1)))
-            colorDictNode = {}
-            for i in range(maxCars+1):
-                hsv =  next(colors)[0:3]
-                colorDictNode[i] = hsv.tolist()
-            nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
-        # nodeValues[np.isnan(nodeValues)] = 0
-        # Edges            
-        colors = iter(cm.rainbow(np.linspace(0, 1, len(self.graph.edgeTypes))))              
-        colorDictEdge = {}  
-        for i in range(len(self.graph.edgeTypes)):
-            hsv =  next(colors)[0:3]
-            colorDictEdge[i] = hsv.tolist()
-        self.graph.vs["label"] = [str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
-        
-        #self.graph.vs["label"] = [str(x) + '->' + str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
-        edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
-        
-        visual_style = {}
-        visual_style["vertex_color"] = [colorDictNode[typ] for typ in nodeValues]
-        visual_style["vertex_shape"] = list()        
-        for vert in self.graph.vs['type']:
-            if vert == 0:
-                visual_style["vertex_shape"].append('hidden')                
-            elif vert == 1:
-                    
-                visual_style["vertex_shape"].append('rectangle')                
+                colorDictEdge[i] = hsv.tolist()
+            self.graph.vs["label"] = [str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
+            
+            #self.graph.vs["label"] = [str(x) + '->' + str(y) for x,y in zip(self.graph.vs.indices, self.graph.vs[dispProp])]  
+            edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
+            
+            visual_style = {}
+            visual_style["vertex_color"] = [colorDictNode[typ] for typ in nodeValues]
+            visual_style["vertex_shape"] = list()        
+            for vert in self.graph.vs['type']:
+                if vert == 0:
+                    visual_style["vertex_shape"].append('hidden')                
+                elif vert == 1:
+                        
+                    visual_style["vertex_shape"].append('rectangle')                
+                else:
+                    visual_style["vertex_shape"].append('circle')     
+            visual_style["vertex_size"] = list()  
+            for vert in self.graph.vs['type']:
+                if vert >= 3:
+                    visual_style["vertex_size"].append(15)  
+                else:
+                    visual_style["vertex_size"].append(15)  
+            visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
+            visual_style["edge_arrow_size"]   = [.5]*len(visual_style["edge_color"])
+            visual_style["bbox"] = (900, 900)
+            if layout==None:
+                if filename  == 'none':
+                    ig.plot(self.graph, layout='fr', **visual_style)    
+                else:
+                    ig.plot(self.graph, filename, layout='fr',  **visual_style )  
             else:
-                visual_style["vertex_shape"].append('circle')     
-        visual_style["vertex_size"] = list()  
-        for vert in self.graph.vs['type']:
-            if vert >= 3:
-                visual_style["vertex_size"].append(15)  
-            else:
-                visual_style["vertex_size"].append(15)  
-        visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
-        visual_style["edge_arrow_size"]   = [.5]*len(visual_style["edge_color"])
-        visual_style["bbox"] = (900, 900)
-        if layout==None:
-            if filename  == 'none':
-                ig.plot(self.graph, layout='fr', **visual_style)    
-            else:
-                ig.plot(self.graph, filename, layout='fr',  **visual_style )  
-        else:
-            if filename  == 'none':
-                ig.plot(self.graph,layout=layout,**visual_style)    
-            else:
-                ig.plot(self.graph, filename, layout=layout, **visual_style )  
+                if filename  == 'none':
+                    ig.plot(self.graph,layout=layout,**visual_style)    
+                else:
+                    ig.plot(self.graph, filename, layout=layout, **visual_style )  
+        except:
+            pass
 if __name__ == '__main__':
     
     earth = World(maxNodes = 1e2, nSteps = 10)

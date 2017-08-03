@@ -25,22 +25,22 @@ from class_auxiliary import loadObj
 sns.set_color_codes("dark")
 
 #%% init
-plotRecords       = 0
-plotCarStockBar   = 0
-plotCarSales      = 0
-womanSharePerMobType = 0
-agePerMobType     = 0
+plotRecords       = 1
+plotCarStockBar   = 1
+plotCarSales      = 1
+womanSharePerMobType = 1
+agePerMobType     = 1
 averageCarAge     = 1
-prefPerLabel      = 0
-utilPerLabel      = 0
-incomePerLabel    = 0
-greenPerIncome    = 0
-expectUtil        = 0
-meanPrefPerLabel  = 0
-meanConsequencePerLabel = 0
-printCellMaps     = 0
-emissionsPerLabel = 0
-doFolium = 0
+prefPerLabel      = 1
+utilPerLabel      = 1
+incomePerLabel    = 1
+greenPerIncome    = 1
+expectUtil        = 1
+meanPrefPerLabel  = 1
+meanConsequencePerLabel = 1
+printCellMaps     = 1
+emissionsPerLabel = 1
+doFolium = 1
 
 
 
@@ -164,7 +164,7 @@ if womanSharePerMobType:
 
 if expectUtil  == 1:
     fig = plt.figure()
-    data = np.asarray(persMat[:,:,persPropDict['expUtilNew']])
+    data = np.asarray(persMat[:,:,persPropDict['commUtil']])
     
     plt.plot(np.mean(data,axis=1))
     if withoutBurnIn:

@@ -32,8 +32,8 @@ plt.imshow(population)
 plt.colorbar()
 
 
-nClusters = 12
-factorSurr = 20
+nClusters = 48
+factorSurr = 30
 radius = 3.5
 nSimulatneously = 5
 sumPop = int(np.nansum(population))
@@ -78,12 +78,12 @@ def calcPopDeviation(population, clusterMap, nClusters):
     for i in range(nClusters):    
         devPerCluster[clusterMap==i] = (nPopPerCluster[i] - np.mean(nPopPerCluster))  
         
-    deviation = np.sum(np.abs((nPopPerCluster - np.mean(nPopPerCluster)))**2)    
+    deviation = np.sum(np.abs((nPopPerCluster - np.mean(nPopPerCluster)))**3)    
     #print 'Deviation: ' + str(deviation)
     return deviation, devPerCluster, popPerCluster
 #%%
 #plt.figure()
-population2        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff') / 200
+population2        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff') / 100
 
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
@@ -160,6 +160,7 @@ oldLabels = [0]*nSimulatneously
 
 allTimeBestScore  = np.inf
 while True:
+    break
     i += 1 
     choice  =np.random.randint(4)
     #brush0[1+xx,1+yy] =-1
@@ -225,14 +226,22 @@ while True:
 plt.figure()
 plt.subplot(1,3,1)
 plt.imshow( clusterMap_old)
-plt.figure()
-plt.imshow(clusterMap)
-plt.figure()
 
+nClusters=12
+np.sum(np.isnan(population)==False)
+fid = open("outGraph.txt.part." + str(nClusters),'r')
+x = fid.readlines()
+y = [int(xx) for xx in x]
+yy = np.asarray(y)+1
+nonNan = np.isnan(population)==False
+clusterMap[nonNan] = yy
+plt.figure()
 score1, devPerCluster, popPerCluster = calcPopDeviation(population,clusterMap, nClusters)
 score2, popSurr = calPopSurrounging(population, clusterMap, nClusters, brush, intRad)
 plt.imshow(popPerCluster)
 plt.colorbar()      
+plt.figure()
+plt.imshow(clusterMap)
 plt.figure()
 plt.imshow(bestClusterMap)
 

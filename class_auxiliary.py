@@ -42,6 +42,19 @@ except NameError: # Python 3
     zero_depth_bases = (str, bytes, Number, range, bytearray)
     iteritems = 'items'
 
+def writeAdjFile(graph,fileName):
+    graph.to_undirected()
+    fid = open(fileName,'w')
+    fid.write('% Adjecency file created by gcfABM \n')
+    fid.write(str(graph.vcount()) + ' ' + str(graph.ecount()) + ' 010 \n' )
+    fid.write('% Adjecencies of verteces \n')
+    adjList = graph.get_adjlist()
+    popList = graph.vs['population']
+    for adjline, popu in zip(adjList, popList):
+        fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
+    fid.close()
+    
+
 def getsize(obj_0):
     """Recursively iterate to sum size of object & members."""
     def inner(obj, _seen_ids = set()):
@@ -233,6 +246,8 @@ class Memory():
         cols = [self.columns[x] for x in columns]
         rows = [self.ID2Row[x]   for x in memeID]
         return self.memory[np.ix_(rows,cols)]
+    
+    
     
 class Record():
     
