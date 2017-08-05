@@ -764,12 +764,16 @@ class World:
     class Mpi():
         
         
-        def __init__(self, world):
+        def __init__(self, world, mpiComm=None):
             
             self.world = world
-            self.comm = MPI.COMM_WORLD
+            if mpiComm is None:
+                self.comm = MPI.COMM_WORLD
+            else:
+                self.comm = mpiComm
             self.rank = self.comm.Get_rank()
             self.size = self.comm.Get_size()
+                
             self.peers    = list()     # list of ranks of all processes that have ghost duplicates of this process   
             
             self.ghostNodeQueue = dict()
@@ -1070,7 +1074,7 @@ class World:
             return buff
             
     #%% INIT WORLD            
-    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, debug = False):
+    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, debug = False, mpiComm=None):
         
         self.timeStep = 0
         
@@ -1118,7 +1122,7 @@ class World:
         self.queue = Queue(self)
 
         # MPI communication
-        self.mpi = self.Mpi(self)
+        self.mpi = self.Mpi(self, mpiComm=mpiComm)
         if self.mpi.comm.rank == 0:
             self.isRoot = True
         else:

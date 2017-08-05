@@ -7,6 +7,9 @@ processing records
 @author: geiges, GCF
 """
 
+import matplotlib as mpl
+mpl.use('Agg')
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,8 +25,8 @@ sys.path.append('modules/')
 import seaborn as sns; sns.set()
 from class_auxiliary import loadObj
 
-sns.set_color_codes("dark")
-
+#sns.set_color_codes("dark")
+sns.color_palette("Paired")
 #%% init
 plotRecords       = 1
 plotCarStockBar   = 1
@@ -37,10 +40,11 @@ incomePerLabel    = 1
 greenPerIncome    = 1
 expectUtil        = 1
 meanPrefPerLabel  = 1
+meanESSR          = 0
 meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
-doFolium = 1
+doFolium = 0
 
 
 
@@ -117,7 +121,25 @@ if averageCarAge:
     plt.title('Average fleet age per mobility type')  
     plt.savefig(path + 'fleetAge')
 
+if meanESSR:
+    res = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['ESSR'][0]])/12
     
+    fig = plt.figure()
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average relative effective sample size')  
+    plt.savefig(path + 'ESSR')
+
+        
     
     
 #%%
@@ -719,7 +741,8 @@ if printCellMaps:
         
     #%%
     plt.figure()
-    plt.imshow(parameters['landLayer'])
+    plt.colormap('jet')
+    plt.imshow(simParas['landLayer'])
     plt.colorbar()
     plt.figure()
     plt.clf()

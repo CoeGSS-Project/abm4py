@@ -54,12 +54,16 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters, maxNodes, debug):
+    def __init__(self, parameters, maxNodes, debug, mpiComm=None):
         
         nSteps     = parameters.nSteps
-        self.computeTime = 0
-       
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug)
+        
+        self.computeTime = np.zeros(parameters.nSteps)
+        self.syncTime    = np.zeros(parameters.nSteps)
+        self.waitTime    = np.zeros(parameters.nSteps)
+        self.ioTime      = np.zeros(parameters.nSteps)
+        
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -258,11 +262,18 @@ class Earth(World):
             for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.step(self)
+     
+        self.computeTime[self.time] = time.time()-tt
+        
         ttSync = time.time()
         self.mpi.comm.Barrier()
-        self.dprint('Barrier waiting after step required ' + str(ttSync-time.time()) + ' seconds')
+        
+        self.waitTime[self.time] = time.time()-ttSync
+        print 'Barrier waiting after step required ' + str(time.time() - ttSync) + ' seconds'
+        
         ttSync = time.time()
-        self.mpi.updateGhostNodes([_pers])
+        self.mpi.updateGhostNodes([_pers],['commUtil'])
+        self.syncTime[self.time] = time.time()-ttSync
         self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
         
         for adult in self.iterEntRandom(_pers):
@@ -271,12 +282,19 @@ class Earth(World):
         # proceed step
         #self.writeAgentFile()
         #self.mpi.comm.Barrier()
+
+        ttIO = time.time()
+        #earth.writeAgentFile()
+        self.io.gatherNodeData(self.time)
+        self.io.writeDataToFile()
+        self.ioTime[self.time] = time.time()-ttSync
+        print ' - agent file written in ' +  str(time.time()-ttIO) + ' s'
         
         if self.para['omniscientAgents']:
-            print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
+            print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
         else:
-            print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s',
-        self.computeTime += time.time()-tt
+            print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
+        
         
     def finalize(self):
         
@@ -636,6 +654,8 @@ class Person(Agent):
         if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
             if np.sum(post) > 0:
                 edges['weig'] = post    
+        
+                self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
     
     
     def weightFriendExperience(self, world):
@@ -782,74 +802,74 @@ class Person(Agent):
         
         
         
-    def getExpectedUtilityNew(self, world):
-        #self.friendNodeSeq['expUtilNew']
-        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
-        weights = np.asarray(weights)
-        
-        if world.para['allTypeObservations']:
-            observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
-            
-            self.node['expUtilNew'] = observedUtil.tolist()
-            return np.hstack([np.array([self.node['util']]), observedUtil])
-        
-        else:
-            observedUtil= np.zeros(len(world.enums['mobilityTypes'])+1)
-            utilFriends = np.asarray(self.friendNodeSeq['expUtilNew'])
-            mobTypeFriends = np.asarray(self.friendNodeSeq['mobType'])
-            
-            observedUtil[0] = self.node['util']
-            for mobType in range(len(world.enums['mobilityTypes'])):
-                
-                boolList = mobTypeFriends == mobType
-                
-                if np.sum(boolList)> 2:
-                    
-                    observedUtil[mobType+1] = np.dot(weights[boolList],utilFriends[boolList,mobType])
-                else:
-                    observedUtil[mobType+1] = np.nan
-            
-            return observedUtil
-    
-
-    def getExpectedUtility(self,world):
-        """ 
-        return all possible actions with their expected consequences
-        """
-
-        if len(self.obs) == 0:
-            return np.array([-1]), np.array(self.node['util'])
-
-        obsMat, timeWeights    = self.getObservationsMat(world,['hhID', 'utility','label'])
-       
-        if obsMat.shape[0] == 0:
-            return np.array([-1]), np.array(self.node['util'])
-        
-        observedActions       = np.hstack([np.array([-1]), np.unique(obsMat[:,-1])]) # action = -1 -> keep old car
-        observedUtil          = observedActions*0
-        observedUtil[0]       = self.node['util']              # utility of keeping old car = present utility
-        
-        tmpWeights = np.zeros([len(observedActions)-1,obsMat.shape[0]])
-        weighted = True
-        
-        if weighted:
-                
-            weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
-            
-            target = [edge.target for edge in edges]
-            srcDict =  dict(zip(target,weights))
-            for i, id_ in enumerate(observedActions[1:]):
-                
-                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
-                #tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
-        else:
-            for i, id_ in enumerate(observedActions[1:]):
-                tmpWeights[i,obsMat[:,-1] == id_] = 1
-            
-        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
-        #maxid = np.argmax(avgUtil)
-        observedUtil[1:] = avgUtil
-        return observedActions.tolist(), observedUtil.tolist()
+#    def getExpectedUtilityNew(self, world):
+#        #self.friendNodeSeq['expUtilNew']
+#        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+#        weights = np.asarray(weights)
+#        
+#        if world.para['allTypeObservations']:
+#            observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
+#            
+#            self.node['expUtilNew'] = observedUtil.tolist()
+#            return np.hstack([np.array([self.node['util']]), observedUtil])
+#        
+#        else:
+#            observedUtil= np.zeros(len(world.enums['mobilityTypes'])+1)
+#            utilFriends = np.asarray(self.friendNodeSeq['expUtilNew'])
+#            mobTypeFriends = np.asarray(self.friendNodeSeq['mobType'])
+#            
+#            observedUtil[0] = self.node['util']
+#            for mobType in range(len(world.enums['mobilityTypes'])):
+#                
+#                boolList = mobTypeFriends == mobType
+#                
+#                if np.sum(boolList)> 2:
+#                    
+#                    observedUtil[mobType+1] = np.dot(weights[boolList],utilFriends[boolList,mobType])
+#                else:
+#                    observedUtil[mobType+1] = np.nan
+#            
+#            return observedUtil
+#    
+#
+#    def getExpectedUtility(self,world):
+#        """ 
+#        return all possible actions with their expected consequences
+#        """
+#
+#        if len(self.obs) == 0:
+#            return np.array([-1]), np.array(self.node['util'])
+#
+#        obsMat, timeWeights    = self.getObservationsMat(world,['hhID', 'utility','label'])
+#       
+#        if obsMat.shape[0] == 0:
+#            return np.array([-1]), np.array(self.node['util'])
+#        
+#        observedActions       = np.hstack([np.array([-1]), np.unique(obsMat[:,-1])]) # action = -1 -> keep old car
+#        observedUtil          = observedActions*0
+#        observedUtil[0]       = self.node['util']              # utility of keeping old car = present utility
+#        
+#        tmpWeights = np.zeros([len(observedActions)-1,obsMat.shape[0]])
+#        weighted = True
+#        
+#        if weighted:
+#                
+#            weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+#            
+#            target = [edge.target for edge in edges]
+#            srcDict =  dict(zip(target,weights))
+#            for i, id_ in enumerate(observedActions[1:]):
+#                
+#                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
+#                #tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
+#        else:
+#            for i, id_ in enumerate(observedActions[1:]):
+#                tmpWeights[i,obsMat[:,-1] == id_] = 1
+#            
+#        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
+#        #maxid = np.argmax(avgUtil)
+#        observedUtil[1:] = avgUtil
+#        return observedActions.tolist(), observedUtil.tolist()
  
 class GhostPerson(GhostAgent):
     
@@ -1038,7 +1058,7 @@ class Household(Agent):
                 randIdx = np.random.randint(len(actionIdsList))
                 actionIdsList[randIdx] = [-1]
                 eUtilsList[randIdx] =  [adult.node['util']]#[ eUtilsList[randIdx][0] ]
-            print 'large Household'
+            #print 'large Household'
         
         combActions = aux.cartesian(actionIdsList)
         overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1,keepdims=True)
@@ -1311,6 +1331,7 @@ class Household(Agent):
             actionTaken = self.bestMobilityChoice(earth)
             self.calculateConsequences(earth.market)
             self.util = self.evalUtility(earth, actionTaken)
+            self.evalExpectedUtility(earth)
             
         self.computeTime += time.time() - tt
             
@@ -1401,7 +1422,8 @@ class Cell(Location):
     def getX(self, choice):
         return copy.copy(self.xCell[choice,:])
 
-    def selfTest(self):
+    def selfTest(self, world):
+        self.node['population'] = world.para['population'][self.node['pos']]
         convAll = self.calculateConveniences()
    
         for x in convAll:
@@ -1418,7 +1440,7 @@ class Cell(Location):
         #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.05,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
+            convAll.append(min(1., max(0.0,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
         return convAll
 
         

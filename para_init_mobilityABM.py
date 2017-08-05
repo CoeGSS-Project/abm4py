@@ -53,6 +53,8 @@ long-term:
 #TODO
 # random iteration (even pairs of agents)
 from __future__ import division
+import matplotlib
+matplotlib.use('Agg')
 import sys, os
 from os.path import expanduser
 import igraph as ig
@@ -65,10 +67,10 @@ import numpy as np
 import time
 #import mod_geotiff as gt
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
-
+import mpi4py.MPI as MPI
 import class_auxiliary  as aux #convertStr
-import matplotlib
-matplotlib.use('TKAgg')
+
+import matplotlib.pylab as plt
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 #import matplotlib.pyplot as plt
@@ -120,7 +122,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer   = np.asarray([[ 1     , 1, 1 , np.nan, np.nan],
                                     [ np.nan, 1, 0 , np.nan, 0     ],
                                     [ np.nan, 1, 0 , 0     , 0     ]])
-    setup.landLayer = setup.landLayer*0
+    if mpiSize == 1:
+        setup.landLayer = setup.landLayer*0
     setup.regionIdRaster    = setup.landLayer*1518
     setup.regionIdRaster[0:,0:2] = 6321
     setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,5,setup.landLayer.shape)
@@ -196,11 +199,11 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    setup.population = 10*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*0
+    setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*2
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
-    setup.landLayer[:,:4] = setup.landLayer[:,:4]*0
+    setup.landLayer[:,:5] = setup.landLayer[:,:5]*0
     #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
     #setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
     #setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
@@ -272,12 +275,11 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         # overwrite the standart parameter
         setup.reductionFactor = parameterInput.reductionFactor
         
-    #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust12_x_radius3.5.npy')
-    setup.landLayer = setup.landLayer[1:-1,1:-1]
-    #setup.landLayer = setup.landLayer
-    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    if mpiSize > 1:
+        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+    else:
+        setup.landLayer = setup.landLayer * 0
+    
     
     print 'max rank:',np.nanmax(setup.landLayer)
     
@@ -355,13 +357,15 @@ def scenarioNBH(parameterInput, dirPath):
         setup.reductionFactor = parameterInput.reductionFactor
 
             
-    #setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+    #
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust48.npy')
-    setup.landLayer = setup.landLayer[1:-1,1:-1]
-    #setup.landLayer = setup.landLayer
-    #setup.landLayer = setup.landLayer * 0
-    
+    if mpiSize > 1:
+        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+    else:
+        import mod_geotiff as gt
+        setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+        setup.landLayer = setup.landLayer * 0
+       
     print 'max rank:',np.nanmax(setup.landLayer)
     
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
@@ -378,7 +382,7 @@ def scenarioNBH(parameterInput, dirPath):
         except:
             pass
     setup.landLayer[np.isnan(setup.population)] = np.nan
-    nAgents    = np.nansum(setup.population)
+    
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -407,18 +411,20 @@ def scenarioNBH(parameterInput, dirPath):
     setup['population']     /= setup['reductionFactor']
     setup['urbanThreshold'] /= setup['reductionFactor']
     setup['urbanCritical']  /= setup['reductionFactor']
+    setup['puplicTransBonus']  /= setup['reductionFactor']
+    setup.convD /= setup['reductionFactor']
     
     # calculate dependent parameters
     maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
     
- 
+    
     print "Final setting of the parameters"
     print parameterInput
     print "####################################"
     
-    
+    nAgents    = np.nansum(setup.population)
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     print 'Running with ' + str(nAgents) + ' agents'
     
@@ -443,11 +449,11 @@ def mobilitySetup(earth, parameters):
          return conv
             
     def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = max(0.2, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
+        conv = max(0.1, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
         return conv
     
     def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold + cell.puplicTransBonus)))
+        conv = max(0.05 ,paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold + cell.puplicTransBonus))))
         return conv
     
                          #(emmisions, TCO)         
@@ -548,6 +554,7 @@ def householdSetup(earth, parameters, calibration=False):
                                      prop        = [0]*len(parameters.properties),
                                      consequences= [0]*len(prefTuple),
                                      lastAction  = 0,
+                                     ESSR        = 1,
                                      innovatorDegree = np.random.randn())
                 
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
@@ -591,10 +598,10 @@ def householdSetup(earth, parameters, calibration=False):
 
 
 
-def initEarth(parameters, maxNodes, debug):
+def initEarth(parameters, maxNodes, debug, mpiComm=None):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=maxNodes, debug = debug)
+    earth = Earth(parameters,maxNodes=maxNodes, debug = debug, mpiComm=mpiComm)
     
 
     earth.initMarket(earth,
@@ -678,6 +685,7 @@ def initTypes(earth, parameters):
                                                   'prop',
                                                   'consequences',
                                                   'lastAction',
+                                                  'ESSR',
                                                   'innovatorDegree'])
     
     earth.registerEdgeType('cell-cell',_cell, _cell, ['type','weig'])
@@ -709,16 +717,17 @@ def cellTest(earth, parameters):
     convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeDict[1])])
     popArray = np.zeros([len(earth.nodeDict[1])])
     for i, cell in enumerate(earth.iterEntRandom(_cell)):
-        convAll, population = cell.selfTest()
+        convAll, population = cell.selfTest(earth)
         convArray[:,i] = convAll
         popArray[i] = population
     
     
     if earth.para['showFigures']:
+
         plt.figure()
         for i in range(earth.market.getNTypes()):    
             plt.subplot(2,2,i+1)
-            plt.scatter(popArray,convArray[i,:])    
+            plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
     
@@ -877,11 +886,8 @@ def runModel(earth, parameters):
         #plt.figure()
         #calGreenNeigbourhoodShareDist(earth)
         #plt.show()
-        tt = time.time()
-        #earth.writeAgentFile()
-        earth.io.gatherNodeData(earth.time)
-        earth.io.writeDataToFile()
-        print ' - agent file written in ' +  str(time.time()-tt) + ' s'
+
+    
         
     
     #%% Finishing the simulation    
@@ -1080,12 +1086,25 @@ def setupHouseholdsWithOptimalChoice():
    
 ######################################################################################
 
+# GLOBAL INIT  MPI
+comm = MPI.COMM_WORLD
+mpiRank = comm.Get_rank()
+mpiSize = comm.Get_size()
+
+if mpiRank != 0:
+    olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
+    sys.stdout = olog_file
+    elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
+    sys.stderr = elog_file
+
+
 if __name__ == '__main__':
 #from pycallgraph import PyCallGraph
 #from pycallgraph.output import GraphvizOutput
 #
 #with PyCallGraph(output=GraphvizOutput()):
         
+
     
     dirPath = os.path.dirname(os.path.realpath(__file__))
     
@@ -1151,35 +1170,38 @@ if __name__ == '__main__':
         earth = setupHouseholdsWithOptimalChoice()
         
     if parameters.scenario == 5: #graph part
-      parameters = scenarioNBH(parameters, dirPath)  
-      parameters.landLayer = parameters.landLayer * 0
-      parameters.showFigures = showFigures
-      earth = initEarth(parameters, maxNodes=1000000, debug =True)
-      _cell, _hh, _pers = initTypes(earth,parameters)
-      initSpatialLayer(earth, parameters)
-      for cell in earth.iterEntRandom(_cell):
+        parameters = scenarioNBH(parameters, dirPath)  
+        parameters.landLayer = parameters.landLayer * 0
+        parameters.showFigures = showFigures
+        earth = initEarth(parameters, maxNodes=1000000, debug =True)
+        _cell, _hh, _pers = initTypes(earth,parameters)
+        initSpatialLayer(earth, parameters)
+        for cell in earth.iterEntRandom(_cell):
             cell.node['population'] = parameters.population[cell.node['pos']]
-      aux.writeAdjFile(earth.graph,'outGraph.txt')
-      asd
+        earth.view('spatial_graph.png')            
+        aux.writeAdjFile(earth.graph,'outGraph.txt')
+        
+        exit
     else:
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=1000000, debug =True)
+        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm)
         
-        if earth.mpi.rank != 0:
-            olog_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-            sys.stdout = olog_file
-            elog_file  = open('err' + str(earth.mpi.rank) + '.txt', 'w')
-            sys.stderr = elog_file
+
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         
         initSpatialLayer(earth, parameters)
+        
+        
+
         #aux.writeAdjFile(earth.graph,'outGraph.txt')
         #sdf
         mobilitySetup(earth, parameters)
         
+        
+        #cellTest(earth, parameters)
         householdSetup(earth, parameters)
         
         
@@ -1200,9 +1222,10 @@ if __name__ == '__main__':
         print '####### Running model with paramertes: #########################'
         import pprint 
         pprint.pprint(parameters.toDict())
-        fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
-        pprint.pprint(parameters.toDict(), fidPara)
-        fidPara.close()
+        if mpiRank == 0:
+            fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
+            pprint.pprint(parameters.toDict(), fidPara)
+            fidPara.close()
         print '################################################################'
         
         runModel(earth, parameters)
@@ -1210,10 +1233,31 @@ if __name__ == '__main__':
         
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         
+        
+        
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
         
-        writeSummary(earth, calRunID, calParaDf, parameters)
+        plt.figure()
+        
+        allTime = np.zeros(earth.nSteps)
+        colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
+        
+
+        for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
+            plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
+            allTime += var
+        plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
+        plt.tight_layout()
+        plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
+        
+        
+        #tmp = earth.mpi.comm.gather(earth.computeTime)
+        #if mpiRank == 0:
+        #    print tmp
+        
+        if mpiSize ==1:
+            writeSummary(earth, calRunID, calParaDf, parameters)
     
         
    

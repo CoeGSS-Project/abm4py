@@ -227,14 +227,7 @@ plt.figure()
 plt.subplot(1,3,1)
 plt.imshow( clusterMap_old)
 
-nClusters=12
-np.sum(np.isnan(population)==False)
-fid = open("outGraph.txt.part." + str(nClusters),'r')
-x = fid.readlines()
-y = [int(xx) for xx in x]
-yy = np.asarray(y)+1
-nonNan = np.isnan(population)==False
-clusterMap[nonNan] = yy
+
 plt.figure()
 score1, devPerCluster, popPerCluster = calcPopDeviation(population,clusterMap, nClusters)
 score2, popSurr = calPopSurrounging(population, clusterMap, nClusters, brush, intRad)
