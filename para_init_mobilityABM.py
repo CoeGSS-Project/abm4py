@@ -27,8 +27,16 @@ along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 TODOs
 
 short-term:
+    - utility test center
+    - realistic physical values
+    - test learing niches 
+    - I/O on lustre
+    - utility potential for omnicent knowledge
+    - MCMC evolution of the synthetic population
+        - add/remove households and draw acceptance accourding to available statistics
+        - what about if no data is available ??? -> extrapolation of statistics
     
-    - combine self-experience with community-experience
+    - (done)combine self-experience with community-experience
     - entropy on networks (distribution of weights)
         - entire network
         - per agent
@@ -52,12 +60,11 @@ long-term:
 #%%
 #TODO
 # random iteration (even pairs of agents)
-from __future__ import division
+#from __future__ import division
 import matplotlib
 matplotlib.use('Agg')
 import sys, os
 from os.path import expanduser
-import igraph as ig
 home = expanduser("~")
 #sys.path.append(home + '/python/decorators/')
 sys.path.append(home + '/python/modules/')
@@ -67,14 +74,14 @@ import numpy as np
 import time
 #import mod_geotiff as gt
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
-import mpi4py.MPI as MPI
+from mpi4py import  MPI
 import class_auxiliary  as aux #convertStr
 
 import matplotlib.pylab as plt
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
 #import matplotlib.pyplot as plt
-import tqdm
+
 import pandas as pd
 from bunch import Bunch
 from copy import copy
@@ -362,8 +369,8 @@ def scenarioNBH(parameterInput, dirPath):
     if mpiSize > 1:
         setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
     else:
-        import mod_geotiff as gt
-        setup.landLayer= gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
+        
+        setup.landLayer=  np.load(setup.resourcePath + 'land_layer_62x118.npy')
         setup.landLayer = setup.landLayer * 0
        
     print 'max rank:',np.nanmax(setup.landLayer)
@@ -747,7 +754,11 @@ def initMobilityTypes(earth, parameters):
  
 def initGlobalRecords(earth, parameters):
     tt = time.time()
-    earth.registerRecord('stockBremen', 'total use per mobility type - Bremen', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord('stockBremen', 
+                         'total use per mobility type - Bremen', 
+                         earth.enums['mobilityTypes'].values(), 
+                         style ='plot', 
+                         mpiReduce='sum')
     
     calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
     calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
@@ -765,9 +776,13 @@ def initGlobalRecords(earth, parameters):
         timeIdxs.append(timeIdx)
         values.append(value)
           
-    earth.globalData['stockBremen'].addCalibrationData(timeIdxs,values)
+    earth.globalRecord['stockBremen'].addCalibrationData(timeIdxs,values)
  
-    earth.registerRecord('stockNiedersachsen', 'total use per mobility type - Niedersachsen', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord(name='stockNiedersachsen', 
+                         title='total use per mobility type - Niedersachsen', 
+                         colLables=earth.enums['mobilityTypes'].values(), 
+                         style ='plot',
+                         mpiReduce='sum')
     
     timeIdxs = list()
     values   = list()
@@ -783,9 +798,13 @@ def initGlobalRecords(earth, parameters):
         timeIdxs.append(timeIdx)
         values.append(value)
          
-    earth.globalData['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
+    earth.globalRecord['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
 
-    earth.registerRecord('stockHamburg', 'total use per mobility type - Hamburg', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord('stockHamburg', 
+                         'total use per mobility type - Hamburg', 
+                         earth.enums['mobilityTypes'].values(),
+                         style ='plot',
+                         mpiReduce='sum')
     
     timeIdxs = list()
     values   = list()
@@ -801,7 +820,7 @@ def initGlobalRecords(earth, parameters):
         timeIdxs.append(timeIdx)
         values.append(value)
          
-    earth.globalData['stockHamburg'].addCalibrationData(timeIdxs,values)
+    earth.globalRecord['stockHamburg'].addCalibrationData(timeIdxs,values)
     
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('infraKappa', 'Infrastructure kappa', ['Kappa'], style ='plot')
@@ -897,8 +916,8 @@ def runModel(earth, parameters):
     earth.finalize()        
 
 def writeSummary(earth, calRunId, paraDf, parameters):
-    errBremen = earth.globalData['stockBremen'].evaluateRelativeError()
-    errNiedersachsen = earth.globalData['stockNiedersachsen'].evaluateRelativeError()
+    errBremen = earth.globalRecord['stockBremen'].evaluateRelativeError()
+    errNiedersachsen = earth.globalRecord['stockNiedersachsen'].evaluateRelativeError()
     fid = open('summary.out','w')
     fid.writelines('Calibration run id: ' + str(calRunId) + '\n')
     fid.writelines('Parameters:')
@@ -1091,7 +1110,7 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-if mpiRank != 0:
+if mpiRank != 0 and False:
     olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
     sys.stdout = olog_file
     elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
@@ -1143,19 +1162,36 @@ if __name__ == '__main__':
 
     if parameters.scenario == 0:
         
-        parameters = scenarioTestSmall(parameters, dirPath)
-
+        if mpiRank == 0:
+            parameters = scenarioTestSmall(parameters, dirPath)
+        else: 
+            parameters = None
+        parameters = comm.bcast(parameters)
+        
     elif parameters.scenario == 1:
 
-        parameters = scenarioTestMedium(parameters, dirPath)
+        if mpiRank == 0:
+            parameters = scenarioTestMedium(parameters, dirPath)
+        else: 
+            parameters = None
+        parameters = comm.bcast(parameters)
         
     elif parameters.scenario == 2:
         
-        parameters = scenarioNiedersachsen(parameters, dirPath)
+        if mpiRank == 0:
+            parameters = scenarioNiedersachsen(parameters, dirPath)
+        else: 
+            parameters = None
+        parameters = comm.bcast(parameters)
         
     elif parameters.scenario == 3:
         
-        parameters = scenarioNBH(parameters, dirPath)  
+        if mpiRank == 0:
+            parameters = scenarioNBH(parameters, dirPath)
+        else: 
+            parameters = None
+        parameters = comm.bcast(parameters)
+        
         
     if parameters.scenario == 4:
         # test scenario 
@@ -1203,7 +1239,6 @@ if __name__ == '__main__':
         
         #cellTest(earth, parameters)
         householdSetup(earth, parameters)
-        
         
         cellTest(earth, parameters)
 

@@ -55,7 +55,8 @@ later:
 
   
 """
-from __future__ import division
+from mpi4py import  MPI
+#from __future__ import division
 
 from os.path import expanduser
 home = expanduser("~")
@@ -63,11 +64,15 @@ import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 print dir_path
 import sys
-sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+import socket
+if socket.gethostname() == 'gcf-VirtualBox':
+    sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
+    
 
 import igraph as ig
 import numpy as np
-import mpi4py.MPI as MPI
+
 import time 
 from bunch import Bunch
 #import array
@@ -421,7 +426,7 @@ class Location(Entity):
 
     def __getGlobID__(self,world):
         return world.globIDGen.next()
-    
+  
     def __init__(self, world, **kwProperties):
         if 'nID' not in kwProperties.keys():
             nID = None
@@ -481,7 +486,7 @@ class GhostLocation(Entity):
 class World:
     #%% World sub-classes
     
-    class Globals(Bunch):
+    class Globals(dict):
         """ This class manages global variables that are assigned on all processes
         and are synced via mpi. Global variables need to be registered together with
         the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
@@ -518,7 +523,7 @@ class World:
             #self.operations['std'] = MPI.Op.Create(np.std)
             
         #%% simple global reductions       
-        def registerValue(self,globName, value, reduceType):
+        def registerValue(self, globName, value, reduceType):
             self[globName] = value
             if reduceType not in self.reduceDict.keys():
                 self.reduceDict[reduceType] = list()
@@ -539,9 +544,22 @@ class World:
         def registerStat(self, globName, values, statType):
             #statfunc = self.statOperations[statType]
             
+            assert statType in ['mean', 'std','var']
+            
+            
+            if not isinstance(values, (list, tuple,np.ndarray)):
+                values = [values]
+            values = np.asarray(values)
+            
+            
             self.values[globName]   = values
-            self.nValues[globName] = len(values)    
-            self[globName]          = None # e.g. compution mean, std, var
+            self.nValues[globName] = len(values)  
+            if statType == 'mean':
+                self[globName]          = np.mean(values)
+            elif statType == 'std':
+                self[globName]          = np.std(values) 
+            elif statType == 'var':
+                self[globName]          = np.var(values) 
 
             if statType not in self.statsDict.keys():
                 self.statsDict[statType] = list()
@@ -1074,7 +1092,7 @@ class World:
             return buff
             
     #%% INIT WORLD            
-    def __init__(self,spatial=True, nSteps= 1, maxNodes = 1e6, debug = False, mpiComm=None):
+    def __init__(self, spatial=True, nSteps= 1, maxNodes = 1e6, debug = False, mpiComm=None):
         
         self.timeStep = 0
         
@@ -1128,18 +1146,9 @@ class World:
         else:
             self.isRoot = False
         
-        #if not self.debug :
-        self.simNo = aux.getSimulationNumber(self.mpi.comm)
-        #else:
-        #    self.simNo = 0
-        #    print "######### DEBUG MODE #########################"
-        #    print "simulation number is set to zero in debug mode"
-        #    print "##############################################"
-        # acquire simulation number if process is rank 0        
-        
-        
 
-        self.para['outPath']    = 'output/sim' + str(self.simNo).zfill(4)
+        self.simNo, basePath = aux.getEnvironment(self.mpi.comm)
+        self.para['outPath']  = basePath + 'sim' + str(self.simNo).zfill(4)
         
         if self.isRoot:
             
@@ -1148,7 +1157,7 @@ class World:
         
             
             
-        
+        self.mpi.comm.Barrier()
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
         
@@ -1386,13 +1395,7 @@ class World:
         for key in parameterDict.keys():
             self.para[key] = parameterDict[key]
             
-    
-    
-    
-
-
-        
-    
+  
     def view(self,filename = 'none', vertexProp='none', dispProp='gID', layout=None):
         try:
             import matplotlib.cm as cm

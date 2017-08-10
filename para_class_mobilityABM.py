@@ -75,7 +75,7 @@ class Earth(World):
         self.brandDict  = dict()
         self.brands     = list()
         
-        self.globalData  = dict() # storage of global data
+        self.globalRecord  = dict() # storage of global data
         
         # transfer all parameters to earth
         parameters.simNo = self.simNo
@@ -98,9 +98,14 @@ class Earth(World):
         
         
                 
-    def registerRecord(self, name, title, colLables, style ='plot'):
-        self.globalData[name] = aux.Record(name, colLables, self.nSteps, title, style)
-        
+    def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
+
+        self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
+        #print self.globalRecord[name]
+        if mpiReduce is not None:
+            self.glob.registerValue(name , np.asarray([0]*len(colLables)),mpiReduce)
+            self.globalRecord[name].glob = self.glob
+            
     # init car market    
     def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
         self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn, greenInfraMalus=greenInfraMalus)
@@ -223,7 +228,19 @@ class Earth(World):
         elif self.timeUnit == 1: # years
             self.date[1] +=1
             
+        #update global data
+        for cell in self.iterEntRandom(_cell):
+            if cell.node['regionId'] == 6321:
+                self.globalRecord['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
+            elif cell.node['regionId'] == 1518:
+                self.globalRecord['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
+            elif cell.node['regionId'] == 1520:
+                self.globalRecord['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
         
+        # move values to global data class
+        self.globalRecord['stockNiedersachsen'].updateValues(self.time) 
+        self.globalRecord['stockBremen'].updateValues(self.time) 
+        self.globalRecord['stockHamburg'].updateValues(self.time) 
         
         ttSync = time.time()
         self.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
@@ -232,6 +249,13 @@ class Earth(World):
         self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
         self.dprint('globals synced in ' +str(time.time()- ttSync) + ' seconds')
+
+        #gather data back to the records
+        
+        self.globalRecord['stockNiedersachsen'].gatherSyncDataToRec(self.time) 
+        self.globalRecord['stockBremen'].gatherSyncDataToRec(self.time) 
+        self.globalRecord['stockHamburg'].gatherSyncDataToRec(self.time) 
+        
         
         # proceed market in time
         #print 'sales after sync: ',self.glob['sales']
@@ -243,14 +267,6 @@ class Earth(World):
             cell.step(self.market.kappa)
 
 
-        #update global data
-        for cell in self.iterEntRandom(_cell):
-            if cell.node['regionId'] == 6321:
-                self.globalData['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
-            elif cell.node['regionId'] == 1518:
-                self.globalData['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
-            elif cell.node['regionId'] == 1520:
-                self.globalData['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
 
                 
         # Iterate over households with a progress bar
@@ -304,33 +320,31 @@ class Earth(World):
         for writer in self.reporter:        
             writer.close() 
         
-        # writing global records to file
-        for key in self.globalData:    
-            self.globalData[key].saveCSV(self.para['outPath'])
+        if self.isRoot:
+            # writing global records to file
+            for key in self.globalRecord:    
+                self.globalRecord[key].saveCSV(self.para['outPath'])
+    
+    
+            # saving enumerations            
+            saveObj(self.enums, self.para['outPath'] + '/enumerations')
+            
+            
+            # saving enumerations            
+            saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
+            
+            if self.para['showFigures']:
+                # plotting and saving figures
+                for key in self.globalRecord:
+                    self.globalRecord[key].plot(self.para['outPath'])
 
-
-        # saving enumerations            
-        saveObj(self.enums, self.para['outPath'] + '/enumerations')
-        
-        
-        # saving enumerations            
-        saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
-        
-        if self.para['showFigures']:
-            # plotting and saving figures
-            for key in self.globalData:
-                self.globalData[key].plot(self.para['outPath'])
-            #except:
-        #    pass
-        if self.para['mpi']:
-            os.system("tar -zcvf mobilityABM/rootfs/mnt/ssd/geiges/python/agModel/output.tar.gz mobilityABM/rootfs/mnt/ssd/geiges/python/agModel/" + self.para['outPath'])
 
 class Market():
 
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
 
         #import global variables
-        self.globalData = earth.globalData
+        self.globalRecord = earth.globalRecord
         
         self.dprint = earth.dprint
         self.glob               = earth.glob
@@ -487,12 +501,12 @@ class Market():
         for brandID in range(self.nMobTypes):
             self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
         
-        self.globalData['growthRate'].set(self.time, self.mobilityGrowthRates[brandID])
+        self.globalRecord['growthRate'].set(self.time, self.mobilityGrowthRates[brandID])
         
         # technical process of infrastructure -> given to cells                
         self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
         
-        self.globalData['infraKappa'].set(self.time, self.kappa)
+        self.globalRecord['infraKappa'].set(self.time, self.kappa)
         
         self.dprint('techProgress: ' + str(self.techProgress))
         
@@ -795,11 +809,16 @@ class Person(Agent):
         weights = np.asarray(weights)
         communityUtil = np.dot(weights,np.asarray(self.friendNodeSeq['commUtil']))
         
-        selfUtil =self.node['selfUtil']
+        selfUtil =self.node['selfUtil'][:]
+        mobType   = self.node['mobType']
         
+        # weighting by 3
+        selfUtil[mobType] *= world.para['selfTrust']
+       
+        self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0) 
         
-        self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
-        
+        # adjust mean since double of weigth - very bad code - sorry        
+        self.node['commUtil'][mobType] /= (world.para['selfTrust']+1)/2
         
         
 #    def getExpectedUtilityNew(self, world):

@@ -741,7 +741,7 @@ if printCellMaps:
         
     #%%
     plt.figure()
-    plt.colormap('jet')
+    #plt.colormap('jet')
     plt.imshow(simParas['landLayer'])
     plt.colorbar()
     plt.figure()

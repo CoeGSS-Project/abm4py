@@ -78,29 +78,42 @@ def getsize(obj_0):
     return inner(obj_0)
 
 
-def getSimulationNumber(comm):
+def getEnvironment(comm, getSimNo=True):
     
     if comm.rank == 0:
         # get simulation number from file
         try:
-            fid = open("simNumber","r")
+            fid = open("environment","r")
             simNo = int(fid.readline())
+            basePath = fid.readline().rstrip('\n')
             fid.close()
-            fid = open("simNumber","w")
-            fid.writelines(str(simNo+1))
-            fid.close()
+            if getSimNo:
+                fid = open("environment","w")
+                fid.writelines(str(simNo+1)+ '\n')
+                fid.writelines(basePath)
+                fid.close()
         except:
-            simNo = 0
-            fid = open("simNumber","w")
-            fid.writelines(str(simNo+1))
-            fid.close()
+            print 'ERROR Envirionment file is not set up'
+            print ''
+            print 'Please create file "environment" which contains the simulation'
+            print 'and the basePath'
+            print '#################################################'
+            print "0" 
+            print 'basepath/'
+            print '#################################################'
     else:
-        simNo = None
+        simNo    = None
+        basePath = None
 
-    simNo = comm.bcast(simNo, root=0)
-    print 'simulation number is: ' + str(simNo)
-    return simNo
-
+    if getSimNo:        
+        simNo = comm.bcast(simNo, root=0)
+        basePath = comm.bcast(basePath, root=0)
+        print 'simulation number is: ' + str(simNo)
+        print 'base path is: ' + str(basePath)
+        return simNo, basePath
+    else:
+        basePath = comm.bcast(basePath, root=0)
+        return basePath
     
 def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
     """
@@ -111,7 +124,7 @@ def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)
     intRad = int(radius)
     for x in range(-intRad,intRad+1):
         for y in range(-intRad,intRad+1):
-            if (x**2 +y**2)**.5 < radius:
+            if (x**2 +y**2)**.5 <= radius:
                 if x**2 +y**2 > 0:
                     weig  = weightingFunc(x,y)
                 else:
@@ -265,23 +278,30 @@ class Record():
         for idx, value in zip(timeIdxs, values):
             self.calDataDict[idx] = value
     
-    def set(self, time, data):
-        self.rec[time,:] = data
         
-    def setIdx(self, time, data, idx):
-        self.rec[time,idx] = data
+    def updateValues(self, timeStep):
+        self.glob[self.name] = self.rec[timeStep,:]
+        
+    def gatherSyncDataToRec(self, timeStep):
+        self.rec[timeStep,:] = self.glob[self.name]
+        
+    def set(self, timeStep, data):
+        self.rec[timeStep,:] = data
+        
+    def setIdx(self, timeStep, data, idx):
+        self.rec[timeStep,idx] = data
     
-    def add(self, time, data):
-        self.rec[time,:] += data
+    def add(self, timeStep, data):
+        self.rec[timeStep,:] += data
         
-    def addIdx(self, time, data, idx):
-        self.rec[time,idx] += data
+    def addIdx(self, timeStep, data, idx):
+        self.rec[timeStep,idx] += data
     
-    def div(self, time, data):
-        self.rec[time,:] /= data
+    def div(self, timeStep, data):
+        self.rec[timeStep,:] /= data
         
-    def divIdx(self, time, data, idx):
-        self.rec[time,idx] /= data
+    def divIdx(self, timeStep, data, idx):
+        self.rec[timeStep,idx] /= data
         
     def plot(self, path):
         plt.figure()
