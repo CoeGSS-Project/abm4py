@@ -49,7 +49,12 @@ doFolium = 0
 
 
 simNo = sys.argv[1]
-path = 'output/sim'+ str(simNo).zfill(4) + '/'
+import socket
+if socket.gethostname() not in ['gcf-VirtualBox', 'ThinkStation-D30']:
+    path = '/mnt/lustre/geiges/output/sim'+ str(simNo).zfill(4) + '/'
+else:
+    path = 'output/sim'+ str(simNo).zfill(4) + '/'
+    
 
 simParas   = loadObj(path + 'simulation_parameters')
 

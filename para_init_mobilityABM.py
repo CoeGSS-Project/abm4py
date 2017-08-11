@@ -69,12 +69,19 @@ home = expanduser("~")
 #sys.path.append(home + '/python/decorators/')
 sys.path.append(home + '/python/modules/')
 sys.path.append(home + '/python/agModel/modules/')
+
+import socket
+dir_path = os.path.dirname(os.path.realpath(__file__))
+if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+    sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
 #from deco_util import timing_function
 import numpy as np
 import time
 #import mod_geotiff as gt
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
 from mpi4py import  MPI
+import h5py
 import class_auxiliary  as aux #convertStr
 
 import matplotlib.pylab as plt
@@ -127,12 +134,13 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.isSpatial       = True
     setup.connRadius      = 1.5     # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[ 1     , 1, 1 , np.nan, np.nan],
-                                    [ np.nan, 1, 0 , np.nan, 0     ],
-                                    [ np.nan, 1, 0 , 0     , 0     ]])
+                                    [ np.nan, 1, 1 , np.nan, 0     ],
+                                    [ np.nan, 0, 0 , 0     , 0     ]])
+    setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster[0:,0:2] = ((setup.landLayer[0:,0:2]*0)+1) *6321
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
-    setup.regionIdRaster    = setup.landLayer*1518
-    setup.regionIdRaster[0:,0:2] = 6321
+
     setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,5,setup.landLayer.shape)
     
     #social
@@ -201,15 +209,19 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
                                     [1, 1, 1, 1, 0, 0, 0, 0, 0]])
     
-    setup.regionIdRaster    = setup.landLayer*1518
-    setup.regionIdRaster[3:,0:3] = 6321
-
+    
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
     setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*2
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
+    
+    
+    setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster[3:,0:3] = ((setup.landLayer[3:,0:3]*0)+1) *6321
+
+    
     setup.landLayer[:,:5] = setup.landLayer[:,:5]*0
     #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
     #setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
@@ -378,7 +390,14 @@ def scenarioNBH(parameterInput, dirPath):
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
     setup.population = np.load(setup.resourcePath + 'land_layer_62x118.npy')
     #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy')
+    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy') 
+    # bad bugfix for 4 cells
+    setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+    
+    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
+    
+    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
+    setup.regionIdRaster = setup.regionIdRaster.astype(int)
     
     if False:
         try:
@@ -477,36 +496,56 @@ def mobilitySetup(earth, parameters):
 
 def householdSetup(earth, parameters, calibration=False):
     tt = time.time()
-    idx = 0
+    
     nAgents = 0
     nHH     = 0
-
+    tmp = np.unique(parameters.regionIdRaster)
+    #print tmp
+    regionIdxList = tmp[tmp>0]
+    nRegions = np.sum(tmp>0)
+    
     boolMask = parameters['landLayer']==earth.mpi.comm.rank
-    nAgentsOnProcess = np.sum(parameters.population[boolMask])
-
+    nAgentsOnProcess = np.ndarray(nRegions)
+    for i, region in enumerate(regionIdxList):
+        boolMask2 = parameters.regionIdRaster== region
+        nAgentsOnProcess[i] = np.sum(parameters.population[boolMask & boolMask2])
+        
+          
+    #print mpiRank, nAgentsOnProcess
     nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
-    
-    # calculate start in the agent file (20 overhead for complete households)
-    agentStart = int(np.sum(nAgentsPerProcess[:earth.mpi.comm.rank]) + earth.mpi.comm.rank*20)
-    agentEnd   = int(np.sum(nAgentsPerProcess[:earth.mpi.comm.rank+1]) + (earth.mpi.comm.rank+1)*20)
-    
-    print 'Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd)
-    
-    if earth.debug:
-        print 'Vertex count: ',earth.graph.vcount()
-        earth.view(str(earth.mpi.rank) + '.png')
-    if not parameters.randomAgents:
-
-        hhMat = pd.read_csv(parameters.synPopPath, skiprows = agentStart, nrows= (agentEnd - agentStart)).values
-        print 'size of hhMat: ',hhMat.shape
-
-    # find the correct possition in file 
-    nPers = hhMat[idx,4] 
-    if np.sum(np.diff(hhMat[idx:idx+nPers,4])) !=0:
+    #print nAgentsPerProcess
+    nAgentsOnProcess = np.array(nAgentsPerProcess)  
+    print nAgentsOnProcess
+    hhData = dict()
+    currIdx = dict()
+    for i, region in enumerate(regionIdxList):
+        idx = 0
+        # calculate start in the agent file (20 overhead for complete households)
+        agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]) + earth.mpi.comm.rank*20)
+        agentEnd   = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank+1,i]) + (earth.mpi.comm.rank+1)*20)
         
-        #new index for start of a complete household
-        idx = idx + np.where(np.diff(hhMat[idx:idx+nPers,4]) !=0)[0][0]
+        print 'Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region)
         
+        if earth.debug:
+            print 'Vertex count: ',earth.graph.vcount()
+            earth.view(str(earth.mpi.rank) + '.png')
+        
+        h5File      = h5py.File('resources_NBH/people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
+        dset = h5File.get('people')
+        hhData[i] = dset[agentStart:agentEnd,]
+    
+        #print hhData
+        earth.mpi.comm.Barrier()
+        h5File.close()
+    
+
+        # find the correct possition in file 
+        nPers = int(hhData[i][idx,0])
+        if np.sum(np.diff(hhData[i][idx:idx+nPers,0])) !=0:
+            
+            #new index for start of a complete household
+            idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers,0]) !=0)[0][0]
+        currIdx[i] = int(idx)
     opinion =  Opinion(earth)
     nAgentsCell = 0
     for x,y in earth.locDict.keys():
@@ -514,14 +553,18 @@ def householdSetup(earth, parameters, calibration=False):
         nAgentsCell = int(parameters.population[x,y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
         #print nAgentsCell
         loc = earth.entDict[earth.locDict[x,y].nID]
+        region = parameters.regionIdRaster[x,y]
+        regionIdx = np.where(regionIdxList == region)[0][0]
         while True:
              
             #creating persons as agents
-            nPers = hhMat[idx,4]    
+            #print hhData.keys()
+            #print currIdx.keys()
+            nPers = int(hhData[regionIdx][currIdx[regionIdx],0])    
             #print nPers,'-',nAgents
-            ages    = list(hhMat[idx:idx+nPers,12])
-            genders = list(hhMat[idx:idx+nPers,13])
-            income = hhMat[idx,16]
+            ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,1])
+            genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,2])
+            income = hhData[regionIdx][currIdx[regionIdx],3]
             income *= parameters.mobIncomeShare
             nKids = np.sum(ages<18)
             
@@ -574,8 +617,8 @@ def householdSetup(earth, parameters, calibration=False):
                 earth.nPrefTypes[prefTyp] += 1
 
     
-            idx         += nPers
-            nHH         += 1
+            currIdx[regionIdx]  += nPers
+            nHH                 += 1
             
             if nAgentsCell <= 0:
            
@@ -1110,7 +1153,7 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-if mpiRank != 0 and False:
+if mpiRank != 0:
     olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
     sys.stdout = olog_file
     elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')

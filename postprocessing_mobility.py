@@ -33,7 +33,10 @@ printPopulation   = 0
 
 if len(sys.argv) > 2:
     simNo = sys.argv[1]
-    path = 'output/sim' + str(simNo).zfill(4) + '/'
+    if os.path.isfile('output/sim' + str(simNo).zfill(4) + '/nodeOutput.hdf5'):
+        path = 'output/sim' + str(simNo).zfill(4) + '/'
+    elif os.path.isfile('/mnt/lustre/geiges/output/sim' + str(simNo).zfill(4) + '/nodeOutput.hdf5'):
+        path = '/mnt/lustre/geiges/output/sim' + str(simNo).zfill(4) + '/'
 else:
     path = 'output/sim0112/'
 

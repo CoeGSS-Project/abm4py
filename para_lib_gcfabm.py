@@ -65,7 +65,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 print dir_path
 import sys
 import socket
-if socket.gethostname() == 'gcf-VirtualBox':
+if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
     sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
     
@@ -1088,6 +1088,9 @@ class World:
             elif isinstance(value,str):
                 buff = np.empty(1*self.comm.size,dtype=np.str)
                 buff = self.comm.alltoall([value]*self.comm.size)
+            else:
+                
+                buff = self.comm.alltoall([value]*self.comm.size)                
                 
             return buff
             

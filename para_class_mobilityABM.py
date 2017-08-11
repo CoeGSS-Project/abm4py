@@ -270,14 +270,19 @@ class Earth(World):
 
                 
         # Iterate over households with a progress bar
-        if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']) or np.random.rand()<1e-4:       
+        if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
             for household in self.iterEntRandom(_hh):
                 #agent = self.agDict[agID]
                 household.stepOmniscient(self)        
         else:
             for household in self.iterEntRandom(_hh):
-                #agent = self.agDict[agID]
-                household.step(self)
+                
+                if np.random.rand()<1e-4:      
+                    household.stepOmniscient(self)
+                else:
+                    household.step(self)
+                
+                
      
         self.computeTime[self.time] = time.time()-tt
         
