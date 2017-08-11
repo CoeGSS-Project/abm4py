@@ -17,4 +17,7 @@ GDAL-2*
 *.dat
 output/
 resources_nie/
+resources_NBH/
+tmpOut*
 *.gml
+*.hdf5
