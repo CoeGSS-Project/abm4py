@@ -126,7 +126,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.allTypeObservations = False
     
     #time
-    setup.timeUint         = _month  # unit of time per step
+    setup.timeUnit         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
 
     #spatial
@@ -195,7 +195,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.progressBar  = True
     
     #time
-    setup.timeUint         = _month  # unit of time per step
+    setup.timeUnit         = _month  # unit of time per step
     setup.startDate        = [01,2005]   
 
         
@@ -280,7 +280,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
     #time
     setup.nSteps           = 340     # number of simulation steps
-    setup.timeUint         = _month  # unit of time per step
+    setup.timeUnit         = _month  # unit of time per step
     setup.startDate        = [01,2005]
     setup.burnIn           = 100
     setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
@@ -355,13 +355,13 @@ def scenarioNBH(parameterInput, dirPath):
     
     #general 
     setup.resourcePath = dirPath + '/resources_NBH/'
-    setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
+    #setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
     setup.progressBar  = True
     setup.allTypeObservations = True
     
     #time
     setup.nSteps           = 340     # number of simulation steps
-    setup.timeUint         = _month  # unit of time per step
+    setup.timeUnit         = _month  # unit of time per step
     setup.startDate        = [01,2005]
     setup.burnIn           = 100
     setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
@@ -483,7 +483,7 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(440., 200.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(500., 200.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
     
     earth.initBrand('green',(350., 450.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
 
@@ -921,8 +921,8 @@ def runModel(earth, parameters):
     for household in earth.iterEntRandom(_hh):
         
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
-        #for adult in household.adults:
-            #adult.setValue('lastAction', 0)
+        for adult in household.adults:
+            adult.setValue('lastAction', int(np.random.rand()*float(earth.para['mobNewPeriod'])))
     print 'Initial actions done'
     for cell in earth.iterEntRandom(_cell):
         cell.step(earth.market.kappa)

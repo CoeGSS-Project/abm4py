@@ -68,7 +68,7 @@ class Earth(World):
         self.agentRec   = dict()   
         self.time       = 0
         self.date       = list(parameters.startDate)
-        self.timeUnit   = parameters.timeUint
+        self.timeUnit   = parameters.timeUnit
         
         self.reporter   = list()
         self.nAgents    = 0
@@ -585,8 +585,14 @@ class Person(Agent):
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
         self.obs  = dict()
+        self.mobNewPeriod = world.para['mobNewPeriod']
         
         #self.innovatorDegree = 0.
+
+    def isAware(self):
+        # method that returns if the Persion is aktively searching for information
+        return (self.node['lastAction'] -6) / (self.mobNewPeriod)  > np.random.rand()
+    
         
     def register(self, world, parentEntity=None, edgeType=None):
         
@@ -596,39 +602,6 @@ class Person(Agent):
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
 
-    #def shareExperienceNew(self, world):
-
-        
-    def shareExperience(self, world):
-        
-        # adding noise to the observations
-        noisyUtil = self.getValue('util') + np.random.randn(1)* world.para['utilObsError']/10
-        self.setValue('noisyUtil',noisyUtil[0])
-        mobility = self.getValue('mobType')
-        # save util based on label
-        world.market.obsDict[world.time][mobility].append(noisyUtil)
-        obsID = self.loc.registerObs(self.nID, self.getValue('prop'), noisyUtil, mobility)
-        self.setValue('obsID', obsID)
-        if hasattr(world, 'globalRec'):
-            world.globalRec['avgUtil'].addIdx(world.time, noisyUtil ,[0, self.prefTyp+1]) 
-
-        
-        # tell agents that are friends with you - not your friends ("IN")
-        for neig in self.getConnNodeIDs( _pers, 'IN'):
-            agent = world.entDict[neig]
-            agent.tell(self.loc.nID,self.getValue('obsID'), world.time)
-       
-#    def getObservationsMat(self, world, labelList):
-#        if len(self.obs) == 0:
-#            return None
-#        mat = np.zeros([0,len(labelList)])
-#        for key in self.obs.keys():
-#            idxList, timeList = self.obs[key]
-#            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
-#            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
-#            self.obs[key] = idxList, timeList
-#            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
-#        return mat
     
     def getObservationsMat(self, world, labelList):
         if len(self.obs) == 0:
@@ -647,14 +620,6 @@ class Person(Agent):
         fullTimeList = world.time - np.asarray(fullTimeList)    
         weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
         return mat, weights
-
-
-    def tell(self, locID, obsID, time):
-        if locID in self.obs:
-            self.obs[locID][0].append(obsID)
-            self.obs[locID][1].append(time)
-        else:
-            self.obs[locID] = [obsID], [time]
     
     def weightFriendExperienceNew(self, world):
         friendUtil = np.asarray(self.friendNodeSeq['commUtil'])[:,self.node['mobType']]
@@ -1047,14 +1012,14 @@ class Household(Agent):
         
         return hhUtility
 
-    def evalExpectedUtility(self, earth):
+    def evalExpectedUtility(self, earth, getInfoList):
     
         actionIdsList   = list()
         eUtilsList      = list()
         
-        for adult in self.adults:
+        for i,adult in enumerate(self.adults):
             
-            if adult.node['lastAction'] > earth.para['mobNewPeriod'] or (earth.time < earth.para['burnIn']):
+            if getInfoList[i]: #or (earth.time < earth.para['burnIn']):
             #actionIds, eUtils = adult.getExpectedUtility(earth)
                 adult.computeExpUtil(earth)
                 actionIds = [-1, 0, 1, 2]
@@ -1107,8 +1072,8 @@ class Household(Agent):
             
             person.node['prop']      = properties
             person.node['obsID']     = None
-            if earth.time <  earth.para['burnIn']:
-                person.node['lastAction'] = np.random.randint(0, 2*earth.para['mobNewPeriod'])
+            if earth.time <  earth.para['omniscientBurnIn']:
+                person.node['lastAction'] = np.random.randint(0, earth.para['mobNewPeriod'])
             else:
                 person.node['lastAction'] = 0
             # add cost of mobility to the expenses
@@ -1147,11 +1112,15 @@ class Household(Agent):
             mobProps = adult.node['prop']
                 
             # calculate convenience:
-            if (adult.node['lastAction'] > 2*market.mobNewPeriod) and (actionIdx != 2):
-                decay = math.exp(-(adult.node['lastAction'] - 2*market.mobNewPeriod)**2)
+            #if (adult.node['lastAction'] > 2*market.mobNewPeriod) and (actionIdx != 2):
+                #decay = math.exp(-(adult.node['lastAction'] - 2*market.mobNewPeriod)**2)
+                
+            #else:
+            #    decay = 1.
+            if (actionIdx != 2):
+                decay = 1- (1/(1+math.exp(-0.1*(adult.node['lastAction']-market.mobNewPeriod))))                
             else:
                 decay = 1.
-                
             if (actionIdx == 2) and carInHh:
                 hhCarBonus = 0.2
                 
@@ -1170,11 +1139,11 @@ class Household(Agent):
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
 
-    def bestMobilityChoice(self, earth, forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+    def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
         market = earth.market
         actionTaken = True
         if len(self.adults) > 0 :
-            combinedActions = self.possibleActions(earth, forcedTryAll)            
+            combinedActions = self.possibleActions(earth, persGetInfoList, forcedTryAll)            
             utilities = list()
             
             # save current values
@@ -1201,7 +1170,7 @@ class Household(Agent):
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
                         adult.node['prop'] = market.currentCarProperties(adult.node['mobType'])
                         if earth.time <  earth.para['burnIn']:
-                            adult.node['lastAction'] = np.random.randint(0, 2*earth.para['mobNewPeriod'])                    
+                            adult.node['lastAction'] = np.random.randint(0, earth.para['mobNewPeriod'])                    
                         else:
                             adult.node['lastAction'] = 0
                     self.node['expenses'] += adult.node['prop'][1]
@@ -1241,12 +1210,12 @@ class Household(Agent):
         return actionTaken
 
 
-    def possibleActions(self, earth, forcedTryAll = False):               
+    def possibleActions(self, earth, persGetInfoList , forcedTryAll = False):               
         actionsList = list()
         nMobTypes = earth.market.nMobTypes
         
         for adultIdx, adult in enumerate(self.adults):
-            if forcedTryAll or (adult.node['lastAction'] > earth.para['mobNewPeriod']) or (earth.time < earth.para['burnIn']):
+            if forcedTryAll or (earth.time < earth.para['burnIn']) or persGetInfoList[adultIdx]:
                 actionsList.append([-1]+range(nMobTypes))
             else:
                 actionsList.append([-1])
@@ -1299,10 +1268,15 @@ class Household(Agent):
         actionTaken = False
         doCheckMobAlternatives = False
 
-        if earth.time < earth.para['burnIn']:
+        if False: #earth.time < earth.para['burnIn']:
             doCheckMobAlternatives = True
-        elif any( [adult.node['lastAction']> earth.para['mobNewPeriod'] for adult in self.adults]):
-            doCheckMobAlternatives = True
+            persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
+            
+        else:
+            persGetInfoList = [adult.isAware()  for adult in self.adults]
+            #print persGetInfoList
+            if any(persGetInfoList):
+                doCheckMobAlternatives = True
                 
             
         if doCheckMobAlternatives:
@@ -1310,7 +1284,7 @@ class Household(Agent):
             # return persons that are potentially performing an action, the action and the expected overall utility
             
             
-            combActions, overallUtil = self.evalExpectedUtility(earth)
+            combActions, overallUtil = self.evalExpectedUtility(earth,persGetInfoList)
             
             
             if (combActions is not None):
@@ -1322,11 +1296,11 @@ class Household(Agent):
                     # the propbabilty of taking action is equal to the expected raise of the expected utility
                     if self.node['util'] == 0:
                         actionTaken = True                   
-                    elif (expectedUtil / self.node['util'] ) - 1 > np.random.rand() or (earth.time < earth.para['burnIn']):
+                    elif (expectedUtil / self.node['util'] ) - 1 > np.random.rand(): #or (earth.time < earth.para['burnIn']):
                         actionTaken = True                   
                            
             # the action is only performed if flag is True
-          
+            
             if actionTaken:
                 self.undoActions(earth, personsToTakeAction)
                 self.takeAction(earth, personsToTakeAction, actions)
@@ -1348,14 +1322,20 @@ class Household(Agent):
         actionTaken = False
         doCheckMobAlternatives = False
 
-        if earth.time < earth.para['burnIn'] or (any([adult.node['lastAction']> earth.para['mobNewPeriod'] for adult in self.adults])) :
+        
+        if earth.time < earth.para['burnIn']:
             doCheckMobAlternatives = True
+            persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
+        else:
+            persGetInfoList = [adult.isAware  for adult in self.adults]
+            if any (persGetInfoList):
+                doCheckMobAlternatives = True
                             
         if doCheckMobAlternatives:            
-            actionTaken = self.bestMobilityChoice(earth)
+            actionTaken = self.bestMobilityChoice(earth, persGetInfoList)
             self.calculateConsequences(earth.market)
             self.util = self.evalUtility(earth, actionTaken)
-            self.evalExpectedUtility(earth)
+            self.evalExpectedUtility(earth, [True] * len(self.adults))
             
         self.computeTime += time.time() - tt
             
