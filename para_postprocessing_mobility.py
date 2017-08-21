@@ -23,7 +23,7 @@ sys.path.append('/home/geiges/database/modules/folium/')
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
 import seaborn as sns; sns.set()
-from class_auxiliary import loadObj
+from class_auxiliary import loadObj, getEnvironment
 
 #sns.set_color_codes("dark")
 sns.color_palette("Paired")
@@ -31,6 +31,7 @@ sns.color_palette("Paired")
 plotRecords       = 1
 plotCarStockBar   = 1
 plotCarSales      = 1
+salesProperties   = 1
 womanSharePerMobType = 1
 agePerMobType     = 1
 averageCarAge     = 1
@@ -50,10 +51,13 @@ doFolium = 0
 
 simNo = sys.argv[1]
 import socket
-if socket.gethostname() not in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    path = '/mnt/lustre/geiges/output/sim'+ str(simNo).zfill(4) + '/'
-else:
-    path = 'output/sim'+ str(simNo).zfill(4) + '/'
+if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
+
+path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
     
 
 simParas   = loadObj(path + 'simulation_parameters')
@@ -68,12 +72,12 @@ print 'of which omniscient burn-in: ' + str(simParas['omniscientBurnIn'])
 
 
 
-    
+
 
 
 
 #%% loading agent file
-
+     
 
 h5file = ta.open_file(path + 'nodeOutput.hdf5', mode = "r")
 enums        = loadObj(path + 'enumerations')
@@ -108,10 +112,42 @@ nPrior = len(enums['priorities'])
 
 del persMatStep, hhMatStep
 
+
+if plotRecords:
+    import tables as ta
+    
+    h5File  = ta.File(path + '/globals.hdf5', 'r')
+    glob    = h5File.get_node('/glob/')
+    calData = h5File.get_node('/calData/')
+    for data in glob._f_iter_nodes():
+        plt.figure()
+        plt.plot(data.read())
+        plt.title(data.name)
+        plt.savefig(path + data.name)
+
+        if data.name in calData._v_children.keys(): 
+            group = h5File.get_node('/calData/' + data.name)
+            cData = group.read()
+            
+            plt.gca().set_prop_cycle(None)
+            
+            for i in range(1,data.shape[1]):
+                plt.plot(cData[:,0], cData[:,i],'o')
+                print cData[:,i]
+                
+        if withoutBurnIn:
+            plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+                    
+        plt.savefig(path + data.name)
+# Auxiliary function
+
 if False:
     #%%
     timeStep = 120
-    
+    plt.figure()
     idx = 0
     for prefType in range(3):
         boolMask = persMat[timeStep,:,persPropDict['prefTyp'][0]] == prefType
@@ -146,11 +182,17 @@ if True:
 
 if averageCarAge:
     res = np.zeros([nSteps,3])
+    std = np.zeros([nSteps,3])
     for time in range(nSteps):
         for mobType in range(3):
             res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['lastAction'][0]])/12
+            std[time,mobType] = np.std(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['lastAction'][0]]/12)
+    
     
     fig = plt.figure()
+    plt.fill_between(range(0,nSteps), res[:,0]+ std[:,0], res[:,0]- std[:,0], facecolor='blue', interpolate=True, alpha=0.1,)
+    plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='green', interpolate=True, alpha=0.1,)
+    plt.fill_between(range(0,nSteps), res[:,2]+ std[:,2], res[:,2]- std[:,2], facecolor='red', interpolate=True, alpha=0.1,)
     plt.plot(res)
     #plt.title(enums['brands'][carLabel])
     if withoutBurnIn:
@@ -201,16 +243,24 @@ plt.subplot(2,2,3)
 plt.scatter(data[0,:],data[2,:],s=2)
 plt.xlabel('conv')
 plt.ylabel('money')
+
+plt.subplot(2,2,4)
+plt.scatter(data[2,:],data[3,:],s=2)
+plt.xlabel('eco')
+plt.ylabel('inno')
+
 #%%%
 
 
 if agePerMobType:
     res = np.zeros([nSteps,3])
+    #std = np.zeros([nSteps,3])
     for time in range(nSteps):
         for mobType in range(3):
             res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
-    
+            #std[time,mobType] = np.std(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
     fig = plt.figure()
+    
     plt.plot(res)
     #plt.title(enums['brands'][carLabel])
     if withoutBurnIn:
@@ -264,25 +314,48 @@ if expectUtil  == 1:
     data = np.asarray(persMat[:,:,persPropDict['commUtil']])
     
     plt.plot(np.mean(data,axis=1),linewidth=3)
-    style = ['-', ':','--']
-    for prefType in range(3):
+    legStr = list()
+    for label in range(len(enums['brands'])):
+        legStr.append(enums['brands'][label])  
+    style = ['-','-', ':','--','-.']
+    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (immi)']
+    newLegStr = []
+    newLegStr += [ string + ledAdd[0] for string in  legStr]
+    for prefType in range(4):
         plt.gca().set_prop_cycle(None)
         boolMask = np.asarray(persMat[0,:,persPropDict['prefTyp']]) == prefType
         plt.plot(np.mean(data[:,boolMask[0],0],axis=1),style[prefType])
         plt.plot(np.mean(data[:,boolMask[0],1],axis=1),style[prefType])
         plt.plot(np.mean(data[:,boolMask[0],2],axis=1),style[prefType])
-        
+        newLegStr += [ string + ledAdd[prefType+1] for string in  legStr]
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     
-    plt.title("Expectations for mobility types -=conv | ..=eco | --=mon ")    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title("Expectations for mobility types ")    
+    plt.legend(newLegStr,loc=0)
     plt.savefig(path + 'expectedUtility2')    
     
     
+    #%%
+    
+    legStr = list()
+    for label in range(len(enums['brands'])):
+        legStr.append(enums['brands'][label])  
+    fig = plt.figure(figsize=(15,10))
+    res = np.zeros([nSteps,len(enums['brands']), 5])
+    for time in range(nSteps):
+        for carLabel in range(0,len(enums['brands'])):
+            boolMask = persMat[time,:,persPropDict['mobType'][0]] == carLabel
+            res[time, carLabel, 0] = np.mean(persMat[time,boolMask,persPropDict['util'][0]])    
+            for prefType in range(4):
+                boolMask2 = np.asarray(persMat[0,:,persPropDict['prefTyp'][0]]) == prefType
+                res[time, carLabel, prefType+1] = np.mean(persMat[time,boolMask & boolMask2,persPropDict['util'][0]])    
+    
+    newLegStr= list()
+  
 #%%  plot car stock as bar plot
 legStr = list()
 
@@ -318,6 +391,7 @@ for time in range(nSteps):
         #carSales[time,:] = np.bincount(persMat[time,idx,persPropDict['type'][0]].astype(int),minlength=3).astype(float)
         boolMask = persMat[time,:,persPropDict['lastAction'][0]]== 0
         carSales[time,:] = np.bincount(persMat[time,boolMask,persPropDict['mobType'][0]].astype(int),minlength=3).astype(float)
+
 if plotCarSales:
     fig = plt.figure()
     plt.plot(carSales)
@@ -330,6 +404,62 @@ if plotCarSales:
     
     plt.title('sales per mobility Type')
     plt.savefig(path + 'salesPerMobType')
+    
+#%%
+if salesProperties:
+    plt.figure(figsize=[15,10])
+    
+    
+    for brand in range(0,len(enums['brands'])):
+        plt.subplot(2,2,brand+1)
+        res = np.zeros([nSteps,len(enums['priorities'])])
+        for time in range(nSteps):
+            boolMask = persMat[time,:,persPropDict['lastAction'][0]]== 0
+            boolMask2 = persMat[time,:,persPropDict['mobType'][0]]== brand
+            res[time,:] = np.mean(persMat[np.ix_([time],boolMask & boolMask2,persPropDict['preferences'])],axis=1)
+            
+        plt.plot(res)    
+        plt.legend(enums['priorities'].values())
+        plt.title(enums['brands'][brand])
+        if withoutBurnIn:
+            plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.suptitle('preferences of current sales per time')
+    plt.savefig(path + 'buyerPriorities')#
+    
+    #%%
+if salesProperties:
+    plt.figure(figsize=[15,10])
+    
+    propList = ['age', 'commUtil','lastAction', 'util']
+    for i,prop in enumerate(propList):
+        plt.subplot(2,2,i+1)
+        res = np.zeros([nSteps,len(enums['brands'])])
+    
+        for brand in range(0,len(enums['brands'])):
+            for time in range(nSteps):
+                boolMask = persMat[time,:,persPropDict['lastAction'][0]]== 0
+                boolMask2 = persMat[time,:,persPropDict['mobType'][0]]== brand
+                if prop in ['lastAction']:
+                    res[time,brand] = np.mean(persMat[np.ix_([np.max([0,time-1])],boolMask & boolMask2,persPropDict[prop]) ],axis=1)
+                elif prop in ['commUtil']: 
+                    res[time,brand] = np.mean(persMat[np.ix_([np.max([0,time-1])],boolMask & boolMask2,[persPropDict[prop][brand]]) ],axis=1)
+                else:
+                    res[time,brand] = np.mean(persMat[np.ix_([time],boolMask & boolMask2,persPropDict[prop]) ],axis=1)
+                
+        plt.plot(res)    
+        plt.legend(enums['brands'].values(),loc=0)
+        plt.title(prop)
+        if withoutBurnIn:
+            plt.xlim([nBurnIn,nSteps])
+        if years:   
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.suptitle('preferences of current sales per time')
+    plt.savefig(path + 'buyerProperties')
+    
 #%% number of different cars per preference type:
 if False: 
     nUniqueCars = list()
@@ -479,19 +609,19 @@ if utilPerLabel:
     for label in range(len(enums['brands'])):
         legStr.append(enums['brands'][label])  
     fig = plt.figure(figsize=(15,10))
-    res = np.zeros([nSteps,len(enums['brands']), 4])
+    res = np.zeros([nSteps,len(enums['brands']), 5])
     for time in range(nSteps):
         for carLabel in range(0,len(enums['brands'])):
             boolMask = persMat[time,:,persPropDict['mobType'][0]] == carLabel
             res[time, carLabel, 0] = np.mean(persMat[time,boolMask,persPropDict['util'][0]])    
-            for prefType in range(3):
+            for prefType in range(4):
                 boolMask2 = np.asarray(persMat[0,:,persPropDict['prefTyp'][0]]) == prefType
                 res[time, carLabel, prefType+1] = np.mean(persMat[time,boolMask & boolMask2,persPropDict['util'][0]])    
     
     newLegStr= list()
     
     
-    style = ['-','-', ':','--']
+    style = ['-','-', ':','--','-.']
     plt.gca().set_prop_cycle(None)            
     plt.plot(res[:,:,0],style[0], linewidth =3)
     newLegStr += [ string + ' (all)' for string in  legStr]
@@ -504,25 +634,37 @@ if utilPerLabel:
     plt.gca().set_prop_cycle(None)            
     plt.plot(res[:,:,3],style[3])
     newLegStr += [ string + ' (money)' for string in  legStr]
-    plt.legend(newLegStr,loc=0, ncol=4)
+    plt.gca().set_prop_cycle(None) 
+    plt.plot(res[:,:,4],style[4])
+    newLegStr += [ string + ' (immi)' for string in  legStr]
+    plt.legend(newLegStr,loc=0, ncol=5)
     plt.title('Average utility by mobility type -=conv | ..=eco | --=mon ')
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
-    plt.ylim([np.percentile(res,1), np.percentile(res,99)])
+    plt.ylim([np.nanpercentile(res,1), np.nanpercentile(res,99)])
     plt.tight_layout()
     plt.savefig(path + 'utilPerMobType2')
 #%%  green cars per income
-#
+
+
+
 
 if greenPerIncome or incomePerLabel:
+
+
+    hhglob2datIdx = dict()
+    for idx in range(hhMat.shape[1]):
+        hhglob2datIdx[hhMat[0,idx,hhPropDict['gID'][0]]] = idx
+
+
     greenHH = list()
     for time in range(nSteps):
         print time,
-        nIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
-        hhIDs = [np.where(hhMat[time,:,hhPropDict['gID'][0]]==nID)[0][0] for nID in nIDsofHH]
+        gIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
+        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
         greenHH.append(np.asarray(hhIDs))
 
 
@@ -628,7 +770,7 @@ print 1
 
 #%% mean consequences per mobility type
  
-enums['consequences'] = {0: 'convenience', 1: 'eco-friendliness', 2: 'remaining money', 3: 'similarity'}
+#enums['consequences'] = {0: 'convenience', 1: 'eco-friendliness', 2: 'remaining money', 3: 'similarity'}
 
 if meanConsequencePerLabel:
     fig = plt.figure()

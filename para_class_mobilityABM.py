@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import tqdm
+import h5py
 import time
 import os
 import math
@@ -219,6 +219,19 @@ class Earth(World):
         self.time += 1
         self.timeStep = self.time
         
+        # time management
+        if self.timeStep == 1:
+            print 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor'])
+            self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
+            newValue = np.rint(self.getNodeValues('lastAction',_pers) / self.para['burnInTimeFactor']).astype(int)
+            self.setNodeValues('lastAction',_pers, newValue)
+            
+        if self.timeStep+5 == self.para['burnIn']:
+            print 'reducting time speed to normal'
+            self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
+            newValue = np.rint(self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']).astype(int)
+            self.setNodeValues('lastAction',_pers, newValue)
+        
         # progressing time
         if self.timeUnit == 1: #months
             self.date[0] += 1  
@@ -327,10 +340,12 @@ class Earth(World):
         
         if self.isRoot:
             # writing global records to file
+            h5File = h5py.File(self.para['outPath'] + '/globals.hdf5', 'w')
             for key in self.globalRecord:    
                 self.globalRecord[key].saveCSV(self.para['outPath'])
-    
-    
+                self.globalRecord[key].save2Hdf5(h5File)
+                
+            h5File.close()
             # saving enumerations            
             saveObj(self.enums, self.para['outPath'] + '/enumerations')
             
@@ -350,7 +365,7 @@ class Market():
 
         #import global variables
         self.globalRecord = earth.globalRecord
-        
+        self.comm = earth.mpi.comm
         self.dprint = earth.dprint
         self.glob               = earth.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
@@ -473,6 +488,7 @@ class Market():
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
             self.computeTechnicalProgress()
+        self.globalRecord['infraKappa'].set(self.time, self.kappa)
         
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
@@ -480,7 +496,7 @@ class Market():
         self.dprint('new value of allTimeProduced: ' + str(self.allTimeProduced))
         # reset sales
         self.glob['sales'] = self.glob['sales']*0
-
+        
         
         #compute new statistics        
         self.computeStatistics()
@@ -495,7 +511,7 @@ class Market():
         for i in range(self.nMobTypes):
             if not self.allTimeProduced[i] == 0.:
                 
-                newGrowthRate = (self.glob['sales'][i])/float(self.allTimeProduced[i])
+                newGrowthRate = (self.glob['sales'][i]) / float(self.allTimeProduced[i])
             else: 
                 newGrowthRate = 0
             self.mobilityGrowthRates[i] = newGrowthRate          
@@ -506,12 +522,14 @@ class Market():
         for brandID in range(self.nMobTypes):
             self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
         
-        self.globalRecord['growthRate'].set(self.time, self.mobilityGrowthRates[brandID])
+        if self.comm.rank == 0:
+            self.globalRecord['growthRate'].set(self.time, self.mobilityGrowthRates)
+            self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)
         
         # technical process of infrastructure -> given to cells                
-        self.kappa = self.greenInfraMalus/(np.sqrt(self.techProgress[0]))
+        self.kappa = self.greenInfraMalus/(self.techProgress[1])
         
-        self.globalRecord['infraKappa'].set(self.time, self.kappa)
+        
         
         self.dprint('techProgress: ' + str(self.techProgress))
         
@@ -585,13 +603,13 @@ class Person(Agent):
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
         self.obs  = dict()
-        self.mobNewPeriod = world.para['mobNewPeriod']
+        #self.mobNewPeriod = float(world.para['mobNewPeriod'])
         
         #self.innovatorDegree = 0.
 
-    def isAware(self):
+    def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
-        return (self.node['lastAction'] -6) / (self.mobNewPeriod)  > np.random.rand()
+        return (self.node['lastAction'] - mobNewPeriod/10.) / (mobNewPeriod)  > np.random.rand()
     
         
     def register(self, world, parentEntity=None, edgeType=None):
@@ -627,14 +645,17 @@ class Person(Agent):
         
         edges = self.getEdges(_cpp)
         
-        diff = friendUtil - ownUtil
+        diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)        
         prior = np.asarray(edges['weig'])
         post = prior * prop 
 
-        sumPrior = np.sum(prior)
-        post = post / np.sum(post) * sumPrior
+        #sumPrior = np.sum(prior)
+        #post = post / np.sum(post) * sumPrior
+        
+        post = post / np.sum(post) 
+        
         if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
             if np.sum(post) > 0:
                 edges['weig'] = post    
@@ -1073,7 +1094,7 @@ class Household(Agent):
             person.node['prop']      = properties
             person.node['obsID']     = None
             if earth.time <  earth.para['omniscientBurnIn']:
-                person.node['lastAction'] = np.random.randint(0, earth.para['mobNewPeriod'])
+                person.node['lastAction'] = np.random.randint(0, int(1.5*earth.para['mobNewPeriod']))
             else:
                 person.node['lastAction'] = 0
             # add cost of mobility to the expenses
@@ -1132,9 +1153,11 @@ class Household(Agent):
             
             # get innovation consequence
             #imitation = self.loc.brandShares[action]
-            distance   = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
-            innovation = math.exp(-((adult.node['innovatorDegree'] - distance)**2)/ market.innoDevRange)
+            #distance   = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
+            #innovation = math.exp(-((adult.node['innovatorDegree'] - distance)**2)/ market.innoDevRange)
 
+            innovation = 1 - ( (market.allTimeProduced[adult.node['mobType']] 
+                             / np.sum(market.allTimeProduced))**.5 )
             
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
@@ -1156,7 +1179,7 @@ class Household(Agent):
                 oldLastAction.append(adult.node['lastAction'])            
             oldExpenses = self.node['expenses']
             oldUtil = copy.copy(self.util)
-    
+            
             
             # try all mobility combinations
             for combinationIdx in range(len(combinedActions)):
@@ -1192,7 +1215,7 @@ class Household(Agent):
             #print bestCombination
                 
             # set best combination 
-            if utilities[bestUtilIdx] > oldUtil:
+            if self.decisionFunction(oldUtil, utilities[bestUtilIdx]):
                 persons = np.array(self.adults)
                 actionIds = np.array(bestCombination)
                 actors = persons[ actionIds != -1 ] # remove persons that don't take action
@@ -1209,6 +1232,12 @@ class Household(Agent):
         
         return actionTaken
 
+
+    def decisionFunction(self, oldUtil, expNewUtil):
+        if oldUtil == 0:
+            return True
+        else:
+            return  expNewUtil / oldUtil > 1.05 and (expNewUtil / oldUtil ) - 1 > np.random.rand() 
 
     def possibleActions(self, earth, persGetInfoList , forcedTryAll = False):               
         actionsList = list()
@@ -1273,7 +1302,7 @@ class Household(Agent):
             persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
             
         else:
-            persGetInfoList = [adult.isAware()  for adult in self.adults]
+            persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
             #print persGetInfoList
             if any(persGetInfoList):
                 doCheckMobAlternatives = True
@@ -1296,7 +1325,7 @@ class Household(Agent):
                     # the propbabilty of taking action is equal to the expected raise of the expected utility
                     if self.node['util'] == 0:
                         actionTaken = True                   
-                    elif (expectedUtil / self.node['util'] ) - 1 > np.random.rand(): #or (earth.time < earth.para['burnIn']):
+                    elif self.decisionFunction(self.node['util'], expectedUtil): #or (earth.time < earth.para['burnIn']):
                         actionTaken = True                   
                            
             # the action is only performed if flag is True
@@ -1327,7 +1356,7 @@ class Household(Agent):
             doCheckMobAlternatives = True
             persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
         else:
-            persGetInfoList = [adult.isAware  for adult in self.adults]
+            persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
             if any (persGetInfoList):
                 doCheckMobAlternatives = True
                             
@@ -1531,45 +1560,51 @@ class Opinion():
 #        cs = float(cs)**2
         
         # priority of ecology
-        ce = 2
+        ce = 0
         if sex == 2:
             ce +=2
         if income>self.minIncomeEco:
             rn = np.random.rand(1)
             if rn > 0.9:
-                ce += 3
-            elif rn > 0.6:
                 ce += 2
-            else:
-                ce +=1
+            elif rn > 0.6:
+                ce += 1
+        elif income>2*self.minIncomeEco:
+            if np.random.rand(1) > 0.8:
+                ce+=2
+            
+
         ce = float(ce)**2
         
         # priority of convinience
-        cc = 0
+        cc = 2
         cc += nKids
         cc += income/self.convIncomeFraction/2
         if sex == 1:
             cc +=1
         
-        cc += int(float(age)/self.charAge)  
+        cc += float(age)/self.charAge
         cc = float(cc)**2
         
         # priority of money
         cm = 0
-        cm += nKids
         cm += self.convIncomeFraction/income
         cm += nPers
         cm = float(cm)**2
         
         
         sumC = cc + ce + cm
-        cc /= sumC
-        ce /= sumC
+        #cc /= sumC
+        #ce /= sumC
         #cs /= sumC
-        cm /= sumC
+        #cm /= sumC
 
         # priority of innovation
-        ci = self.innovationPriority
+        if income>self.minIncomeEco:
+            ci = np.random.rand()*5
+        else:
+            ci = np.random.rand()*2
+        ci = float(ci)**2
         
         # normalization
         sumC = cc +  ce + cm +ci

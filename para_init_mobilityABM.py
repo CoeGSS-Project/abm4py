@@ -61,8 +61,7 @@ long-term:
 #TODO
 # random iteration (even pairs of agents)
 #from __future__ import division
-import matplotlib
-matplotlib.use('Agg')
+
 import sys, os
 from os.path import expanduser
 home = expanduser("~")
@@ -75,6 +74,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
     sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
+else:
+    import matplotlib
+    matplotlib.use('Agg')    
 #from deco_util import timing_function
 import numpy as np
 import time
@@ -212,12 +214,14 @@ def scenarioTestMedium(parameterInput, dirPath):
     
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    setup.population = 20*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*2
+    setup.population = 30*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*2
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
     
-    
+    if mpiSize == 1:
+        setup.landLayer = setup.landLayer*0
+        
     setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
     setup.regionIdRaster[3:,0:3] = ((setup.landLayer[3:,0:3]*0)+1) *6321
 
@@ -483,11 +487,11 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(500., 200.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(500., 500.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(350., 450.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., 1600.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
 
-    earth.initBrand('other',(120., 100.), convienienceOther, 'start', earth.para['initialOther'])  # none or other
+    earth.initBrand('other',(120., 200.), convienienceOther, 'start', earth.para['initialOther'])  # none or other
             
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
@@ -780,7 +784,7 @@ def cellTest(earth, parameters):
             plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-    
+        #sd
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
@@ -866,6 +870,7 @@ def initGlobalRecords(earth, parameters):
     earth.globalRecord['stockHamburg'].addCalibrationData(timeIdxs,values)
     
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
+    earth.registerRecord('allTimeProduced', 'Overall production of car types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('infraKappa', 'Infrastructure kappa', ['Kappa'], style ='plot')
     
     print 'Global records initialized in ' + str( time.time() - tt) + ' s' 
@@ -1279,6 +1284,7 @@ if __name__ == '__main__':
         #sdf
         mobilitySetup(earth, parameters)
         
+        initGlobalRecords(earth, parameters)
         
         #cellTest(earth, parameters)
         householdSetup(earth, parameters)
@@ -1289,7 +1295,7 @@ if __name__ == '__main__':
         
         initMobilityTypes(earth, parameters)
         
-        initGlobalRecords(earth, parameters)
+        
         #earth.view(str(earth.mpi.rank) + '.png')
         initAgentOutput(earth)
         

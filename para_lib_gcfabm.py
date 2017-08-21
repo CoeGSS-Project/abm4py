@@ -711,20 +711,24 @@ class World:
         def initNodeFile(self, world, nodeTypes):
             """ Initialized the internal data structure for later I/O""" 
             print 'start node init'
-            tt = time.time()
+            
             for nodeType in nodeTypes:
+                tt = time.time()
                 print nodeType
                 group = self.h5File.create_group(str(nodeType))
                 
                     #group = self.latMinMax = node._f_getattr('LATMINMAX')
-                print 'group created after ' + str(time.time()-tt)  + ' seconds'  
+                print 'group created in ' + str(time.time()-tt)  + ' seconds'  
+                tt = time.time()
                 
                 nAgents = len(world.nodeDict[nodeType])
                 self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
                 
                 self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)    
                 
-                print 'nAgents exchanged after  ' + str(time.time()-tt)  + ' seconds'  
+                print 'nAgents exchanged in  ' + str(time.time()-tt)  + ' seconds'  
+                tt = time.time()
+                
                 print self.nAgentsAll 
                 
                 nAgentsGlob = sum(self.nAgentsAll)
@@ -732,12 +736,17 @@ class World:
                 cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
                 loc2GlobIdx = range(cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
                 #print loc2GlobIdx
-                print 'loc2GlobIdx exchanged after  ' + str(time.time()-tt)  + ' seconds'  
+                print 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  
+                tt = time.time()
+                
                 rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 self.attributes = world.graph.nodeProperies[nodeType][:]
                 self.attributes.remove('type')
+                
 
-                print 'record created after  ' + str(time.time()-tt)  + ' seconds'  
+
+                print 'record created in  ' + str(time.time()-tt)  + ' seconds'  
+                
                 
                 for attr in self.attributes:
                     #check if first property of first entity is string
@@ -753,10 +762,12 @@ class World:
                             nProp = 1
                             
                         rec.addAttr(attr, nProp)                         
+                
+                tt = time.time()
                 # allocate storage
                 rec.initStorage()
                 self.outData[nodeType] = rec
-
+                print 'sotrage allocated in  ' + str(time.time()-tt)  + ' seconds'  
                 
         def gatherNodeData(self, timeStep):                
             """ Transfers data from the graph to the I/O storage"""
@@ -1342,6 +1353,12 @@ class World:
             return  [(self.entList[i], i) for i in shuffled_list]
         else:
             return  [(self.entList[i], i) for i in nodeDict]
+
+    def setNodeValues(self,prop,nodeType, value):
+        self.graph.vs[self.nodeDict[nodeType]][prop] = value
+
+    def getNodeValues(self,prop,nodeType):
+        return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
 
     def getEntity(self,nodeID):
         return self.entDict[nodeID]
