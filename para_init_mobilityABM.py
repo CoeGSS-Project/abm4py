@@ -877,7 +877,9 @@ def initGlobalRecords(earth, parameters):
     
 def initAgentOutput(earth):
     #%% Init of agent file
-
+    tt = time.time()
+    earth.mpi.comm.Barrier()
+    print 'Waited for Barrier for ' + str( time.time() - tt) + ' s'
     tt = time.time()
     #earth.initAgentFile(typ = _hh)
     #earth.initAgentFile(typ = _pers)

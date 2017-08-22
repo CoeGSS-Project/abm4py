@@ -219,6 +219,8 @@ class Earth(World):
         self.time += 1
         self.timeStep = self.time
         
+        
+        ttComp = time.time()
         # time management
         if self.timeStep == 1:
             print 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor'])
@@ -255,14 +257,18 @@ class Earth(World):
         self.globalRecord['stockBremen'].updateValues(self.time) 
         self.globalRecord['stockHamburg'].updateValues(self.time) 
         
+        self.computeTime[self.time] = time.time()-ttComp
+        
         ttSync = time.time()
         self.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
         self.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
         self.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
+        self.syncTime[self.time] = time.time()-ttSync
         self.dprint('globals synced in ' +str(time.time()- ttSync) + ' seconds')
-
+        
+        ttComp = time.time()
         #gather data back to the records
         
         self.globalRecord['stockNiedersachsen'].gatherSyncDataToRec(self.time) 
@@ -297,32 +303,44 @@ class Earth(World):
                 
                 
      
-        self.computeTime[self.time] = time.time()-tt
+        self.computeTime[self.time] += time.time()-ttComp
         
-        ttSync = time.time()
+        ttWait = time.time()
         self.mpi.comm.Barrier()
         
-        self.waitTime[self.time] = time.time()-ttSync
-        print 'Barrier waiting after step required ' + str(time.time() - ttSync) + ' seconds'
+        self.waitTime[self.time] = time.time()-ttWait
+        
+        
         
         ttSync = time.time()
         self.mpi.updateGhostNodes([_pers],['commUtil'])
-        self.syncTime[self.time] = time.time()-ttSync
+        self.syncTime[self.time] += time.time()-ttSync
+        
         self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
         
+        ttComp = time.time()
         for adult in self.iterEntRandom(_pers):
             adult.weightFriendExperienceNew(self)   
-        
+        self.computeTime[self.time] += time.time()-ttComp
         # proceed step
         #self.writeAgentFile()
-        #self.mpi.comm.Barrier()
+        
+        ttWait = time.time()
+        self.mpi.comm.Barrier()
+        
+        self.waitTime[self.time] += time.time()-ttWait
 
         ttIO = time.time()
         #earth.writeAgentFile()
         self.io.gatherNodeData(self.time)
         self.io.writeDataToFile()
-        self.ioTime[self.time] = time.time()-ttSync
-        print ' - agent file written in ' +  str(time.time()-ttIO) + ' s'
+        self.ioTime[self.time] = time.time()-ttIO
+        
+        
+        print(' - tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+ 
+              ' - tSync: '+ '{:10.5f}'.format(self.syncTime[self.time])+ 
+              ' - tWait: '+ '{:10.5f}'.format(self.waitTime[self.time])+ 
+              ' - tIO  : '+ '{:10.5f}'.format(self.ioTime[self.time]) )
         
         if self.para['omniscientAgents']:
             print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'

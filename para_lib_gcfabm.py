@@ -694,7 +694,7 @@ class World:
                 path = '/' + str(self.nodeType)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
                 #print 'IO-path: ' + path
                 self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
-                self.dset[self.loc2GlobIdx,] = self.data
+                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
         
         #%% Init of the IO class                 
         def __init__(self, world, nSteps, outputPath = ''): # of IO
@@ -702,7 +702,11 @@ class World:
             self.outputPath  = outputPath
             self.graph       = world.graph
             #self.timeStep   = world.timeStep
-            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5', 'w', driver='mpio', comm=world.mpi.comm)
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5', 
+                                         'w', 
+                                         driver='mpio', 
+                                         comm=world.mpi.comm, 
+                                         libver='latest')
             self.comm        = world.mpi.comm
             self.outData     = dict()
             self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -713,9 +717,11 @@ class World:
             print 'start node init'
             
             for nodeType in nodeTypes:
+                world.mpi.comm.Barrier()
                 tt = time.time()
                 print nodeType
-                group = self.h5File.create_group(str(nodeType))
+                #if world.mpi.comm.rank == 0:
+                self.h5File.create_group(str(nodeType))
                 
                     #group = self.latMinMax = node._f_getattr('LATMINMAX')
                 print 'group created in ' + str(time.time()-tt)  + ' seconds'  
@@ -734,7 +740,7 @@ class World:
                 nAgentsGlob = sum(self.nAgentsAll)
                 cumSumNAgents = np.zeros(self.comm.size+1).astype(int)
                 cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
-                loc2GlobIdx = range(cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
+                loc2GlobIdx = (cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
                 #print loc2GlobIdx
                 print 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  
                 tt = time.time()
@@ -784,6 +790,7 @@ class World:
         
         def finalizeAgentFile(self):
             self.h5File.close()
+            print 'agent file closed'
             from class_auxiliary import saveObj
             
             for nodeType in self.outData.keys():
@@ -1087,7 +1094,7 @@ class World:
             self.sendRecvGhostUpdate(nodeTypeList, propertyList)
             #self.recvGhostUpdate(nodeTypeList, propertyList)
             
-            print 'Ghost update required: ' + str(time.time()-tt) + ' seconds'    
+            self.world.dprint('Ghost update required: ' + str(time.time()-tt) + ' seconds')
             
         def all2all(self, value):
             if isinstance(value,int):            
