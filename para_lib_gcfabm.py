@@ -92,7 +92,7 @@ class Queue():
         self.nodeList       = list()
         self.nodeTypeList   = dict()
         self.nodeProperties = dict()        
-        
+        self.edgeDeleteList = list()
         
     def addVertex(self, nodeType, **kwProperties):
         #print kwProperties.keys()
@@ -217,8 +217,13 @@ class Queue():
         #    self.graph.edgesComplete = True
 
     
+    def dequeueEdgeDeleteList(self, world):
+        self.graph.delete_edges(self.edgeDeleteList)
+        self.edgeDeleteList = list()
 
-      
+        for node in world.entList:
+            node.buffer()
+            
 ################ ENTITY CLASS #########################################    
 # general ABM entity class for objects connected with the graph
 
@@ -261,12 +266,17 @@ class Entity():
 
 
 
-    def __updateEdges__(self):
+    def __updateEdges__(self, **kwargs):
         #TODO re-think this approach            
         self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
-        for typ in self.graph.edgeTypes:
-            self.edges[typ] = self.edgesAll.select(type=typ)
+        
+        if 'edgeType' in kwargs.keys():
+            self.edges[kwargs['edgeType']] = self.edgesAll.select(type=kwargs['edgeType'])
+        for edgeType in self.graph.edgeTypes:
+            self.edges[edgeType] = self.edgesAll.select(type=edgeType)
 
+    def buffer(self, **kwargs):
+        self.__updateEdges__(**kwargs)
 
     def getNeigbourhood(self, order):
         
@@ -679,7 +689,7 @@ class World:
                 self.header += [name] * nProp
                 
             def initStorage(self):
-                self.data = np.zeros([self.nAgents,self.nAttr ])
+                self.data = np.zeros([self.nAgents,self.nAttr ], dtype=np.float32)
                 
             def addData(self, timeStep, graph):
                 self.timeStep = timeStep

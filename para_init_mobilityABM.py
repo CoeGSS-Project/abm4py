@@ -609,7 +609,7 @@ def householdSetup(earth, parameters, calibration=False):
                                      consequences= [0]*len(prefTuple),
                                      lastAction  = 0,
                                      ESSR        = 1,
-                                     innovatorDegree = np.random.randn())
+                                     peerBubbleHeterogeneity = 0.)
                 
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
                 #pers.queueConnection(hh.nID,edgeType=_chp)
@@ -740,7 +740,7 @@ def initTypes(earth, parameters):
                                                   'consequences',
                                                   'lastAction',
                                                   'ESSR',
-                                                  'innovatorDegree'])
+                                                  'peerBubbleHeterogeneity'])
     
     earth.registerEdgeType('cell-cell',_cell, _cell, ['type','weig'])
     earth.registerEdgeType('cell-hh', _cell, _hh)
@@ -789,8 +789,8 @@ def cellTest(earth, parameters):
 def generateNetwork(earth, parameters):
     # %% Generate Network
     tt = time.time()
-    earth.genFriendNetwork(_pers,_cpp)
-    print 'Network initialized in -- ' + str( time.time() - tt) + ' s'
+    earth.generateSocialNetwork(_pers,_cpp)
+    print 'Social network initialized in -- ' + str( time.time() - tt) + ' s'
     if parameters.scenario == 0:
         earth.view(str(earth.mpi.rank) + '.png')
         
@@ -1273,8 +1273,6 @@ if __name__ == '__main__':
         parameters.showFigures = showFigures
         
         earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm)
-        
-
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         

@@ -18,8 +18,13 @@ import sys
 import tables as ta
 from os.path import expanduser
 home = expanduser("~")
-sys.path.append('/media/sf_shared/python/modules/biokit')
-sys.path.append('/home/geiges/database/modules/folium/')
+import socket
+if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+    sys.path.append('/media/sf_shared/python/modules/biokit')
+    sys.path.append('/home/geiges/database/modules/folium/')
+else:
+    sys.path.append(home + '/python/modules/folium/')
+    
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
 import seaborn as sns; sns.set()
@@ -45,12 +50,14 @@ meanESSR          = 1
 meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
-doFolium = 0
+peerBubbleSize    = 1
+doFolium          = 1
+cellMovie         = 1
 
 
 
 simNo = sys.argv[1]
-import socket
+
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -140,7 +147,8 @@ if plotRecords:
         if years:
             years = (nSteps - nBurnIn) / 12
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-                    
+            if 'stock' in data.name:
+                plt.yscale('log')
         plt.savefig(path + data.name)
 # Auxiliary function
 
@@ -159,7 +167,7 @@ if False:
     plt.ylabel(['convenience','ecology','money','innovation'][idx])
     
     #%%
-if True:
+if False:
     def cobbDouglasUtil(x, alpha):
         utility = 1.
         factor = 100        
@@ -250,8 +258,27 @@ plt.xlabel('eco')
 plt.ylabel('inno')
 
 #%%%
-
-
+if peerBubbleSize:
+    res = np.zeros([nSteps,3])
+    #std = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['peerBubbleHeterogeneity'][0]])
+            #std[time,mobType] = np.std(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
+    fig = plt.figure()
+    
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average Bubble size')  
+    plt.savefig(path + 'socialBubbleSize')
+    
+#%%
 if agePerMobType:
     res = np.zeros([nSteps,3])
     #std = np.zeros([nSteps,3])
@@ -324,9 +351,9 @@ if expectUtil  == 1:
     for prefType in range(4):
         plt.gca().set_prop_cycle(None)
         boolMask = np.asarray(persMat[0,:,persPropDict['prefTyp']]) == prefType
-        plt.plot(np.mean(data[:,boolMask[0],0],axis=1),style[prefType])
-        plt.plot(np.mean(data[:,boolMask[0],1],axis=1),style[prefType])
-        plt.plot(np.mean(data[:,boolMask[0],2],axis=1),style[prefType])
+        plt.plot(np.mean(data[:,boolMask[0],0],axis=1),style[prefType+1])
+        plt.plot(np.mean(data[:,boolMask[0],1],axis=1),style[prefType+1])
+        plt.plot(np.mean(data[:,boolMask[0],2],axis=1),style[prefType+1])
         newLegStr += [ string + ledAdd[prefType+1] for string in  legStr]
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
@@ -884,7 +911,69 @@ if printCellMaps:
     plt.title('convenience, mean over cells')
     plt.savefig(path + 'conveniencePerCell')
     #%%
+if cellMovie:
+    from matplotlib.colors import ListedColormap
+    my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
+    from moviepy.editor import VideoClip
+    from moviepy.video.io.bindings import mplfig_to_npimage
     
+    landLayer = np.zeros(np.max(cellMat[0,:,cellPropDict['pos']]+1,axis=1).astype(int).tolist())
+    for iCell in range(cellMat.shape[1]):
+        x = cellMat[0,iCell,cellPropDict['pos'][0]].astype(int)
+        y = cellMat[0,iCell,cellPropDict['pos'][1]].astype(int)
+        landLayer[x,y] = 1
+    #plt.pcolormesh(landLayer)
+    landLayer = landLayer.astype(bool)
+    
+    bounds = dict()
+    plotDict = dict()
+    tt = 0
+    fig = plt.figure()
+    plt.clf()
+        
+    res = landLayer*1.
+    res[res == 0] = np.nan
+    for iBrand in range(3):
+        data = cellMat[-1,:,cellPropDict['carsInCell'][iBrand]] / cellMat[-1,:,cellPropDict['population'][0]] * 1000
+        data[np.isinf(data)] = 0
+        bounds[iBrand] = [np.nanmin(data), np.nanpercentile(data,95)]
+        print bounds[iBrand]
+        res[posArray[0],posArray[1]] = cellMat[tt,:,cellPropDict['carsInCell'][iBrand]] / cellMat[tt,:,cellPropDict['population'][0]] * 1000
+        plt.subplot(2,2,iBrand+1)
+        plotDict[iBrand] = plt.imshow(np.flipud(res), cmap=my_cmap) 
+        plt.colorbar()
+        plt.clim(bounds[iBrand])
+    plt.tight_layout()
+    
+    def make_frame(t):
+        #print t
+        tt = int(t*15)
+        for iBrand in range(3):
+            
+            res = landLayer*1.
+            #print(type(tt))
+            #print tt
+            #print cellMat[t,:,cellPropDict['carsInCell'][iBrand]]
+            res[posArray[0],posArray[1]] = cellMat[tt,:,cellPropDict['carsInCell'][iBrand]] / cellMat[tt,:,cellPropDict['population'][0]] * 1000
+
+            plotDict[iBrand].set_data(res)
+            #plt.clim([0,1])
+            #plt.colorbar()
+            #plt.clim(bounds[iBrand])
+            plt.title(enums['brands'][iBrand] + ' cars per cells')
+            #print iBrand
+        plt.tight_layout()
+        plt.suptitle('TimeStep' + str(tt))
+        return mplfig_to_npimage(fig)
+    
+    timeDur = (nSteps - nBurnIn)/15
+    animation = VideoClip(make_frame, duration = timeDur)
+    animation.write_gif(path + "svm.gif", fps=15)
+    
+    #dsfg
+    
+
+    #%%
     import copy
     plt.clf()
     landLayer = np.zeros(np.max(cellMat[0,:,cellPropDict['pos']]+1,axis=1).astype(int).tolist())
@@ -895,12 +984,12 @@ if printCellMaps:
     #plt.pcolormesh(landLayer)
     landLayer = landLayer.astype(bool)
     res = landLayer*1.0
-    step = 250
+    step = nSteps-1
     test = landLayer*0
     for iBrand in range(3):
         res = landLayer*1.0
-        res[posArray[0],posArray[1]] = cellMat[step,:,cellPropDict['carsInCell'][iBrand]] / cellMat[step,:,cellPropDict['population']]
-        print np.max(res)
+        res[posArray[0],posArray[1]] = cellMat[step,:,cellPropDict['carsInCell'][iBrand]] / cellMat[step,:,cellPropDict['population'][0]]
+        #print np.max(res)
         test = test + res
         if iBrand == 1:
             arrayData = copy.copy(res)
@@ -961,7 +1050,7 @@ if printCellMaps:
         
         foMap.map.add_child(cmap)
         #foMap.map.add_child(xx)
-        foMap.save('carsPer1000.html')
+        foMap.save(path +  'carsPer1000.html')
         
         
         
@@ -1011,7 +1100,7 @@ if printCellMaps:
         
         foMap.map.add_child(cmap)
         #foMap.map.add_child(xx)
-        foMap.save('greenCarShare.html')
+        foMap.save(path +  'greenCarShare.html')
         
         
     #%%
@@ -1057,6 +1146,7 @@ if printCellMaps:
     plt.savefig(path + 'population')
 plt.show()
 
+print 'All done'
 #sys.path.append('/media/sf_shared/python/database')
 #import class_map
 #import matplotlib

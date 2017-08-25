@@ -180,7 +180,7 @@ class Earth(World):
         return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon, prImi
     
     
-    def genFriendNetwork(self, nodeType, edgeType):
+    def generateSocialNetwork(self, nodeType, edgeType):
         """ 
         Function for the generation of a simple network that regards the 
         distance between the agents and their similarity in their preferences
@@ -190,7 +190,7 @@ class Earth(World):
         weigList  = list()
         for agent, x in self.iterEntAndIDRandom(nodeType):
             
-            frList, edges, weights = agent.generateFriendNetwork(self)
+            frList, edges, weights = agent.generateContactNetwork(self)
             edgeList += edges
             weigList += weights
         eStart = self.graph.ecount()
@@ -201,14 +201,14 @@ class Earth(World):
         
         tt = time.time()
         for entity in self.entList:
-            entity.__updateEdges__()
+            entity.buffer()
             
         print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
         tt = time.time()
         
         tt = time.time()
         for agent in self.iterEntRandom(nodeType):
-            agent.bufferFriendSeq(self)
+            agent.bufferFriendSeq()
         print 'Buffered sequence of friends in -- ' + str( time.time() - tt) + ' s'    
 
     def step(self):
@@ -319,8 +319,13 @@ class Earth(World):
         self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
         
         ttComp = time.time()
-        for adult in self.iterEntRandom(_pers):
-            adult.weightFriendExperienceNew(self)   
+        for person in self.iterEntRandom(_pers):
+            person.step(self)
+        self.dprint('Socializing required ' + str(time.time()- ttSync) + ' seconds')
+        ttt = time.time()
+        #self.queue.dequeueEdgeDeleteList(self)
+         
+        self.dprint('deleteding edges required ' + str(time.time()- ttt) + ' seconds')
         self.computeTime[self.time] += time.time()-ttComp
         # proceed step
         #self.writeAgentFile()
@@ -625,6 +630,15 @@ class Person(Agent):
         
         #self.innovatorDegree = 0.
 
+    def buffer(self):
+        # overwrites the original Agent.buffer function and therefore should call it again
+        Agent.buffer(self, edgeType=_cpp)
+        self.bufferFriendSeq()
+        #re-weight eges to soum up to unity
+        self.edges[_cpp]['weig'] /= np.sum(self.edges[_cpp]['weig'])
+        
+        self.ownEdgeIdx = [i for i,es in enumerate(self.edges[_cpp]) if es.target==self.nID]
+
     def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
         return (self.node['lastAction'] - mobNewPeriod/10.) / (mobNewPeriod)  > np.random.rand()
@@ -657,7 +671,7 @@ class Person(Agent):
         weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
         return mat, weights
     
-    def weightFriendExperienceNew(self, world):
+    def weightFriendExperience(self, world):
         friendUtil = np.asarray(self.friendNodeSeq['commUtil'])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
         
@@ -666,8 +680,18 @@ class Person(Agent):
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)        
+        
         prior = np.asarray(edges['weig'])
-        post = prior * prop 
+        #if any([value is None for value in prop]) or any([value is None for value in prior]):
+        #    import pdb
+        #    pdb.set_trace()
+        #print prop
+        #print prior
+        try:
+            post = prior * prop 
+        except:
+            import pdb
+            pdb.set_trace()
 
         #sumPrior = np.sum(prior)
         #post = post / np.sum(post) * sumPrior
@@ -678,66 +702,74 @@ class Person(Agent):
             if np.sum(post) > 0:
                 edges['weig'] = post    
         
-                self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                #self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
+                self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
     
+        return post, self.node['ESSR']
     
-    def weightFriendExperience(self, world):
+    def socialize(self, world):
         
-        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _pers)
-        carLabels, _        = self.getConnNodeValues( 'mobType' ,nodeType= _pers)
-        #friendID            = self.getOutNeighNodes(edgeType=_chh)
-        ownLabel = self.getValue('mobType')
-        ownUtil  = self.getValue('util')
+        tt = time.time()
+        #drop 5 old connections
         
-        edges = self.getEdges(_cpp)
+        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        nContacts = len(weights)
+        nDrops    = int(nContacts/10)
+        dropIds = np.asarray(edges.indices)[np.argsort(weights)[-nDrops:].tolist()].tolist()
         
-        idxT = list()
-        for i, label in enumerate(carLabels):
-            if label == ownLabel:
-                idxT.append(i)
-        #indexedEdges = [ edges[x].index for x in idxT]
         
-        if len(idxT) < 10:
-            return
-        #print 'friendUtil' + str(friendUtil)
-        diff = np.asarray(friendUtil)[idxT] - ownUtil
-        #print diff
-        prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
-        prop = prop / np.sum(prop)
-        #TODO  try of an bayesian update - check for right math
+        # add t new connections
+        currContacts = self.friendNodeSeq.indices
         
-        onlyEqualCars = True
-        if onlyEqualCars:
-        #### only weighting agents with same cars
-            prior = np.asarray(edges[idxT]['weig'])
-            post = prior * prop 
-
-            sumPrior = np.sum(prior)
-            post = post / np.sum(post) * sumPrior
-            if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
-                if np.sum(post) > 0:
-                    edges[idxT]['weig'] = post
-                else:
-                    print 'updating failed, sum of weights are zero'
+        #frList, edges, weights = self.generateContactNetwork(world, nDrops, currContacts, addYourself = False)
+        frList, edges           = self.getRandomContacts(world, nContacts, currContacts)
+        world.queue.edgeDeleteList.extend(dropIds)
+        
+        if len(edges) > 0:
+        # update edges
+            world.dprint('adding contact edges')
+            eStart = self.graph.ecount()
+            world.graph.add_edges(edges)
+            world.graph.es[eStart:]['type'] = _cpp
+            world.graph.es[eStart:]['weig'] = 1.0/nContacts
+    
+            # buffering
+            #world.dprint('updating edges of agent' + str( self.nID))
+            self.__updateEdges__()
+            #world.dprint('buffering friends')
+            self.bufferFriendSeq()
+            
+            world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
+        
+    def getRandomContacts(self, world, nContacts, currentContacts):
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
+        
+        cell = world.entDict[np.random.choice(cellIds)]
+        personIds = cell.getPersons()
+        
+        if len(personIds) > nContacts:
+            contactIds = np.random.choice(personIds, size= nContacts, replace=False)
+        else:
+            return [], []
+            
+        contactIds = [person for person in contactIds if person not in currentContacts]    
                     
-#        plt.subplot(3,1,1)
-#        plt.scatter(diff,prop)            
-#        plt.subplot(3,1,2)        
-#        plt.scatter(diff,post/prop)
-#        plt.subplot(3,1,3)        
-#        plt.scatter(diff,post)
-#        plt.show
-
-                    
-    def generateFriendNetwork(self, world):
+        contactList = contactIds
+        connList    = [(self.nID, idx) for idx in contactIds]
+        
+        return contactList, connList
+        
+    def generateContactNetwork(self, world, nContacts = None,  currentContacts = None, addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for 
         proximity in space, priorities and income
         """
         
-        nFriends = np.random.randint(world.para['minFriends'],world.para['maxFriends'])
+        if nContacts is None:
+            nContacts = np.random.randint(world.para['minFriends'],world.para['maxFriends'])
         
-        friendList = list()
+        contactList = list()
         connList   = list()
         ownPref    = self.node['preferences']
         ownIncome  = self.hh.node['income']
@@ -758,6 +790,10 @@ class Person(Agent):
             
             personIds = world.entDict[cellIdx].getPersons()
             
+
+            if currentContacts is not None:
+                #remove current contact from potential connections
+                personIds = [person for person in personIds if person not in currentContacts]
             
             for personIdx in personIds:
                 person = world.entDict[personIdx]
@@ -766,6 +802,10 @@ class Person(Agent):
                 
             contactIds.extend(personIds)
             spatWeigList.extend([cellWeight]*len(personIds))
+
+        # return nothin if too few candidates
+        if currentContacts is not None and not len(contactIds) > nContacts:
+            return [], [], []
         
         propWeigList = np.array(propDiffList)    
         nullIds  = propWeigList == 0
@@ -789,27 +829,25 @@ class Person(Agent):
         weights = propWeigList * spatWeigList * incoWeigList
         weights = weights / np.sum(weights)
 
-        if len(weights)-1 < nFriends:
+        if len(weights)-1 < nContacts:
             print "reducting the number of friends"
-        nFriends = min(np.sum(weights>0)-1,nFriends)
-        try:
-            ids = np.random.choice(len(weights), nFriends, replace=False, p=weights)
-        except:
-            import pdb
-            pdb.set_trace()
-        friendList = [ contactIds[idx] for idx in ids ]
+        nContacts = min(np.sum(weights>0)-1,nContacts)
+
+        ids = np.random.choice(len(weights), nContacts, replace=False, p=weights)
+
+        contactList = [ contactIds[idx] for idx in ids ]
         connList   = [(self.nID, contactIds[idx]) for idx in ids]
         
         
-        if world.para['addYourself']:
+        if world.para['addYourself'] and addYourself:
             #add yourself as a friend
-            friendList.append(self.nID)
+            contactList.append(self.nID)
             connList.append((self.nID,self.nID))
         
         weigList   = [1./len(connList)]*len(connList)    
-        return friendList, connList, weigList
+        return contactList, connList, weigList
 
-    def bufferFriendSeq(self, world):
+    def bufferFriendSeq(self):
         self.friendNodeSeq = self.getConnNodeSeq( nodeType=_pers, mode='out')
         #print self.friendNodeSeq['gID']
     
@@ -818,7 +856,7 @@ class Person(Agent):
         weights = np.asarray(weights)
         communityUtil = np.dot(weights,np.asarray(self.friendNodeSeq['commUtil']))
         
-        selfUtil =self.node['selfUtil'][:]
+        selfUtil = self.node['selfUtil'][:]
         mobType   = self.node['mobType']
         
         # weighting by 3
@@ -828,76 +866,27 @@ class Person(Agent):
         
         # adjust mean since double of weigth - very bad code - sorry        
         self.node['commUtil'][mobType] /= (world.para['selfTrust']+1)/2
+
+
+    def step(self, world):
         
         
-#    def getExpectedUtilityNew(self, world):
-#        #self.friendNodeSeq['expUtilNew']
-#        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
-#        weights = np.asarray(weights)
-#        
-#        if world.para['allTypeObservations']:
-#            observedUtil = np.dot(weights,np.asarray(self.friendNodeSeq['expUtilNew']))
-#            
-#            self.node['expUtilNew'] = observedUtil.tolist()
-#            return np.hstack([np.array([self.node['util']]), observedUtil])
-#        
-#        else:
-#            observedUtil= np.zeros(len(world.enums['mobilityTypes'])+1)
-#            utilFriends = np.asarray(self.friendNodeSeq['expUtilNew'])
-#            mobTypeFriends = np.asarray(self.friendNodeSeq['mobType'])
-#            
-#            observedUtil[0] = self.node['util']
-#            for mobType in range(len(world.enums['mobilityTypes'])):
-#                
-#                boolList = mobTypeFriends == mobType
-#                
-#                if np.sum(boolList)> 2:
-#                    
-#                    observedUtil[mobType+1] = np.dot(weights[boolList],utilFriends[boolList,mobType])
-#                else:
-#                    observedUtil[mobType+1] = np.nan
-#            
-#            return observedUtil
-#    
-#
-#    def getExpectedUtility(self,world):
-#        """ 
-#        return all possible actions with their expected consequences
-#        """
-#
-#        if len(self.obs) == 0:
-#            return np.array([-1]), np.array(self.node['util'])
-#
-#        obsMat, timeWeights    = self.getObservationsMat(world,['hhID', 'utility','label'])
-#       
-#        if obsMat.shape[0] == 0:
-#            return np.array([-1]), np.array(self.node['util'])
-#        
-#        observedActions       = np.hstack([np.array([-1]), np.unique(obsMat[:,-1])]) # action = -1 -> keep old car
-#        observedUtil          = observedActions*0
-#        observedUtil[0]       = self.node['util']              # utility of keeping old car = present utility
-#        
-#        tmpWeights = np.zeros([len(observedActions)-1,obsMat.shape[0]])
-#        weighted = True
-#        
-#        if weighted:
-#                
-#            weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
-#            
-#            target = [edge.target for edge in edges]
-#            srcDict =  dict(zip(target,weights))
-#            for i, id_ in enumerate(observedActions[1:]):
-#                
-#                tmpWeights[i,obsMat[:,-1] == id_] = map(srcDict.__getitem__,obsMat[obsMat[:,-1] == id_,0].tolist())
-#                #tmpWeights[i,obsMat[:,-1] == id_] = tmpWeights[i,obsMat[:,-1] == id_] * timeWeights[obsMat[:,-1] == id_]
-#        else:
-#            for i, id_ in enumerate(observedActions[1:]):
-#                tmpWeights[i,obsMat[:,-1] == id_] = 1
-#            
-#        avgUtil = np.dot(obsMat[:,1],tmpWeights.T) / np.sum(tmpWeights,axis=1)
-#        #maxid = np.argmax(avgUtil)
-#        observedUtil[1:] = avgUtil
-#        return observedActions.tolist(), observedUtil.tolist()
+        # weight friends
+        weights, ESSR = self.weightFriendExperience(world)
+        
+        # compute similarity
+        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights = np.asarray(weights)
+        preferences = np.asarray(self.friendNodeSeq['preferences'])
+        
+        average = np.average(preferences, axis= 0, weights=weights)
+        self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
+    
+        # socialize
+        #if ESSR < 0.1 and np.random.rand() >0.99:
+        #    self.socialize(world)
+    
+    
  
 class GhostPerson(GhostAgent):
     
