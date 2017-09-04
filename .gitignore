@@ -18,6 +18,7 @@ GDAL-2*
 output/
 resources_nie/
 resources_NBH/
+poznan_out/
 tmpOut*
 *.gml
 *.hdf5

@@ -107,8 +107,8 @@ class Earth(World):
             self.globalRecord[name].glob = self.glob
             
     # init car market    
-    def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0, greenInfraMalus=0):
-        self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn, greenInfraMalus=greenInfraMalus)
+    def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0):
+        self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
@@ -222,7 +222,7 @@ class Earth(World):
         
         ttComp = time.time()
         # time management
-        if self.timeStep == 1:
+        if self.timeStep == 0:
             print 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor'])
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
             newValue = np.rint(self.getNodeValues('lastAction',_pers) / self.para['burnInTimeFactor']).astype(int)
@@ -231,8 +231,11 @@ class Earth(World):
         if self.timeStep+5 == self.para['burnIn']:
             print 'reducting time speed to normal'
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
-            newValue = np.rint(self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']).astype(int)
-            self.setNodeValues('lastAction',_pers, newValue)
+            oldValue = self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']
+            newValue = oldValue.astype(int)
+            stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
+            
+            self.setNodeValues('lastAction',_pers, stochastricRoundValue)
         
         # progressing time
         if self.timeUnit == 1: #months
@@ -278,12 +281,12 @@ class Earth(World):
         
         # proceed market in time
         #print 'sales after sync: ',self.glob['sales']
-        self.market.step() # Statistics are computed here
+        self.market.step(self) # Statistics are computed here
         
         
         #loop over cells
         for cell in self.iterEntRandom(_cell):
-            cell.step(self.market.kappa)
+            cell.step(self.market.para['kappa'])
 
 
 
@@ -384,12 +387,11 @@ class Earth(World):
 
 class Market():
 
-    def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0, greenInfraMalus=0.):
-
+    def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0):
         #import global variables
-        self.globalRecord = earth.globalRecord
-        self.comm = earth.mpi.comm
-        self.dprint = earth.dprint
+        self.globalRecord       = earth.globalRecord
+        self.comm               = earth.mpi.comm
+        self.dprint             = earth.dprint
         self.glob               = earth.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
         self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
@@ -415,15 +417,16 @@ class Market():
         self.mobilityGrowthRates = list()                     # list of growth rates of brand
         self.techProgress        = list()                     # list of productivities of brand
         self.burnIn              = burnIn
-        self.greenInfraMalus     = greenInfraMalus
-        self.kappa               = self.greenInfraMalus
+        #self.greenInfraMalus     = greenInfraMalus
+        #self.kappa               = self.greenInfraMalus
         self.sales               = list()
         self.meanDist            = 0.
         self.stdDist             = 1.
         self.innovationWeig      = [1-earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]   # weights for calculating innovation distance
         self.allTimeProduced     = list()                     # list of previous produced numbers -> for technical progress
-        self.mobNewPeriod        = earth.para['mobNewPeriod']
-        self.innoDevRange        = earth.para['innoDevRange']
+        self.para                = earth.para
+        self.currKappa           = self.para['kappa']
+        #self.innoDevRange        = earth.para['innoDevRange']
         
     def getNTypes(self):
         return self.nMobTypes
@@ -487,14 +490,16 @@ class Market():
 
                         
     def ecology(self, emissions):
+        
         if self.std[0] == 0:
-            ecology = 1/(1+math.exp((emissions-self.mean[0])/1))
+            ecology = 1 / (1+math.exp((emissions-self.mean[0])/1))
         else:
-            ecology = 1/(1+math.exp((emissions-self.mean[0])/self.std[0]))
+            ecology = 1 / (1+math.exp((emissions-self.mean[0])/self.std[0]))
+        
         return ecology        
 
         
-    def step(self):
+    def step(self, world):
         
         self.obsDict[self.time] = dict()
         #re-init key for next dict in new timestep
@@ -511,7 +516,7 @@ class Market():
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
             self.computeTechnicalProgress()
-        self.globalRecord['infraKappa'].set(self.time, self.kappa)
+        self.globalRecord['infraKappa'].set(self.time, self.currKappa)
         
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
@@ -550,7 +555,7 @@ class Market():
             self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)
         
         # technical process of infrastructure -> given to cells                
-        self.kappa = self.greenInfraMalus/(self.techProgress[1])
+        self.currKappa = self.para['kappa'] / (self.techProgress[1])
         
         
         
@@ -702,9 +707,9 @@ class Person(Agent):
             if np.sum(post) > 0:
                 edges['weig'] = post    
         
-                #self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
-                assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
-                self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
+                self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
+                #self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
     
         return post, self.node['ESSR']
     
@@ -852,8 +857,11 @@ class Person(Agent):
         #print self.friendNodeSeq['gID']
     
     def computeExpUtil(self,world):
+        #get weights from friends
         weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
+        
+        # compute weighted mean of all friends
         communityUtil = np.dot(weights,np.asarray(self.friendNodeSeq['commUtil']))
         
         selfUtil = self.node['selfUtil'][:]
@@ -1146,7 +1154,7 @@ class Household(Agent):
             #else:
             #    decay = 1.
             if (actionIdx != 2):
-                decay = 1- (1/(1+math.exp(-0.1*(adult.node['lastAction']-market.mobNewPeriod))))                
+                decay = 1- (1/(1+math.exp(-0.1*(adult.node['lastAction']-market.para['mobNewPeriod']))))                
             else:
                 decay = 1.
             if (actionIdx == 2) and carInHh:
@@ -1607,10 +1615,16 @@ class Opinion():
         #cm /= sumC
 
         # priority of innovation
-        if income>self.minIncomeEco:
-            ci = np.random.rand()*5
+        if sex == 1:
+            if income>self.minIncomeEco:
+                ci = np.random.rand()*5
+            else:
+                ci = np.random.rand()*2
         else:
-            ci = np.random.rand()*2
+            if income>self.minIncomeEco:
+                ci = np.random.rand()*3
+            else:
+                ci = np.random.rand()*1
         ci = float(ci)**2
         
         # normalization

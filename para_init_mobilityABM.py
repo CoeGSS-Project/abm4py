@@ -297,7 +297,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     if hasattr(parameterInput, "reductionFactor"):
         # overwrite the standart parameter
         setup.reductionFactor = parameterInput.reductionFactor
-        
+    #print mpiSize    
     if mpiSize > 1:
         setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
     else:
@@ -655,14 +655,16 @@ def householdSetup(earth, parameters, calibration=False):
 def initEarth(parameters, maxNodes, debug, mpiComm=None):
     tt = time.time()
     
-    earth = Earth(parameters,maxNodes=maxNodes, debug = debug, mpiComm=mpiComm)
+    earth = Earth(parameters,
+                  maxNodes=maxNodes, 
+                  debug = debug, 
+                  mpiComm=mpiComm)
     
 
     earth.initMarket(earth,
                      parameters.properties, 
                      parameters.randomCarPropDeviationSTD, 
-                     burnIn=parameters.burnIn, 
-                     greenInfraMalus=parameters.kappa)
+                     burnIn=parameters.burnIn)
     
     earth.market.mean = np.array([400.,300.])
     earth.market.std = np.array([100.,50.])
@@ -932,7 +934,7 @@ def runModel(earth, parameters):
             adult.setValue('lastAction', int(np.random.rand()*float(earth.para['mobNewPeriod'])))
     print 'Initial actions done'
     for cell in earth.iterEntRandom(_cell):
-        cell.step(earth.market.kappa)
+        cell.step(earth.market.para['kappa'])
     
     print 'Initial market step done'
     
@@ -1160,11 +1162,16 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
+print 'mpiRank',mpiRank
+print 'mpiSize',mpiSize
+
 if mpiRank != 0:
     olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
     sys.stdout = olog_file
     elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
     sys.stderr = elog_file
+
+
 
 
 if __name__ == '__main__':
@@ -1278,10 +1285,7 @@ if __name__ == '__main__':
         
         initSpatialLayer(earth, parameters)
         
-        
 
-        #aux.writeAdjFile(earth.graph,'outGraph.txt')
-        #sdf
         mobilitySetup(earth, parameters)
         
         initGlobalRecords(earth, parameters)
