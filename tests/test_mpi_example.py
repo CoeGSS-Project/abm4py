@@ -23,7 +23,10 @@ size = comm.Get_size()
 
 
 print rank   
-print "Sending package0 does work"     
+print "Sending package0 does work"   
+
+
+  
 if rank == 0:
     data = loadObj('package0')
     #buf = array.array('b', 1000000 *[0]) 

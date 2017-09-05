@@ -716,6 +716,8 @@ def initTypes(earth, parameters):
                                                   'convenience',
                                                   'regionId',
                                                   'carsInCell',])
+    
+    
     _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold, 
                                   propertyList =  ['type', 
                                                    'gID',
@@ -726,6 +728,8 @@ def initTypes(earth, parameters):
                                                    'expUtil',
                                                    'util',
                                                    'expenses'])
+    
+    
     _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson, 
                                   propertyList = ['type', 
                                                   'gID',

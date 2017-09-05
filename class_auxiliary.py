@@ -80,7 +80,7 @@ def getsize(obj_0):
 
 def getEnvironment(comm, getSimNo=True):
     
-    if comm.rank == 0:
+    if comm == None or comm.rank == 0 :
         # get simulation number from file
         try:
             fid = open("environment","r")
@@ -105,13 +105,18 @@ def getEnvironment(comm, getSimNo=True):
         simNo    = None
         basePath = None
 
-    if getSimNo:        
+    
+    if getSimNo:   
+        if comm is None:
+            return simNo, basePath
         simNo = comm.bcast(simNo, root=0)
         basePath = comm.bcast(basePath, root=0)
         print 'simulation number is: ' + str(simNo)
         print 'base path is: ' + str(basePath)
         return simNo, basePath
     else:
+        if comm is None:
+            return basePath
         basePath = comm.bcast(basePath, root=0)
         return basePath
     
@@ -329,7 +334,21 @@ class Record():
     def saveCSV(self, path):
         df = pd.DataFrame(self.rec, columns=self.columns)
         df.to_csv(path +'/' + self.name + '.csv')
+
+    def save2Hdf5(self, h5File):
+        dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
+        dset[:] = self.rec
+        dset.attrs['columns'] = self.columns   
         
+        if hasattr(self,'calDataDict'):
+            tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
+            for i, key in enumerate(self.calDataDict.keys()):
+                tmp[i,:] = [key] + self.calDataDict[key]
+            
+            dset = h5File.create_dataset('calData/' + self.name, tmp.shape, dtype='f8')
+            dset[:] = tmp
+            
+            
     def evaluateRelativeError(self):
         if hasattr(self,'calDataDict'):
             

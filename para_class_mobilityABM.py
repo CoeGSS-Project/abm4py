@@ -286,7 +286,7 @@ class Earth(World):
         
         #loop over cells
         for cell in self.iterEntRandom(_cell):
-            cell.step(self.market.para['kappa'])
+            cell.step(self.market.currKappa)
 
 
 
@@ -426,7 +426,7 @@ class Market():
         self.allTimeProduced     = list()                     # list of previous produced numbers -> for technical progress
         self.para                = earth.para
         self.currKappa           = self.para['kappa']
-        #self.innoDevRange        = earth.para['innoDevRange']
+
         
     def getNTypes(self):
         return self.nMobTypes
@@ -545,6 +545,7 @@ class Market():
             self.mobilityGrowthRates[i] = newGrowthRate          
         
         self.dprint('growth rate: ' + str(newGrowthRate))
+        
         # technological progress:
         oldEtas = copy.copy(self.techProgress)
         for brandID in range(self.nMobTypes):
@@ -555,7 +556,7 @@ class Market():
             self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)
         
         # technical process of infrastructure -> given to cells                
-        self.currKappa = self.para['kappa'] / (self.techProgress[1])
+        self.currKappa = self.para['kappa'] / self.techProgress[1]
         
         
         
@@ -658,24 +659,24 @@ class Person(Agent):
         self.hh = parentEntity
 
     
-    def getObservationsMat(self, world, labelList):
-        if len(self.obs) == 0:
-            return None
-        mat = np.zeros([0,len(labelList)])
-        fullTimeList= list()
-        for key in self.obs.keys():
-            idxList, timeList = self.obs[key]
-            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
-            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
-            self.obs[key] = idxList, timeList
-            
-            fullTimeList.extend(timeList)    
-            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
-        
-        fullTimeList = world.time - np.asarray(fullTimeList)    
-        weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
-        return mat, weights
-    
+#    def getObservationsMat(self, world, labelList):
+#        if len(self.obs) == 0:
+#            return None
+#        mat = np.zeros([0,len(labelList)])
+#        fullTimeList= list()
+#        for key in self.obs.keys():
+#            idxList, timeList = self.obs[key]
+#            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
+#            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
+#            self.obs[key] = idxList, timeList
+#            
+#            fullTimeList.extend(timeList)    
+#            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
+#        
+#        fullTimeList = world.time - np.asarray(fullTimeList)    
+#        weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
+#        return mat, weights
+#    
     def weightFriendExperience(self, world):
         friendUtil = np.asarray(self.friendNodeSeq['commUtil'])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
@@ -707,9 +708,10 @@ class Person(Agent):
             if np.sum(post) > 0:
                 edges['weig'] = post    
         
-                self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                #self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
-                #self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
+                #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID
+                self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
     
         return post, self.node['ESSR']
     

@@ -20,6 +20,7 @@ import numpy as np
 
 array_size = int(sys.argv[1])
 
+print np.random.random()
 print rank   
 #print "Sending package0 does work"     
 

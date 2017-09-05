@@ -18,6 +18,8 @@ import numpy as np
 import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
+
+nClusters= 60
 radius = 1
 
 def calcPopDeviation(population, clusterMap, nClusters):
@@ -33,7 +35,7 @@ def calcPopDeviation(population, clusterMap, nClusters):
         
     deviation = np.sum(np.abs((nPopPerCluster - np.mean(nPopPerCluster)))**3)    
     #print 'Deviation: ' + str(deviation)
-    return deviation, devPerCluster, popPerCluster
+    return deviation, devPerCluster, popPerCluster, nPopPerCluster
 
 from scipy import signal
 def  calPopSurrounging(population, clusterMap, nClusters, brush, intRad):
@@ -62,7 +64,6 @@ for x in range(-intRad,intRad+1):
         if (x**2 +y**2)**.5 < radius:
             brush[intRad-x,intRad-y]  = 1
 
-nClusters=48
 np.sum(np.isnan(population)==False)
 clusterMap = population * np.nan
 fid = open("outGraph.txt.part." + str(nClusters),'r')
@@ -72,7 +73,7 @@ yy = np.asarray(y)
 nonNan = np.isnan(population)==False
 clusterMap[nonNan] = yy
 plt.figure()
-score1, devPerCluster, popPerCluster = calcPopDeviation(population,clusterMap, nClusters)
+score1, devPerCluster, popPerCluster, nPopPerCluster = calcPopDeviation(population,clusterMap, nClusters)
 score2, popSurr = calPopSurrounging(population, clusterMap, nClusters, brush, intRad)
 
 plt.imshow(popPerCluster)
@@ -80,6 +81,12 @@ plt.colorbar()
 plt.figure()
 plt.imshow(clusterMap)
 
+# Imbalance
+partSizeDesired = np.nansum(population) / nClusters
+maxDeviation = np.max(np.abs(nPopPerCluster  - partSizeDesired))
+
+print 'max devation: ', maxDeviation, ' relative: ', maxDeviation / partSizeDesired
+
 print np.nanmin(y)
 print np.nanmax(y)
-np.save('rankMap_nClust' + str(nClusters) + '.npy',clusterMap)   
+np.save('resources_NBH/rankMap_nClust' + str(nClusters) + '.npy',clusterMap[1:-1,1:-1])   

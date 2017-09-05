@@ -216,7 +216,7 @@ if meanESSR:
     res = np.zeros([nSteps,3])
     for time in range(nSteps):
         for mobType in range(3):
-            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['ESSR'][0]])/12
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['ESSR'][0]])
     
     fig = plt.figure()
     plt.plot(res)
@@ -228,8 +228,24 @@ if meanESSR:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average relative effective sample size')  
-    plt.savefig(path + 'ESSR')
+    plt.savefig(path + 'ESSR|mobType')
 
+    res = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['prefTyp'][0]]==mobType,persPropDict['ESSR'][0]])
+    
+    fig = plt.figure()
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average relative effective sample size')  
+    plt.savefig(path + 'ESSR|prefType')
         
     
     
@@ -276,7 +292,26 @@ if peerBubbleSize:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average Bubble size')  
-    plt.savefig(path + 'socialBubbleSize')
+    plt.savefig(path + 'socialBubbleSize|mobType')
+
+    res = np.zeros([nSteps,3])
+    #std = np.zeros([nSteps,3])
+    for time in range(nSteps):
+        for mobType in range(3):
+            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['prefTyp'][0]]==mobType,persPropDict['peerBubbleHeterogeneity'][0]])
+            #std[time,mobType] = np.std(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
+    fig = plt.figure()
+    
+    plt.plot(res)
+    #plt.title(enums['brands'][carLabel])
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,nSteps])
+    if years:
+        years = (nSteps - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
+    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.title('Average Bubble size')  
+    plt.savefig(path + 'socialBubbleSize|prefType')
     
 #%%
 if agePerMobType:
@@ -947,7 +982,7 @@ if cellMovie:
     
     def make_frame(t):
         #print t
-        tt = int(t*15)
+        tt = int(t*15) + nBurnIn
         for iBrand in range(3):
             
             res = landLayer*1.
