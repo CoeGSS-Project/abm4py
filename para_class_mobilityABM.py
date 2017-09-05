@@ -84,13 +84,16 @@ class Earth(World):
         if self.para['omniscientBurnIn']>self.para['burnIn']:
             self.para['omniscientBurnIn']=self.para['burnIn']
         
-        try: 
-            import git
-            repo = git.Repo(search_parent_directories=True)
-            self.para["gitVersionSHA"] = repo.head.object.hexsha
-        except:
-            print "Warning git version of the code not documented"
-            print "Please install gitpython using: pip install gitpython"
+        import socket
+        if (mpiComm is None or mpiComm.rank ==0) and socket.gethostname() is not 'gcf-VirtualBox':
+            try: 
+                import git
+                os.system('git commit -a -m "automatic commit"')
+                repo = git.Repo(search_parent_directories=True)
+                self.para["gitVersionSHA"] = repo.head.object.hexsha
+            except:
+                print "Warning git version of the code not documented"
+                print "Please install gitpython using: pip install gitpython"
         
         if not os.path.isdir('output'):
             os.mkdir('output')
