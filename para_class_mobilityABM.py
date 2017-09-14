@@ -54,7 +54,7 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters, maxNodes, debug, mpiComm=None):
+    def __init__(self, parameters, maxNodes, debug, mpiComm=None, caching=True):
         
         nSteps     = parameters.nSteps
         
@@ -63,7 +63,7 @@ class Earth(World):
         self.waitTime    = np.zeros(parameters.nSteps)
         self.ioTime      = np.zeros(parameters.nSteps)
         
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm)
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm, caching=caching)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -206,17 +206,17 @@ class Earth(World):
         self.graph.es[eStart:]['weig'] = weigList
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
-        tt = time.time()
-        for entity in self.entList:
-            entity.buffer()
-            
-        print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
-        tt = time.time()
-        
-        tt = time.time()
-        for agent in self.iterEntRandom(nodeType):
-            agent.bufferFriendSeq()
-        print 'Buffered sequence of friends in -- ' + str( time.time() - tt) + ' s'    
+#        tt = time.time()
+#        for entity in self.entList:
+#            entity.buffer()
+#            
+#        print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
+#        tt = time.time()
+#        
+#        tt = time.time()
+#        for agent in self.iterEntRandom(nodeType):
+#            agent.bufferFriendSeq()
+#        print 'Buffered sequence of friends in -- ' + str( time.time() - tt) + ' s'    
 
     def step(self):
         """ 
@@ -643,14 +643,14 @@ class Person(Agent):
         
         #self.innovatorDegree = 0.
 
-    def buffer(self):
-        # overwrites the original Agent.buffer function and therefore should call it again
-        Agent.buffer(self, edgeType=_cpp)
-        self.bufferFriendSeq()
-        #re-weight eges to soum up to unity
-        self.edges[_cpp]['weig'] /= np.sum(self.edges[_cpp]['weig'])
-        
-        self.ownEdgeIdx = [i for i,es in enumerate(self.edges[_cpp]) if es.target==self.nID]
+#    def buffer(self):
+#        # overwrites the original Agent.buffer function and therefore should call it again
+#        Agent.buffer(self, edgeType=_cpp)
+#        self.bufferFriendSeq()
+#        #re-weight eges to soum up to unity
+#        self.edges[_cpp]['weig'] /= np.sum(self.edges[_cpp]['weig'])
+#        
+#        self.ownEdgeIdx = [i for i,es in enumerate(self.edges[_cpp]) if es.target==self.nID]
 
     def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
@@ -685,7 +685,7 @@ class Person(Agent):
 #        return mat, weights
 #    
     def weightFriendExperience(self, world):
-        friendUtil = np.asarray(self.friendNodeSeq['commUtil'])[:,self.node['mobType']]
+        friendUtil = np.asarray(self.getPeerValues('commUtil',_pers)[0])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
         
         edges = self.getEdges(_cpp)
@@ -750,9 +750,9 @@ class Person(Agent):
     
             # buffering
             #world.dprint('updating edges of agent' + str( self.nID))
-            self.__updateEdges__()
+            #self.__updateEdges__()
             #world.dprint('buffering friends')
-            self.bufferFriendSeq()
+            #self.bufferFriendSeq()
             
             world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
         
@@ -861,17 +861,17 @@ class Person(Agent):
         weigList   = [1./len(connList)]*len(connList)    
         return contactList, connList, weigList
 
-    def bufferFriendSeq(self):
-        self.friendNodeSeq = self.getConnNodeSeq( nodeType=_pers, mode='out')
-        #print self.friendNodeSeq['gID']
+#    def bufferFriendSeq(self):
+#        self.friendNodeSeq = self.getPeers(nodeType=_pers)
+#        #print self.friendNodeSeq['gID']
     
     def computeExpUtil(self,world):
         #get weights from friends
-        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
         
         # compute weighted mean of all friends
-        communityUtil = np.dot(weights,np.asarray(self.friendNodeSeq['commUtil']))
+        communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_pers)[0]))
         
         selfUtil = self.node['selfUtil'][:]
         mobType   = self.node['mobType']
@@ -892,9 +892,9 @@ class Person(Agent):
         weights, ESSR = self.weightFriendExperience(world)
         
         # compute similarity
-        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
-        preferences = np.asarray(self.friendNodeSeq['preferences'])
+        preferences = np.asarray(self.getPeerValues('preferences',_pers)[0]) 
         
         average = np.average(preferences, axis= 0, weights=weights)
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
@@ -1437,12 +1437,12 @@ class Cell(Location):
 
 
     def getConnCellsPlus(self):
-         self.weights, edges = self.getEdgeValuesFast('weig',edgeType=_cll)
+         self.weights, edges = self.getEdgeValues('weig',edgeType=_cll)
          self.connnodeDict = [edge.target for edge in edges ]
          return self.weights, edges.indices, self.connnodeDict    
  
     def _getConnCellsPlusOld(self):
-         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll, mode='out')
+         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll)
          self.connnodeDict = [self.graph.es[x].target for x in self.eIDs ]
          return self.weights, self.eIDs, self.connnodeDict
 
@@ -1540,12 +1540,12 @@ class GhostCell(GhostLocation, Cell):
 
     def updateHHList(self, graph):
         nodeType = graph.class2NodeType[Household]
-        hhIDList = self.getConnNodeIDs(nodeType)
+        hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
         
     def updatePeList(self, graph):
         nodeType = graph.class2NodeType[Person]
-        hhIDList = self.getConnNodeIDs(nodeType)
+        hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
         
 class Opinion():

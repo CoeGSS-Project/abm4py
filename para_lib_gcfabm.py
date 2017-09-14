@@ -205,8 +205,8 @@ class Queue():
                 self.graph.es[eStart:][prop] = self.edgeProperties[edgeType][prop]
             
 
-        for node in world.entList:
-            node.__updateEdges__()
+#        for node in world.entList:
+#            node.__updateEdges__()
 
         # empty queue
         self.edgeDict       = dict()
@@ -238,7 +238,7 @@ class Cache():
         
     def __reCachePeers__(self, givenType=None):
         """ privat function that re-caches all peers of the node"""
-        print 'caching peers'
+        #print 'caching peers'
         
         node = self.graph.vs[self.nID]
         peers = node.neighbors('OUT')
@@ -268,7 +268,7 @@ class Cache():
     def __reCacheEdges__(self, givenType=None):
         """ privat function that re-caches all edges of the node"""
         
-        print 'caching edges'
+        #print 'caching edges'
         # all out edges
         self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')]
         
@@ -430,20 +430,20 @@ class Entity():
             self.setEdgeValues = self.cache.setEdgeValues
             self.getEdges = self.cache.getEdges
            
-        else:
-            self.getPeerValues = self.__getPeerValues__
-            self.setPeerValues = self.__setPeerValues__
-            self.getPeers = self.__getPeers__
-            self.getPeerIDs = self.__getPeerIDs__
-            
-            self.getEdgeValues = self.__getEdgeValues__
-            self.setEdgeValues = self.__setEdgeValues__
-            self.getEdges = self.__getEdges__
+#        else:
+#            self.getPeerValues = self.__getPeerValues__
+#            self.setPeerValues = self.__setPeerValues__
+#            self.getPeers = self.__getPeers__
+#            self.getPeerIDs = self.__getPeerIDs__
+#            
+#            self.getEdgeValues = self.__getEdgeValues__
+#            self.setEdgeValues = self.__setEdgeValues__
+            #self.getEdges = self.__getEdges__
             
             
 
-    def __getPeerValues__(self, prop, nodeType=None):
-        nodeDict = self.node.neighbors('OUT')
+    def getPeerValues(self, prop, nodeType=None):
+        nodeDict = self.node.neighbors('out')
         neighbourIDs     = list()
         values          = list()
 
@@ -454,22 +454,26 @@ class Entity():
         
         return values, neighbourIDs
     
-    def __setPeerValues__(self, prop, values, nodeType=None):
-        nodeDict = self.node.neighbors(mode)
-        neighbourIDs = [node.index for node in nodeDict]
+    def setPeerValues(self, prop, values, nodeType=None):
+        nodeDict = self.node.neighbors(mode='out')
+        if nodeType is None:
+            neighbourIDs = [node.index for node in nodeDict]
+        else:
+            neighbourIDs = [node.index for node in nodeDict if node['type'] == nodeType]
+            
         for node in nodeDict:
             self.graph.vs[neighbourIDs][prop] = values
     
-    def __getPeerIDs__(self, nodeType=None):
+    def getPeerIDs(self, nodeType=None):
 
-        neigbours = self.node.neighbors(mode='OUT')
+        neigbours = self.node.neighbors(mode='out')
     
         if nodeType is not None:
             return [x.index for x in neigbours if x['type'] == nodeType]
         else:
             return [x.index for x in neigbours]
     
-    def __getPeers__(self, nodeType=None):
+    def getPeers(self, nodeType=None):
         idList = self.__getPeerIDs__(nodeType)
         
         if nodeType is not None:
@@ -478,13 +482,13 @@ class Entity():
             return self.graph.vs[idList]
          
    
-    def __getEdgeValues__(self, prop, edgeType=None, mode="out"):
+    def getEdgeValues(self, prop, edgeType=None):
         """ 
         privat function to access the values of  edges
         """
         values = [] 
         edges  = []
-        eList  = self.graph.incident(self.nID,mode)
+        eList  = self.graph.incident(self.nID,mode="out")
 
         if edgeType is not None:
             for eIdx in eList:
@@ -495,32 +499,45 @@ class Entity():
             for edge in eList:
                 values.append(self.graph.es[eIdx][prop])        
                 edges.append(eIdx)
-        return values, edges 
+        return values, self.graph.es[edges]
     
-        
-    def __getEdges__(self, edgeType=None, mode="out"):
+    def setEdgeValues(self, prop, values, edgeType=None):
         """ 
         privat function to access the values of  edges
         """
-        eList  = self.graph.incident(self.nID,mode)
+        eList  = self.graph.incident(self.nID,mode="out")
+
+        nodeDict = self.node.neighbors(mode='out')
+        if edgeType is not None:
+            eList = [eID for eID in eList]
+        else:
+            eList = [eID for eID in eList if self.graph.es[eID]['type'] == edgeType]
+            
+        for node in nodeDict:
+            self.graph.es[eList][prop] = values
+        
+    def getEdges(self, edgeType=None):
+        """ 
+        privat function to access the values of  edges
+        """
+        eList  = self.graph.incident(self.nID,mode="out")
         if edgeType is not None:
             
-            return [eIdx for eIdx in eList if self.graph.es[eIdx]['type'] == edgeType]
+            eList = [eIdx for eIdx in eList if self.graph.es[eIdx]['type'] == edgeType]
 
-        else:
-            return eList
+        return self.graph.es[eList]
 
-    def __updateEdges__(self, **kwargs): #TODO delete
-        #TODO re-think this approach            
-        self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
-        
-        if 'edgeType' in kwargs.keys():
-            self.edges[kwargs['edgeType']] = self.edgesAll.select(type=kwargs['edgeType'])
-        for edgeType in self.graph.edgeTypes:
-            self.edges[edgeType] = self.edgesAll.select(type=edgeType)
-
-    def buffer(self, **kwargs):
-        self.__updateEdges__(**kwargs)
+#    def __updateEdges__(self, **kwargs): #TODO delete
+#        #TODO re-think this approach            
+#        self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
+#        
+#        if 'edgeType' in kwargs.keys():
+#            self.edges[kwargs['edgeType']] = self.edgesAll.select(type=kwargs['edgeType'])
+#        for edgeType in self.graph.edgeTypes:
+#            self.edges[edgeType] = self.edgesAll.select(type=edgeType)
+#
+#    def buffer(self, **kwargs):
+#        self.__updateEdges__(**kwargs)
 
     def getNeigbourhood(self, order):
         
@@ -542,7 +559,7 @@ class Entity():
             self.cache.peersALL = None
             del self.cache.edgesByType[edgeType] 
             self.cache.peersByType = dict()  # TODO less efficient
-        self.__updateEdges__() #TODO delete
+        #self.__updateEdges__() #TODO delete
             
     def remConnection(self, friendID,edgeType):
         eID = self.graph.get_eid(self.nID,friendID)
@@ -551,7 +568,7 @@ class Entity():
             self.cache.edgesALL = None
             del self.cache.edgesByType[edgeType] 
             self.cache.peersByType = dict()  # TODO less efficient
-        self.__updateEdges__() #TODO delete
+        #self.__updateEdges__() #TODO delete
 
     def setValue(self,prop,value):
         self.node[prop] = value
@@ -579,63 +596,63 @@ class Entity():
         eIDSeq = self.graph.es.select(_source=self.nID).indices        
         self.graph.delete_edges(eIDSeq)
 
-    def getEdgeValues(self, prop, edgeType=None, mode="out"):
-        values = [] 
-        edges  = []
-        eList  = self.graph.incident(self.nID,mode)
-
-        if edgeType is not None:
-            for eIdx in eList:
-                if self.graph.es[eIdx]['type'] == edgeType:
-                    values.append(self.graph.es[eIdx][prop])   
-                    edges.append(eIdx)
-        else:
-            for edge in eList:
-                values.append(self.graph.es[eIdx][prop])        
-                edges.append(eIdx)
-        return values, edges
-        
-    def getEdges(self, edgeType=None):
-        edges = self.edges[edgeType]
-        return edges
-    
-    def getEdgeValuesFast(self, prop, edgeType=0):
-        #print self.edges
-        edges = self.edges[edgeType]
-        return edges[prop], edges
-
-    def getConnNodes(self, nodeType=0, mode='out'):
-        if mode is None:
-            neigbours = self.node.neighbors()
-        else:
-            neigbours = self.node.neighbors(mode)
-    
-        return [x for x in neigbours if x['type'] == nodeType]
-
-    def getConnNodeIDs(self, nodeType=0, mode='out'):
-        if mode is None:
-            neigbours = self.node.neighbors()
-        else:
-            neigbours = self.node.neighbors(mode)
-    
-        return [x.index for x in neigbours if x['type'] == nodeType]
-        
-    def getConnNodeSeq(self, nodeType=0, mode='out'):
-        idList = self.getConnNodeIDs(nodeType, mode='out')
-        
-        return self.graph.vs[idList]
-    
-    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
-        nodeDict = self.node.neighbors(mode)
-        neighbourIDs     = list()
-        values          = list()
-
-        for node in nodeDict:
-            if node['type'] == nodeType:
-                neighbourIDs.append(node.index)   
-                values.append(node[prop])
-        
-        return values, neighbourIDs
+#    def getEdgeValues(self, prop, edgeType=None, mode="out"):
+#        values = [] 
+#        edges  = []
+#        eList  = self.graph.incident(self.nID,mode)
+#
+#        if edgeType is not None:
+#            for eIdx in eList:
+#                if self.graph.es[eIdx]['type'] == edgeType:
+#                    values.append(self.graph.es[eIdx][prop])   
+#                    edges.append(eIdx)
+#        else:
+#            for edge in eList:
+#                values.append(self.graph.es[eIdx][prop])        
+#                edges.append(eIdx)
+#        return values, edges
+#        
+#    def getEdges(self, edgeType=None):
+#        edges = self.edges[edgeType]
+#        return edges
+#    
+#    def getEdgeValuesFast(self, prop, edgeType=0):
+#        #print self.edges
+#        edges = self.edges[edgeType]
+#        return edges[prop], edges
+#
+#    def getConnNodes(self, nodeType=0, mode='out'):
+#        if mode is None:
+#            neigbours = self.node.neighbors()
+#        else:
+#            neigbours = self.node.neighbors(mode)
+#    
+#        return [x for x in neigbours if x['type'] == nodeType]
+#
+#    def getConnNodeIDs(self, nodeType=0, mode='out'):
+#        if mode is None:
+#            neigbours = self.node.neighbors()
+#        else:
+#            neigbours = self.node.neighbors(mode)
+#    
+#        return [x.index for x in neigbours if x['type'] == nodeType]
+#        
+#    def getConnNodeSeq(self, nodeType=0, mode='out'):
+#        idList = self.getConnNodeIDs(nodeType, mode='out')
+#        
+#        return self.graph.vs[idList]
+#    
+#    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
+#        nodeDict = self.node.neighbors(mode)
+#        neighbourIDs     = list()
+#        values          = list()
+#
+#        for node in nodeDict:
+#            if node['type'] == nodeType:
+#                neighbourIDs.append(node.index)   
+#                values.append(node[prop])
+#        
+#        return values, neighbourIDs
 
 
         

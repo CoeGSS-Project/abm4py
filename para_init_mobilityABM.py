@@ -652,13 +652,14 @@ def householdSetup(earth, parameters, calibration=False):
 
 
 
-def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=False):
+def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=True):
     tt = time.time()
     
     earth = Earth(parameters,
                   maxNodes=maxNodes, 
                   debug = debug, 
-                  mpiComm=mpiComm)
+                  mpiComm=mpiComm,
+                  caching=caching)
     
 
     earth.initMarket(earth,
@@ -1283,7 +1284,7 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm)
+        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm, caching=True)
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         
