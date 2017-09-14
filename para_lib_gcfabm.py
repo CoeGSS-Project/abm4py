@@ -39,7 +39,6 @@ TODOs:
 
 soon:
     - redirect all output to the correct folder
-    - (done) mpi load of the synthetic population data (or even correct load)
     - IO of connections and their attributes
     - per node collecting of communting and waiting times
     - reach usage of 100 parallell processes (96)

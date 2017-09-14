@@ -84,16 +84,20 @@ class Earth(World):
         if self.para['omniscientBurnIn']>self.para['burnIn']:
             self.para['omniscientBurnIn']=self.para['burnIn']
         
-        import socket
-        if (mpiComm is None or mpiComm.rank ==0) and socket.gethostname() is not 'gcf-VirtualBox':
-            try: 
-                import git
-                os.system('git commit -a -m "automatic commit"')
-                repo = git.Repo(search_parent_directories=True)
-                self.para["gitVersionSHA"] = repo.head.object.hexsha
-            except:
-                print "Warning git version of the code not documented"
-                print "Please install gitpython using: pip install gitpython"
+        
+#        try:
+#            import socket
+#            if (mpiComm is None or mpiComm.rank ==0) and socket.gethostname() != 'gcf-VirtualBox':
+#                #os.system('git commit -a -m "automatic commit"')
+#            
+#                import git
+#                repo = git.Repo(search_parent_directories=True)
+#                self.para["gitVersionSHA"] = repo.head.object.hexsha
+#        except:
+#            print "Warning git version of the code not documented"
+#            print "Please install gitpython using: pip install gitpython"
+
+            
         
         if not os.path.isdir('output'):
             os.mkdir('output')
@@ -711,10 +715,10 @@ class Person(Agent):
             if np.sum(post) > 0:
                 edges['weig'] = post    
         
-                #self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID
-                self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
+                #self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
     
         return post, self.node['ESSR']
     
@@ -1415,12 +1419,9 @@ class Cell(Location):
         self.cellSize = 1.
         
         self.urbanThreshold = earth.para['urbanThreshold']
-        self.puplicTransBonus = earth.para['puplicTransBonus']
-        
-        self.conveniences = list()
-        
+        self.puplicTransBonus = earth.para['puplicTransBonus']     
+       
         self.convFunctions = list()
-        self.brandShares = [1.,1.,1.,1.]
         
         self.paraA = earth.para['convA']
         self.paraB = earth.para['convB']
@@ -1463,13 +1464,7 @@ class Cell(Location):
     def remFromTraffic(self,mobTypeID):
         self.addValue('carsInCell', -1, idx=int(mobTypeID))
 
-#    def trafficMixture(self):
-#        carsInCell = self.getValue('carsInCell')
-#        total = sum(carsInCell) 
-#        shares = list()
-#        for idx in range(len(carsInCell)):         
-#            shares.append(float(carsInCell[idx])/total)       
-#        self.brandShares = shares
+
 
             
     def getX(self, choice):

@@ -29,14 +29,14 @@ TODOs
 short-term:
     - utility test center
     - realistic physical values
-    - test learing niches 
+    - test learning niches 
     - I/O on lustre
     - utility potential for omnicent knowledge
     - MCMC evolution of the synthetic population
         - add/remove households and draw acceptance accourding to available statistics
         - what about if no data is available ??? -> extrapolation of statistics
     
-    - (done)combine self-experience with community-experience
+    - (done) combine self-experience with community-experience
     - entropy on networks (distribution of weights)
         - entire network
         - per agent
