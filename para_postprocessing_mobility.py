@@ -54,6 +54,26 @@ peerBubbleSize    = 1
 doFolium          = 1
 cellMovie         = 1
 
+#plotRecords       = 0
+#plotCarStockBar   = 0
+#plotCarSales      = 0
+#salesProperties   = 0
+#womanSharePerMobType = 0
+#agePerMobType     = 0
+#averageCarAge     = 0
+#prefPerLabel      = 0
+#utilPerLabel      = 0
+#incomePerLabel    = 0
+#greenPerIncome    = 0
+#expectUtil        = 0
+#meanPrefPerLabel  = 0
+#meanESSR          = 0
+#meanConsequencePerLabel = 0
+#printCellMaps     = 0
+#emissionsPerLabel = 0
+#peerBubbleSize    = 0
+#doFolium          = 0
+#cellMovie         = 0
 
 
 simNo = sys.argv[1]
@@ -70,7 +90,7 @@ path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 simParas   = loadObj(path + 'simulation_parameters')
 
 nBurnIn       = simParas['burnIn']
-withoutBurnIn = False
+withoutBurnIn = True
 years         = True         # only applicable in plots without burn-in
 
 print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
@@ -119,7 +139,7 @@ nPrior = len(enums['priorities'])
 
 del persMatStep, hhMatStep
 
-
+#%%
 if plotRecords:
     import tables as ta
     
@@ -149,9 +169,68 @@ if plotRecords:
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
             if 'stock' in data.name:
                 plt.yscale('log')
+        plt.tight_layout()                
         plt.savefig(path + data.name)
 # Auxiliary function
 
+
+
+#%% combined plot
+    plt.figure(figsize=(12,6))
+    factor = 5
+    plt.subplot(1,3,1)
+    group = h5File.get_node('/glob/stockNiedersachsen')
+    data = group.read()
+    plt.plot(data)
+    group = h5File.get_node('/calData/stockNiedersachsen')
+    cData = group.read()
+    plt.gca().set_prop_cycle(None)
+    for i in range(1,data.shape[1]):
+        plt.plot(cData[:,0], cData[:,i],'o')
+        print cData[:,i]
+    plt.yscale('log')    
+    plt.xlim([nBurnIn,nSteps])
+    years = (nSteps - nBurnIn) / 12 / factor
+    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+    plt.title('Niedersachsen')                
+    plt.subplot(1,3,2)
+    group = h5File.get_node('/glob/stockBremen')
+    data = group.read()
+    plt.plot(data)
+    group = h5File.get_node('/calData/stockBremen')
+    cData = group.read()
+    plt.gca().set_prop_cycle(None)
+    for i in range(1,data.shape[1]):
+        plt.plot(cData[:,0], cData[:,i],'o')
+        print cData[:,i]
+    plt.yscale('log')
+    plt.xlim([nBurnIn,nSteps])
+    years = (nSteps - nBurnIn) / 12 / factor
+    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+    plt.title('Bremen')                
+    plt.subplot(1,3,3)    
+    group = h5File.get_node('/glob/stockHamburg')
+    data = group.read()
+    hh = plt.plot(data)
+    group = h5File.get_node('/calData/stockHamburg')
+    cData = group.read()
+    plt.gca().set_prop_cycle(None)
+    for i in range(1,data.shape[1]):
+        plt.plot(cData[:,0], cData[:,i],'o')
+        print cData[:,i]
+    plt.yscale('log')    
+    plt.xlim([nBurnIn,nSteps])    
+    factor = 5
+    years = (nSteps - nBurnIn) / 12 / factor
+    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+    plt.title('Hamburg')
+    plt.subplots_adjust(bottom=.15)
+    plt.figlegend(hh,['Combution engine', 'Electic engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
+    plt.tight_layout()
+    plt.savefig(path + 'stockAll')
+    
+    
+#%%
 if False:
     #%%
     timeStep = 120
@@ -210,6 +289,7 @@ if averageCarAge:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average fleet age per mobility type [years]')  
+    plt.tight_layout()
     plt.savefig(path + 'fleetAge')
 
 if meanESSR:
@@ -228,6 +308,7 @@ if meanESSR:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average relative effective sample size')  
+    plt.tight_layout()
     plt.savefig(path + 'ESSR|mobType')
 
     res = np.zeros([nSteps,3])
@@ -245,33 +326,35 @@ if meanESSR:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average relative effective sample size')  
+    plt.tight_layout()
     plt.savefig(path + 'ESSR|prefType')
         
     
     
 #%%
-data = persMat[time,:,persPropDict['preferences']]
-
-plt.figure()
-plt.subplot(2,2,1)
-plt.scatter(data[0,:],data[1,:],s=2)
-plt.xlabel('conv')
-plt.ylabel('eco')
-
-plt.subplot(2,2,2)
-plt.scatter(data[2,:],data[1,:],s=2)
-plt.xlabel('eco')
-plt.ylabel('money')
-
-plt.subplot(2,2,3)
-plt.scatter(data[0,:],data[2,:],s=2)
-plt.xlabel('conv')
-plt.ylabel('money')
-
-plt.subplot(2,2,4)
-plt.scatter(data[2,:],data[3,:],s=2)
-plt.xlabel('eco')
-plt.ylabel('inno')
+if False:
+    data = persMat[time,:,persPropDict['preferences']]
+    
+    plt.figure()
+    plt.subplot(2,2,1)
+    plt.scatter(data[0,:],data[1,:],s=2)
+    plt.xlabel('conv')
+    plt.ylabel('eco')
+    
+    plt.subplot(2,2,2)
+    plt.scatter(data[2,:],data[1,:],s=2)
+    plt.xlabel('eco')
+    plt.ylabel('money')
+    
+    plt.subplot(2,2,3)
+    plt.scatter(data[0,:],data[2,:],s=2)
+    plt.xlabel('conv')
+    plt.ylabel('money')
+    
+    plt.subplot(2,2,4)
+    plt.scatter(data[2,:],data[3,:],s=2)
+    plt.xlabel('eco')
+    plt.ylabel('inno')
 
 #%%%
 if peerBubbleSize:
@@ -292,6 +375,7 @@ if peerBubbleSize:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average Bubble size')  
+    plt.tight_layout()
     plt.savefig(path + 'socialBubbleSize|mobType')
 
     res = np.zeros([nSteps,3])
@@ -311,6 +395,7 @@ if peerBubbleSize:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average Bubble size')  
+    plt.tight_layout()
     plt.savefig(path + 'socialBubbleSize|prefType')
     
 #%%
@@ -332,6 +417,7 @@ if agePerMobType:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Average age of mobility actors')  
+    plt.tight_layout()
     plt.savefig(path + 'agePerMobType')
 
 
@@ -353,6 +439,7 @@ if womanSharePerMobType:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
     plt.title('Share of women')  
+    plt.tight_layout()
     plt.savefig(path + 'womanShareGreen')
 
 
@@ -368,11 +455,13 @@ if expectUtil  == 1:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     
     plt.title("Expectations for mobility types")    
+    
     plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.tight_layout()
     plt.savefig(path + 'expectedUtility')
     #%%
 if expectUtil  == 1:
-    fig = plt.figure(figsize=(15,10))
+    fig = plt.figure(figsize=(12,8))
     data = np.asarray(persMat[:,:,persPropDict['commUtil']])
     
     plt.plot(np.mean(data,axis=1),linewidth=3)
@@ -396,8 +485,9 @@ if expectUtil  == 1:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     
-    plt.title("Expectations for mobility types ")    
+    #plt.title("Expectations for mobility types ")    
     plt.legend(newLegStr,loc=0)
+    plt.tight_layout()
     plt.savefig(path + 'expectedUtility2')    
     
     
@@ -442,7 +532,11 @@ if plotCarStockBar:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
-    plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    plt.legend(legStr,loc=0)
+    plt.tight_layout()
+    plt.xlim([0,nSteps])
+    plt.ylim([0, np.sum(carMat[time,:])])
     plt.savefig(path + 'carStock')
 #%% plot sales per mobility type
 
@@ -465,6 +559,7 @@ if plotCarSales:
     plt.legend(enums['brands'].values(),loc=0)
     
     plt.title('sales per mobility Type')
+    plt.tight_layout()
     plt.savefig(path + 'salesPerMobType')
     
 #%%
@@ -489,6 +584,7 @@ if salesProperties:
             years = (nSteps - nBurnIn) / 12
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.suptitle('preferences of current sales per time')
+    plt.tight_layout()
     plt.savefig(path + 'buyerPriorities')#
     
     #%%
@@ -520,6 +616,7 @@ if salesProperties:
             years = (nSteps - nBurnIn) / 12
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
     plt.suptitle('preferences of current sales per time')
+    plt.tight_layout()
     plt.savefig(path + 'buyerProperties')
     
 #%% number of different cars per preference type:
@@ -670,7 +767,7 @@ if utilPerLabel:
     legStr = list()
     for label in range(len(enums['brands'])):
         legStr.append(enums['brands'][label])  
-    fig = plt.figure(figsize=(15,10))
+    fig = plt.figure(figsize=(12,8))
     res = np.zeros([nSteps,len(enums['brands']), 5])
     for time in range(nSteps):
         for carLabel in range(0,len(enums['brands'])):
@@ -700,7 +797,7 @@ if utilPerLabel:
     plt.plot(res[:,:,4],style[4])
     newLegStr += [ string + ' (immi)' for string in  legStr]
     plt.legend(newLegStr,loc=0, ncol=5)
-    plt.title('Average utility by mobility type -=conv | ..=eco | --=mon ')
+    #plt.title('Average utility by mobility type -=conv | ..=eco | --=mon ')
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
     if years:
@@ -722,14 +819,23 @@ if greenPerIncome or incomePerLabel:
         hhglob2datIdx[hhMat[0,idx,hhPropDict['gID'][0]]] = idx
 
 
+    brownHH = list()
     greenHH = list()
+    otherHH = list()
     for time in range(nSteps):
         print time,
+        gIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==0,persPropDict['hhID'][0]].astype(int)
+        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
+        brownHH.append(np.asarray(hhIDs))
+        
         gIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==1,persPropDict['hhID'][0]].astype(int)
         hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
         greenHH.append(np.asarray(hhIDs))
 
-
+        gIDsofHH = persMat[time,persMat[time,:,persPropDict['mobType'][0]]==2,persPropDict['hhID'][0]].astype(int)
+        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
+        otherHH.append(np.asarray(hhIDs))
+#%%        
 if greenPerIncome:        
     res = np.zeros([nSteps,2])
     std = np.zeros([nSteps,2])
@@ -751,47 +857,72 @@ if greenPerIncome:
                 pass
         if i < 2:
             plt.xticks([])  
+    plt.tight_layout()            
     plt.savefig(path + 'greenPerIncomeClass')
+#%%
 if incomePerLabel:
     
        
-    res = np.zeros([nSteps,2])
-    std = np.zeros([nSteps,2])
+    res = np.zeros([nSteps,4])
+    std = np.zeros([nSteps,4])
     for time in range(nSteps):
         for carLabel in range(len(enums['brands'])):
             #idx = hhMat[time,:,hhPropDict['type'][0]] == carLabel
             res[time, 0] = np.mean(hhMat[time,:,hhPropDict['income'][0]])
             std[time, 0] = np.std(hhMat[time,:,hhPropDict['income'][0]])
             idx = np.zeros(hhMat.shape[1])
-            if len(greenHH[time]) > 0:
-                res[time, 1] = np.mean(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
-                std[time, 1] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+            if len(brownHH[time]) > 0:
+                res[time, 1] = np.mean(hhMat[time,:,hhPropDict['income'][0]][brownHH[time]])
+                std[time, 1] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][brownHH[time]])
             else:
                 res[time, 1] = np.nan
                 std[time, 1] = np.nan
+            
+            if len(greenHH[time]) > 0:
+                res[time, 2] = np.mean(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+                std[time, 2] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][greenHH[time]])
+            else:
+                res[time, 2] = np.nan
+                std[time, 2] = np.nan
+                
+            if len(otherHH[time]) > 0:
+                res[time, 3] = np.mean(hhMat[time,:,hhPropDict['income'][0]][otherHH[time]])
+                std[time, 3] = .5* np.std(hhMat[time,:,hhPropDict['income'][0]][otherHH[time]])
+            else:
+                res[time, 3] = np.nan
+                std[time, 3] = np.nan    
+                
     legStr = list()
     for label in range(0,len(enums['brands'])):
         legStr.append(enums['brands'][label])        
     fig = plt.figure()
-    plt.plot(res)
-    
-    plt.fill_between(range(0,nSteps), res[:,0]+ std[:,0], res[:,0]- std[:,0], facecolor='blue', interpolate=True, alpha=0.1,)
-    plt.plot(res[:,0]+ std[:,0],'b--', linewidth = 1)
-    plt.plot(res[:,0]- std[:,0],'b--', linewidth = 1)
-    plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='green', interpolate=True, alpha=0.1,)
-    plt.plot(res[:,1]+ std[:,1],'g--', linewidth = 1)
-    plt.plot(res[:,1]- std[:,1],'g--', linewidth = 1)
+    plt.plot(res[:,1:])
+#    plt.fill_between(range(0,nSteps), res[:,0]+ std[:,0], res[:,0]- std[:,0], facecolor='black', interpolate=True, alpha=0.1,)
+#    plt.plot(res[:,0]+ std[:,0],'k--', linewidth = 1)
+#    plt.plot(res[:,0]- std[:,0],'k--', linewidth = 1)
+    plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='blue', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,1]+ std[:,1],'b--', linewidth = 1)
+    plt.plot(res[:,1]- std[:,1],'b--', linewidth = 1)
+    plt.fill_between(range(0,nSteps), res[:,2]+ std[:,2], res[:,2]- std[:,2], facecolor='green', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,2]+ std[:,2],'g--', linewidth = 1)
+    plt.plot(res[:,2]- std[:,2],'g--', linewidth = 1)
+    plt.fill_between(range(0,nSteps), res[:,3]+ std[:,3], res[:,3]- std[:,3], facecolor='red', interpolate=True, alpha=0.1,)
+    plt.plot(res[:,3]+ std[:,3],'r-', linewidth = 1)
+    plt.plot(res[:,3]- std[:,3],'r--', linewidth = 1)    
     #ax.fill_between(x, y1, y2, where=y2 <= y1, facecolor='red', interpolate=True)
     
     #plt.plot(res- std,'--')
-    plt.title('Equalized household income')
+    #plt.title('Equalized household income')
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
-    plt.legend(['Average Household', 'Household income using an electic car', 'Avg STD', 'Elec STD',''],loc=3) 
-    
+    plt.legend(['Household income using an combution engined car', 
+                'Household income using an electic car', 
+                'Household income using other mobility modes', 
+                'Comb STD', 'Elec STD','other STD'],loc=3) 
+    plt.tight_layout()
     plt.savefig(path + 'incomePerMobType')
 print ''
 
@@ -827,6 +958,7 @@ if meanPrefPerLabel:
     plt.tight_layout()
 
     fig.suptitle('mean priority per mobility type')
+    plt.tight_layout()
     plt.savefig(path + 'meanPriorityPerMobType')
 print 1
 
@@ -861,8 +993,9 @@ if meanConsequencePerLabel:
     # plt.legend(legStr,loc=0)        
     plt.legend(legStr,bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #fig.legend(h, legStr)
-    plt.tight_layout()
+    
     fig.suptitle('mean consequences per mobility type')
+    plt.tight_layout()
     plt.savefig(path + 'meanConsequencesPerMobType')
 print 1
 
@@ -893,6 +1026,7 @@ if emissionsPerLabel:
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
     plt.legend(legStr,loc=0)    
+    plt.tight_layout()
     plt.savefig(path + 'meanEmmissionsPerMobType')
 #plt.show()
 #%% loading cell agent file
@@ -910,7 +1044,7 @@ if printCellMaps:
                 
         return array
 
-    #%% loading cell agent file
+    #% loading cell agent file
     cellMatStep = getData(parameters,1,0)
 
     cellMat = np.zeros([parameters['nSteps'], cellMatStep.shape[0],cellMatStep.shape[1]])
@@ -1048,7 +1182,7 @@ if cellMovie:
         import mod_geojson as gjs
         geoData = gjs.extractShapes(geoFile, [1518, 1520, 6321] , 'numID',None)
         foMap.map.choropleth(geo_str=geoData, fill_color=None,fill_opacity=0.00, line_color='green', line_weight=3)
-        for year in [2005, 2010, 2015, 2020, 2025, 2030]:
+        for year in [2005, 2010, 2015, 2020, 2025, 2030, 2035]:
             
             step = (nBurnIn + (year-2005) * 12)-1
             if step > nSteps:
@@ -1060,7 +1194,7 @@ if cellMovie:
             #arrayData = cellMat[step,:,cellPropDict['carsInCell'][1]] / (cellMat[step,:,cellPropDict['carsInCell'][0]] + cellMat[step,:,cellPropDict['carsInCell'][1]])
             arrayData[np.isnan(arrayData)] = 0
             bounds = np.min([bounds[0], np.nanpercentile(arrayData,2)]) , np.max([bounds[1], np.nanpercentile(arrayData,98)])
-        for year in  [2005, 2010, 2015, 2020, 2025, 2030]:
+        for year in  [2005, 2010, 2015, 2020, 2025, 2030, 2035]:
             step = (nBurnIn + (year-2005) * 12)-1
             if step > nSteps:
                 break    
@@ -1137,7 +1271,48 @@ if cellMovie:
         #foMap.map.add_child(xx)
         foMap.save(path +  'greenCarShare.html')
         
+#%%
+if printCellMaps:
+    
+    from matplotlib.colors import ListedColormap
+    my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
+    years = [2020, 2025, 2030, 2034]
+    iBrand = 1 
+    landLayer = np.zeros(np.max(cellMat[0,:,cellPropDict['pos']]+1,axis=1).astype(int).tolist())
+    for iCell in range(cellMat.shape[1]):
+        x = cellMat[0,iCell,cellPropDict['pos'][0]].astype(int)
+        y = cellMat[0,iCell,cellPropDict['pos'][1]].astype(int)
+        landLayer[x,y] = 1
+    #plt.pcolormesh(landLayer)
+    landLayer = landLayer.astype(bool)
+    res = landLayer*1.0
+    res[res==0] = np.nan
+    fig = plt.figure(figsize=(12,8))
+    data = cellMat[nSteps-1,:,cellPropDict['carsInCell'][iBrand]] / cellMat[nSteps-1,:,cellPropDict['population'][0]] * 1000
+    bounds = [np.nanmin(data), np.nanpercentile(data,95)]
+    for i, year in enumerate (years):
+        tt = (year - 2005)*12 + nBurnIn
         
+        
+        plt.subplot(2,2,i+1)
+        
+        data = cellMat[tt,:,cellPropDict['carsInCell'][iBrand]] / cellMat[tt,:,cellPropDict['population'][0]] * 1000
+        data[np.isinf(data)] = 0
+        
+        print bounds
+        res[posArray[0],posArray[1]] = cellMat[tt,:,cellPropDict['carsInCell'][iBrand]] / cellMat[tt,:,cellPropDict['population'][0]] * 1000
+        
+        plt.imshow(res, cmap=my_cmap) 
+        plt.colorbar()
+        plt.clim(bounds)
+        plt.tight_layout()
+        if year == 2034:
+            plt.title(str(2035))
+        else:
+            plt.title(str(year))
+    #plt.suptitle('Electric cars per 1000 people')
+    plt.savefig(path + 'greenCarShareNew')
+    
     #%%
     plt.figure()
     #plt.colormap('jet')

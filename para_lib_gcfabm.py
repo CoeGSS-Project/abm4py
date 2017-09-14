@@ -26,6 +26,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 Philosophy:
     
 Classes are only the hull of methods around an graph node with its connections. 
+Entities can only alter out-connections by themselves (out egbes belong to the source node)
 Entities should therefore by fully defined by their global ID and local ID and
 the underlying graph that contains all properties    
 
@@ -222,21 +223,177 @@ class Queue():
 
         for node in world.entList:
             node.buffer()
+
+class Cache():
+        
+    def __init__(self, graph, nID):
+        self.graph       = graph
+        self.nID         = nID
+        self.edgesAll    = None
+        self.edgesByType = dict()
+        
+        self.peersAll    = None
+        self.peersByType = dict()
+        
+        
+    def __reCachePeers__(self, givenType=None):
+        """ privat function that re-caches all peers of the node"""
+        print 'caching peers'
+        
+        node = self.graph.vs[self.nID]
+        peers = node.neighbors('OUT')
+    
+        peerIDs =  [x.index for x in peers]
+        
+        self.peersAll    = self.graph.vs[peerIDs]
+        
+        if givenType is not None:
+            self.peersByType[givenType] = self.peersAll.select(type=givenType)
+        else:
+            for nodeType in self.graph.nodeTypes:
+                self.peersByType[nodeType] = self.peersAll.select(type=nodeType)
+                
+    def __checkPeerCache__(self, givenType):
+        if givenType is None:
+            
+            # check if re-caching is required
+            if self.peersAll is None:
+                self.__reCachePeers__()
+                
+        else:        
+            # check if re-caching is required
+            if givenType not in self.peersByType.keys():
+                self.__reCachePeers__(givenType)
+        
+    def __reCacheEdges__(self, givenType=None):
+        """ privat function that re-caches all edges of the node"""
+        
+        print 'caching edges'
+        # all out edges
+        self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')]
+        
+        # out edges by type
+        if givenType is not None:
+            self.edgesByType[givenType] = self.edgesAll.select(type=givenType)
+        else:
+            for edgeType in self.graph.edgeTypes:
+                self.edgesByType[edgeType] = self.edgesAll.select(type=edgeType)
+            
+    def __checkEdgeCache__(self, givenType):
+        if givenType is None:
+            
+            # check if re-caching is required
+            if self.edgesAll is None:
+                self.__reCacheEdges__()
+                
+        else:        
+            # check if re-caching is required
+            if givenType not in self.edgesByType.keys():
+                self.__reCacheEdges__(givenType)    
+            
+    def getEdgeValues(self, prop, edgeType=None):
+        """ 
+        privat function to access the values of pre-cached edges
+        if necessary the edges are re-cached.
+        """
+        # check if re-caching is required
+        self.__checkEdgeCache__(edgeType)
+        
+        if edgeType is None:
+                       
+            edges = self.edgesAll
+            return edges[prop], edges
+        else:        
+
+            edges = self.edgesByType[edgeType]
+            return edges[prop], edges              
+
+    def setEdgeValues(self, prop, values, edgeType=None):
+        """ 
+        privat function to access the values of pre-cached edges
+        if necessary the edges are re-cached.
+        """
+        # check if re-caching is required
+        self.__checkEdgeCache__(edgeType)
+        
+        if edgeType is None:
+
+            
+            edges = self.edgesAll
+            edges[prop] = values
+        else:                       
+            edges = self.edgesByType[edgeType]
+            edges[prop] = values
+
+    def getEdges(self, edgeType=None):
+        """ 
+        privat function to access the values of pre-cached edges
+        if necessary the edges are re-cached.
+        """
+        # check if re-caching is required
+        self.__checkEdgeCache__(edgeType)
+        
+        if edgeType is None:
+            
+            return self.edgesAll
+        else:        
+                
+            return self.edgesByType[edgeType]
+
+    def getPeerValues(self, prop, nodeType=None):
+        # check if re-caching is required
+        self.__checkPeerCache__(nodeType)
+    
+        if nodeType is None:
+
+            return self.peersAll[prop], self.peersAll
+        else:        
+            return self.peersByType[nodeType][prop], self.peersByType[nodeType]                
+    
+    def setPeerValues(self, prop, values, nodeType=None):
+        # check if re-caching is required
+        self.__checkPeerCache__(nodeType)
+        
+        if nodeType is None:
+            self.peersAll[prop] = values
+        else:
+            self.peersByType[nodeType][prop] = values
+            
+    def getPeers(self, nodeType=None):
+        # check if re-caching is required
+        self.__checkPeerCache__(nodeType)
+    
+        if nodeType is None:
+
+            return self.peersAll
+        else:        
+            return self.peersByType[nodeType]  
+    
+    def getPeerIDs(self, nodeType=None):
+
+        self.__checkPeerCache__(nodeType)
+        
+        if nodeType is None:
+            return self.peersAll.indices
+        else:        
+            return self.peersByType[nodeType].indices
             
 ################ ENTITY CLASS #########################################    
 # general ABM entity class for objects connected with the graph
 
 class Entity():
+
+    
         
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
-        #len(world.graph.nodeTypes) >=  nodeType
         self.graph  = world.graph
         self.queue  = world.queue
         self.gID    = self.__getGlobID__(world)
-        #print self.gID
-        self.edges  = dict()
         self.queuing = world.queuing
+        self.caching = world.caching
+
+        self.edges = dict()        # TODO delete           
         
         # create instance from existing node
         if nID is not None:
@@ -260,12 +417,100 @@ class Entity():
             self.graph.add_vertex( **kwProperties)
             self.node = self.graph.vs[self.nID]            # short cuts for value access
             
+        if world.caching:
+            self.cache  = Cache(self.graph, self.nID)
+
+            # definition of access functions
+            self.getPeerValues = self.cache.getPeerValues
+            self.setPeerValues = self.cache.setPeerValues
+            self.getPeers = self.cache.getPeers
+            self.getPeerIDs = self.cache.getPeerIDs
             
-        self.edges = dict()                
+            self.getEdgeValues = self.cache.getEdgeValues
+            self.setEdgeValues = self.cache.setEdgeValues
+            self.getEdges = self.cache.getEdges
+           
+        else:
+            self.getPeerValues = self.__getPeerValues__
+            self.setPeerValues = self.__setPeerValues__
+            self.getPeers = self.__getPeers__
+            self.getPeerIDs = self.__getPeerIDs__
+            
+            self.getEdgeValues = self.__getEdgeValues__
+            self.setEdgeValues = self.__setEdgeValues__
+            self.getEdges = self.__getEdges__
+            
+            
 
+    def __getPeerValues__(self, prop, nodeType=None):
+        nodeDict = self.node.neighbors('OUT')
+        neighbourIDs     = list()
+        values          = list()
 
+        for node in nodeDict:
+            if nodeType is None or node['type'] == nodeType:
+                neighbourIDs.append(node.index)   
+                values.append(node[prop])
+        
+        return values, neighbourIDs
+    
+    def __setPeerValues__(self, prop, values, nodeType=None):
+        nodeDict = self.node.neighbors(mode)
+        neighbourIDs = [node.index for node in nodeDict]
+        for node in nodeDict:
+            self.graph.vs[neighbourIDs][prop] = values
+    
+    def __getPeerIDs__(self, nodeType=None):
 
-    def __updateEdges__(self, **kwargs):
+        neigbours = self.node.neighbors(mode='OUT')
+    
+        if nodeType is not None:
+            return [x.index for x in neigbours if x['type'] == nodeType]
+        else:
+            return [x.index for x in neigbours]
+    
+    def __getPeers__(self, nodeType=None):
+        idList = self.__getPeerIDs__(nodeType)
+        
+        if nodeType is not None:
+            return self.graph.vs[[nIdx for nIdx in idList if self.graph.es[nIdx]['type'] == nodeType]]
+        else:
+            return self.graph.vs[idList]
+         
+   
+    def __getEdgeValues__(self, prop, edgeType=None, mode="out"):
+        """ 
+        privat function to access the values of  edges
+        """
+        values = [] 
+        edges  = []
+        eList  = self.graph.incident(self.nID,mode)
+
+        if edgeType is not None:
+            for eIdx in eList:
+                if self.graph.es[eIdx]['type'] == edgeType:
+                    values.append(self.graph.es[eIdx][prop])   
+                    edges.append(eIdx)
+        else:
+            for edge in eList:
+                values.append(self.graph.es[eIdx][prop])        
+                edges.append(eIdx)
+        return values, edges 
+    
+        
+    def __getEdges__(self, edgeType=None, mode="out"):
+        """ 
+        privat function to access the values of  edges
+        """
+        eList  = self.graph.incident(self.nID,mode)
+        if edgeType is not None:
+            
+            return [eIdx for eIdx in eList if self.graph.es[eIdx]['type'] == edgeType]
+
+        else:
+            return eList
+
+    def __updateEdges__(self, **kwargs): #TODO delete
         #TODO re-think this approach            
         self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
         
@@ -291,13 +536,22 @@ class Entity():
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
-        self.graph.add_edge(self.nID,friendID, **kwpropDict)   
-        self.__updateEdges__()
+        self.graph.add_edge(self.nID,friendID, **kwpropDict)  
+        if self.caching:
+            self.cache.edgesALL = None
+            self.cache.peersALL = None
+            del self.cache.edgesByType[edgeType] 
+            self.cache.peersByType = dict()  # TODO less efficient
+        self.__updateEdges__() #TODO delete
             
     def remConnection(self, friendID,edgeType):
         eID = self.graph.get_eid(self.nID,friendID)
         self.graph.delete_edges(eID)
-        self.__updateEdges__()
+        if self.caching:
+            self.cache.edgesALL = None
+            del self.cache.edgesByType[edgeType] 
+            self.cache.peersByType = dict()  # TODO less efficient
+        self.__updateEdges__() #TODO delete
 
     def setValue(self,prop,value):
         self.node[prop] = value
@@ -341,7 +595,7 @@ class Entity():
                 edges.append(eIdx)
         return values, edges
         
-    def getEdges(self, edgeType=0):
+    def getEdges(self, edgeType=None):
         edges = self.edges[edgeType]
         return edges
     
@@ -410,15 +664,15 @@ class Agent(Entity):
             parentEntity.registerChild(world, self, edgeType)
             
 class GhostAgent(Entity):
-    
+
+    def __init__(self, world, owner, nID=None, **kwProperties):
+        Entity.__init__(self, world, nID, **kwProperties)
+        self.mpiOwner =  int(owner)
+        
     def __getGlobID__(self,world):
         
         return None # global ID need to be acquired via MPI communication
         
-    def __init__(self, world, owner, nID=None, **kwProperties):
-        Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner =  int(owner)
-
     def getLocationValue(self,prop):
     
         return self.loc.node[prop] 
@@ -1122,20 +1376,27 @@ class World:
             return buff
             
     #%% INIT WORLD            
-    def __init__(self, spatial=True, nSteps= 1, maxNodes = 1e6, debug = False, mpiComm=None):
+    def __init__(self, 
+                 spatial=True, 
+                 nSteps= 1, 
+                 maxNodes = 1e6, 
+                 debug = False, 
+                 mpiComm=None, 
+                 caching=True):
         
         self.timeStep = 0
-        
         self.para     = dict()
         self.spatial  = spatial
         self.maxNodes = int(maxNodes)
         self.globIDGen = self.__globIDGen__()
         self.nSteps   = nSteps
         self.debug    = debug
-        self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
+        
         self.para     = dict()
+        self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
+        self.caching = caching  # flat that indicate that edges and peers are cached for faster access
                
-        #GRAPH
+        # GRAPH
         self.graph    = ig.Graph(directed=True)
         
         
@@ -1143,7 +1404,9 @@ class World:
         if self.debug:
             # inint pprint as additional output
             import pprint
-            def debugPrint(argv):
+            def debugPrint(**argv):
+                if not isinstance(argv, str):
+                    argv = str(argv)
                 pprint.pprint('DEBUG: ' + argv)
             self.dprint = debugPrint
         else:

@@ -652,7 +652,7 @@ def householdSetup(earth, parameters, calibration=False):
 
 
 
-def initEarth(parameters, maxNodes, debug, mpiComm=None):
+def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=False):
     tt = time.time()
     
     earth = Earth(parameters,

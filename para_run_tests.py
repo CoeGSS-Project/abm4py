@@ -22,10 +22,10 @@ mpiSize = comm.Get_size()
 
 
 
-olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
-sys.stdout = olog_file
-elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
-sys.stderr = elog_file
+#olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
+#sys.stdout = olog_file
+#elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
+#sys.stderr = elog_file
 
 debug = False
 
@@ -33,7 +33,7 @@ parameters = bunch.Bunch()
 parameters.nSteps = 5
 parameters.isSpatial = 1
 parameters.startDate = [01,2005]
-parameters.timeUint  = 0
+parameters.timeUnit  = 0
 parameters.burnIn    = 0
 parameters.omniscientBurnIn = 0
 if mpiSize == 1:
@@ -97,7 +97,7 @@ def h5pyReadTest(earth):
     
 def communicationTest(earth):
 
-    earth.dprint( mpiRank, earth.graph.vs['prop'])
+    earth.dprint( (mpiRank, earth.graph.vs['prop']))
     earth.timeStep = 0
     
     def step(earth):
@@ -110,6 +110,10 @@ def communicationTest(earth):
         earth.dprint('before update r', mpiRank, earth.graph.vs['prop'])
         for node in earth.iterEntRandom(_cell):
             props , __ = node.getConnNodeValues('prop',_cell)
+            props2 , __ = node.getPeerValues('prop',_cell)
+            
+            print node.getPeerIDs(_cell)
+            assert props == props
             earth.dprint(str(node.nID) + ':' + str(props))
             if any(props):
                 node.setValue('prop',np.max(props))
@@ -129,7 +133,29 @@ def communicationTest(earth):
         
     print 'communication test successful'
         
+    
+def edgeReadValueTest(earth):
+    _tcc = earth.registerEdgeType('cell-cell',_cell, _cell, ['type','weig'])
+    
+    for node in earth.iterEntRandom(_cell):
+        props , __ = node.getEdgeValues('weig',_tcc)   
+        print props
+        print node.cache.edgesByType.keys()
+    print "first round done"
+
+    earth.mpi.comm.Barrier()
+    print "second round"
+    
+    if mpiRank == 0:
+        node = earth.entList[0]
+        print node.cache.edgesByType
+        node.addConnection(1, _tcc, weig=1)
+    
+    for node in earth.iterEntRandom(_cell):
+        props , __ = node.getEdgeValues('weig',_tcc)   
+        print props
 earth , _cell = testSpatialNodeCreation(comm, parameters)    
 recordSyncTest(earth)
 h5pyReadTest(earth)
 communicationTest(earth)
+edgeReadValueTest(earth)
