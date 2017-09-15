@@ -143,7 +143,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
-    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,5,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)

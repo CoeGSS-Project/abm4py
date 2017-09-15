@@ -39,6 +39,7 @@ Thus, the function "location.registerEntity" does initialize ghost copies
 TODOs:
 
 soon:
+    - copy important graph functon to world and agument it to fit with caching and queuing
     - redirect all output to the correct folder
     - IO of connections and their attributes
     - per node collecting of communting and waiting times
@@ -78,7 +79,7 @@ from bunch import Bunch
 #import array
 #from pprint import pprint
 
-
+from class_graph import WorldGraph
 import class_auxiliary as aux # Record, Memory, Writer, cartesian
 
 class Queue():
@@ -220,9 +221,6 @@ class Queue():
     def dequeueEdgeDeleteList(self, world):
         self.graph.delete_edges(self.edgeDeleteList)
         self.edgeDeleteList = list()
-
-        for node in world.entList:
-            node.buffer()
 
 class Cache():
         
@@ -377,7 +375,22 @@ class Cache():
             return self.peersAll.indices
         else:        
             return self.peersByType[nodeType].indices
+           
+    def resetPeerCache(self,nodeType=None):
+        self.peersAll = None
+        if nodeType is None:
+            self.peersByType = dict()
+        else:
+            del self.peersByType[nodeType]
+
+    def resetEdgeCache(self,edgeType=None):
+        self.edgesAll = None
+        if edgeType is None:
+            self.edgesByType = dict()
+        else:
+            del self.edgesByType[edgeType]
             
+    
 ################ ENTITY CLASS #########################################    
 # general ABM entity class for objects connected with the graph
 
@@ -393,7 +406,7 @@ class Entity():
         self.queuing = world.queuing
         self.caching = world.caching
 
-        self.edges = dict()        # TODO delete           
+        #self.edges = dict()        # TODO delete           
         
         # create instance from existing node
         if nID is not None:
@@ -1414,7 +1427,7 @@ class World:
         self.caching = caching  # flat that indicate that edges and peers are cached for faster access
                
         # GRAPH
-        self.graph    = ig.Graph(directed=True)
+        self.graph    = WorldGraph(self, directed=True)
         
         
         # setting additional debug output

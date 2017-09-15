@@ -200,10 +200,10 @@ class Earth(World):
             frList, edges, weights = agent.generateContactNetwork(self)
             edgeList += edges
             weigList += weights
-        eStart = self.graph.ecount()
-        self.graph.add_edges(edgeList)
-        self.graph.es[eStart:]['type'] = edgeType
-        self.graph.es[eStart:]['weig'] = weigList
+#        eStart = self.graph.ecount()
+        self.graph.add_edges(edgeList, type=edgeType, weig=weigList)
+#        self.graph.es[eStart:]['type'] = edgeType
+#        self.graph.es[eStart:]['weig'] = weigList
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
 #        tt = time.time()
@@ -319,8 +319,6 @@ class Earth(World):
         self.mpi.comm.Barrier()
         
         self.waitTime[self.time] = time.time()-ttWait
-        
-        
         
         ttSync = time.time()
         self.mpi.updateGhostNodes([_pers],['commUtil'])
@@ -449,6 +447,7 @@ class Market():
     
     def computeStatistics(self):
         distances=list()
+        
         stock = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
         #self.glob['sumProp'] = np.sum(stock, axis=0)
         #self.mean = np.mean(stock,axis=0)                           # list of means of properties
@@ -725,38 +724,36 @@ class Person(Agent):
     def socialize(self, world):
         
         tt = time.time()
-        #drop 5 old connections
+        #drop 10% of old connections
         
-        weights, edges = self.getEdgeValuesFast('weig', edgeType=_cpp) 
+        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         nContacts = len(weights)
         nDrops    = int(nContacts/10)
         dropIds = np.asarray(edges.indices)[np.argsort(weights)[-nDrops:].tolist()].tolist()
         
+        world.queue.edgeDeleteList.extend(dropIds)
         
         # add t new connections
-        currContacts = self.friendNodeSeq.indices
+        currContacts = self.getPeerIDs(_pers)
         
         #frList, edges, weights = self.generateContactNetwork(world, nDrops, currContacts, addYourself = False)
-        frList, edges           = self.getRandomContacts(world, nContacts, currContacts)
-        world.queue.edgeDeleteList.extend(dropIds)
+        frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
+        
         
         if len(edges) > 0:
         # update edges
             world.dprint('adding contact edges')
-            eStart = self.graph.ecount()
-            world.graph.add_edges(edges)
-            world.graph.es[eStart:]['type'] = _cpp
-            world.graph.es[eStart:]['weig'] = 1.0/nContacts
+#            eStart = self.graph.ecount()
+            world.graph.add_edges(edgeList, type=_cpp, weig=1.0/nContacts)
+#            world.graph.es[eStart:]['type'] = _cpp
+#            world.graph.es[eStart:]['weig'] = 1.0/nContacts
     
-            # buffering
-            #world.dprint('updating edges of agent' + str( self.nID))
-            #self.__updateEdges__()
-            #world.dprint('buffering friends')
-            #self.bufferFriendSeq()
-            
+            self.cache.resetEdgeCache(_cpp) 
+            self.cache.resetPeerCache(_pers) 
+            print('New conntacts added in -- ' + str( time.time() - tt) + ' s')
             world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
         
-    def getRandomContacts(self, world, nContacts, currentContacts):
+    def getRandomNewContacts(self, world, nContacts, currentContacts):
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
         
         cell = world.entDict[np.random.choice(cellIds)]
@@ -900,8 +897,8 @@ class Person(Agent):
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
     
         # socialize
-        #if ESSR < 0.1 and np.random.rand() >0.99:
-        #    self.socialize(world)
+        if ESSR < 0.1 and np.random.rand() >0.99:
+            self.socialize(world)
     
     
  
