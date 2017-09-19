@@ -121,13 +121,7 @@ class Earth(World):
         self.memoryTime = memoryTime
         for location in self.iterEntRandom(_cell):
             location.initCellMemory(memoryTime, memeLabels)
-#    
-#    def initObsAtLoc(self,properties):
-#        for loc in self.nodeDict[1]:
-#            #self.agDict[loc].obsMat = np.zeros([0,len(properties)+1])
-#            columns = properties + ['utility','label']
-#            self.agDict[loc].obsDf = pd.DataFrame(columns = columns)
-    
+
     def initBrand(self, label, propertyTuple, convFunction, initTimeStep, allTimeProduced):
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
         
@@ -138,17 +132,7 @@ class Earth(World):
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
         self.enums['brands'][brandID] = label
-        
-    # init opinion class        
-#    def initOpinionGen(self,indiRatio = 0.33, ecoIncomeRange=(1000,4000),convIncomeFraction=7000):
-#        self.og     = OpinionGenerator(indiRatio, ecoIncomeRange, convIncomeFraction)
-#        # read raster and init surface
-        
-        # init location nodes
-        
-        # populate required properties
-        
-        # populate global variables and lists
+
              
     def plotTraffic(self,label):
         #import matplotlib.pyplot as plt
@@ -200,23 +184,10 @@ class Earth(World):
             frList, edges, weights = agent.generateContactNetwork(self)
             edgeList += edges
             weigList += weights
-#        eStart = self.graph.ecount()
         self.addConnections(edgeList, type=edgeType, weig=weigList)
-#        self.graph.es[eStart:]['type'] = edgeType
-#        self.graph.es[eStart:]['weig'] = weigList
+
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
-#        tt = time.time()
-#        for entity in self.entList:
-#            entity.buffer()
-#            
-#        print 'Edges updated in -- ' + str( time.time() - tt) + ' s'
-#        tt = time.time()
-#        
-#        tt = time.time()
-#        for agent in self.iterEntRandom(nodeType):
-#            agent.bufferFriendSeq()
-#        print 'Buffered sequence of friends in -- ' + str( time.time() - tt) + ' s'    
 
     def step(self):
         """ 
@@ -465,10 +436,6 @@ class Market():
         self.meanDist = np.mean(distances)
         self.stdDist = np.std(distances)
 
-#    def updateGlobStatData(self):
-#        propertiesArray = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
-#        self.glob.updateStatValues(self, 'meanProp')
-
     def distanceFromMean(self, properties):        
         distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
         return distance
@@ -608,27 +575,10 @@ class Market():
         prop = self.currentCarProperties(mobTypeIdx)
         if self.time > self.burnIn:
             self.glob['sales'][int(mobTypeIdx)] += 1
-      
-        #if len(self.freeSlots) > 0:
-        #    mobID = self.freeSlots.pop()
-        #    self.stock[mobID] = [mobTypeIdx] + prop
-        #    self.owners[mobID] = (eID, mobTypeIdx)
-        #else:
-        #    self.stock = np.vstack(( self.stock, [mobTypeIdx] + prop))
-        #    self.owners.append((eID, mobTypeIdx))
-        #    mobID = len(self.owners)-1
-        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] += 1        
+    
         self.stockByMobType[int(mobTypeIdx)] += 1        
         return prop    #return mobID, prop
     
-    #def sellCar(self, mobID):
-    #    self.stock[mobID] = np.Inf
-    #    self.freeSlots.append(mobID)
-    #    mobType = self.owners[mobID][1]
-    #    self.owners[mobID] = None
-    #    #self.stockByMobType.loc[self.stockByMobType.index[-1],label] -= 1
-    #    self.stockByMobType[int(mobType)] -= 1
-        
 
 # %% --- entity classes ---
 
@@ -641,15 +591,6 @@ class Person(Agent):
         #self.mobNewPeriod = float(world.para['mobNewPeriod'])
         
         #self.innovatorDegree = 0.
-
-#    def buffer(self):
-#        # overwrites the original Agent.buffer function and therefore should call it again
-#        Agent.buffer(self, edgeType=_cpp)
-#        self.bufferFriendSeq()
-#        #re-weight eges to soum up to unity
-#        self.edges[_cpp]['weig'] /= np.sum(self.edges[_cpp]['weig'])
-#        
-#        self.ownEdgeIdx = [i for i,es in enumerate(self.edges[_cpp]) if es.target==self.nID]
 
     def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
@@ -664,25 +605,7 @@ class Person(Agent):
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
 
-    
-#    def getObservationsMat(self, world, labelList):
-#        if len(self.obs) == 0:
-#            return None
-#        mat = np.zeros([0,len(labelList)])
-#        fullTimeList= list()
-#        for key in self.obs.keys():
-#            idxList, timeList = self.obs[key]
-#            idxList = [x for x,y in zip(idxList, timeList) if world.time - y < world.memoryTime  ]
-#            timeList = [x for x in timeList if world.time - x < world.memoryTime  ]
-#            self.obs[key] = idxList, timeList
-#            
-#            fullTimeList.extend(timeList)    
-#            mat = np.vstack(( mat, world.entDict[key].obsMemory.getMeme(idxList,labelList)))
-#        
-#        fullTimeList = world.time - np.asarray(fullTimeList)    
-#        weights = np.exp(-(fullTimeList**2) / (world.para['memoryTime']))
-#        return mat, weights
-#    
+
     def weightFriendExperience(self, world):
         friendUtil = np.asarray(self.getPeerValues('commUtil',_pers)[0])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
@@ -858,10 +781,6 @@ class Person(Agent):
         weigList   = [1./len(connList)]*len(connList)    
         return contactList, connList, weigList
 
-#    def bufferFriendSeq(self):
-#        self.friendNodeSeq = self.getPeers(nodeType=_pers)
-#        #print self.friendNodeSeq['gID']
-    
     def computeExpUtil(self,world):
         #get weights from friends
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
@@ -920,12 +839,6 @@ class GhostHousehold(GhostAgent):
     def __init__(self, world, mpiOwner, nID=None, **kwProperties):
         GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
 
-    def registerChild(self, world, entity, edgeType):
-        if self.queuing:
-            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-        else:
-            world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
-
     def register(self, world, parentEntity=None, edgeType=None):
         GhostAgent.register(self, world)
         self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
@@ -970,31 +883,6 @@ class Household(Agent):
             pdb.set_trace()
         return utility
  
-    
-    
-            #neig = [self.graph.es[x].target for x in indexedEdges]
-            #diff = [np.sum(np.abs(np.asarray(self.graph.vs[x]['preferences']) - np.asarray(self.graph.vs[self.nID]['preferences']))) for x in neig]
-#            plt.scatter(diff,prop)
-#            for y,z in zip(diff,prop):
-#                if y > .5 and z > .8:
-#                    print 1
-#        else:
-        #### reducting also weight of owners of other cars -> factor .99
-#            idxF = np.where(carLabels!=ownLabel)[0]
-#            #otherEdges = [ edgeIDs[x] for x in idxF]
-#       
-#            prior = np.asarray(world.getEdgeValues(edgeIDs,'weig'))
-#            post = prior
-#            sumPrior = np.sum(prior)
-#            post[idxT] = prior[idxT] * prop 
-#            post[idxF] = prior[idxF] * .999
-#            post = post / np.sum(post) * sumPrior
-#            if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
-#                if np.sum(post) > 0:
-#                    world.setEdgeValues(edgeIDs,'weig',post)
-#                else:
-#                    print 'updating failed, sum of weights are zero'
-
                         
     #def registerAtLocation(self, world,x,y, nodeType, edgeType):
     def register(self, world, parentEntity=None, edgeType=None):
@@ -1025,10 +913,6 @@ class Household(Agent):
         
         return self.mpiPeers
     
-    
-#    def shareExperience(self, world):
-#        for adult in self.adults:
-#            adult.shareExperience(world)
         
     def evalUtility(self, world, actionTaken=False):
         """
@@ -1172,10 +1056,6 @@ class Household(Agent):
             emissions = mobProps[0]
             ecology = market.ecology(emissions)
             
-            # get innovation consequence
-            #imitation = self.loc.brandShares[action]
-            #distance   = (market.distanceFromMean(mobProps)-market.meanDist)/market.stdDist
-            #innovation = math.exp(-((adult.node['innovatorDegree'] - distance)**2)/ market.innoDevRange)
 
             innovation = 1 - ( (market.allTimeProduced[adult.node['mobType']] 
                              / np.sum(market.allTimeProduced))**.5 )
@@ -1520,12 +1400,7 @@ class Cell(Location):
         #self.currID +=1
         return obsID
 #        
-#    def removeObs(self, label):
-#        """
-#        Removes a car for the pool of observations
-#        - not used right now -
-#        """
-#        self.traffic[label] -= 1
+
 
 class GhostCell(GhostLocation, Cell):
     getPersons = Cell.__dict__['getPersons']    
@@ -1559,17 +1434,6 @@ class Opinion():
         
     def getPref(self,age,sex,nKids, nPers,income, radicality):
         
-#        # priority of safety
-#        cs = 0
-#        if nKids < 0:
-#            if sex == 2:
-#                cs += 4
-#            else:
-#                cs += 2
-#        cs += int(float(age)/10) #
-#        if sex == 2:
-#            cs += 1
-#        cs = float(cs)**2
         
         # priority of ecology
         ce = 0

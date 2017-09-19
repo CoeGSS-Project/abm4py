@@ -713,6 +713,12 @@ class GhostAgent(Entity):
         
         if parentEntity is not None:
             parentEntity.registerChild(world, self, edgeType)
+
+    def registerChild(self, world, entity, edgeType):
+        if self.queuing:
+            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
+        else:
+            world.graph.add_edge(entity.nID,self.nID, type=edgeType)  
             
 ################ LOCATION CLASS #########################################      
 class Location(Entity):
