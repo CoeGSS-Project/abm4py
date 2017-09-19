@@ -1429,6 +1429,8 @@ class World:
         # GRAPH
         self.graph    = WorldGraph(self, directed=True)
         
+        # making global functions available
+        self.addConnections = self.graph.add_edges
         
         # setting additional debug output
         if self.debug:

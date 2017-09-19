@@ -201,7 +201,7 @@ class Earth(World):
             edgeList += edges
             weigList += weights
 #        eStart = self.graph.ecount()
-        self.graph.add_edges(edgeList, type=edgeType, weig=weigList)
+        self.addConnections(edgeList, type=edgeType, weig=weigList)
 #        self.graph.es[eStart:]['type'] = edgeType
 #        self.graph.es[eStart:]['weig'] = weigList
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
@@ -744,7 +744,7 @@ class Person(Agent):
         # update edges
             world.dprint('adding contact edges')
 #            eStart = self.graph.ecount()
-            world.graph.add_edges(edgeList, type=_cpp, weig=1.0/nContacts)
+            world.addConnections(edgeList, type=_cpp, weig=1.0/nContacts)
 #            world.graph.es[eStart:]['type'] = _cpp
 #            world.graph.es[eStart:]['weig'] = 1.0/nContacts
     
@@ -896,9 +896,9 @@ class Person(Agent):
         average = np.average(preferences, axis= 0, weights=weights)
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
     
-        # socialize
-        if ESSR < 0.1 and np.random.rand() >0.99:
-            self.socialize(world)
+#        # socialize
+#        if ESSR < 0.1 and np.random.rand() >0.99:
+#            self.socialize(world)
     
     
  
