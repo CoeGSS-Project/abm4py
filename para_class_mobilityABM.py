@@ -587,10 +587,7 @@ class Person(Agent):
     
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
-        self.obs  = dict()
-        #self.mobNewPeriod = float(world.para['mobNewPeriod'])
-        
-        #self.innovatorDegree = 0.
+
 
     def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
@@ -600,7 +597,8 @@ class Person(Agent):
     def register(self, world, parentEntity=None, edgeType=None):
         
         Agent.register(self, world)
-        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        
+        
         self.loc = parentEntity.loc 
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
@@ -829,7 +827,8 @@ class GhostPerson(GhostAgent):
     def register(self, world, parentEntity=None, edgeType=None):
         
         GhostAgent.register(self, world)
-        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        
+        
         self.loc = parentEntity.loc 
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
@@ -841,7 +840,7 @@ class GhostHousehold(GhostAgent):
 
     def register(self, world, parentEntity=None, edgeType=None):
         GhostAgent.register(self, world)
-        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        
         #self.queueConnection(locID,_clh)         
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)        
@@ -852,7 +851,6 @@ class Household(Agent):
         Agent.__init__(self, world, **kwProperties)
         
         
- #       self.car  = dict()
         self.util = 0
         if world.para['util'] == 'cobb':
             self.utilFunc = self.cobbDouglasUtil
@@ -889,30 +887,13 @@ class Household(Agent):
         
         
         Agent.register(self, world)
-        self.mpiPeers = parentEntity.registerChild(world, self, edgeType=edgeType)
+        
+        
         #self.queueConnection(locID,_clh)         
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)
         
-        #self.mpiPeers = self.loc.registerEntityAtLocation(world, self, edgeType)
-        
-    def registerChild(self, world, entity, edgeType):
-        if edgeType is not None:
-            #print edgeType
-            if self.queuing:
-                world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-            else:
-                world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
-        entity.loc = self
-        
-        if len(self.mpiPeers) > 0: # node has ghosts on other processes
-            for mpiPeer in self.mpiPeers:
-                #print 'adding node ' + str(entity.nID) + ' as ghost'
-                nodeType = world.graph.class2NodeType[entity.__class__]
-                world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
-        
-        return self.mpiPeers
-    
+  
         
     def evalUtility(self, world, actionTaken=False):
         """

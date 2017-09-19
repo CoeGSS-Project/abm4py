@@ -442,18 +442,7 @@ class Entity():
             self.getEdgeValues = self.cache.getEdgeValues
             self.setEdgeValues = self.cache.setEdgeValues
             self.getEdges = self.cache.getEdges
-           
-#        else:
-#            self.getPeerValues = self.__getPeerValues__
-#            self.setPeerValues = self.__setPeerValues__
-#            self.getPeers = self.__getPeers__
-#            self.getPeerIDs = self.__getPeerIDs__
-#            
-#            self.getEdgeValues = self.__getEdgeValues__
-#            self.setEdgeValues = self.__setEdgeValues__
-            #self.getEdges = self.__getEdges__
-            
-            
+                   
 
     def getPeerValues(self, prop, nodeType=None):
         nodeDict = self.node.neighbors('out')
@@ -539,30 +528,20 @@ class Entity():
             eList = [eIdx for eIdx in eList if self.graph.es[eIdx]['type'] == edgeType]
 
         return self.graph.es[eList]
-
-#    def __updateEdges__(self, **kwargs): #TODO delete
-#        #TODO re-think this approach            
-#        self.edgesAll = self.graph.es[self.graph.incident(self.nID,'out')]
-#        
-#        if 'edgeType' in kwargs.keys():
-#            self.edges[kwargs['edgeType']] = self.edgesAll.select(type=kwargs['edgeType'])
-#        for edgeType in self.graph.edgeTypes:
-#            self.edges[edgeType] = self.edgesAll.select(type=edgeType)
-#
-#    def buffer(self, **kwargs):
-#        self.__updateEdges__(**kwargs)
+    
 
     def getNeigbourhood(self, order):
-        
         neigIDList = self.graph.neighborhood(self.nID, order)
         neigbours = []
         for neigID in neigIDList:
             neigbours.append(self.graph.vs[neigID])
         return neigbours, neigIDList
+     
         
     def queueConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
         self.queue.addEdge(self.nID,friendID, **kwpropDict)    
+
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
@@ -609,63 +588,12 @@ class Entity():
         eIDSeq = self.graph.es.select(_source=self.nID).indices        
         self.graph.delete_edges(eIDSeq)
 
-#    def getEdgeValues(self, prop, edgeType=None, mode="out"):
-#        values = [] 
-#        edges  = []
-#        eList  = self.graph.incident(self.nID,mode)
-#
-#        if edgeType is not None:
-#            for eIdx in eList:
-#                if self.graph.es[eIdx]['type'] == edgeType:
-#                    values.append(self.graph.es[eIdx][prop])   
-#                    edges.append(eIdx)
-#        else:
-#            for edge in eList:
-#                values.append(self.graph.es[eIdx][prop])        
-#                edges.append(eIdx)
-#        return values, edges
-#        
-#    def getEdges(self, edgeType=None):
-#        edges = self.edges[edgeType]
-#        return edges
-#    
-#    def getEdgeValuesFast(self, prop, edgeType=0):
-#        #print self.edges
-#        edges = self.edges[edgeType]
-#        return edges[prop], edges
-#
-#    def getConnNodes(self, nodeType=0, mode='out'):
-#        if mode is None:
-#            neigbours = self.node.neighbors()
-#        else:
-#            neigbours = self.node.neighbors(mode)
-#    
-#        return [x for x in neigbours if x['type'] == nodeType]
-#
-#    def getConnNodeIDs(self, nodeType=0, mode='out'):
-#        if mode is None:
-#            neigbours = self.node.neighbors()
-#        else:
-#            neigbours = self.node.neighbors(mode)
-#    
-#        return [x.index for x in neigbours if x['type'] == nodeType]
-#        
-#    def getConnNodeSeq(self, nodeType=0, mode='out'):
-#        idList = self.getConnNodeIDs(nodeType, mode='out')
-#        
-#        return self.graph.vs[idList]
-#    
-#    def getConnNodeValues(self, prop, nodeType=0, mode='out'):
-#        nodeDict = self.node.neighbors(mode)
-#        neighbourIDs     = list()
-#        values          = list()
-#
-#        for node in nodeDict:
-#            if node['type'] == nodeType:
-#                neighbourIDs.append(node.index)   
-#                values.append(node[prop])
-#        
-#        return values, neighbourIDs
+    def register(self, world, parentEntity=None, edgeType=None):
+        nodeType = world.graph.class2NodeType[self.__class__]
+        world.registerNode(self, nodeType, ghost=False)
+
+        if parentEntity is not None:
+            self.mpiPeers = parentEntity.registerChild(world, self, edgeType)
 
 
         
@@ -681,17 +609,34 @@ class Agent(Entity):
             nID = kwProperties['nID']
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(world.mpi.rank)
+        
+    def registerChild(self, world, entity, edgeType):
+        if edgeType is not None:
+            #print edgeType
+            if self.queuing:
+                world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
+            else:
+                world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+        entity.loc = self
+        
+        if len(self.mpiPeers) > 0: # node has ghosts on other processes
+            for mpiPeer in self.mpiPeers:
+                #print 'adding node ' + str(entity.nID) + ' as ghost'
+                nodeType = world.graph.class2NodeType[entity.__class__]
+                world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+        
+        return self.mpiPeers
+        
 
     def getLocationValue(self,prop):
     
         return self.loc.node[prop] 
     
-    def register(self, world, parentEntity=None, edgeType=None):
-        nodeType = world.graph.class2NodeType[self.__class__]
-        world.registerNode(self, nodeType, ghost=False)
 
-        if parentEntity is not None:
-            parentEntity.registerChild(world, self, edgeType)
+    def move(self):
+        """ not yet implemented"""
+        pass
+        
             
 class GhostAgent(Entity):
 
@@ -707,12 +652,7 @@ class GhostAgent(Entity):
     
         return self.loc.node[prop] 
     
-    def register(self, world, parentEntity=None, edgeType=None):
-        nodeType = world.graph.class2NodeType[self.__class__]
-        world.registerNode(self, nodeType, ghost=True)
-        
-        if parentEntity is not None:
-            parentEntity.registerChild(world, self, edgeType)
+
 
     def registerChild(self, world, entity, edgeType):
         if self.queuing:
@@ -737,10 +677,7 @@ class Location(Entity):
         self.mpiPeers = list()
         
     
-    def register(self, world):
-        nodeType = world.graph.class2NodeType[self.__class__]
-        world.registerNode(self, nodeType, ghost=False)
-    
+
     def registerChild(self, world, entity, edgeType=None):
         if self.queuing:
             world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
@@ -756,7 +693,6 @@ class Location(Entity):
         
         return self.mpiPeers
         
-        
 class GhostLocation(Entity):
     
     def __getGlobID__(self,world):
@@ -770,9 +706,7 @@ class GhostLocation(Entity):
         self.mpiOwner = int(owner)
         self.queuing = world.queuing
 
-    def register(self, world):
-        nodeType = world.graph.class2NodeType[self.__class__]
-        world.registerNode(self, nodeType , ghost=True)
+
         
     def registerChild(self, world, entity, edgeType=None):
         if self.queuing:
@@ -782,6 +716,7 @@ class GhostLocation(Entity):
         entity.loc = self        
         
 ################ WORLD CLASS #########################################            
+
 class World:
     #%% World sub-classes
     
