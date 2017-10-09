@@ -46,7 +46,9 @@ soon:
     - reach usage of 100 parallell processes (96)
     - partitioning of the cell grid via metis or some other graph partioner
     - debug flag to control additional output
+    - allow movements of agents - transfer between nodes
     - (optional) write attribute names to hdf5 file
+    
 later:
     - movement of agents between processes
     - implement mpi communication of string attributes
@@ -57,8 +59,6 @@ later:
   
 """
 from mpi4py import  MPI
-#from __future__ import division
-
 from os.path import expanduser
 home = expanduser("~")
 import os
@@ -95,8 +95,10 @@ class Queue():
         self.nodeProperties = dict()        
         self.edgeDeleteList = list()
         
-    def addVertex(self, nodeType, **kwProperties):
-        #print kwProperties.keys()
+    def addVertex(self, nodeType, gID, **kwProperties):
+        
+        
+        
         if len(self.nodeList) == 0:
             #print 'setting current nID: ' + str(self.graph.vcount())
             self.currNodeID = self.graph.vcount()
@@ -105,7 +107,7 @@ class Queue():
         nID = self.currNodeID
         self.nodeList.append(nID)               # nID to general list
         #kwProperties.update({'nID': nID})
-        
+        kwProperties.update({ 'type': nodeType, 'gID':gID})
         
         if nodeType not in self.nodeProperties.keys():
             # init of new nodeType
@@ -130,7 +132,8 @@ class Queue():
         for prop, value in kwProperties.iteritems():
             self.nodeProperties[nodeType][prop].append(value)  # properties        
             
-        return nID
+            
+        return nID, self.nodeProperties[nodeType]
 
     def dequeueVertices(self, world):
         
@@ -171,7 +174,23 @@ class Queue():
         self.nodeTypeList   = dict()
         self.nodeProperties = dict()  
 
-                    
+    def addEdges(self, edgeList, **kwProperties):
+        edgeType = kwProperties['type']
+        if edgeType not in self.edgeDict.keys():
+            self.edgeDict[edgeType]         = list()
+            self.edgeProperties[edgeType]   = dict()
+            for prop in kwProperties.keys():
+                #print prop
+                self.edgeProperties[edgeType] [prop] = list()
+        self.edgeDict[edgeType].extend(edgeList)
+        for propKey in kwProperties.keys():
+            
+            if not isinstance(kwProperties[propKey], list):
+               self.edgeProperties[edgeType][propKey].extend ([kwProperties[propKey]]* len(edgeList) ) 
+            else :
+                assert len(kwProperties[propKey]) == len(edgeList)
+                self.edgeProperties[edgeType][propKey].extend(kwProperties[propKey])
+        
     def addEdge(self, source, target, **kwProperties):
         
         edgeType = kwProperties['type']
@@ -243,7 +262,7 @@ class Cache():
     
         peerIDs =  [x.index for x in peers]
         
-        self.peersAll    = self.graph.vs[peerIDs]
+        self.peersAll    = self.graph.vs[peerIDs].select(type_ne=0)
         
         if givenType is not None:
             self.peersByType[givenType] = self.peersAll.select(type=givenType)
@@ -268,7 +287,7 @@ class Cache():
         
         #print 'caching edges'
         # all out edges
-        self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')]
+        self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
         
         # out edges by type
         if givenType is not None:
@@ -388,7 +407,10 @@ class Cache():
         if edgeType is None:
             self.edgesByType = dict()
         else:
-            del self.edgesByType[edgeType]
+            try:
+                del self.edgesByType[edgeType]
+            except:
+                pass
             
     
 ################ ENTITY CLASS #########################################    
@@ -401,12 +423,8 @@ class Entity():
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
         self.graph  = world.graph
-        self.queue  = world.queue
         self.gID    = self.__getGlobID__(world)
-        self.queuing = world.queuing
-        self.caching = world.caching
-
-        #self.edges = dict()        # TODO delete           
+     
         
         # create instance from existing node
         if nID is not None:
@@ -418,17 +436,9 @@ class Entity():
             return
         
         # create instance newly
-        if world.queuing:
-            # add vertex to queue
-            kwProperties.update({'type': nodeType, 'gID':self.gID})    
-            self.nID = world.queue.addVertex(nodeType, **kwProperties)
-            self.node = None
-        else:
-            # add vertex to graph
-            self.nID  = len(self.graph.vs)
-            kwProperties.update({'nID':self.nID, 'type': nodeType, 'gID':self.gID})
-            self.graph.add_vertex( **kwProperties)
-            self.node = self.graph.vs[self.nID]            # short cuts for value access
+        
+        self.nID, self.node = world.addVertex(nodeType, self.gID, **kwProperties)
+        
             
         if world.caching:
             self.cache  = Cache(self.graph, self.nID)
@@ -484,24 +494,19 @@ class Entity():
             return self.graph.vs[idList]
          
    
-    def getEdgeValues(self, prop, edgeType=None):
+    
+    def getEdgeValue(self, prop, edgeType=None):
         """ 
         privat function to access the values of  edges
         """
-        values = [] 
-        edges  = []
         eList  = self.graph.incident(self.nID,mode="out")
-
+    
         if edgeType is not None:
-            for eIdx in eList:
-                if self.graph.es[eIdx]['type'] == edgeType:
-                    values.append(self.graph.es[eIdx][prop])   
-                    edges.append(eIdx)
+            edges = self.graph.es[eList].select(type=edgeType)
         else:
-            for edge in eList:
-                values.append(self.graph.es[eIdx][prop])        
-                edges.append(eIdx)
-        return values, self.graph.es[edges]
+            edges = self.graph.es[eList].select(type_ne=edgeType)
+    
+        return edges[prop], edges
     
     def setEdgeValues(self, prop, values, edgeType=None):
         """ 
@@ -509,25 +514,25 @@ class Entity():
         """
         eList  = self.graph.incident(self.nID,mode="out")
 
-        nodeDict = self.node.neighbors(mode='out')
         if edgeType is not None:
-            eList = [eID for eID in eList]
+            edges = self.graph.es[eList].select(type=edgeType)
         else:
-            eList = [eID for eID in eList if self.graph.es[eID]['type'] == edgeType]
-            
-        for node in nodeDict:
-            self.graph.es[eList][prop] = values
+            edges = self.graph.es[eList].select(type_ne=edgeType)
+
+        edges[prop] = values
         
     def getEdges(self, edgeType=None):
         """ 
         privat function to access the values of  edges
         """
         eList  = self.graph.incident(self.nID,mode="out")
-        if edgeType is not None:
-            
-            eList = [eIdx for eIdx in eList if self.graph.es[eIdx]['type'] == edgeType]
 
-        return self.graph.es[eList]
+        if edgeType is not None:
+            edges = self.graph.es[eList].select(type=edgeType)
+        else:
+            edges = self.graph.es[eList].select(type_ne=edgeType)
+
+        return edges
     
 
     def getNeigbourhood(self, order):
@@ -555,7 +560,7 @@ class Entity():
             
     def remConnection(self, friendID,edgeType):
         eID = self.graph.get_eid(self.nID,friendID)
-        self.graph.delete_edges(eID)
+        self.graph.es[eID]['type'] = 0 # inactive
         if self.caching:
             self.cache.edgesALL = None
             del self.cache.edgesByType[edgeType] 
@@ -580,17 +585,18 @@ class Entity():
         #self.graph.delete_vertices(nID) # not really possible at the current igraph lib
         # Thus, the node is set to inactive and removed from the iterator lists
         # This is due to the library, but the problem is general and pose a challenge.
-        Earth.graph.vs[nID]['type'] = 0
+        Earth.graph.vs[nID]['type'] = 0 #set to inactive
         Earth.nodeDict[self.type].remove(nID)
+        
         #remove edges        
         eIDSeq = self.graph.es.select(_target=self.nID).indices        
-        self.graph.delete_edges(eIDSeq)
+        self.graph[eIDSeq]['type'] = 0 #set to inactive
         eIDSeq = self.graph.es.select(_source=self.nID).indices        
-        self.graph.delete_edges(eIDSeq)
+        self.graph[eIDSeq]['type'] = 0 #set to inactive
 
-    def register(self, world, parentEntity=None, edgeType=None):
+    def register(self, world, parentEntity=None, edgeType=None, ghost=False):
         nodeType = world.graph.class2NodeType[self.__class__]
-        world.registerNode(self, nodeType, ghost=False)
+        world.registerNode(self, nodeType, ghost)
 
         if parentEntity is not None:
             self.mpiPeers = parentEntity.registerChild(world, self, edgeType)
@@ -613,10 +619,7 @@ class Agent(Entity):
     def registerChild(self, world, entity, edgeType):
         if edgeType is not None:
             #print edgeType
-            if self.queuing:
-                world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-            else:
-                world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+            world.addEdge(entity.nID,self.nID, type=edgeType)         
         entity.loc = self
         
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
@@ -644,6 +647,10 @@ class GhostAgent(Entity):
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(owner)
         
+    def register(self, world, parentEntity=None, edgeType=None):
+        Entity.register(self, world, parentEntity, edgeType, ghost= True)
+        
+        
     def __getGlobID__(self,world):
         
         return None # global ID need to be acquired via MPI communication
@@ -655,10 +662,7 @@ class GhostAgent(Entity):
 
 
     def registerChild(self, world, entity, edgeType):
-        if self.queuing:
-            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-        else:
-            world.graph.add_edge(entity.nID,self.nID, type=edgeType)  
+        world.addEdge(entity.nID,self.nID, type=edgeType)        
             
 ################ LOCATION CLASS #########################################      
 class Location(Entity):
@@ -672,6 +676,7 @@ class Location(Entity):
         else:
             nID = kwProperties['nID']
         
+        
         Entity.__init__(self,world, nID, **kwProperties)
         self.mpiOwner = int(world.mpi.rank)
         self.mpiPeers = list()
@@ -679,10 +684,7 @@ class Location(Entity):
     
 
     def registerChild(self, world, entity, edgeType=None):
-        if self.queuing:
-            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-        else:
-            world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+        world.addEdge(entity.nID,self.nID, type=edgeType)               
         entity.loc = self        
         
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
@@ -706,13 +708,11 @@ class GhostLocation(Entity):
         self.mpiOwner = int(owner)
         self.queuing = world.queuing
 
-
+    def register(self, world, parentEntity=None, edgeType=None):
+        Entity.register(self, world, parentEntity, edgeType, ghost= True)
         
     def registerChild(self, world, entity, edgeType=None):
-        if self.queuing:
-            world.queue.addEdge(entity.nID,self.nID, type=edgeType)         
-        else:
-            world.graph.add_edge(entity.nID,self.nID, type=edgeType)         
+        world.addEdge(entity.nID,self.nID, type=edgeType)              
         entity.loc = self        
         
 ################ WORLD CLASS #########################################            
@@ -1353,7 +1353,8 @@ class World:
                  maxNodes = 1e6, 
                  debug = False, 
                  mpiComm=None, 
-                 caching=True):
+                 caching=True,
+                 queuing=True):
         
         self.timeStep = 0
         self.para     = dict()
@@ -1364,20 +1365,19 @@ class World:
         self.debug    = debug
         
         self.para     = dict()
-        self.queuing = True     # flag that indicates the vertexes and edges are queued and not added immediately
+        self.queuing = queuing  # flag that indicates the vertexes and edges are queued and not added immediately
         self.caching = caching  # flat that indicate that edges and peers are cached for faster access
                
         # GRAPH
         self.graph    = WorldGraph(self, directed=True)
         
-        # making global functions available
-        self.addConnections = self.graph.add_edges
-        
+     
+
         # setting additional debug output
         if self.debug:
             # inint pprint as additional output
             import pprint
-            def debugPrint(**argv):
+            def debugPrint(*argv):
                 if not isinstance(argv, str):
                     argv = str(argv)
                 pprint.pprint('DEBUG: ' + argv)
@@ -1402,8 +1402,21 @@ class World:
         # list of properties per type
         self.graph.nodeProperies = dict()
         self.graph.edgeProperies = dict()
+        
         # queues
-        self.queue = Queue(self)
+        if self.queuing:
+            self.queue      = Queue(self)
+            self.addEdge    = self.queue.addEdge
+            self.addEdges   = self.queue.addEdges    
+            self.addVertex  = self.queue.addVertex
+        else:
+            self.addEdge    = self.graph.add_edge
+            self.addEdges   = self.graph.add_edges    
+            self.addVertex  = self.graph.add_vertex
+        # making global functions available
+        
+           
+        
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
@@ -1430,8 +1443,7 @@ class World:
         # Globally synced variables
         self.glob     = self.Globals(self)
         
-
-        
+ 
         # enumerations
         self.enums = dict()
         
@@ -1519,7 +1531,8 @@ class World:
                         ghostLocationList.append(loc)
         self.graph.IDArray = IDArray
         
-        self.queue.dequeueVertices(self)
+        if self.queuing:
+            self.queue.dequeueVertices(self)
 
         fullConnectionList = list()
         fullWeightList     = list()

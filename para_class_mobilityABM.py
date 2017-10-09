@@ -54,7 +54,7 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters, maxNodes, debug, mpiComm=None, caching=True):
+    def __init__(self, parameters, maxNodes, debug, mpiComm=None, caching=True, queuing=True):
         
         nSteps     = parameters.nSteps
         
@@ -63,7 +63,7 @@ class Earth(World):
         self.waitTime    = np.zeros(parameters.nSteps)
         self.ioTime      = np.zeros(parameters.nSteps)
         
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm, caching=caching)
+        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm, caching=caching, queuing=queuing)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -155,7 +155,7 @@ class Earth(World):
         
     def generateHH(self):
         hhSize  = int(np.ceil(np.abs(np.random.randn(1)*2)))
-        while True:
+        while 1:
             ageList = np.random.randint(1,60,hhSize) 
             if np.sum(ageList>17) > 0: #ensure one adult
                 break 
@@ -184,8 +184,11 @@ class Earth(World):
             frList, edges, weights = agent.generateContactNetwork(self)
             edgeList += edges
             weigList += weights
-        self.addConnections(edgeList, type=edgeType, weig=weigList)
+        self.addEdges(edgeList, type=edgeType, weig=weigList)
 
+        if self.queuing:                
+            self.queue.dequeueEdges(self)     
+            
         print 'Network created in -- ' + str( time.time() - tt) + ' s'
         
 
@@ -261,14 +264,14 @@ class Earth(World):
         #print 'sales after sync: ',self.glob['sales']
         self.market.step(self) # Statistics are computed here
         
-        
+        ttCell = time.time()   
         #loop over cells
         for cell in self.iterEntRandom(_cell):
             cell.step(self.market.currKappa)
+        self.dprint('Cell step required ' + str(time.time()- ttCell) + ' seconds')        
 
 
-
-                
+        tthh = time.time()        
         # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
             for household in self.iterEntRandom(_hh):
@@ -281,9 +284,12 @@ class Earth(World):
                     household.stepOmniscient(self)
                 else:
                     household.step(self)
-                
-                
-     
+        self.dprint('Household step required ' + str(time.time()- tthh) + ' seconds')        
+
+        if self.queuing:                
+            self.queue.dequeueEdgeDeleteList(self)        
+            
+
         self.computeTime[self.time] += time.time()-ttComp
         
         ttWait = time.time()
@@ -296,15 +302,15 @@ class Earth(World):
         self.syncTime[self.time] += time.time()-ttSync
         
         self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
-        
+
         ttComp = time.time()
         for person in self.iterEntRandom(_pers):
             person.step(self)
-        self.dprint('Socializing required ' + str(time.time()- ttSync) + ' seconds')
-        ttt = time.time()
-        #self.queue.dequeueEdgeDeleteList(self)
-         
-        self.dprint('deleteding edges required ' + str(time.time()- ttt) + ' seconds')
+        self.dprint('Person step required ' + str(time.time()- ttComp) + ' seconds')
+        
+        if self.queuing:                
+            self.queue.dequeueEdges(self)        
+            
         self.computeTime[self.time] += time.time()-ttComp
         # proceed step
         #self.writeAgentFile()
@@ -596,9 +602,7 @@ class Person(Agent):
         
     def register(self, world, parentEntity=None, edgeType=None):
         
-        Agent.register(self, world)
-        
-        
+        Agent.register(self, world, parentEntity, edgeType)
         self.loc = parentEntity.loc 
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
@@ -607,9 +611,7 @@ class Person(Agent):
     def weightFriendExperience(self, world):
         friendUtil = np.asarray(self.getPeerValues('commUtil',_pers)[0])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
-        
         edges = self.getEdges(_cpp)
-        
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)        
@@ -639,8 +641,13 @@ class Person(Agent):
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID
                 #self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
-    
-        return post, self.node['ESSR']
+                if np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0]) < 0.99:
+                    import pdb
+                    pdb.set_trace()
+            return post, self.node['ESSR']
+        else:
+            import pdb
+            pdb.set_trace()
     
     def socialize(self, world):
         
@@ -652,27 +659,35 @@ class Person(Agent):
         nDrops    = int(nContacts/10)
         dropIds = np.asarray(edges.indices)[np.argsort(weights)[-nDrops:].tolist()].tolist()
         
-        world.queue.edgeDeleteList.extend(dropIds)
-        
+        if world.queuing:
+            world.queue.edgeDeleteList.extend(dropIds)
+        else:
+            world.graph.delete_edges(dropIds)
+            
+        if world.caching:    
+            self.cache.resetEdgeCache(edgeType=_cpp)
+            self.cache.resetPeerCache(_pers) 
+            
         # add t new connections
         currContacts = self.getPeerIDs(_pers)
         
         #frList, edges, weights = self.generateContactNetwork(world, nDrops, currContacts, addYourself = False)
+        
         frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
         
-        
-        if len(edges) > 0:
+        if len(edgeList) > 0:
         # update edges
             world.dprint('adding contact edges')
 #            eStart = self.graph.ecount()
-            world.addConnections(edgeList, type=_cpp, weig=1.0/nContacts)
+            world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
 #            world.graph.es[eStart:]['type'] = _cpp
 #            world.graph.es[eStart:]['weig'] = 1.0/nContacts
-    
-            self.cache.resetEdgeCache(_cpp) 
-            self.cache.resetPeerCache(_pers) 
-            print('New conntacts added in -- ' + str( time.time() - tt) + ' s')
-            world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
+            if world.caching:    
+                self.cache.resetEdgeCache(_cpp) 
+                self.cache.resetPeerCache(_pers) 
+            #print('New conntacts added in -- ' + str( time.time() - tt) + ' s')
+            #world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
+        print 'sum of weights', np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0])
         
     def getRandomNewContacts(self, world, nContacts, currentContacts):
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
@@ -805,6 +820,7 @@ class Person(Agent):
         # weight friends
         weights, ESSR = self.weightFriendExperience(world)
         
+        
         # compute similarity
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
@@ -813,9 +829,9 @@ class Person(Agent):
         average = np.average(preferences, axis= 0, weights=weights)
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
     
-#        # socialize
-#        if ESSR < 0.1 and np.random.rand() >0.99:
-#            self.socialize(world)
+        # socialize
+        if ESSR < 0.1 and np.random.rand() >0.99:
+            self.socialize(world)
     
     
  
@@ -826,7 +842,7 @@ class GhostPerson(GhostAgent):
     
     def register(self, world, parentEntity=None, edgeType=None):
         
-        GhostAgent.register(self, world)
+        GhostAgent.register(self, world, parentEntity, edgeType)
         
         
         self.loc = parentEntity.loc 
@@ -839,7 +855,8 @@ class GhostHousehold(GhostAgent):
         GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
 
     def register(self, world, parentEntity=None, edgeType=None):
-        GhostAgent.register(self, world)
+        
+        GhostAgent.register(self, world, parentEntity, edgeType)
         
         #self.queueConnection(locID,_clh)         
         self.loc = parentEntity
@@ -851,7 +868,6 @@ class Household(Agent):
         Agent.__init__(self, world, **kwProperties)
         
         
-        self.util = 0
         if world.para['util'] == 'cobb':
             self.utilFunc = self.cobbDouglasUtil
         elif world.para['util'] == 'ces':
@@ -886,7 +902,7 @@ class Household(Agent):
     def register(self, world, parentEntity=None, edgeType=None):
         
         
-        Agent.register(self, world)
+        Agent.register(self, world, parentEntity, edgeType)
         
         
         #self.queueConnection(locID,_clh)         
@@ -1264,7 +1280,7 @@ class Reporter(Household):
 class Cell(Location):
     
     def __init__(self, earth,  **kwProperties):
-        kwProperties.update({'population': 0, 'convenience': [0,0,0], 'carsInCell':[0,0,0]})
+        kwProperties.update({'population': 0, 'convenience': [0,0,0], 'carsInCell':[0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()

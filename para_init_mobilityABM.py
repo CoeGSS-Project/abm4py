@@ -559,7 +559,7 @@ def householdSetup(earth, parameters, calibration=False):
         loc = earth.entDict[earth.locDict[x,y].nID]
         region = parameters.regionIdRaster[x,y]
         regionIdx = np.where(regionIdxList == region)[0][0]
-        while True:
+        while 1:
              
             #creating persons as agents
             #print hhData.keys()
@@ -628,15 +628,17 @@ def householdSetup(earth, parameters, calibration=False):
            
                     break
     print 'agents loaded from file'
-    earth.queue.dequeueVertices(earth)
-    earth.queue.dequeueEdges(earth)
+    if earth.queuing:
+        earth.queue.dequeueVertices(earth)
+        earth.queue.dequeueEdges(earth)
     
     earth.mpi.sendRecvGhostNodes(earth)
     #earth.mpi.comm.Barrier()
     #earth.mpi.recvGhostNodes(earth)
  
-    earth.queue.dequeueVertices(earth)
-    earth.queue.dequeueEdges(earth)
+    if earth.queuing:
+        earth.queue.dequeueVertices(earth)
+        earth.queue.dequeueEdges(earth)
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
     
@@ -652,14 +654,15 @@ def householdSetup(earth, parameters, calibration=False):
 
 
 
-def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=True):
+def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=True, queuing=True):
     tt = time.time()
     
     earth = Earth(parameters,
                   maxNodes=maxNodes, 
                   debug = debug, 
                   mpiComm=mpiComm,
-                  caching=caching)
+                  caching=caching,
+                  queuing=queuing)
     
 
     earth.initMarket(earth,
@@ -1284,7 +1287,7 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm, caching=True)
+        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm, caching=False, queuing=False)
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         

@@ -178,6 +178,7 @@ if plotRecords:
 #%% combined plot
     plt.figure(figsize=(12,6))
     factor = 5
+    log = True
     plt.subplot(1,3,1)
     group = h5File.get_node('/glob/stockNiedersachsen')
     data = group.read()
@@ -188,7 +189,8 @@ if plotRecords:
     for i in range(1,data.shape[1]):
         plt.plot(cData[:,0], cData[:,i],'o')
         print cData[:,i]
-    plt.yscale('log')    
+    if log:
+        plt.yscale('log')    
     plt.xlim([nBurnIn,nSteps])
     years = (nSteps - nBurnIn) / 12 / factor
     plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
@@ -203,7 +205,8 @@ if plotRecords:
     for i in range(1,data.shape[1]):
         plt.plot(cData[:,0], cData[:,i],'o')
         print cData[:,i]
-    plt.yscale('log')
+    if log:
+        plt.yscale('log')
     plt.xlim([nBurnIn,nSteps])
     years = (nSteps - nBurnIn) / 12 / factor
     plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
@@ -218,15 +221,17 @@ if plotRecords:
     for i in range(1,data.shape[1]):
         plt.plot(cData[:,0], cData[:,i],'o')
         print cData[:,i]
-    plt.yscale('log')    
+    if log:
+        plt.yscale('log')    
     plt.xlim([nBurnIn,nSteps])    
     factor = 5
     years = (nSteps - nBurnIn) / 12 / factor
     plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
     plt.title('Hamburg')
-    plt.subplots_adjust(bottom=.15)
-    plt.figlegend(hh,['Combution engine', 'Electic engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
+    
+    plt.figlegend(hh,['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
     plt.tight_layout()
+    plt.subplots_adjust(bottom=.15)
     plt.savefig(path + 'stockAll')
     
     
@@ -287,7 +292,7 @@ if averageCarAge:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average fleet age per mobility type [years]')  
     plt.tight_layout()
     plt.savefig(path + 'fleetAge')
@@ -306,7 +311,7 @@ if meanESSR:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average relative effective sample size')  
     plt.tight_layout()
     plt.savefig(path + 'ESSR|mobType')
@@ -324,7 +329,7 @@ if meanESSR:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average relative effective sample size')  
     plt.tight_layout()
     plt.savefig(path + 'ESSR|prefType')
@@ -373,7 +378,7 @@ if peerBubbleSize:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average Bubble size')  
     plt.tight_layout()
     plt.savefig(path + 'socialBubbleSize|mobType')
@@ -393,7 +398,7 @@ if peerBubbleSize:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average Bubble size')  
     plt.tight_layout()
     plt.savefig(path + 'socialBubbleSize|prefType')
@@ -415,7 +420,7 @@ if agePerMobType:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Average age of mobility actors')  
     plt.tight_layout()
     plt.savefig(path + 'agePerMobType')
@@ -437,7 +442,7 @@ if womanSharePerMobType:
     if years:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)    
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.title('Share of women')  
     plt.tight_layout()
     plt.savefig(path + 'womanShareGreen')
@@ -456,7 +461,7 @@ if expectUtil  == 1:
     
     plt.title("Expectations for mobility types")    
     
-    plt.legend(['Combution engine', 'Electic engine', 'other mobility types'],loc=0)
+    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.tight_layout()
     plt.savefig(path + 'expectedUtility')
     #%%
@@ -533,7 +538,7 @@ if plotCarStockBar:
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    plt.legend(legStr,loc=0)
+    plt.legend(['Combustion engine', 'Electric engine', 'other mobility types'],loc=0)
     plt.tight_layout()
     plt.xlim([0,nSteps])
     plt.ylim([0, np.sum(carMat[time,:])])
@@ -919,7 +924,7 @@ if incomePerLabel:
         years = (nSteps - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)  
     plt.legend(['Household income using an combution engined car', 
-                'Household income using an electic car', 
+                'Household income using an electric car', 
                 'Household income using other mobility modes', 
                 'Comb STD', 'Elec STD','other STD'],loc=3) 
     plt.tight_layout()
