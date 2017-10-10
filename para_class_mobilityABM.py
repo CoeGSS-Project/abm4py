@@ -617,6 +617,7 @@ class Person(Agent):
         prop = prop / np.sum(prop)        
         
         prior = np.asarray(edges['weig'])
+        prior = prior / np.sum(prior)      
         #if any([value is None for value in prop]) or any([value is None for value in prior]):
         #    import pdb
         #    pdb.set_trace()
@@ -640,7 +641,6 @@ class Person(Agent):
                 self.node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
                 #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID
-                #self.node['ESSR'] = self.edges[_cpp][self.ownEdgeIdx[0]]['weig']
                 if np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0]) < 0.99:
                     import pdb
                     pdb.set_trace()
@@ -671,22 +671,17 @@ class Person(Agent):
         # add t new connections
         currContacts = self.getPeerIDs(_pers)
         
-        #frList, edges, weights = self.generateContactNetwork(world, nDrops, currContacts, addYourself = False)
-        
         frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
         
         if len(edgeList) > 0:
         # update edges
             world.dprint('adding contact edges')
-#            eStart = self.graph.ecount()
+
             world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
-#            world.graph.es[eStart:]['type'] = _cpp
-#            world.graph.es[eStart:]['weig'] = 1.0/nContacts
+
             if world.caching:    
                 self.cache.resetEdgeCache(_cpp) 
                 self.cache.resetPeerCache(_pers) 
-            #print('New conntacts added in -- ' + str( time.time() - tt) + ' s')
-            #world.dprint('New conntacts added in -- ' + str( time.time() - tt) + ' s')
         print 'sum of weights', np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0])
         
     def getRandomNewContacts(self, world, nContacts, currentContacts):

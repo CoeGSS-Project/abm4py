@@ -4,6 +4,8 @@
 Created on Thu Aug 10 09:06:54 2017
 
 @author: geiges, Global climate forum
+
+exec command: mpiexec -n 4 python para_run_tests.py
 """
 
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
@@ -109,8 +111,8 @@ def communicationTest(earth):
         
         earth.dprint('before update r', mpiRank, earth.graph.vs['prop'])
         for node in earth.iterEntRandom(_cell):
-            props , __ = node.getConnNodeValues('prop',_cell)
-            props2 , __ = node.getPeerValues('prop',_cell)
+            props , __ = node.getPeerValues('prop',_cell)
+            
             
             print node.getPeerIDs(_cell)
             assert props == props

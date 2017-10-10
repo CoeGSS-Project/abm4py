@@ -452,6 +452,9 @@ class Entity():
             self.getEdgeValues = self.cache.getEdgeValues
             self.setEdgeValues = self.cache.setEdgeValues
             self.getEdges = self.cache.getEdges
+            
+        else:
+            self.cache = None
                    
 
     def getPeerValues(self, prop, nodeType=None):
@@ -495,7 +498,7 @@ class Entity():
          
    
     
-    def getEdgeValue(self, prop, edgeType=None):
+    def getEdgeValues(self, prop, edgeType=None):
         """ 
         privat function to access the values of  edges
         """
@@ -551,17 +554,17 @@ class Entity():
     def addConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
         self.graph.add_edge(self.nID,friendID, **kwpropDict)  
-        if self.caching:
+        if self.cache:
             self.cache.edgesALL = None
             self.cache.peersALL = None
             del self.cache.edgesByType[edgeType] 
             self.cache.peersByType = dict()  # TODO less efficient
-        #self.__updateEdges__() #TODO delete
+        
             
     def remConnection(self, friendID,edgeType):
         eID = self.graph.get_eid(self.nID,friendID)
         self.graph.es[eID]['type'] = 0 # inactive
-        if self.caching:
+        if self.cache:
             self.cache.edgesALL = None
             del self.cache.edgesByType[edgeType] 
             self.cache.peersByType = dict()  # TODO less efficient
@@ -579,20 +582,22 @@ class Entity():
         else:
             self.node[prop][idx] += value
     
-    def delete(self,Earth):
-        nID = self.nID
+    def delete(self, world):
+        
         
         #self.graph.delete_vertices(nID) # not really possible at the current igraph lib
         # Thus, the node is set to inactive and removed from the iterator lists
         # This is due to the library, but the problem is general and pose a challenge.
-        Earth.graph.vs[nID]['type'] = 0 #set to inactive
-        Earth.nodeDict[self.type].remove(nID)
+        world.graph.vs[self.nID]['type'] = 0 #set to inactive
         
-        #remove edges        
-        eIDSeq = self.graph.es.select(_target=self.nID).indices        
-        self.graph[eIDSeq]['type'] = 0 #set to inactive
-        eIDSeq = self.graph.es.select(_source=self.nID).indices        
-        self.graph[eIDSeq]['type'] = 0 #set to inactive
+        
+        world.deRegisterNode()
+        
+        # get all edges - in and out        
+        eIDList  = self.graph.incident(self.nID)
+        #set edges to inactive     
+        self.graph[eIDList]['type'] = 0 
+
 
     def register(self, world, parentEntity=None, edgeType=None, ghost=False):
         nodeType = world.graph.class2NodeType[self.__class__]
@@ -669,7 +674,7 @@ class Location(Entity):
 
     def __getGlobID__(self,world):
         return world.globIDGen.next()
-  
+    
     def __init__(self, world, **kwProperties):
         if 'nID' not in kwProperties.keys():
             nID = None
@@ -1190,14 +1195,8 @@ class World:
 
         def sendRecvGhostNodes(self, world):
             
-            
             #%%Packing of data
-            
-            #announcements = dict()      # indexed by (mpiDest) containing nodeTypes
-            
             for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
-                
-
                     
                 #get size of send array
                 IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
@@ -1227,14 +1226,7 @@ class World:
                     pass  
                 
                 for dataPackage in recvBuffer[mpiPeer]:
-                    
-            
-#            for nodeType, mpiPeer in requestDict.keys():
-#                dataDict[nodeType, mpiPeer] = requestDict[nodeType, mpiPeer].wait()
-                    
-                #print 'data: ' + str(dataDict)
-            #return dataDict
-        
+      
             #%% create ghost agents from dataDict 
             
                     nNodes, nodeType = dataPackage[0]
@@ -1295,15 +1287,7 @@ class World:
                     self.__add2Buffer__(mpiPeer, dataPackage)
             recvBuffer = self.__all2allSync__()
             
-        
-#            for nodeType, mpiPeer in self.ghostNodeIn.keys():
-#                if nodeTypeList == 'all' or nodeType in nodeTypeList:
-                    #print nodeType, mpiPeer
-                    #buf2 = array.array('b', self.messageSize[nodeType, mpiPeer]*[0])
-                    #requestDict[nodeType, mpiPeer] = self.comm.irecv(buf=buf2, source=mpiPeer, tag=nodeType)
 
-                 
-                    #dataDict[nodeType, mpiPeer] = requestDict[nodeType, mpiPeer].wait()
             for mpiPeer in self.peers:
                 if len(recvBuffer[mpiPeer]) > 0: # will receive a message
                       
@@ -1671,6 +1655,12 @@ class World:
         else:
             #print typ
             self.nodeDict[typ].append(agent.nID)
+
+    def deRegisterNode(self):
+        self.entList[agent.nID] = None
+        del self.entDict[agent.nID]
+        del self.glob2loc[agent.gID]
+        del self.loc2glob[agent.gID]
         
     def registerLocation(self, location, x, y):
         
