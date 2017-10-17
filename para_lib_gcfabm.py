@@ -251,62 +251,51 @@ class Cache():
         
         self.peersAll    = None
         self.peersByType = dict()
+   
+    def __reCachePeers__(self, edgeType=None):
         
-        
-    def __reCachePeers__(self, givenType=None):
-        """ privat function that re-caches all peers of the node"""
-        #print 'caching peers'
-        
-        node = self.graph.vs[self.nID]
-        peers = node.neighbors('OUT')
-    
-        peerIDs =  [x.index for x in peers]
-        
-        self.peersAll    = self.graph.vs[peerIDs].select(type_ne=0)
-        
-        if givenType is not None:
-            self.peersByType[givenType] = self.peersAll.select(type=givenType)
-        else:
-            for nodeType in self.graph.nodeTypes:
-                self.peersByType[nodeType] = self.peersAll.select(type=nodeType)
-                
-    def __checkPeerCache__(self, givenType):
-        if givenType is None:
+        eList  = self.graph.incident(self.nID,mode="out")
+        if edgeType is not None:
             
-            # check if re-caching is required
+            edges = self.graph.es[eList].select(type=edgeType)
+            peersIDs = [edge.target for edge in edges] 
+            self.peersByType[edgeType] = self.graph.vs[peersIDs]
+        else:
+            edges = self.graph.es[eList].select(type_ne=0)
+            peersIDs = [edge.target for edge in edges] 
+            self.peersAll = self.graph.vs[peersIDs]
+    
+          
+    def __checkPeerCache__(self, edgeType):
+        # check if re-caching is required
+        if edgeType is None:
             if self.peersAll is None:
                 self.__reCachePeers__()
-                
         else:        
-            # check if re-caching is required
-            if givenType not in self.peersByType.keys():
-                self.__reCachePeers__(givenType)
+            if edgeType not in self.peersByType.keys():
+                self.__reCachePeers__(edgeType)
         
-    def __reCacheEdges__(self, givenType=None):
+    def __reCacheEdges__(self, edgeType=None):
         """ privat function that re-caches all edges of the node"""
         
-        #print 'caching edges'
-        # all out edges
-        self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
-        
         # out edges by type
-        if givenType is not None:
-            self.edgesByType[givenType] = self.edgesAll.select(type=givenType)
+        if edgeType is not None:
+            # re-cache only certain type
+            self.edgesByType[edgeType] = self.edgesAll.select(type=edgeType)
         else:
-            for edgeType in self.graph.edgeTypes:
-                self.edgesByType[edgeType] = self.edgesAll.select(type=edgeType)
+            # all out edges
+            self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
             
-    def __checkEdgeCache__(self, givenType):
-        if givenType is None:
-            
-            # check if re-caching is required
-            if self.edgesAll is None:
-                self.__reCacheEdges__()
+    def __checkEdgeCache__(self, edgeType):
+    
+        # check if re-caching is required
+        if self.edgesAll is None:
+            self.__reCacheEdges__()
                 
-        else:        
+        if edgeType is not None:   
             # check if re-caching is required
-            if givenType not in self.edgesByType.keys():
-                self.__reCacheEdges__(givenType)    
+            if edgeType not in self.edgesByType.keys():
+                self.__reCacheEdges__(edgeType)    
             
     def getEdgeValues(self, prop, edgeType=None):
         """ 
@@ -457,17 +446,7 @@ class Entity():
             self.cache = None
                    
 
-    def getPeerValues(self, prop, nodeType=None):
-        nodeDict = self.node.neighbors('out')
-        neighbourIDs     = list()
-        values          = list()
 
-        for node in nodeDict:
-            if nodeType is None or node['type'] == nodeType:
-                neighbourIDs.append(node.index)   
-                values.append(node[prop])
-        
-        return values, neighbourIDs
     
     def setPeerValues(self, prop, values, nodeType=None):
         nodeDict = self.node.neighbors(mode='out')
@@ -478,25 +457,23 @@ class Entity():
             
         for node in nodeDict:
             self.graph.vs[neighbourIDs][prop] = values
-    
-    def getPeerIDs(self, nodeType=None):
 
-        neigbours = self.node.neighbors(mode='out')
+    def getPeerIDs(self, edgeType=None):
+        eList  = self.graph.incident(self.nID,mode="out")
     
-        if nodeType is not None:
-            return [x.index for x in neigbours if x['type'] == nodeType]
+        if edgeType is not None:
+            edges = self.graph.es[eList].select(type=edgeType)
         else:
-            return [x.index for x in neigbours]
+            edges = self.graph.es[eList].select(type_ne=0)
+            
+        return [edge.target for edge in edges]
     
-    def getPeers(self, nodeType=None):
-        idList = self.__getPeerIDs__(nodeType)
-        
-        if nodeType is not None:
-            return self.graph.vs[[nIdx for nIdx in idList if self.graph.es[nIdx]['type'] == nodeType]]
-        else:
-            return self.graph.vs[idList]
+    def getPeerSeq(self, edgeType=None):
+        return self.graph.vs[self.getPeerIDs(edgeType)]
          
-   
+    def getPeerValues(self, prop, edgeType=None):
+        return self.getPeerSeq(edgeType)[prop], self.getPeerSeq(edgeType)
+        
     
     def getEdgeValues(self, prop, edgeType=None):
         """ 
@@ -507,7 +484,7 @@ class Entity():
         if edgeType is not None:
             edges = self.graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=edgeType)
+            edges = self.graph.es[eList].select(type_ne=0)
     
         return edges[prop], edges
     
@@ -520,7 +497,7 @@ class Entity():
         if edgeType is not None:
             edges = self.graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=edgeType)
+            edges = self.graph.es[eList].select(type_ne=0)
 
         edges[prop] = values
         
@@ -533,7 +510,7 @@ class Entity():
         if edgeType is not None:
             edges = self.graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=edgeType)
+            edges = self.graph.es[eList].select(type_ne=0)
 
         return edges
     
@@ -1395,7 +1372,8 @@ class World:
             self.addVertex  = self.queue.addVertex
         else:
             self.addEdge    = self.graph.add_edge
-            self.addEdges   = self.graph.add_edges    
+            self.addEdges   = self.graph.add_edges   
+            self.delEdges    = self.graph.delete_edges
             self.addVertex  = self.graph.add_vertex
         # making global functions available
         

@@ -63,7 +63,12 @@ class Earth(World):
         self.waitTime    = np.zeros(parameters.nSteps)
         self.ioTime      = np.zeros(parameters.nSteps)
         
-        World.__init__(self, parameters.isSpatial, nSteps, maxNodes = maxNodes, debug=debug, mpiComm=mpiComm, caching=caching, queuing=queuing)
+        World.__init__(self, parameters.isSpatial, 
+                       nSteps, 
+                       maxNodes = maxNodes, 
+                       debug=debug, 
+                       mpiComm=mpiComm, 
+                       caching=caching)
         
         self.agentRec   = dict()   
         self.time       = 0
@@ -609,7 +614,7 @@ class Person(Agent):
 
 
     def weightFriendExperience(self, world):
-        friendUtil = np.asarray(self.getPeerValues('commUtil',_pers)[0])[:,self.node['mobType']]
+        friendUtil = np.asarray(self.getPeerValues('commUtil',_cpp)[0])[:,self.node['mobType']]
         ownUtil  = self.getValue('util')
         edges = self.getEdges(_cpp)
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
@@ -621,8 +626,10 @@ class Person(Agent):
         #if any([value is None for value in prop]) or any([value is None for value in prior]):
         #    import pdb
         #    pdb.set_trace()
+        
         #print prop
         #print prior
+        
         try:
             post = prior * prop 
         except:
@@ -652,12 +659,18 @@ class Person(Agent):
     def socialize(self, world):
         
         tt = time.time()
-        #drop 10% of old connections
-        
+#        #drop 10% of old connections
+#        print 'ID:', self.nID, 
+#        print "prior", 
+#        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
+#        print 'sum of weights', np.sum(weights)
+#        for weig, idx in zip(weights, edges.indices):
+#            print '(',weig, idx,')',
+#        print ' ' 
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         nContacts = len(weights)
         nDrops    = int(nContacts/10)
-        dropIds = np.asarray(edges.indices)[np.argsort(weights)[-nDrops:].tolist()].tolist()
+        dropIds = np.asarray(edges.indices)[np.argsort(weights)[:nDrops].tolist()].tolist()
         
         if world.queuing:
             world.queue.edgeDeleteList.extend(dropIds)
@@ -667,23 +680,37 @@ class Person(Agent):
         if world.caching:    
             self.cache.resetEdgeCache(edgeType=_cpp)
             self.cache.resetPeerCache(_pers) 
-            
+#        print "after delete", 
+#        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
+#        print 'sum of weights', np.sum(weights) 
+#        for weig, idx in zip(weights, edges.indices):
+#            print '(',weig, idx,')',
+#        print ' ' 
+        
         # add t new connections
-        currContacts = self.getPeerIDs(_pers)
+        currContacts = self.getPeerIDs(_cpp)
         
         frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
+        
+        #print'weig:', self.getEdgeValues('weig', _cpp)
         
         if len(edgeList) > 0:
         # update edges
             world.dprint('adding contact edges')
-
+            #print 'ID:', self.nID
             world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
 
             if world.caching:    
                 self.cache.resetEdgeCache(_cpp) 
                 self.cache.resetPeerCache(_pers) 
-        print 'sum of weights', np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0])
-        
+        #print self.getEdgeValues('weig', edgeType=_cpp)        
+#            print "after new friends", 
+#            weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
+#            print 'sum of weights', np.sum(weights)
+#            for weig, idx in zip(weights, edges.indices):
+#                print '(',weig, idx,')',
+#            print ' ' 
+#        print '----------------------------------------------------'
     def getRandomNewContacts(self, world, nContacts, currentContacts):
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
         
@@ -795,7 +822,7 @@ class Person(Agent):
         weights = np.asarray(weights)
         
         # compute weighted mean of all friends
-        communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_pers)[0]))
+        communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
         
         selfUtil = self.node['selfUtil'][:]
         mobType   = self.node['mobType']
@@ -819,7 +846,7 @@ class Person(Agent):
         # compute similarity
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
-        preferences = np.asarray(self.getPeerValues('preferences',_pers)[0]) 
+        preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0]) 
         
         average = np.average(preferences, axis= 0, weights=weights)
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
@@ -1430,7 +1457,7 @@ class Opinion():
         # priority of ecology
         ce = 0
         if sex == 2:
-            ce +=2
+            ce +=1.5
         if income>self.minIncomeEco:
             rn = np.random.rand(1)
             if rn > 0.9:
@@ -1439,13 +1466,13 @@ class Opinion():
                 ce += 1
         elif income>2*self.minIncomeEco:
             if np.random.rand(1) > 0.8:
-                ce+=2
+                ce+=1.5
             
 
         ce = float(ce)**2
         
         # priority of convinience
-        cc = 2
+        cc = 2.5
         cc += nKids
         cc += income/self.convIncomeFraction/2
         if sex == 1:
