@@ -256,6 +256,7 @@ class Entity():
                 neighIds.append(self.graph.es[edge].target)     
                 edges.append(edge)
         return self.graph.vs[neighIds][prop], self.graph.vs[neighIds]['name']      
+
 ################ LOCATION CLASS #########################################      
 class Location(Entity):
 

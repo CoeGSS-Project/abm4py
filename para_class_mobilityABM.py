@@ -659,7 +659,7 @@ class Person(Agent):
     def socialize(self, world):
         
         tt = time.time()
-#        #drop 10% of old connections
+#        drop 10% of old connections
 #        print 'ID:', self.nID, 
 #        print "prior", 
 #        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
@@ -676,41 +676,21 @@ class Person(Agent):
             world.queue.edgeDeleteList.extend(dropIds)
         else:
             world.graph.delete_edges(dropIds)
-            
-        if world.caching:    
-            self.cache.resetEdgeCache(edgeType=_cpp)
-            self.cache.resetPeerCache(_pers) 
-#        print "after delete", 
-#        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
-#        print 'sum of weights', np.sum(weights) 
-#        for weig, idx in zip(weights, edges.indices):
-#            print '(',weig, idx,')',
-#        print ' ' 
         
         # add t new connections
         currContacts = self.getPeerIDs(_cpp)
         
         frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
         
-        #print'weig:', self.getEdgeValues('weig', _cpp)
-        
         if len(edgeList) > 0:
         # update edges
             world.dprint('adding contact edges')
-            #print 'ID:', self.nID
             world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
 
-            if world.caching:    
-                self.cache.resetEdgeCache(_cpp) 
-                self.cache.resetPeerCache(_pers) 
-        #print self.getEdgeValues('weig', edgeType=_cpp)        
-#            print "after new friends", 
-#            weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
-#            print 'sum of weights', np.sum(weights)
-#            for weig, idx in zip(weights, edges.indices):
-#                print '(',weig, idx,')',
-#            print ' ' 
-#        print '----------------------------------------------------'
+        if world.caching:    
+            self.cache.resetEdgeCache(edgeType=_cpp) 
+            self.cache.resetPeerCache(edgeType=_cpp) 
+
     def getRandomNewContacts(self, world, nContacts, currentContacts):
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
         
@@ -852,8 +832,8 @@ class Person(Agent):
         self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
     
         # socialize
-        if ESSR < 0.1 and np.random.rand() >0.99:
-            self.socialize(world)
+#        if ESSR < 0.1 and np.random.rand() >0.99:
+#            self.socialize(world)
     
     
  

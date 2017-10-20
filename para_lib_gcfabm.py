@@ -346,50 +346,53 @@ class Cache():
                 
             return self.edgesByType[edgeType]
 
-    def getPeerValues(self, prop, nodeType=None):
+    def getPeerValues(self, prop, edgeType=None):
         # check if re-caching is required
-        self.__checkPeerCache__(nodeType)
+        self.__checkPeerCache__(edgeType)
     
-        if nodeType is None:
+        if edgeType is None:
 
             return self.peersAll[prop], self.peersAll
         else:        
-            return self.peersByType[nodeType][prop], self.peersByType[nodeType]                
+            return self.peersByType[edgeType][prop], self.peersByType[edgeType]                
     
-    def setPeerValues(self, prop, values, nodeType=None):
+    def setPeerValues(self, prop, values, edgeType=None):
         # check if re-caching is required
-        self.__checkPeerCache__(nodeType)
+        self.__checkPeerCache__(edgeType)
         
-        if nodeType is None:
+        if edgeType is None:
             self.peersAll[prop] = values
         else:
-            self.peersByType[nodeType][prop] = values
+            self.peersByType[edgeType][prop] = values
             
-    def getPeers(self, nodeType=None):
+    def getPeers(self, edgeType=None):
         # check if re-caching is required
-        self.__checkPeerCache__(nodeType)
+        self.__checkPeerCache__(edgeType)
     
-        if nodeType is None:
+        if edgeType is None:
 
             return self.peersAll
         else:        
-            return self.peersByType[nodeType]  
+            return self.peersByType[edgeType]  
     
-    def getPeerIDs(self, nodeType=None):
+    def getPeerIDs(self, edgeType=None):
 
-        self.__checkPeerCache__(nodeType)
+        self.__checkPeerCache__(edgeType)
         
-        if nodeType is None:
+        if edgeType is None:
             return self.peersAll.indices
         else:        
-            return self.peersByType[nodeType].indices
+            return self.peersByType[edgeType].indices
            
-    def resetPeerCache(self,nodeType=None):
+    def resetPeerCache(self,edgeType=None):
         self.peersAll = None
-        if nodeType is None:
+        if edgeType is None:
             self.peersByType = dict()
         else:
-            del self.peersByType[nodeType]
+            try:
+                del self.peersByType[edgeType]
+            except:
+                pass    
 
     def resetEdgeCache(self,edgeType=None):
         self.edgesAll = None
@@ -536,16 +539,35 @@ class Entity():
             self.cache.peersALL = None
             del self.cache.edgesByType[edgeType] 
             self.cache.peersByType = dict()  # TODO less efficient
+
+    def remConnection(self, friendID=None, edgeID=None):
+    
+        if edgeID is None and friendID:
+            eID = self.graph.get_eid(self.nID,friendID)
         
-            
-    def remConnection(self, friendID,edgeType):
-        eID = self.graph.get_eid(self.nID,friendID)
+        edgeType = self.graph.es[eID]['type']
         self.graph.es[eID]['type'] = 0 # inactive
         if self.cache:
             self.cache.edgesALL = None
             del self.cache.edgesByType[edgeType] 
-            self.cache.peersByType = dict()  # TODO less efficient
-        #self.__updateEdges__() #TODO delete
+            self.cache.peersByType = dict()
+
+    def remConnections(self, friendIDs=None, edgeIDs=None):
+        
+        if edgeIDs is None and friendIDs:
+            
+            eIDs = [ self.graph.get_eid(self.nID,friendID) for friendID in friendIDs]
+
+        edgeTypes = np.unique(np.asarray(self.graph.es[eIDs]['type']))
+        self.graph.es[eIDs]['type'] = 0           
+            
+        # inactive
+        if self.cache:
+            self.cache.edgesALL = None
+            for edgeType in edgeTypes:
+                del self.cache.edgesByType[edgeType]
+                del self.cache.peersByType[edgeType]
+        
 
     def setValue(self,prop,value):
         self.node[prop] = value
@@ -989,7 +1011,7 @@ class World:
                 # allocate storage
                 rec.initStorage()
                 self.outData[nodeType] = rec
-                print 'sotrage allocated in  ' + str(time.time()-tt)  + ' seconds'  
+                print 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  
                 
         def gatherNodeData(self, timeStep):                
             """ Transfers data from the graph to the I/O storage"""

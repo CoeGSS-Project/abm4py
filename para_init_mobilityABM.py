@@ -80,7 +80,7 @@ else:
 #from deco_util import timing_function
 import numpy as np
 import time
-#import mod_geotiff as gt
+#import mod_geotiff as gt # not working in poznan
 from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
 from mpi4py import  MPI
 import h5py
@@ -391,10 +391,116 @@ def scenarioNBH(parameterInput, dirPath):
        
     print 'max rank:',np.nanmax(setup.landLayer)
     
-    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
-    setup.population = np.load(setup.resourcePath + 'land_layer_62x118.npy')
+    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
+    #setup.population = np.load(setup.resourcePath + 'land_layer_62x118.npy')
     #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy') 
+    # bad bugfix for 4 cells
+    setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+    
+    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
+    
+    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
+    setup.regionIdRaster = setup.regionIdRaster.astype(int)
+    
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    setup.landLayer[np.isnan(setup.population)] = np.nan
+    
+    
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+    
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+    
+    #cars and infrastructure
+    setup.properties    = ['emmisions','TCO']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False    
+
+    # redefinition of setup parameters from file
+    setup.update(parameterInput.toDict())
+    
+    # Correciton of population depend parameter by the reduction factor
+    setup['initialGreen'] /= setup['reductionFactor']
+    setup['initialBrown'] /= setup['reductionFactor']
+    setup['initialOther'] /= setup['reductionFactor']
+    
+    setup['population']     /= setup['reductionFactor']
+    setup['urbanThreshold'] /= setup['reductionFactor']
+    setup['urbanCritical']  /= setup['reductionFactor']
+    setup['puplicTransBonus']  /= setup['reductionFactor']
+    setup.convD /= setup['reductionFactor']
+    
+    # calculate dependent parameters
+    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    minCarConvenience = 1 + setup.kappa
+    setup.convB =  minCarConvenience / (maxDeviation)
+    
+    
+    print "Final setting of the parameters"
+    print parameterInput
+    print "####################################"
+    
+    nAgents    = np.nansum(setup.population)
+    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
+    print 'Running with ' + str(nAgents) + ' agents'
+    
+    return setup
+
+def scenarioGer(parameterInput, dirPath):
+    setup = Bunch()
+    
+    #general 
+    setup.resourcePath = dirPath + '/resources_ger/'
+    #setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
+    setup.progressBar  = True
+    setup.allTypeObservations = True
+    
+    #time
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUnit         = _month  # unit of time per step
+    setup.startDate        = [01,2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+    
+    #spatial
+    setup.isSpatial     = True
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
+    #setup.reductionFactor = parameterInput['reductionFactor']
+    
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+
+
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    if mpiSize > 1:
+        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+    else:
+        
+        setup.landLayer=  np.load(setup.resourcePath + 'land_layer_186x219.npy')
+        setup.landLayer[setup.landLayer==0] = np.nan
+        setup.landLayer = setup.landLayer * 0
+       
+    print 'max rank:',np.nanmax(setup.landLayer)
+    
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff') 
+    setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_186x219.npy')
+    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_186x219.npy') 
     # bad bugfix for 4 cells
     setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
     
@@ -1270,8 +1376,11 @@ if __name__ == '__main__':
         #earth = prioritiesCalibrationTest()
         earth = setupHouseholdsWithOptimalChoice()
         
-    if parameters.scenario == 5: #graph part
+        
+#%% Scenario graph NBH
+    if parameters.scenario == 5: #graph partition NBH
         parameters = scenarioNBH(parameters, dirPath)  
+        
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
         earth = initEarth(parameters, maxNodes=1000000, debug =True)
@@ -1280,14 +1389,46 @@ if __name__ == '__main__':
         for cell in earth.iterEntRandom(_cell):
             cell.node['population'] = parameters.population[cell.node['pos']]
         earth.view('spatial_graph.png')            
-        aux.writeAdjFile(earth.graph,'outGraph.txt')
+        aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
         
         exit
+#%% Scenario graph ger        
+    if parameters.scenario == 6: #graph partition NBH
+        parameters = scenarioGer(parameters, dirPath)  
+        parameters.landLayer = parameters.landLayer * 0
+        parameters.showFigures = showFigures
+        earth = initEarth(parameters, maxNodes=1000000, debug =True)
+        _cell, _hh, _pers = initTypes(earth,parameters)
+        initSpatialLayer(earth, parameters)
+        for cell in earth.iterEntRandom(_cell):
+            cell.node['population'] = parameters.population[cell.node['pos']]
+        #earth.view('spatial_graph.png')            
+        
+        #earth.graph.add_edge(995,2057)
+        #earth.graph.add_edge(2057,995)
+        #earth.graph.add_edge(1310,810)
+        #earth.graph.add_edge(810,1310)
+        #aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
+        
+        exit
+        
+    if parameters.scenario == 7:
+        
+        if mpiRank == 0:
+            parameters = scenarioGer(parameters, dirPath)
+        else: 
+            parameters = None
+        parameters = comm.bcast(parameters)        
     else:
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, maxNodes=1000000, debug =False, mpiComm=comm, caching=False, queuing=False)
+        earth = initEarth(parameters, 
+                          maxNodes=1000000, 
+                          debug =False, 
+                          mpiComm=comm, 
+                          caching=True, 
+                          queuing=True)
         
         _cell, _hh, _pers = initTypes(earth,parameters)
         
