@@ -63,7 +63,8 @@ from os.path import expanduser
 home = expanduser("~")
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
-print dir_path
+import logging as lg
+#lg.info('Directory: ' +  dir_path)
 import sys
 import socket
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
@@ -737,7 +738,7 @@ class World:
         def __init__(self, world):
             
             self.comm = world.mpi.comm
-            self.dprint = world.dprint
+            #self.dprint = world.dprint
             
             # simple reductions
             self.reduceDict = dict()
@@ -826,19 +827,19 @@ class World:
                         
                         locSTD = [np.std(self.values[globName])] * self.comm.size
                         locSTD = np.asarray(self.comm.alltoall(locSTD))
-                        self.dprint('loc std: ' + str(locSTD))
+                        lg.debug('loc std: ' + str(locSTD))
                         
                         tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
                         tmp = np.asarray(self.comm.alltoall(tmp))
                         
                         locMean = tmp[:,0]
-                        self.dprint('loc mean: ' + str(locMean))
+                        lg.debug('loc mean: ' + str(locMean))
                         
                         locNVar = tmp[:,1]
-                        self.dprint('loc number of var: ' + str(locNVar))
+                        lg.debug('loc number of var: ' + str(locNVar))
                         
                         globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
-                        self.dprint('global mean: ' + str( globMean ))
+                        lg.debug('global mean: ' + str( globMean ))
                         
                         diffSqrMeans = (locMean - globMean)**2
                         
@@ -952,17 +953,17 @@ class World:
             
         def initNodeFile(self, world, nodeTypes):
             """ Initialized the internal data structure for later I/O""" 
-            print 'start node init'
+            lg.info('start init of the node file')
             
             for nodeType in nodeTypes:
                 world.mpi.comm.Barrier()
                 tt = time.time()
-                print nodeType
+                lg.info(' NodeType: ' +str(nodeType))
                 #if world.mpi.comm.rank == 0:
                 self.h5File.create_group(str(nodeType))
                 
                     #group = self.latMinMax = node._f_getattr('LATMINMAX')
-                print 'group created in ' + str(time.time()-tt)  + ' seconds'  
+                lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
                 
                 nAgents = len(world.nodeDict[nodeType])
@@ -970,17 +971,17 @@ class World:
                 
                 self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)    
                 
-                print 'nAgents exchanged in  ' + str(time.time()-tt)  + ' seconds'  
+                lg.info( 'nAgents exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
                 
-                print self.nAgentsAll 
+                lg.info('Number of all agents' + str( self.nAgentsAll ))
                 
                 nAgentsGlob = sum(self.nAgentsAll)
                 cumSumNAgents = np.zeros(self.comm.size+1).astype(int)
                 cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
                 loc2GlobIdx = (cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
                 #print loc2GlobIdx
-                print 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  
+                lg.info( 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
                 
                 rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
@@ -989,7 +990,7 @@ class World:
                 
 
 
-                print 'record created in  ' + str(time.time()-tt)  + ' seconds'  
+                lg.info( 'record created in  ' + str(time.time()-tt)  + ' seconds')
                 
                 
                 for attr in self.attributes:
@@ -1011,7 +1012,7 @@ class World:
                 # allocate storage
                 rec.initStorage()
                 self.outData[nodeType] = rec
-                print 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  
+                lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
                 
         def gatherNodeData(self, timeStep):                
             """ Transfers data from the graph to the I/O storage"""
@@ -1028,7 +1029,7 @@ class World:
         
         def finalizeAgentFile(self):
             self.h5File.close()
-            print 'agent file closed'
+            lg.info( 'Agent file closed')
             from class_auxiliary import saveObj
             
             for nodeType in self.outData.keys():
@@ -1167,8 +1168,7 @@ class World:
                 #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
                 #receive requested global IDs
                 globIDList = requestRecv[mpiDest][0]
-                print 'receiving:'
-                print 'globIDList:' + str(globIDList)
+                lg.info( 'receiving globIDList:' + str(globIDList))
                 #print 'localDList:' + str(self.ghostNodeIn[locNodeType, mpiDest].indices)
                 self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
@@ -1176,7 +1176,7 @@ class World:
                     self.world.glob2loc[gID] = nID
                     self.world.loc2glob[nID] = gID
                 #self.world.mpi.comm.Barrier()
-            print 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds'            
+            lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')          
             
 
         #%% Nodes            
@@ -1311,7 +1311,7 @@ class World:
             self.sendRecvGhostUpdate(nodeTypeList, propertyList)
             #self.recvGhostUpdate(nodeTypeList, propertyList)
             
-            self.world.dprint('Ghost update required: ' + str(time.time()-tt) + ' seconds')
+            lg.debug('Ghost update required: ' + str(time.time()-tt) + ' seconds')
             
         def all2all(self, value):
             if isinstance(value,int):            
@@ -1331,6 +1331,8 @@ class World:
             
     #%% INIT WORLD            
     def __init__(self, 
+                 simNo,
+                 outPath,
                  spatial=True, 
                  nSteps= 1, 
                  maxNodes = 1e6, 
@@ -1338,7 +1340,8 @@ class World:
                  mpiComm=None, 
                  caching=True,
                  queuing=True):
-        
+    
+        self.simNo    = simNo
         self.timeStep = 0
         self.para     = dict()
         self.spatial  = spatial
@@ -1353,23 +1356,23 @@ class World:
                
         # GRAPH
         self.graph    = WorldGraph(self, directed=True)
-        
+        self.para['outPath'] = outPath
      
 
         # setting additional debug output
-        if self.debug:
-            # inint pprint as additional output
-            import pprint
-            def debugPrint(*argv):
-                if not isinstance(argv, str):
-                    argv = str(argv)
-                pprint.pprint('DEBUG: ' + argv)
-            self.dprint = debugPrint
-        else:
-            # init dummy that does nothing
-            def debugDummy(*argv):
-                pass
-            self.dprint = debugDummy
+#        if self.debug:
+#            # inint pprint as additional output
+#            import pprint
+#            def debugPrint(*argv):
+#                if not isinstance(argv, str):
+#                    argv = str(argv)
+#                pprint.pprint('DEBUG: ' + argv)
+#            self.dprint = debugPrint
+#        else:
+#            # init dummy that does nothing
+#            def debugDummy(*argv):
+#                pass
+#            self.dprint = debugDummy
         
         
         
@@ -1410,17 +1413,8 @@ class World:
             self.isRoot = False
         
 
-        self.simNo, basePath = aux.getEnvironment(self.mpi.comm)
-        self.para['outPath']  = basePath + 'sim' + str(self.simNo).zfill(4)
-        
-        if self.isRoot:
-            
-            if not os.path.isdir(self.para['outPath']):
-                os.mkdir(self.para['outPath'])
-        
-            
-            
-        self.mpi.comm.Barrier()
+
+
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
         

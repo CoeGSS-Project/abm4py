@@ -50,6 +50,7 @@ def writeAdjFile(graph,fileName):
     fid.write('% Adjecencies of verteces \n')
     adjList = graph.get_adjlist()
     popList = graph.vs['population']
+
     for adjline, popu in zip(adjList, popList):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
     fid.close()
@@ -85,40 +86,55 @@ def getEnvironment(comm, getSimNo=True):
         try:
             fid = open("environment","r")
             simNo = int(fid.readline())
-            basePath = fid.readline().rstrip('\n')
+            baseOutputPath = fid.readline().rstrip('\n')
             fid.close()
             if getSimNo:
                 fid = open("environment","w")
                 fid.writelines(str(simNo+1)+ '\n')
-                fid.writelines(basePath)
+                fid.writelines(baseOutputPath)
                 fid.close()
         except:
             print 'ERROR Envirionment file is not set up'
             print ''
             print 'Please create file "environment" which contains the simulation'
-            print 'and the basePath'
+            print 'and the baseOutputPath'
             print '#################################################'
             print "0" 
             print 'basepath/'
             print '#################################################'
     else:
         simNo    = None
-        basePath = None
+        baseOutputPath = None
 
     
     if getSimNo:   
         if comm is None:
-            return simNo, basePath
+            return simNo, baseOutputPath
         simNo = comm.bcast(simNo, root=0)
-        basePath = comm.bcast(basePath, root=0)
-        print 'simulation number is: ' + str(simNo)
-        print 'base path is: ' + str(basePath)
-        return simNo, basePath
+        baseOutputPath = comm.bcast(baseOutputPath, root=0)
+        if comm.rank == 0:
+            print 'simulation number is: ' + str(simNo)
+            print 'base path is: ' + str(baseOutputPath)
+        return simNo, baseOutputPath
     else:
         if comm is None:
-            return basePath
-        basePath = comm.bcast(basePath, root=0)
-        return basePath
+            return baseOutputPath
+        baseOutputPath = comm.bcast(baseOutputPath, root=0)
+        return baseOutputPath
+
+def createOutputDirectory(comm, baseOutputPath, simNo):
+    
+        dirPath  = baseOutputPath + 'sim' + str(simNo).zfill(4)
+        
+        if comm.rank ==0:
+            import os
+            
+            if not os.path.isdir(dirPath):
+                os.mkdir(dirPath)
+
+        comm.Barrier()
+        
+        return dirPath
     
 def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
     """

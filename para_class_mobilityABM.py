@@ -38,6 +38,7 @@ import time
 import os
 import math
 import copy
+import logging as lg
 from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
@@ -54,7 +55,15 @@ _pers = 3
 #%% --- Global classes ---
 class Earth(World):
 
-    def __init__(self, parameters, maxNodes, debug, mpiComm=None, caching=True, queuing=True):
+    def __init__(self,
+                 simNo,
+                 outPath,
+                 parameters,
+                 maxNodes,
+                 debug, 
+                 mpiComm=None,
+                 caching=True,
+                 queuing=True):
         
         nSteps     = parameters.nSteps
         
@@ -63,7 +72,10 @@ class Earth(World):
         self.waitTime    = np.zeros(parameters.nSteps)
         self.ioTime      = np.zeros(parameters.nSteps)
         
-        World.__init__(self, parameters.isSpatial, 
+        World.__init__(self,
+                       simNo,
+                       outPath,
+                       parameters.isSpatial, 
                        nSteps, 
                        maxNodes = maxNodes, 
                        debug=debug, 
@@ -83,7 +95,7 @@ class Earth(World):
         self.globalRecord  = dict() # storage of global data
         
         # transfer all parameters to earth
-        parameters.simNo = self.simNo
+        parameters.simNo = simNo
         self.setParameters(Bunch.toDict(parameters))
         
         if self.para['omniscientBurnIn']>self.para['burnIn']:
@@ -194,7 +206,7 @@ class Earth(World):
         if self.queuing:                
             self.queue.dequeueEdges(self)     
             
-        print 'Network created in -- ' + str( time.time() - tt) + ' s'
+        lg.info( 'Network created in -- ' + str( time.time() - tt) + ' s')
         
 
     def step(self):
@@ -209,13 +221,13 @@ class Earth(World):
         ttComp = time.time()
         # time management
         if self.timeStep == 0:
-            print 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor'])
+            lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
             newValue = np.rint(self.getNodeValues('lastAction',_pers) / self.para['burnInTimeFactor']).astype(int)
             self.setNodeValues('lastAction',_pers, newValue)
             
         if self.timeStep+5 == self.para['burnIn']:
-            print 'reducting time speed to normal'
+            lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
             oldValue = self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
@@ -255,7 +267,7 @@ class Earth(World):
         self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.glob.sync()
         self.syncTime[self.time] = time.time()-ttSync
-        self.dprint('globals synced in ' +str(time.time()- ttSync) + ' seconds')
+        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
         
         ttComp = time.time()
         #gather data back to the records
@@ -273,7 +285,7 @@ class Earth(World):
         #loop over cells
         for cell in self.iterEntRandom(_cell):
             cell.step(self.market.currKappa)
-        self.dprint('Cell step required ' + str(time.time()- ttCell) + ' seconds')        
+        lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')        
 
 
         tthh = time.time()        
@@ -289,7 +301,7 @@ class Earth(World):
                     household.stepOmniscient(self)
                 else:
                     household.step(self)
-        self.dprint('Household step required ' + str(time.time()- tthh) + ' seconds')        
+        lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')        
 
         if self.queuing:                
             self.queue.dequeueEdgeDeleteList(self)        
@@ -306,12 +318,12 @@ class Earth(World):
         self.mpi.updateGhostNodes([_pers],['commUtil'])
         self.syncTime[self.time] += time.time()-ttSync
         
-        self.dprint('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
+        lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
 
         ttComp = time.time()
         for person in self.iterEntRandom(_pers):
             person.step(self)
-        self.dprint('Person step required ' + str(time.time()- ttComp) + ' seconds')
+        lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')
         
         if self.queuing:                
             self.queue.dequeueEdges(self)        
@@ -332,16 +344,18 @@ class Earth(World):
         self.ioTime[self.time] = time.time()-ttIO
         
         
-        print(' - tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+ 
+        lg.info(('Times: tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+ 
               ' - tSync: '+ '{:10.5f}'.format(self.syncTime[self.time])+ 
               ' - tWait: '+ '{:10.5f}'.format(self.waitTime[self.time])+ 
-              ' - tIO  : '+ '{:10.5f}'.format(self.ioTime[self.time]) )
+              ' - tIO: '+ '{:10.5f}'.format(self.ioTime[self.time]) ))
         
         if self.para['omniscientAgents']:
-            print 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
+            lg.info( 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
         else:
-            print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
+            lg.info( 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
         
+        if self.isRoot:
+            print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
         
     def finalize(self):
         
@@ -378,7 +392,6 @@ class Market():
         #import global variables
         self.globalRecord       = earth.globalRecord
         self.comm               = earth.mpi.comm
-        self.dprint             = earth.dprint
         self.glob               = earth.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
         self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
@@ -438,7 +451,7 @@ class Market():
         self.mean = [self.glob['meanEmm'], self.glob['meanPrc']]
         self.std  = [self.glob['stdEmm'],  self.glob['stdPrc']]
         
-        self.dprint('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
+        lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
         distances = list()         
         for idx in range(len(stock)):
             properties = stock[idx,:]
@@ -505,7 +518,7 @@ class Market():
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
         
-        self.dprint('new value of allTimeProduced: ' + str(self.allTimeProduced))
+        lg.debug('new value of allTimeProduced: ' + str(self.allTimeProduced))
         # reset sales
         self.glob['sales'] = self.glob['sales']*0
         
@@ -519,7 +532,7 @@ class Market():
         # calculate growth rates per brand:
         # oldCarsPerLabel = copy.copy(self.carsPerLabel)
         # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
-        print 'sales in market: ',self.glob['sales']
+        lg.info( 'sales in market: ' +str(self.glob['sales']))
         for i in range(self.nMobTypes):
             if not self.allTimeProduced[i] == 0.:
                 
@@ -528,7 +541,7 @@ class Market():
                 newGrowthRate = 0
             self.mobilityGrowthRates[i] = newGrowthRate          
         
-        self.dprint('growth rate: ' + str(newGrowthRate))
+        lg.debug('growth rate: ' + str(newGrowthRate))
         
         # technological progress:
         oldEtas = copy.copy(self.techProgress)
@@ -544,7 +557,7 @@ class Market():
         
         
         
-        self.dprint('techProgress: ' + str(self.techProgress))
+        lg.debug('techProgress: ' + str(self.techProgress))
         
     def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
         mobType = self.nMobTypes
@@ -684,7 +697,7 @@ class Person(Agent):
         
         if len(edgeList) > 0:
         # update edges
-            world.dprint('adding contact edges')
+            lg.debug('adding contact edges')
             world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
 
         if world.caching:    
@@ -714,6 +727,15 @@ class Person(Agent):
         Method to generate a preliminary friend network that accounts for 
         proximity in space, priorities and income
         """
+        
+        if currentContacts is None:
+            isInit=True
+        else:
+            isInit=False
+        if currentContacts is None:
+            currentContacts = [self.nID]
+        else:
+            currentContacts.append(self.nID)
         
         if nContacts is None:
             nContacts = np.random.randint(world.para['minFriends'],world.para['maxFriends'])
@@ -752,18 +774,19 @@ class Person(Agent):
             contactIds.extend(personIds)
             spatWeigList.extend([cellWeight]*len(personIds))
 
+
         # return nothin if too few candidates
-        if currentContacts is not None and not len(contactIds) > nContacts:
+        if not isInit and not len(contactIds) > nContacts:
+            print str(self.nID) + ' failed'
             return [], [], []
         
+        np.seterr(divide='ignore')
         propWeigList = np.array(propDiffList)    
         nullIds  = propWeigList == 0
         propWeigList = 1 / propWeigList
         propWeigList[nullIds] = 0 
         propWeigList = propWeigList / np.sum(propWeigList)
         
-        np.seterr(divide='ignore')
-
 
         incoWeigList = np.array(incoDiffList)    
         nullIds  = incoWeigList == 0
@@ -772,6 +795,7 @@ class Person(Agent):
         np.seterr(divide='warn')
         incoWeigList = incoWeigList / np.sum(incoWeigList)
         
+        
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         spatWeigList = spatWeigList / np.sum(spatWeigList)
         
@@ -779,7 +803,12 @@ class Person(Agent):
         weights = weights / np.sum(weights)
 
         if len(weights)-1 < nContacts:
-            print "reducting the number of friends"
+            print "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.node['pos'])
+            print "population = " + str(self.loc.node['population']),
+            print "surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0]))
+        
+        
+
         nContacts = min(np.sum(weights>0)-1,nContacts)
 
         ids = np.random.choice(len(weights), nContacts, replace=False, p=weights)
@@ -1172,8 +1201,7 @@ class Household(Agent):
 
         actors = np.array(self.adults)[ actions != -1]
         actions = actions[ actions != -1]     
-        if overallUtil[bestActionIdx] is None:
-            print 1
+
         return actors, actions, overallUtil[bestActionIdx]
     
     def propUtilChoice(self, combActions, overallUtil):
@@ -1314,8 +1342,8 @@ class Cell(Location):
 
     def getConnCellsPlus(self):
          self.weights, edges = self.getEdgeValues('weig',edgeType=_cll)
-         self.connnodeDict = [edge.target for edge in edges ]
-         return self.weights, edges.indices, self.connnodeDict    
+         self.connNodeDict = [edge.target for edge in edges ]
+         return self.weights, edges.indices, self.connNodeDict    
  
     def _getConnCellsPlusOld(self):
          self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll)

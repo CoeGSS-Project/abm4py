@@ -175,9 +175,9 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
     #del dummy
     
-    print "Final setting of the parameters"
-    print parameterInput
-    print "####################################"
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
     
     return setup
 
@@ -266,9 +266,9 @@ def scenarioTestMedium(parameterInput, dirPath):
     
     #del dummy
     
-    print "Final setting of the parameters"
-    print parameterInput
-    print "####################################"
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
     
     return setup
     
@@ -304,7 +304,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         setup.landLayer = setup.landLayer * 0
     
     
-    print 'max rank:',np.nanmax(setup.landLayer)
+    printlg.info( 'max rank:',np.nanmax(setup.landLayer))
     
     setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
     setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
@@ -345,12 +345,12 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     minCarConvenience = 1 + setup.kappa
     setup.convB =  minCarConvenience / (maxDeviation)
     
-    print "Final setting of the parameters"
-    print parameterInput
-    print "####################################"
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
     
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    print 'Running with ' + str(nAgents) + ' agents'
+    lg.info( 'Running with ' + str(nAgents) + ' agents')
     
     return setup
 
@@ -389,10 +389,10 @@ def scenarioNBH(parameterInput, dirPath):
         setup.landLayer=  np.load(setup.resourcePath + 'land_layer_62x118.npy')
         setup.landLayer = setup.landLayer * 0
        
-    print 'max rank:',np.nanmax(setup.landLayer)
+    lg.info( 'max rank:' +str(np.nanmax(setup.landLayer)))
     
-    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
-    #setup.population = np.load(setup.resourcePath + 'land_layer_62x118.npy')
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') 
+    setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_62x118.npy')
     #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy') 
     # bad bugfix for 4 cells
@@ -450,13 +450,13 @@ def scenarioNBH(parameterInput, dirPath):
     setup.convB =  minCarConvenience / (maxDeviation)
     
     
-    print "Final setting of the parameters"
-    print parameterInput
-    print "####################################"
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
     
     nAgents    = np.nansum(setup.population)
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    print 'Running with ' + str(nAgents) + ' agents'
+    lg.info( 'Running with ' + str(nAgents) + ' agents')
     
     return setup
 
@@ -495,7 +495,7 @@ def scenarioGer(parameterInput, dirPath):
         setup.landLayer[setup.landLayer==0] = np.nan
         setup.landLayer = setup.landLayer * 0
        
-    print 'max rank:',np.nanmax(setup.landLayer)
+    lg.info( 'max rank:',np.nanmax(setup.landLayer))
     
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff') 
     setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_186x219.npy')
@@ -556,13 +556,13 @@ def scenarioGer(parameterInput, dirPath):
     setup.convB =  minCarConvenience / (maxDeviation)
     
     
-    print "Final setting of the parameters"
-    print parameterInput
-    print "####################################"
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
     
     nAgents    = np.nansum(setup.population)
     #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    print 'Running with ' + str(nAgents) + ' agents'
+    lg.info( 'Running with ' + str(nAgents) + ' agents')
     
     return setup
     
@@ -593,7 +593,7 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(500., 500.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(500., 430.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
     
     earth.initBrand('green',(350., 1600.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
 
@@ -625,7 +625,7 @@ def householdSetup(earth, parameters, calibration=False):
     nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
     #print nAgentsPerProcess
     nAgentsOnProcess = np.array(nAgentsPerProcess)  
-    print nAgentsOnProcess
+    lg.info( 'Agents on process:' +str(nAgentsOnProcess))
     hhData = dict()
     currIdx = dict()
     for i, region in enumerate(regionIdxList):
@@ -634,10 +634,10 @@ def householdSetup(earth, parameters, calibration=False):
         agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]) + earth.mpi.comm.rank*20)
         agentEnd   = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank+1,i]) + (earth.mpi.comm.rank+1)*20)
         
-        print 'Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region)
-        
+        lg.info( 'Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
+        lg.debug('Vertex count: ' +str(earth.graph.vcount()))
         if earth.debug:
-            print 'Vertex count: ',earth.graph.vcount()
+            
             earth.view(str(earth.mpi.rank) + '.png')
         
         h5File      = h5py.File('resources_NBH/people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
@@ -664,7 +664,11 @@ def householdSetup(earth, parameters, calibration=False):
         #print nAgentsCell
         loc = earth.entDict[earth.locDict[x,y].nID]
         region = parameters.regionIdRaster[x,y]
+#        try:
         regionIdx = np.where(regionIdxList == region)[0][0]
+#        except:
+#            regionIdx = 1
+            
         while 1:
              
             #creating persons as agents
@@ -674,6 +678,8 @@ def householdSetup(earth, parameters, calibration=False):
             #print nPers,'-',nAgents
             ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,1])
             genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,2])
+            
+            
             income = hhData[regionIdx][currIdx[regionIdx],3]
             income *= parameters.mobIncomeShare
             nKids = np.sum(ages<18)
@@ -733,7 +739,7 @@ def householdSetup(earth, parameters, calibration=False):
             if nAgentsCell <= 0:
            
                     break
-    print 'agents loaded from file'
+    lg.info( 'agents loaded from file')
     if earth.queuing:
         earth.queue.dequeueVertices(earth)
         earth.queue.dequeueEdges(earth)
@@ -754,16 +760,25 @@ def householdSetup(earth, parameters, calibration=False):
     
     
     earth.mpi.comm.Barrier()
-    print str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s'
+    lg.info( str(nAgents) + ' Agents and ' + str(nHH) + ' Housholds created in -- ' + str( time.time() - tt) + ' s')
     return earth
 
 
 
 
-def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=True, queuing=True):
+def initEarth(simNo,
+              outPath,
+              parameters, 
+              maxNodes, 
+              debug, 
+              mpiComm=None, 
+              caching=True, 
+              queuing=True):
     tt = time.time()
     
-    earth = Earth(parameters,
+    earth = Earth(simNo,
+                  outPath,
+                  parameters,
                   maxNodes=maxNodes, 
                   debug = debug, 
                   mpiComm=mpiComm,
@@ -814,7 +829,7 @@ def initEarth(parameters, maxNodes, debug, mpiComm=None, caching=True, queuing=T
     earth.nPref = len(earth.enums['priorities'])
     earth.nPrefTypes = [0]* earth.nPref
     
-    print 'Init finished after -- ' + str( time.time() - tt) + ' s'
+    lg.info( 'Init finished after -- ' + str( time.time() - tt) + ' s')
     return earth 
     
 def initTypes(earth, parameters):
@@ -906,7 +921,7 @@ def generateNetwork(earth, parameters):
     # %% Generate Network
     tt = time.time()
     earth.generateSocialNetwork(_pers,_cpp)
-    print 'Social network initialized in -- ' + str( time.time() - tt) + ' s'
+    lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
     if parameters.scenario == 0:
         earth.view(str(earth.mpi.rank) + '.png')
         
@@ -989,13 +1004,13 @@ def initGlobalRecords(earth, parameters):
     earth.registerRecord('allTimeProduced', 'Overall production of car types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('infraKappa', 'Infrastructure kappa', ['Kappa'], style ='plot')
     
-    print 'Global records initialized in ' + str( time.time() - tt) + ' s' 
+    lg.info( 'Global records initialized in ' + str( time.time() - tt) + ' s' )
     
 def initAgentOutput(earth):
     #%% Init of agent file
     tt = time.time()
     earth.mpi.comm.Barrier()
-    print 'Waited for Barrier for ' + str( time.time() - tt) + ' s'
+    lg.info( 'Waited for Barrier for ' + str( time.time() - tt) + ' s')
     tt = time.time()
     #earth.initAgentFile(typ = _hh)
     #earth.initAgentFile(typ = _pers)
@@ -1003,7 +1018,7 @@ def initAgentOutput(earth):
     earth.io.initNodeFile(earth, [_cell, _hh, _pers])
     
 
-    print 'Agent file initialized in ' + str( time.time() - tt) + ' s'
+    lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
     
 
 def calGreenNeigbourhoodShareDist(earth):
@@ -1046,24 +1061,24 @@ def runModel(earth, parameters):
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
         for adult in household.adults:
             adult.setValue('lastAction', int(np.random.rand()*float(earth.para['mobNewPeriod'])))
-    print 'Initial actions done'
+    lg.info( 'Initial actions done')
     for cell in earth.iterEntRandom(_cell):
         cell.step(earth.market.para['kappa'])
     
-    print 'Initial market step done'
+    lg.info( 'Initial market step done')
     
     for household in earth.iterEntRandom(_hh):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth)
         #household.shareExperience(earth)
-    print 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s'
+    lg.info( 'Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
     
     #plotIncomePerNetwork(earth)
     
     
     #%% Simulation 
     earth.time = -1 # hot bugfix to have both models running #TODO Fix later
-    print "Starting the simulation:"
+    lg.info( "Starting the simulation:")
     for step in xrange(parameters.nSteps):
         
         earth.step() # looping over all cells
@@ -1076,7 +1091,7 @@ def runModel(earth, parameters):
         
     
     #%% Finishing the simulation    
-    print "Finalizing the simulation (No." + str(earth.simNo) +"):"
+    lg.info( "Finalizing the simulation (No." + str(earth.simNo) +"):")
     if parameters.writeOutput:
         earth.io.finalizeAgentFile()
     earth.finalize()        
@@ -1094,9 +1109,9 @@ def writeSummary(earth, calRunId, paraDf, parameters):
     fid.writelines('Gesammt:')
     fid.writelines(str(errBremen + errNiedersachsen))
     fid.close()
-    print 'Calibration Run: ' + str(calRunId)
-    print paraDf
-    print 'The simulation error is: ' + str(errBremen + errNiedersachsen) 
+    lg.info( 'Calibration Run: ' + str(calRunId))
+    lg.info( paraDf)
+    lg.info( 'The simulation error is: ' + str(errBremen + errNiedersachsen) )
 
 
     if parameters.scenario == 2:
@@ -1106,11 +1121,11 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
         nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
 
-        print 'Number of agents: ' + str(nPeople)
-        print 'Number of agents: ' + str(nCars)
-        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
-        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
-        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+        lg.info( 'Number of agents: ' + str(nPeople))
+        lg.info( 'Number of agents: ' + str(nCars))
+        lg.info( 'cars per 1000 people: ' + str(nCars/nPeople*1000.))
+        lg.info( 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.))
+        lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
 
 
         cellList = earth.graph.vs[earth.nodeDict[_cell]]
@@ -1123,11 +1138,11 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
         nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
 
-        print 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
-        print 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
+        lg.info( 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000))
+        lg.info( 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000))
 
-        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
-        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+        lg.info( 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000))
+        lg.info( 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000))
 
         
      
@@ -1141,11 +1156,11 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
         nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
 
-        print 'Number of agents: ' + str(nPeople)
-        print 'Number of agents: ' + str(nCars)
-        print 'cars per 1000 people: ' + str(nCars/nPeople*1000.)
-        print 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.)
-        print 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.)
+        lg.info( 'Number of agents: ' + str(nPeople))
+        lg.info( 'Number of agents: ' + str(nCars))
+        lg.info( 'cars per 1000 people: ' + str(nCars/nPeople*1000.))
+        lg.info( 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.))
+        lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
 
 
         cellList = earth.graph.vs[earth.nodeDict[_cell]]
@@ -1163,16 +1178,16 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         nPeopleHamb   = np.nansum(parameters.population[parameters.regionIdRaster==1520])
 
 
-        print 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000)
-        print 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000)
-        
+        lg.info( 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000))
+        lg.info( 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000))
 
-        print 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000)
-        print 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000)
+
+        lg.info( 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000))
+        lg.info( 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000))
         
         
-        print 'Hamburg       - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleHamb)*1000)
-        print 'Hamburg -       brown cars per 1000 people: ' + str(np.sum(carsInHamb[:,0])/np.sum(nPeopleHamb)*1000)  
+        lg.info( 'Hamburg       - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleHamb)*1000))
+        lg.info( 'Hamburg -       brown cars per 1000 people: ' + str(np.sum(carsInHamb[:,0])/np.sum(nPeopleHamb)*1000))
 
 
 def onlinePostProcessing(earth):
@@ -1183,12 +1198,12 @@ def onlinePostProcessing(earth):
             df.loc[agID] = earth.graph.vs[agID]['preferences']
         
         
-        print 'Preferences -average'
-        print df.mean()
-        print 'Preferences - standart deviation'
-        print df.std()
+        lg.info( 'Preferences -average')
+        lg.info( df.mean())
+        lg.info( 'Preferences - standart deviation')
+        lg.info( df.std())
         
-        print 'Preferences - standart deviation within friends'
+        lg.info( 'Preferences - standart deviation within friends')
         avgStd= np.zeros([1,4])    
         for agent in earth.iterEntRandom(_hh): 
             friendList = agent.getConnNodeIDs(nodeType=_hh)
@@ -1196,7 +1211,7 @@ def onlinePostProcessing(earth):
                 #print df.ix[friendList].std()
                 avgStd += df.ix[friendList].std().values
         nAgents    = np.nansum(parameters.population)         
-        print avgStd / nAgents
+        lg.info( avgStd / nAgents)
         prfType = np.argmax(df.values,axis=1)
         #for i, agent in enumerate(earth.iterNode(_hh)):
         #    print agent.prefTyp, prfType[i]
@@ -1220,7 +1235,7 @@ def onlinePostProcessing(earth):
         plt.show()
         x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
         y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
-        print np.corrcoef(x,y)
+        lg.info( np.corrcoef(x,y))
 
 
 #%%############### Tests ############################################################ 
@@ -1266,46 +1281,46 @@ def setupHouseholdsWithOptimalChoice():
      
 
 
-#%%###################################################################################
-########## 
-   
+#%% __main__()   
 ######################################################################################
 
-# GLOBAL INIT  MPI
-comm = MPI.COMM_WORLD
-mpiRank = comm.Get_rank()
-mpiSize = comm.Get_size()
-
-print 'mpiRank',mpiRank
-print 'mpiSize',mpiSize
-
-if mpiRank != 0:
-    olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
-    sys.stdout = olog_file
-    elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
-    sys.stderr = elog_file
-
-
-
-
 if __name__ == '__main__':
-#from pycallgraph import PyCallGraph
-#from pycallgraph.output import GraphvizOutput
-#
-#with PyCallGraph(output=GraphvizOutput()):
-        
+    # GLOBAL INIT  MPI
+    comm = MPI.COMM_WORLD
+    mpiRank = comm.Get_rank()
+    mpiSize = comm.Get_size()
+    
 
+    
+#    if mpiRank != 0:
+#        olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
+#        sys.stdout = olog_file
+#        elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
+#        sys.stderr = elog_file
+
+    simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
+    outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
+    
+    import logging as lg
+
+    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank), 
+                    filemode='w',
+                    format='%(levelname)7s %(asctime)s : %(message)s', 
+                    datefmt='%m/%d/%y-%H:%M:%S',
+                    level=lg.INFO)
+    
+    lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
     
     dirPath = os.path.dirname(os.path.realpath(__file__))
-    
-    
     # loading of standart parameters
     fileName = sys.argv[1]
     parameters = Bunch()
     for item in csv.DictReader(open(fileName)):
         parameters[item['name']] = aux.convertStr(item['value'])
-    print 'Setting loaded:'
-    print parameters.toDict()
+    lg.info('Setting loaded:')
+    
+    
+    parameters['outPath'] = outputPath
     
     # loading of changing calibration parameters
     if len(sys.argv) > 3:
@@ -1317,7 +1332,7 @@ if __name__ == '__main__':
         calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
         calRunID = calParaDf.index[0]
         for colName in calParaDf.columns:
-            print 'Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]) 
+            lg.info('Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]))
             parameters[colName] = aux.convertStr(str(calParaDf[colName][calRunID]))
         
 
@@ -1326,7 +1341,7 @@ if __name__ == '__main__':
         calRunID = -999
         calParaDf = pd.DataFrame()
         # no csv file given
-        print "no input of parameters"
+        lg.info("no input of parameters")
         
     showFigures    = 0
     
@@ -1423,7 +1438,9 @@ if __name__ == '__main__':
         #%% Init 
         parameters.showFigures = showFigures
         
-        earth = initEarth(parameters, 
+        earth = initEarth(simNo,
+                          outputPath,
+                          parameters, 
                           maxNodes=1000000, 
                           debug =False, 
                           mpiComm=comm, 
@@ -1456,21 +1473,21 @@ if __name__ == '__main__':
             earth.view('output/graph.png')
       
         #%% run of the model ################################################
-        print '####### Running model with paramertes: #########################'
+        lg.info('####### Running model with paramertes: #########################')
         import pprint 
-        pprint.pprint(parameters.toDict())
+        lg.info(pprint.pformat(parameters.toDict()))
         if mpiRank == 0:
             fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
             pprint.pprint(parameters.toDict(), fidPara)
             fidPara.close()
-        print '################################################################'
+        lg.info('################################################################')
         
         runModel(earth, parameters)
         
+        lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
         
-        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-        
-        
+        if earth.isRoot:
+            print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
         
         if earth.para['showFigures']:
             onlinePostProcessing(earth)
