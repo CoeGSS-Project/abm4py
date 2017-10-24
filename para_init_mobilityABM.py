@@ -495,7 +495,7 @@ def scenarioGer(parameterInput, dirPath):
         setup.landLayer[setup.landLayer==0] = np.nan
         setup.landLayer = setup.landLayer * 0
        
-    lg.info( 'max rank:',np.nanmax(setup.landLayer))
+    lg.info( 'max rank:' + str(np.nanmax(setup.landLayer)))
     
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff') 
     setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_186x219.npy')
@@ -593,11 +593,11 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(500., 430.), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(500., parameters['initPriceBrown']), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
     
-    earth.initBrand('green',(350., 1600.), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., parameters['initPriceGreen']), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
 
-    earth.initBrand('other',(120., 200.), convienienceOther, 'start', earth.para['initialOther'])  # none or other
+    earth.initBrand('other',(120., parameters['initPriceOther']), convienienceOther, 'start', earth.para['initialOther'])  # none or other
             
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
@@ -1412,18 +1412,19 @@ if __name__ == '__main__':
         parameters = scenarioGer(parameters, dirPath)  
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
-        earth = initEarth(parameters, maxNodes=1000000, debug =True)
+        parameters.addYourself   = False
+        earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
         _cell, _hh, _pers = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
         for cell in earth.iterEntRandom(_cell):
             cell.node['population'] = parameters.population[cell.node['pos']]
         #earth.view('spatial_graph.png')            
         
-        #earth.graph.add_edge(995,2057)
-        #earth.graph.add_edge(2057,995)
-        #earth.graph.add_edge(1310,810)
-        #earth.graph.add_edge(810,1310)
-        #aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
+        earth.graph.add_edge(995,2057)
+        earth.graph.add_edge(2057,995)
+        earth.graph.add_edge(1310,810)
+        earth.graph.add_edge(810,1310)
+        aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
         
         exit
         
@@ -1503,6 +1504,7 @@ if __name__ == '__main__':
             allTime += var
         plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
         plt.tight_layout()
+        plt.ylim([0, np.percentile(allTime,99)])
         plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
         
         

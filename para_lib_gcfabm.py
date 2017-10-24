@@ -1535,7 +1535,7 @@ class World:
                     trgID = IDArray[xDst,yDst]
                     #assert 
 
-                    if not np.isnan(trgID):
+                    if not np.isnan(trgID) and srcID != trgID:
                         destList.append(int(trgID))
                         weigList.append(weight)
                         connectionList.append((int(srcID),int(trgID)))

@@ -53,7 +53,7 @@ class WorldGraph(Graph):
             
     def add_edge(self, source, target, **kwproperties):
         """ overrides graph.add_edge"""
-        return Graph.add_edges(self, source, target, **kwproperties)
+        return Graph.add_edge(self, source, target, **kwproperties)
 
     def add_vertex(self, nodeType, gID, **kwProperties):
         """ overrides graph.add_vertice"""

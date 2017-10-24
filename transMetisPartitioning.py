@@ -19,8 +19,9 @@ import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
 
-nClusters= 60
+nClusters= 360
 radius = 1
+resourcePath = 'resources_ger/'
 
 def calcPopDeviation(population, clusterMap, nClusters):
     nPopPerCluster = np.zeros(nClusters)
@@ -50,12 +51,14 @@ def  calPopSurrounging(population, clusterMap, nClusters, brush, intRad):
     return popSurrounding, connectedPop
 
 
-population2        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff')/100
-
+population2        = gt.load_array_from_tiff(resourcePath +'pop_counts_ww_2005_186x219.tiff')/100
+landLayer          = gt.load_array_from_tiff(resourcePath +'land_layer_186x219.tiff')
+landLayer[landLayer==0] = np.nan
+landLayer2 = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
 population[population==0] = 1
-
+landLayer2[1:-1,1:-1] = landLayer
 
 brush = np.zeros([int(1+ 2*(int(radius))),int(1+ 2*(int(radius)))])
 intRad = int(radius)
@@ -66,13 +69,15 @@ for x in range(-intRad,intRad+1):
 
 np.sum(np.isnan(population)==False)
 clusterMap = population * np.nan
-fid = open("outGraph.txt.part." + str(nClusters),'r')
+fid = open(resourcePath +"outGraph.txt.part." + str(nClusters),'r')
 x = fid.readlines()
 y = [int(xx) for xx in x]
 yy = np.asarray(y)
 nonNan = np.isnan(population)==False
 clusterMap[nonNan] = yy
 plt.figure()
+plt.imshow(clusterMap)
+
 score1, devPerCluster, popPerCluster, nPopPerCluster = calcPopDeviation(population,clusterMap, nClusters)
 score2, popSurr = calPopSurrounging(population, clusterMap, nClusters, brush, intRad)
 
@@ -89,4 +94,21 @@ print 'max devation: ', maxDeviation, ' relative: ', maxDeviation / partSizeDesi
 
 print np.nanmin(y)
 print np.nanmax(y)
-np.save('resources_NBH/rankMap_nClust' + str(nClusters) + '.npy',clusterMap[1:-1,1:-1])   
+np.save(resourcePath +'rankMap_nClust' + str(nClusters) + '.npy',clusterMap[1:-1,1:-1])   
+#%%
+#population        = gt.load_array_from_tiff('resources_NBH/pop_counts_ww_2005_62x118.tiff')/100
+#rankMap = np.load('resources_NBH/rankMap_nClust48.npy')
+from matplotlib import cm
+import matplotlib.colors as clr
+
+plt.figure()
+
+plt.register_cmap(cmap=xx)
+plt.imshow(population*100)
+plt.title('Population per cell')
+plt.colorbar()  
+
+plt.figure()
+plt.imshow(clusterMap)
+plt.title("Process ID's")
+plt.colorbar()  

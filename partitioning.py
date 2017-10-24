@@ -34,7 +34,7 @@ plt.imshow(population)
 plt.colorbar()
 
 
-nClusters = 320
+nClusters = 360
 factorSurr = 30
 radius = 3.5
 nSimulatneously = 5
@@ -126,7 +126,7 @@ def  calPopSurrounging(population, clusterMap, nClusters, brush, intRad):
 #plt.imshow(devPerCluster)
 #plt.colorbar()
 
-useSurround = False
+useSurround = True
 
 if useSurround:
     score1, devPerCluster, popPerCluster = calcPopDeviation(population,clusterMap, nClusters)
@@ -145,6 +145,9 @@ plt.figure()
 plt.subplot(1,3,1)
 plt.imshow( clusterMap_old)
 
+expectedMean = np.nansum(population) / nClusters
+print 'min imbalance: ' + str( (np.nanmin(popPerCluster)) / expectedMean)
+print 'max imbalance: ' + str( (np.nanmax(popPerCluster)) / expectedMean)
 #%%
 iMax = 100000
 i = 0
@@ -247,7 +250,7 @@ while True:
             bestClusterMap = copy(clusterMap)
     if i > iMax:
         break
-            
+            #%%
 plt.figure()
 plt.subplot(1,3,1)
 plt.imshow( clusterMap_old)
@@ -269,3 +272,7 @@ plt.colorbar()
 
 np.save(resourcePath +'rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius)+'.npy',bestClusterMap)   
 #xx = np.load('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius) + '.npy')   
+
+expectedMean = np.nansum(population) / nClusters
+print 'min imbalance: ' + str( (np.nanmin(popPerCluster)) / expectedMean)
+print 'max imbalance: ' + str( (np.nanmax(popPerCluster)) / expectedMean)
