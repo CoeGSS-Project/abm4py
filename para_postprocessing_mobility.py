@@ -12,6 +12,7 @@ mpl.use('Agg')
 
 import pandas as pd
 import matplotlib.pyplot as plt
+
 import numpy as np
 import os
 import sys
@@ -37,7 +38,7 @@ plotRecords       = 1
 plotCarStockBar   = 1
 plotCarSales      = 1
 salesProperties   = 1
-womanSharePerMobType = 1
+womanSharePerMobType = 0
 agePerMobType     = 1
 averageCarAge     = 1
 prefPerLabel      = 1
@@ -51,8 +52,8 @@ meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
 peerBubbleSize    = 1
-doFolium          = 1
-cellMovie         = 1
+doFolium          = 0
+cellMovie         = 0
 
 #plotRecords       = 0
 #plotCarStockBar   = 0

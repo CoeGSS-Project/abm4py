@@ -1398,21 +1398,21 @@ if __name__ == '__main__':
         
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
-        earth = initEarth(parameters, maxNodes=1000000, debug =True)
+        earth = initEarth(999, 'output/',parameters, maxNodes=1000000, debug =True)
         _cell, _hh, _pers = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
         for cell in earth.iterEntRandom(_cell):
             cell.node['population'] = parameters.population[cell.node['pos']]
-        earth.view('spatial_graph.png')            
+        #earth.view('spatial_graph.png')            
         aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
         
-        exit
+        exit()
 #%% Scenario graph ger        
     if parameters.scenario == 6: #graph partition NBH
         parameters = scenarioGer(parameters, dirPath)  
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
-        parameters.addYourself   = False
+        #parameters.addYourself   = False
         earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
         _cell, _hh, _pers = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
@@ -1512,9 +1512,9 @@ if __name__ == '__main__':
         #if mpiRank == 0:
         #    print tmp
         
-        if mpiSize ==1:
+
+        if earth.isRoot:
             writeSummary(earth, calRunID, calParaDf, parameters)
-    
         
    
 

@@ -12,9 +12,27 @@ import tables as ta
 from class_auxiliary import loadObj, getEnvironment
 simulations = []
 import os
+
+#import matplotlib as mpl
+#mpl.use('Agg')
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns; sns.set()
+sns.color_palette("Paired")
+sns.set_color_codes("dark")
+#%%
+
+ensNo =3
 #simulations= [222,223,224,225,226,227,228,229,230,231]
 
-for i,simNo in enumerate(range(295,324)):
+if ensNo == 2:
+    realStart, realEnd = 295, 324
+if ensNo == 3:
+    realStart, realEnd = 325, 354
+
+
+for i,simNo in enumerate(range(realStart,realEnd)):
     path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
     print path
     if os.path.isfile(path+ '/globals.hdf5'):
@@ -40,9 +58,9 @@ for i, simNo in enumerate(simulations):
     group = h5File.get_node('/glob/stockHamburg')
     simDataHb[:,:,i] = group.read()
 
-np.save('output/stock_nie.npy',simDataNS)
-np.save('output/stock_bre.npy',simDataBr)
-np.save('output/stock_ham.npy',simDataHb)
+np.save('output/E' + str(ensNo) + '_stock_nie.npy',simDataNS)
+np.save('output/E' + str(ensNo) + '_stock_bre.npy',simDataBr)
+np.save('output/E' + str(ensNo) + '_stock_ham.npy',simDataHb)
 
 
 group = h5File.get_node('/calData/stockNiedersachsen')
@@ -52,28 +70,31 @@ dataBr = group.read()
 group = h5File.get_node('/calData/stockHamburg')
 dataHb = group.read()
 
-np.save('output/cal_stock_nie.npy',dataNS)
-np.save('output/cal_stock_bre.npy',dataBr)
-np.save('output/cal_stock_ham.npy',dataHb)
+np.save('output/E' + str(ensNo) + '_cal_stock_nie.npy',dataNS)
+np.save('output/E' + str(ensNo) + '_cal_stock_bre.npy',dataBr)
+np.save('output/E' + str(ensNo) + '_cal_stock_ham.npy',dataHb)
 
 if False:
-#%%
+#%%s
+    ensNo =3
+    
     nSteps  = 560
     nBurnIn = 200
     factor = 5
     log    = 1
+    lineWidth = .2
 
     years = (nSteps - nBurnIn) / 12 / factor
     plt.clf()
     plt.subplot(1,3,1) 
     plt.title('Niedersachsen')         
-    data = np.load('poznan_out/stock_nie.npy')    
-    calData = np.load('poznan_out/cal_stock_nie.npy')
-    plt.plot(data[:,0,:], 'b', linewidth=.5)
+    data = np.load('poznan_out/E' + str(ensNo) + '_stock_nie.npy')    
+    calData = np.load('poznan_out/E' + str(ensNo) + '_cal_stock_nie.npy')
+    plt.plot(data[:,0,:], 'b', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,1],'bo')
-    plt.plot(data[:,1,:], 'g', linewidth=.5)
+    plt.plot(data[:,1,:], 'g', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,2],'go')
-    plt.plot(data[:,2,:], 'r', linewidth=.5)
+    plt.plot(data[:,2,:], 'r', linewidth=lineWidth)
     
     plt.xlim([nBurnIn,nSteps])
     years = (nSteps - nBurnIn) / 12 / factor
@@ -84,13 +105,13 @@ if False:
     
     plt.subplot(1,3,2) 
     plt.title('Bremen')      
-    data = np.load('poznan_out/stock_bre.npy')    
-    calData = np.load('poznan_out/cal_stock_bre.npy')
-    plt.plot(data[:,0,:], 'b', linewidth=.5)
+    data = np.load('poznan_out/E' + str(ensNo) + '_stock_bre.npy')    
+    calData = np.load('poznan_out/E' + str(ensNo) + '_cal_stock_bre.npy')
+    plt.plot(data[:,0,:], 'b', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,1],'bo')
-    plt.plot(data[:,1,:], 'g', linewidth=.5)
+    plt.plot(data[:,1,:], 'g', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,2],'go')
-    plt.plot(data[:,2,:], 'r', linewidth=.5)
+    plt.plot(data[:,2,:], 'r', linewidth=lineWidth)
     
     plt.xlim([nBurnIn,nSteps])
     years = (nSteps - nBurnIn) / 12 / factor
@@ -100,13 +121,13 @@ if False:
     
     plt.subplot(1,3,3) 
     plt.title('Hamburg')
-    data = np.load('poznan_out/stock_ham.npy')    
-    calData = np.load('poznan_out/cal_stock_ham.npy')
-    plt.plot(data[:,0,:], 'b', linewidth=.5)
+    data = np.load('poznan_out/E' + str(ensNo) + '_stock_ham.npy')    
+    calData = np.load('poznan_out/E' + str(ensNo) + '_cal_stock_ham.npy')
+    plt.plot(data[:,0,:], 'b', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,1],'bo')
-    plt.plot(data[:,1,:], 'g', linewidth=.5)
+    plt.plot(data[:,1,:], 'g', linewidth=lineWidth)
     plt.plot(calData[:,0], calData[:,2],'go')
-    plt.plot(data[:,2,:], 'r', linewidth=.5)
+    plt.plot(data[:,2,:], 'r', linewidth=lineWidth)
     
     plt.xlim([nBurnIn,nSteps])
     years = (nSteps - nBurnIn) / 12 / factor
@@ -115,14 +136,15 @@ if False:
     if log:
         plt.yscale('log')   
         
-    h1 = plt.plot(data[:,0,:], 'b', linewidth=.5)
-    h2 = plt.plot(data[:,1,:], 'g', linewidth=.5)
-    h3 = plt.plot(data[:,2,:], 'r', linewidth=.5)
-    plt.figlegend([h1, h2 ,h3],['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
+    h1 = plt.plot(data[:1,0,1], 'b', linewidth=2)
+    h2 = plt.plot(data[:1,1,1], 'g', linewidth=2)
+    h3 = plt.plot(data[:1,2,1], 'r', linewidth=2)
+    plt.figlegend(h1 + h2 + h3,['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
     plt.tight_layout()   
     plt.subplots_adjust(bottom=.15)
     if log:
-        plt.savefig('poznan_out/ensembleStockAllLog')
+        plt.savefig('poznan_out/E' + str(ensNo) + '_ensembleStockAllLog')
     else:
-        plt.savefig('poznan_out/ensembleStockAll')
+        plt.savefig('poznan_out/E' + str(ensNo) + '_ensembleStockAll')
     
+    print 1

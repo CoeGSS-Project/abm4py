@@ -20,9 +20,23 @@ import numpy as np
 import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
-resourcePath = 'resources_ger/'
+# Germany
+#nClusters = 360
+#factorSurr = 30
+#radius = 3.5
+#nSimulatneously = 5
+#resourcePath = 'resources_ger/'
+#resourcePopulation = resourcePath + 'pop_counts_ww_2005_186x219.tiff'
 
-population2        = gt.load_array_from_tiff(resourcePath + 'pop_counts_ww_2005_186x219.tiff')/100
+# NBH
+nClusters = 48
+factorSurr = 30
+radius = 3.5
+nSimulatneously = 5
+resourcePath = 'resources_NBH/'
+resourcePopulation = resourcePath + 'pop_counts_ww_2005_62x118.tiff'
+
+population2        = gt.load_array_from_tiff(resourcePopulation)/100
 
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
@@ -34,10 +48,7 @@ plt.imshow(population)
 plt.colorbar()
 
 
-nClusters = 360
-factorSurr = 30
-radius = 3.5
-nSimulatneously = 5
+
 sumPop = int(np.nansum(population))
 
 positions = np.zeros([sumPop,2])
@@ -95,7 +106,7 @@ def calcPopDeviation(population, clusterMap, nClusters):
     return deviation, devPerCluster, popPerCluster
 #%%
 #plt.figure()
-population2        = gt.load_array_from_tiff(resourcePath + 'pop_counts_ww_2005_186x219.tiff') / 100
+population2        = gt.load_array_from_tiff(resourcePopulation) / 100
 
 population = np.zeros(list(np.array(population2.shape)+2)) * np.nan
 population[1:-1,1:-1] = population2
@@ -270,7 +281,7 @@ plt.imshow(devPerCluster)
 plt.imshow(population)
 plt.colorbar()   
 
-np.save(resourcePath +'rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius)+'.npy',bestClusterMap)   
+np.save(resourcePath +'rankMap_nClust' + str(nClusters) + 'new.npy',bestClusterMap[1:-1,1:-1])   
 #xx = np.load('rankMap_nClust' + str(nClusters) + '_x_radius' + str(radius) + '.npy')   
 
 expectedMean = np.nansum(population) / nClusters
