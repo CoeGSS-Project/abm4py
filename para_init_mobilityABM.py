@@ -81,9 +81,14 @@ else:
 import numpy as np
 import time
 #import mod_geotiff as gt # not working in poznan
-from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
+
 from mpi4py import  MPI
 import h5py
+comm = MPI.COMM_WORLD
+mpiRank = comm.Get_rank()
+mpiSize = comm.Get_size()
+
+from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
 import class_auxiliary  as aux #convertStr
 
 import matplotlib.pylab as plt
@@ -122,7 +127,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup = Bunch()
     
     #general 
-    setup.resourcePath = dirPath + '/resources_nie/'
+    setup.resourcePath = dirPath + '/resources_ger/'
     setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
     setup.progressBar  = True
     setup.allTypeObservations = False
@@ -190,7 +195,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
 
     #general 
-    setup.resourcePath = dirPath + '/resources_nie/'
+    setup.resourcePath = dirPath + '/resources_ger/'
     setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
     setup.allTypeObservations = False
     
@@ -502,9 +507,24 @@ def scenarioGer(parameterInput, dirPath):
     #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_186x219.npy') 
     # bad bugfix for 4 cells
-    setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
     
+
+    
+    # correction of ID map
+    xList,yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
+    
+    for x,y in zip(xList,yList):
+        reList = []
+        for dx in [-1,0,1]:
+            for dy in [-1,0,1]:
+                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
+                    reList.append(setup.regionIdRaster[x+dx,y+dy])
+        if len(np.unique(reList)) == 1:
+            setup.regionIdRaster[x,y] = np.unique(reList)[0]
+                
     assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
+    
     
     setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
     setup.regionIdRaster = setup.regionIdRaster.astype(int)
@@ -593,11 +613,11 @@ def mobilitySetup(earth, parameters):
         return conv
     
                          #(emmisions, TCO)         
-    earth.initBrand('brown',(500., parameters['initPriceBrown']), convienienceBrown, 'start', earth.para['initialBrown']) # combustion car
+    earth.initBrand('brown',(500., parameters['initPriceBrown']), convienienceBrown, 'start', float(earth.para['initialBrown'])) # combustion car
     
-    earth.initBrand('green',(350., parameters['initPriceGreen']), convienienceGreen, 'start', earth.para['initialGreen']) # green tech car
+    earth.initBrand('green',(350., parameters['initPriceGreen']), convienienceGreen, 'start', float(earth.para['initialGreen'])) # green tech car
 
-    earth.initBrand('other',(120., parameters['initPriceOther']), convienienceOther, 'start', earth.para['initialOther'])  # none or other
+    earth.initBrand('other',(120., parameters['initPriceOther']), convienienceOther, 'start', float(earth.para['initialOther']))  # none or other
             
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
@@ -610,8 +630,11 @@ def householdSetup(earth, parameters, calibration=False):
     nAgents = 0
     nHH     = 0
     tmp = np.unique(parameters.regionIdRaster)
-    #print tmp
+    tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
+    #print regionIdxList
+    #import pdb 
+    #pdb.set_trace()
     nRegions = np.sum(tmp>0)
     
     boolMask = parameters['landLayer']==earth.mpi.comm.rank
@@ -620,6 +643,9 @@ def householdSetup(earth, parameters, calibration=False):
         boolMask2 = parameters.regionIdRaster== region
         nAgentsOnProcess[i] = np.sum(parameters.population[boolMask & boolMask2])
         
+        if nAgentsOnProcess[i] > 0:
+            # calculate start in the agent file (20 overhead for complete households)
+            nAgentsOnProcess[i] += 20
           
     #print mpiRank, nAgentsOnProcess
     nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
@@ -630,9 +656,10 @@ def householdSetup(earth, parameters, calibration=False):
     currIdx = dict()
     for i, region in enumerate(regionIdxList):
         idx = 0
-        # calculate start in the agent file (20 overhead for complete households)
-        agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]) + earth.mpi.comm.rank*20)
-        agentEnd   = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank+1,i]) + (earth.mpi.comm.rank+1)*20)
+        
+        
+        agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]))
+        agentEnd   = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank+1,i]))
         
         lg.info( 'Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
         lg.debug('Vertex count: ' +str(earth.graph.vcount()))
@@ -640,14 +667,18 @@ def householdSetup(earth, parameters, calibration=False):
             
             earth.view(str(earth.mpi.rank) + '.png')
         
-        h5File      = h5py.File('resources_NBH/people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
+        h5File      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
         dset = h5File.get('people')
         hhData[i] = dset[agentStart:agentEnd,]
+    
+        
     
         #print hhData
         earth.mpi.comm.Barrier()
         h5File.close()
     
+        if nAgentsOnProcess[earth.mpi.comm.rank,i] == 0:
+            continue
 
         # find the correct possition in file 
         nPers = int(hhData[i][idx,0])
@@ -679,6 +710,10 @@ def householdSetup(earth, parameters, calibration=False):
             ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,1])
             genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers,2])
             
+            if currIdx[regionIdx]+nPers > hhData[regionIdx].shape[0]:
+                print 'Region: ' + str(regionIdxList[regionIdx])
+                print 'Size: ' + str(currIdx[regionIdx]+nPers)
+                
             
             income = hhData[regionIdx][currIdx[regionIdx],3]
             income *= parameters.mobIncomeShare
@@ -1286,9 +1321,7 @@ def setupHouseholdsWithOptimalChoice():
 
 if __name__ == '__main__':
     # GLOBAL INIT  MPI
-    comm = MPI.COMM_WORLD
-    mpiRank = comm.Get_rank()
-    mpiSize = comm.Get_size()
+
     
 
     
@@ -1307,10 +1340,15 @@ if __name__ == '__main__':
                     filemode='w',
                     format='%(levelname)7s %(asctime)s : %(message)s', 
                     datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.INFO)
+                    level=lg.DEBUG)
     
     lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
     
+    #import subprocess
+    #output = subprocess.check_output("cat /proc/loadavg", shell=True)
+    
+    #lg.info('on node: ' + socket.gethostname() + ' with average load: ' + output)
+    lg.info('on node: ' + socket.gethostname())
     dirPath = os.path.dirname(os.path.realpath(__file__))
     # loading of standart parameters
     fileName = sys.argv[1]
@@ -1341,7 +1379,7 @@ if __name__ == '__main__':
         calRunID = -999
         calParaDf = pd.DataFrame()
         # no csv file given
-        lg.info("no input of parameters")
+        lg.info("no automatic calibration of parameters")
         
     showFigures    = 0
     
@@ -1434,91 +1472,92 @@ if __name__ == '__main__':
             parameters = scenarioGer(parameters, dirPath)
         else: 
             parameters = None
-        parameters = comm.bcast(parameters)        
-    else:
-        #%% Init 
-        parameters.showFigures = showFigures
-        
-        earth = initEarth(simNo,
-                          outputPath,
-                          parameters, 
-                          maxNodes=1000000, 
-                          debug =False, 
-                          mpiComm=comm, 
-                          caching=True, 
-                          queuing=True)
-        
-        _cell, _hh, _pers = initTypes(earth,parameters)
-        
-        initSpatialLayer(earth, parameters)
-        
+        parameters = comm.bcast(parameters)   
+        lg.info( 'parameters exchanged')
 
-        mobilitySetup(earth, parameters)
-        
-        initGlobalRecords(earth, parameters)
-        
-        #cellTest(earth, parameters)
-        householdSetup(earth, parameters)
-        
-        cellTest(earth, parameters)
+    #%% Init 
+    parameters.showFigures = showFigures
+    
+    earth = initEarth(simNo,
+                      outputPath,
+                      parameters, 
+                      maxNodes=1000000, 
+                      debug =True, 
+                      mpiComm=comm, 
+                      caching=True, 
+                      queuing=True)
+    
+    _cell, _hh, _pers = initTypes(earth,parameters)
+    
+    initSpatialLayer(earth, parameters)
+    
 
-        generateNetwork(earth, parameters)
-        
-        initMobilityTypes(earth, parameters)
-        
-        
-        #earth.view(str(earth.mpi.rank) + '.png')
-        initAgentOutput(earth)
-        
-        if parameters.scenario == 0:
-            earth.view('output/graph.png')
-      
-        #%% run of the model ################################################
-        lg.info('####### Running model with paramertes: #########################')
-        import pprint 
-        lg.info(pprint.pformat(parameters.toDict()))
-        if mpiRank == 0:
-            fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
-            pprint.pprint(parameters.toDict(), fidPara)
-            fidPara.close()
-        lg.info('################################################################')
-        
-        runModel(earth, parameters)
-        
-        lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
-        
-        if earth.isRoot:
-            print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-        
-        if earth.para['showFigures']:
-            onlinePostProcessing(earth)
-        
-        plt.figure()
-        
-        allTime = np.zeros(earth.nSteps)
-        colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
-        
+    mobilitySetup(earth, parameters)
+    
+    initGlobalRecords(earth, parameters)
+    
+    #cellTest(earth, parameters)
+    householdSetup(earth, parameters)
+    
+    cellTest(earth, parameters)
 
-        for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
-            plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
-            allTime += var
-        plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
-        plt.tight_layout()
-        plt.ylim([0, np.percentile(allTime,99)])
-        plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
-        
-        
-        #tmp = earth.mpi.comm.gather(earth.computeTime)
-        #if mpiRank == 0:
-        #    print tmp
-        
+    generateNetwork(earth, parameters)
+    
+    initMobilityTypes(earth, parameters)
+    
+    
+    #earth.view(str(earth.mpi.rank) + '.png')
+    initAgentOutput(earth)
+    
+    if parameters.scenario == 0:
+        earth.view('output/graph.png')
+  
+    #%% run of the model ################################################
+    lg.info('####### Running model with paramertes: #########################')
+    import pprint 
+    lg.info(pprint.pformat(parameters.toDict()))
+    if mpiRank == 0:
+        fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
+        pprint.pprint(parameters.toDict(), fidPara)
+        fidPara.close()
+    lg.info('################################################################')
+    
+    runModel(earth, parameters)
+    
+    lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
+    
+    if earth.isRoot:
+        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+    
+    if earth.para['showFigures']:
+        onlinePostProcessing(earth)
+    
+    plt.figure()
+    
+    allTime = np.zeros(earth.nSteps)
+    colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
+    
 
-        if earth.isRoot:
-            writeSummary(earth, calRunID, calParaDf, parameters)
-        
+    for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
+        plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
+        allTime += var
+    plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
+    plt.tight_layout()
+    plt.ylim([0, np.percentile(allTime,99)])
+    plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
+    
+    
+    #tmp = earth.mpi.comm.gather(earth.computeTime)
+    #if mpiRank == 0:
+    #    print tmp
+    
+
+    if earth.isRoot:
+        writeSummary(earth, calRunID, calParaDf, parameters)
+    
    
 
 
 
-        
+    
  

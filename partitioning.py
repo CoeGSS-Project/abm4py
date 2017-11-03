@@ -21,20 +21,20 @@ import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
 # Germany
-#nClusters = 360
-#factorSurr = 30
-#radius = 3.5
-#nSimulatneously = 5
-#resourcePath = 'resources_ger/'
-#resourcePopulation = resourcePath + 'pop_counts_ww_2005_186x219.tiff'
-
-# NBH
-nClusters = 48
+nClusters = 144
 factorSurr = 30
 radius = 3.5
 nSimulatneously = 5
-resourcePath = 'resources_NBH/'
-resourcePopulation = resourcePath + 'pop_counts_ww_2005_62x118.tiff'
+resourcePath = 'resources_ger/'
+resourcePopulation = resourcePath + 'pop_counts_ww_2005_186x219.tiff'
+
+# NBH
+#nClusters = 48
+#factorSurr = 30
+#radius = 3.5
+#nSimulatneously = 5
+#resourcePath = 'resources_NBH/'
+#resourcePopulation = resourcePath + 'pop_counts_ww_2005_62x118.tiff'
 
 population2        = gt.load_array_from_tiff(resourcePopulation)/100
 

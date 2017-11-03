@@ -120,7 +120,7 @@ class Earth(World):
             os.mkdir('output')
         
         
-        
+
                 
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
 
@@ -728,6 +728,7 @@ class Person(Agent):
         proximity in space, priorities and income
         """
         
+    
         if currentContacts is None:
             isInit=True
         else:
@@ -775,48 +776,48 @@ class Person(Agent):
             spatWeigList.extend([cellWeight]*len(personIds))
 
 
-        # return nothin if too few candidates
+        # return nothing if too few candidates
         if not isInit and not len(contactIds) > nContacts:
-            print str(self.nID) + ' failed'
-            return [], [], []
-        
-        np.seterr(divide='ignore')
-        propWeigList = np.array(propDiffList)    
-        nullIds  = propWeigList == 0
-        propWeigList = 1 / propWeigList
-        propWeigList[nullIds] = 0 
-        propWeigList = propWeigList / np.sum(propWeigList)
-        
-
-        incoWeigList = np.array(incoDiffList)    
-        nullIds  = incoWeigList == 0
-        incoWeigList = 1 / incoWeigList
-        incoWeigList[nullIds] = 0 
-        np.seterr(divide='warn')
-        incoWeigList = incoWeigList / np.sum(incoWeigList)
-        
-        
-        spatWeigList = spatWeigList / np.sum(spatWeigList)
-        spatWeigList = spatWeigList / np.sum(spatWeigList)
-        
-        weights = propWeigList * spatWeigList * incoWeigList
-        weights = weights / np.sum(weights)
-
-        if len(weights)-1 < nContacts:
-            print "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.node['pos'])
-            print "population = " + str(self.loc.node['population']),
-            print "surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0]))
-        
-        
-
-        nContacts = min(np.sum(weights>0)-1,nContacts)
-
-        ids = np.random.choice(len(weights), nContacts, replace=False, p=weights)
-
-        contactList = [ contactIds[idx] for idx in ids ]
-        connList   = [(self.nID, contactIds[idx]) for idx in ids]
-        
-        
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+            
+        else:
+            np.seterr(divide='ignore')
+            propWeigList = np.array(propDiffList)    
+            nullIds  = propWeigList == 0
+            propWeigList = 1 / propWeigList
+            propWeigList[nullIds] = 0 
+            propWeigList = propWeigList / np.sum(propWeigList)
+            
+    
+            incoWeigList = np.array(incoDiffList)    
+            nullIds  = incoWeigList == 0
+            incoWeigList = 1 / incoWeigList
+            incoWeigList[nullIds] = 0 
+            np.seterr(divide='warn')
+            incoWeigList = incoWeigList / np.sum(incoWeigList)
+            
+            
+            spatWeigList = spatWeigList / np.sum(spatWeigList)
+            spatWeigList = spatWeigList / np.sum(spatWeigList)
+            
+            weights = propWeigList * spatWeigList * incoWeigList
+            weights = weights / np.sum(weights)
+    
+            if np.sum(weights>0) < nContacts:
+                lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.node['pos']))
+                lg.info( "population = " + str(self.loc.node['population']) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0])))
+                
+                nContacts = min(np.sum(weights>0)-1,nContacts)
+    
+            if nContacts < 1:
+                lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+            else:
+                # adding contacts
+                ids = np.random.choice(len(weights), nContacts, replace=False, p=weights)
+                contactList = [ contactIds[idx] for idx in ids ]
+                connList   = [(self.nID, contactIds[idx]) for idx in ids]
+                
+            
         if world.para['addYourself'] and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
@@ -839,6 +840,12 @@ class Person(Agent):
         # weighting by 3
         selfUtil[mobType] *= world.para['selfTrust']
        
+        if len(selfUtil) != 3 or len(communityUtil) != 3:
+            print 'error: ' 
+            print 'communityUtil: ' + str(communityUtil)
+            print 'selfUtil: ' + str(selfUtil)
+            return 
+            
         self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0) 
         
         # adjust mean since double of weigth - very bad code - sorry        

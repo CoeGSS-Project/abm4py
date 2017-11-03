@@ -23,14 +23,15 @@ sns.color_palette("Paired")
 sns.set_color_codes("dark")
 #%%
 
-ensNo =3
+ensNo =6
 #simulations= [222,223,224,225,226,227,228,229,230,231]
 
 if ensNo == 2:
     realStart, realEnd = 295, 324
 if ensNo == 3:
     realStart, realEnd = 325, 354
-
+if ensNo == 6:
+    realStart, realEnd = 528, 627 
 
 for i,simNo in enumerate(range(realStart,realEnd)):
     path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
@@ -76,7 +77,7 @@ np.save('output/E' + str(ensNo) + '_cal_stock_ham.npy',dataHb)
 
 if False:
 #%%s
-    ensNo =3
+    ensNo =6
     
     nSteps  = 560
     nBurnIn = 200

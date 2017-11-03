@@ -1110,7 +1110,7 @@ class World:
             # acquire the global IDs for the ghostNodes
             mpiRequest = dict()
             mpiReqIDList = dict()
-            #print self.world.graph.IDArray
+            lg.debug('ID Array: ' + str(self.world.graph.IDArray))
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
                 #print owner
@@ -1121,23 +1121,21 @@ class World:
                     
                 mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
                 mpiReqIDList[owner].append(ghLoc.nID)
-            #print 'rank' + str(self.rank) + 'mpiReqIDList: ' + str(mpiReqIDList)
+            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))
             
             for mpiDest in mpiRequest.keys():
                 
                 if mpiDest not in self.peers:
                     self.peers.append(mpiDest)
                 
-                # send request of global IDs
-                #print str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest])
-                #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
+                    # send request of global IDs
+                    lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))
+                    #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
                     self.__add2Buffer__(mpiDest, mpiRequest[mpiDest])
             
-            #print 'requestOut:'
-            #pprint(self.a2aBuff)
+            lg.debug( 'requestOut:' + str(self.a2aBuff))
             requestIn = self.__all2allSync__()
-            #print 'requestIn:'
-            #pprint(requestIn)
+            lg.debug( 'requestIn:' +  str(requestIn))
             
             
             for mpiDest in mpiRequest.keys():
@@ -1145,20 +1143,21 @@ class World:
                 self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
                 
                 # receive request of global IDs
+                lg.debug('receive request of global IDs from:  ' + str(mpiDest))
                 #incRequest = self.comm.recv(source=mpiDest)
                 incRequest = requestIn[mpiDest][0]
                 #pprint(incRequest)
                 iDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-                #print str(self.rank) + ' - idlist:' + str(iDList)
+                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))
                 self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[iDList]
                 #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
-                #print str(self.rank) + ' - gIDs:' + str(self.ghostNodeOut[locNodeType, mpiDest]['gID'])
+                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))
                 
                 for entity in [self.world.entList[i] for i in iDList]:
                     entity.mpiPeers.append(mpiDest)
                 
                 # send requested global IDs
-                #print str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]])
+                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))
                 
                 self.__add2Buffer__(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
             
@@ -1168,9 +1167,10 @@ class World:
                 #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
                 #receive requested global IDs
                 globIDList = requestRecv[mpiDest][0]
-                lg.info( 'receiving globIDList:' + str(globIDList))
-                #print 'localDList:' + str(self.ghostNodeIn[locNodeType, mpiDest].indices)
+                
                 self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
+                lg.debug( 'receiving globIDList:' + str(globIDList))
+                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
                     self.world.glob2loc[gID] = nID
@@ -1407,6 +1407,7 @@ class World:
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
+
         if self.mpi.comm.rank == 0:
             self.isRoot = True
         else:

@@ -39,19 +39,19 @@ plotCarStockBar   = 1
 plotCarSales      = 1
 salesProperties   = 1
 womanSharePerMobType = 0
-agePerMobType     = 1
-averageCarAge     = 1
-prefPerLabel      = 1
-utilPerLabel      = 1
+agePerMobType     = 0
+averageCarAge     = 0
+prefPerLabel      = 0
+utilPerLabel      = 0
 incomePerLabel    = 1
-greenPerIncome    = 1
-expectUtil        = 1
-meanPrefPerLabel  = 1
-meanESSR          = 1
-meanConsequencePerLabel = 1
-printCellMaps     = 1
-emissionsPerLabel = 1
-peerBubbleSize    = 1
+greenPerIncome    = 0
+expectUtil        = 0
+meanPrefPerLabel  = 0
+meanESSR          = 0
+meanConsequencePerLabel = 0
+printCellMaps     = 0
+emissionsPerLabel = 0
+peerBubbleSize    = 0
 doFolium          = 0
 cellMovie         = 0
 
@@ -907,13 +907,17 @@ if incomePerLabel:
 #    plt.plot(res[:,0]+ std[:,0],'k--', linewidth = 1)
 #    plt.plot(res[:,0]- std[:,0],'k--', linewidth = 1)
     plt.fill_between(range(0,nSteps), res[:,1]+ std[:,1], res[:,1]- std[:,1], facecolor='blue', interpolate=True, alpha=0.1,)
-    plt.plot(res[:,1]+ std[:,1],'b--', linewidth = 1)
-    plt.plot(res[:,1]- std[:,1],'b--', linewidth = 1)
+    
     plt.fill_between(range(0,nSteps), res[:,2]+ std[:,2], res[:,2]- std[:,2], facecolor='green', interpolate=True, alpha=0.1,)
-    plt.plot(res[:,2]+ std[:,2],'g--', linewidth = 1)
-    plt.plot(res[:,2]- std[:,2],'g--', linewidth = 1)
     plt.fill_between(range(0,nSteps), res[:,3]+ std[:,3], res[:,3]- std[:,3], facecolor='red', interpolate=True, alpha=0.1,)
-    plt.plot(res[:,3]+ std[:,3],'r-', linewidth = 1)
+    
+    plt.plot(res[:,1]+ std[:,1],'b--', linewidth = 1)
+    plt.plot(res[:,2]+ std[:,2],'g--', linewidth = 1)
+    plt.plot(res[:,3]+ std[:,3],'r--', linewidth = 1)
+    plt.plot(res[:,1]- std[:,1],'b--', linewidth = 1)
+    
+    plt.plot(res[:,2]- std[:,2],'g--', linewidth = 1)
+    
     plt.plot(res[:,3]- std[:,3],'r--', linewidth = 1)    
     #ax.fill_between(x, y1, y2, where=y2 <= y1, facecolor='red', interpolate=True)
     
