@@ -62,6 +62,9 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
+import mpi4py
+mpi4py.rc.threads = False 
+
 import sys, os
 from os.path import expanduser
 home = expanduser("~")
@@ -82,14 +85,15 @@ import numpy as np
 import time
 #import mod_geotiff as gt # not working in poznan
 
-from mpi4py import  MPI
-import h5py
+#from mpi4py import  MPI
+#import h5py
+
+from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion, aux, h5py, MPI
+#import class_auxiliary  as aux #convertStr
 comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion
-import class_auxiliary  as aux #convertStr
 
 import matplotlib.pylab as plt
 import seaborn as sns; sns.set()
@@ -147,7 +151,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.regionIdRaster[0:,0:2] = ((setup.landLayer[0:,0:2]*0)+1) *6321
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
-
+        
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)    
     setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
     
     #social
@@ -509,7 +514,7 @@ def scenarioGer(parameterInput, dirPath):
     # bad bugfix for 4 cells
     #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
     
-
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
     
     # correction of ID map
     xList,yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
@@ -645,7 +650,7 @@ def householdSetup(earth, parameters, calibration=False):
         
         if nAgentsOnProcess[i] > 0:
             # calculate start in the agent file (20 overhead for complete households)
-            nAgentsOnProcess[i] += 20
+            nAgentsOnProcess[i] += 50
           
     #print mpiRank, nAgentsOnProcess
     nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
@@ -712,8 +717,8 @@ def householdSetup(earth, parameters, calibration=False):
             
             if currIdx[regionIdx]+nPers > hhData[regionIdx].shape[0]:
                 print 'Region: ' + str(regionIdxList[regionIdx])
-                print 'Size: ' + str(currIdx[regionIdx]+nPers)
-                
+                print 'asked Size: ' + str(currIdx[regionIdx]+nPers)
+                print 'hhDate shape: ' + str(hhData[regionIdx].shape)
             
             income = hhData[regionIdx][currIdx[regionIdx],3]
             income *= parameters.mobIncomeShare
@@ -908,6 +913,7 @@ def initTypes(earth, parameters):
                                                   'ESSR',
                                                   'peerBubbleHeterogeneity'])
     
+
     earth.registerEdgeType('cell-cell',_cell, _cell, ['type','weig'])
     earth.registerEdgeType('cell-hh', _cell, _hh)
     earth.registerEdgeType('hh-hh', _hh,_hh)
@@ -950,7 +956,7 @@ def cellTest(earth, parameters):
             plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        #sd
+        sd
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
@@ -967,73 +973,100 @@ def initMobilityTypes(earth, parameters):
  
 def initGlobalRecords(earth, parameters):
     tt = time.time()
-    earth.registerRecord('stockBremen', 
-                         'total use per mobility type - Bremen', 
+    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
+    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
+    
+    for re in parameters['regionIDList']:
+        earth.registerRecord('stock_' + str(re), 
+                         'total use per mobility type -' + str(re), 
                          earth.enums['mobilityTypes'].values(), 
                          style ='plot', 
                          mpiReduce='sum')
     
-    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
-    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
-    timeIdxs = list()
-    values   = list()
-    for column in calDataDfCV.columns[1:]:
-        value = [np.nan]*3
-        year = int(column)
-        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-        value[0] = (calDataDfCV[column]['re_1518'] ) / parameters['reductionFactor']
-        if column in calDataDfEV.columns[1:]:
-            value[1] = (calDataDfEV[column]['re_1518'] ) / parameters['reductionFactor']
         
-    
-        timeIdxs.append(timeIdx)
-        values.append(value)
-          
-    earth.globalRecord['stockBremen'].addCalibrationData(timeIdxs,values)
- 
-    earth.registerRecord(name='stockNiedersachsen', 
-                         title='total use per mobility type - Niedersachsen', 
-                         colLables=earth.enums['mobilityTypes'].values(), 
-                         style ='plot',
-                         mpiReduce='sum')
-    
-    timeIdxs = list()
-    values   = list()
-    for column in calDataDfCV.columns[1:]:
-        value = [np.nan]*3
-        year = int(column)
-        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-        value[0] = ( calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
-        if column in calDataDfEV.columns[1:]:
-            value[1] = ( calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
+        timeIdxs = list()
+        values   = list()
+        for column in calDataDfCV.columns[1:]:
+            value = [np.nan]*3
+            year = int(column)
+            timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+            value[0] = (calDataDfCV[column]['re_' + str(re)] ) / parameters['reductionFactor']
+            if column in calDataDfEV.columns[1:]:
+                value[1] = (calDataDfEV[column]['re_' + str(re)] ) / parameters['reductionFactor']
+            
         
+            timeIdxs.append(timeIdx)
+            values.append(value)
+        
+        earth.globalRecord['stock_' + str(re)].addCalibrationData(timeIdxs,values)
     
-        timeIdxs.append(timeIdx)
-        values.append(value)
+#    earth.registerRecord('stockBremen', 
+#                         'total use per mobility type - Bremen', 
+#                         earth.enums['mobilityTypes'].values(), 
+#                         style ='plot', 
+#                         mpiReduce='sum')
+#    
+#    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
+#    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
+#    timeIdxs = list()
+#    values   = list()
+#    for column in calDataDfCV.columns[1:]:
+#        value = [np.nan]*3
+#        year = int(column)
+#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+#        value[0] = (calDataDfCV[column]['re_1518'] ) / parameters['reductionFactor']
+#        if column in calDataDfEV.columns[1:]:
+#            value[1] = (calDataDfEV[column]['re_1518'] ) / parameters['reductionFactor']
+#        
+#    
+#        timeIdxs.append(timeIdx)
+#        values.append(value)
+#          
+#    earth.globalRecord['stockBremen'].addCalibrationData(timeIdxs,values)
+# 
+#    earth.registerRecord(name='stockNiedersachsen', 
+#                         title='total use per mobility type - Niedersachsen', 
+#                         colLables=earth.enums['mobilityTypes'].values(), 
+#                         style ='plot',
+#                         mpiReduce='sum')
+#    
+#    timeIdxs = list()
+#    values   = list()
+#    for column in calDataDfCV.columns[1:]:
+#        value = [np.nan]*3
+#        year = int(column)
+#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+#        value[0] = ( calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
+#        if column in calDataDfEV.columns[1:]:
+#            value[1] = ( calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
+#        
+#    
+#        timeIdxs.append(timeIdx)
+#        values.append(value)
+#         
+#    earth.globalRecord['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
+#
+#    earth.registerRecord('stockHamburg', 
+#                         'total use per mobility type - Hamburg', 
+#                         earth.enums['mobilityTypes'].values(),
+#                         style ='plot',
+#                         mpiReduce='sum')
+#    
+#    timeIdxs = list()
+#    values   = list()
+#    for column in calDataDfCV.columns[1:]:
+#        value = [np.nan]*3
+#        year = int(column)
+#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+#        value[0] = ( calDataDfCV[column]['re_1520']) / parameters['reductionFactor']
+#        if column in calDataDfEV.columns[1:]:
+#            value[1] = ( calDataDfEV[column]['re_1520']) / parameters['reductionFactor']
+#        
+#    
+#        timeIdxs.append(timeIdx)
+#        values.append(value)
          
-    earth.globalRecord['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
-
-    earth.registerRecord('stockHamburg', 
-                         'total use per mobility type - Hamburg', 
-                         earth.enums['mobilityTypes'].values(),
-                         style ='plot',
-                         mpiReduce='sum')
-    
-    timeIdxs = list()
-    values   = list()
-    for column in calDataDfCV.columns[1:]:
-        value = [np.nan]*3
-        year = int(column)
-        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-        value[0] = ( calDataDfCV[column]['re_1520']) / parameters['reductionFactor']
-        if column in calDataDfEV.columns[1:]:
-            value[1] = ( calDataDfEV[column]['re_1520']) / parameters['reductionFactor']
-        
-    
-        timeIdxs.append(timeIdx)
-        values.append(value)
-         
-    earth.globalRecord['stockHamburg'].addCalibrationData(timeIdxs,values)
+#    earth.globalRecord['stockHamburg'].addCalibrationData(timeIdxs,values)
     
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types', earth.enums['mobilityTypes'].values(), style ='plot')
@@ -1132,21 +1165,28 @@ def runModel(earth, parameters):
     earth.finalize()        
 
 def writeSummary(earth, calRunId, paraDf, parameters):
-    errBremen = earth.globalRecord['stockBremen'].evaluateRelativeError()
-    errNiedersachsen = earth.globalRecord['stockNiedersachsen'].evaluateRelativeError()
-    fid = open('summary.out','w')
+    
+    fid = open(earth.para['outPath'] + '/summary.out','w')
     fid.writelines('Calibration run id: ' + str(calRunId) + '\n')
     fid.writelines('Parameters:')
     paraDf.to_csv(fid)
-    fid.writelines('Error:')
-    fid.writelines('Bremen: ' + str(errBremen))
-    fid.writelines('Niedersachsen: ' + str(errNiedersachsen))
-    fid.writelines('Gesammt:')
-    fid.writelines(str(errBremen + errNiedersachsen))
+    errorTot = 0
+    for re in earth.para['regionIDList']:
+        error = earth.globalRecord['stock_' + str(re)].evaluateRelativeError()
+        fid.writelines('Error - ' + str(re) + ': ' + str(error) + '\n')
+        errorTot += error
+    #fid = open('summary.out','w')
+    
+        
+    #fid.writelines('Bremen: ' + str(errBremen))
+    #fid.writelines('Niedersachsen: ' + str(errNiedersachsen))
+    
+    fid.writelines('Total error:' + str(errorTot))
+    #fid.writelines(str(errorTot))
     fid.close()
-    lg.info( 'Calibration Run: ' + str(calRunId))
-    lg.info( paraDf)
-    lg.info( 'The simulation error is: ' + str(errBremen + errNiedersachsen) )
+    #lg.info( 'Calibration Run: ' + str(calRunId))
+    #lg.info( paraDf)
+    lg.info( 'The simulation error is: ' + str(errorTot) )
 
 
     if parameters.scenario == 2:
@@ -1212,7 +1252,7 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
         nPeopleHamb   = np.nansum(parameters.population[parameters.regionIdRaster==1520])
 
-
+        lg.info('shape: ' + str(carsInBremen.shape))
         lg.info( 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000))
         lg.info( 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000))
 
@@ -1323,7 +1363,7 @@ if __name__ == '__main__':
     # GLOBAL INIT  MPI
 
     
-
+    debug = False
     
 #    if mpiRank != 0:
 #        olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
@@ -1336,14 +1376,25 @@ if __name__ == '__main__':
     
     import logging as lg
 
-    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank), 
+    if debug:
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank), 
                     filemode='w',
                     format='%(levelname)7s %(asctime)s : %(message)s', 
                     datefmt='%m/%d/%y-%H:%M:%S',
                     level=lg.DEBUG)
+    else:
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank), 
+                        filemode='w',
+                        format='%(levelname)7s %(asctime)s : %(message)s', 
+                        datefmt='%m/%d/%y-%H:%M:%S',
+                        level=lg.INFO)
     
     lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
     
+    comm.Barrier()
+    if comm.rank == 0:
+        print 'log files created'
+        
     #import subprocess
     #output = subprocess.check_output("cat /proc/loadavg", shell=True)
     
@@ -1381,7 +1432,7 @@ if __name__ == '__main__':
         # no csv file given
         lg.info("no automatic calibration of parameters")
         
-    showFigures    = 0
+    showFigures    = 1
     
 
     if parameters.scenario == 0:
@@ -1473,7 +1524,8 @@ if __name__ == '__main__':
         else: 
             parameters = None
         parameters = comm.bcast(parameters)   
-        lg.info( 'parameters exchanged')
+        comm.Barrier()
+        lg.info( 'parameters exchang done')
 
     #%% Init 
     parameters.showFigures = showFigures
@@ -1482,7 +1534,7 @@ if __name__ == '__main__':
                       outputPath,
                       parameters, 
                       maxNodes=1000000, 
-                      debug =True, 
+                      debug =debug, 
                       mpiComm=comm, 
                       caching=True, 
                       queuing=True)
@@ -1490,16 +1542,17 @@ if __name__ == '__main__':
     _cell, _hh, _pers = initTypes(earth,parameters)
     
     initSpatialLayer(earth, parameters)
-    
 
     mobilitySetup(earth, parameters)
     
+    cellTest(earth, parameters)
+    
     initGlobalRecords(earth, parameters)
     
-    #cellTest(earth, parameters)
+    
     householdSetup(earth, parameters)
     
-    cellTest(earth, parameters)
+    
 
     generateNetwork(earth, parameters)
     
@@ -1529,6 +1582,9 @@ if __name__ == '__main__':
     if earth.isRoot:
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
     
+    if earth.isRoot:
+        writeSummary(earth, calRunID, calParaDf, parameters)
+        
     if earth.para['showFigures']:
         onlinePostProcessing(earth)
     
@@ -1552,8 +1608,8 @@ if __name__ == '__main__':
     #    print tmp
     
 
-    if earth.isRoot:
-        writeSummary(earth, calRunID, calParaDf, parameters)
+#    if earth.isRoot:
+#        writeSummary(earth, calRunID, calParaDf, parameters)
     
    
 

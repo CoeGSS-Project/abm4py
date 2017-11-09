@@ -133,6 +133,8 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
                 os.mkdir(dirPath)
 
         comm.Barrier()
+        if comm.rank ==0:
+            print 'output directory created'
         
         return dirPath
     

@@ -58,7 +58,9 @@ later:
 
   
 """
-from mpi4py import  MPI
+
+from mpi4py import MPI
+import h5py  
 from os.path import expanduser
 home = expanduser("~")
 import os
@@ -937,7 +939,7 @@ class World:
         
         #%% Init of the IO class                 
         def __init__(self, world, nSteps, outputPath = ''): # of IO
-            import h5py  
+            
             self.outputPath  = outputPath
             self.graph       = world.graph
             #self.timeStep   = world.timeStep
@@ -1407,7 +1409,7 @@ class World:
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
-
+        lg.debug('Init MPI done')
         if self.mpi.comm.rank == 0:
             self.isRoot = True
         else:
@@ -1418,10 +1420,10 @@ class World:
 
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
-        
+        lg.debug('Init IO done')
         # Globally synced variables
         self.glob     = self.Globals(self)
-        
+        lg.debug('Init Globals done')
  
         # enumerations
         self.enums = dict()
@@ -1553,7 +1555,9 @@ class World:
         self.graph.es[eStart:]['type'] = 1
         self.graph.es[eStart:]['weig'] = fullWeightList
         
+        lg.debug('starting initCommunicationViaLocations')
         self.mpi.initCommunicationViaLocations(ghostLocationList, nodeType)
+        lg.debug('finished initCommunicationViaLocations')
 
     def iterEdges(self, edgeType):
         for i in range(self.graph.ecount()):

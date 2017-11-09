@@ -45,14 +45,14 @@ prefPerLabel      = 0
 utilPerLabel      = 0
 incomePerLabel    = 1
 greenPerIncome    = 0
-expectUtil        = 0
+expectUtil        = 1
 meanPrefPerLabel  = 0
 meanESSR          = 0
 meanConsequencePerLabel = 0
-printCellMaps     = 0
+printCellMaps     = 1
 emissionsPerLabel = 0
 peerBubbleSize    = 0
-doFolium          = 0
+doFolium          = 1
 cellMovie         = 0
 
 #plotRecords       = 0
@@ -141,6 +141,7 @@ nPrior = len(enums['priorities'])
 del persMatStep, hhMatStep
 
 #%%
+reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)
 if plotRecords:
     import tables as ta
     
@@ -150,7 +151,10 @@ if plotRecords:
     for data in glob._f_iter_nodes():
         plt.figure()
         plt.plot(data.read())
-        plt.title(data.name)
+        if 'stock' in data.name:
+            plt.title(reDf.ix[int(data.name[6:])]['alpha'])
+        else:
+            plt.title(data.name)
         plt.savefig(path + data.name)
 
         if data.name in calData._v_children.keys(): 
@@ -177,58 +181,62 @@ if plotRecords:
 
 
 #%% combined plot
-    plt.figure(figsize=(12,6))
+    plt.figure(figsize=(24,12))
     factor = 5
     log = True
-    plt.subplot(1,3,1)
-    group = h5File.get_node('/glob/stockNiedersachsen')
-    data = group.read()
-    plt.plot(data)
-    group = h5File.get_node('/calData/stockNiedersachsen')
-    cData = group.read()
-    plt.gca().set_prop_cycle(None)
-    for i in range(1,data.shape[1]):
-        plt.plot(cData[:,0], cData[:,i],'o')
-        print cData[:,i]
-    if log:
-        plt.yscale('log')    
-    plt.xlim([nBurnIn,nSteps])
-    years = (nSteps - nBurnIn) / 12 / factor
-    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
-    plt.title('Niedersachsen')                
-    plt.subplot(1,3,2)
-    group = h5File.get_node('/glob/stockBremen')
-    data = group.read()
-    plt.plot(data)
-    group = h5File.get_node('/calData/stockBremen')
-    cData = group.read()
-    plt.gca().set_prop_cycle(None)
-    for i in range(1,data.shape[1]):
-        plt.plot(cData[:,0], cData[:,i],'o')
-        print cData[:,i]
-    if log:
-        plt.yscale('log')
-    plt.xlim([nBurnIn,nSteps])
-    years = (nSteps - nBurnIn) / 12 / factor
-    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
-    plt.title('Bremen')                
-    plt.subplot(1,3,3)    
-    group = h5File.get_node('/glob/stockHamburg')
-    data = group.read()
-    hh = plt.plot(data)
-    group = h5File.get_node('/calData/stockHamburg')
-    cData = group.read()
-    plt.gca().set_prop_cycle(None)
-    for i in range(1,data.shape[1]):
-        plt.plot(cData[:,0], cData[:,i],'o')
-        print cData[:,i]
-    if log:
-        plt.yscale('log')    
-    plt.xlim([nBurnIn,nSteps])    
-    factor = 5
-    years = (nSteps - nBurnIn) / 12 / factor
-    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
-    plt.title('Hamburg')
+    for i,re in enumerate(parameters['regionIDList']):
+        plt.subplot(4,4,i+1)
+        group = h5File.get_node('/glob/stock_' + str(re))
+        data = group.read()
+        if i ==0:
+            hh = plt.plot(data)
+        else:
+            plt.plot(data)
+        group = h5File.get_node('/calData/stock_' + str(re))
+        cData = group.read()
+        plt.gca().set_prop_cycle(None)
+        for i in range(1,data.shape[1]):
+            plt.plot(cData[:,0], cData[:,i],'o')
+            print cData[:,i]
+        if log:
+            plt.yscale('log')    
+        plt.xlim([nBurnIn,nSteps])
+        years = (nSteps - nBurnIn) / 12 / factor
+        plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+        plt.title(' stock ' + reDf.ix[re]['alpha'])                
+#    plt.subplot(1,3,2)
+#    group = h5File.get_node('/glob/stockBremen')
+#    data = group.read()
+#    plt.plot(data)
+#    group = h5File.get_node('/calData/stockBremen')
+#    cData = group.read()
+#    plt.gca().set_prop_cycle(None)
+#    for i in range(1,data.shape[1]):
+#        plt.plot(cData[:,0], cData[:,i],'o')
+#        print cData[:,i]
+#    if log:
+#        plt.yscale('log')
+#    plt.xlim([nBurnIn,nSteps])
+#    years = (nSteps - nBurnIn) / 12 / factor
+#    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+#    plt.title('Bremen')                
+#    plt.subplot(1,3,3)    
+#    group = h5File.get_node('/glob/stockHamburg')
+#    data = group.read()
+#    hh = plt.plot(data)
+#    group = h5File.get_node('/calData/stockHamburg')
+#    cData = group.read()
+#    plt.gca().set_prop_cycle(None)
+#    for i in range(1,data.shape[1]):
+#        plt.plot(cData[:,0], cData[:,i],'o')
+#        print cData[:,i]
+#    if log:
+#        plt.yscale('log')    
+#    plt.xlim([nBurnIn,nSteps])    
+#    factor = 5
+#    years = (nSteps - nBurnIn) / 12 / factor
+#    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
+#    plt.title('Hamburg')
     
     plt.figlegend(hh,['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
     plt.tight_layout()
@@ -1151,7 +1159,7 @@ if cellMovie:
     
     #dsfg
     
-
+if printCellMaps:
     #%%
     import copy
     plt.clf()
@@ -1190,7 +1198,7 @@ if cellMovie:
         foMap = class_map.Map('toner', location = [53.9167-62*0.04166666, 13.9167], zoom_start = 7)
         geoFile = 'resources_NBH/regions.shp'
         import mod_geojson as gjs
-        geoData = gjs.extractShapes(geoFile, [1518, 1520, 6321] , 'numID',None)
+        geoData = gjs.extractShapes(geoFile, parameters['regionIDList'].tolist() , 'numID',None)
         foMap.map.choropleth(geo_str=geoData, fill_color=None,fill_opacity=0.00, line_color='green', line_weight=3)
         for year in [2005, 2010, 2015, 2020, 2025, 2030, 2035]:
             
@@ -1242,7 +1250,7 @@ if cellMovie:
         foMap = class_map.Map('toner',location = [53.9167-62*0.04166666, 13.9167], zoom_start = 7)
         geoFile = 'resources_NBH/regions.shp'
         import mod_geojson as gjs
-        geoData = gjs.extractShapes(geoFile, [1518, 1520, 6321] , 'numID',None)
+        geoData = gjs.extractShapes(geoFile, parameters['regionIDList'].tolist() , 'numID',None)
         foMap.map.choropleth(geo_str=geoData, fill_color=None,fill_opacity=0.00, line_color='green', line_weight=3)
         for year in [2005, 2010, 2015, 2020, 2025, 2030]:
             

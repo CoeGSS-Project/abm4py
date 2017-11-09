@@ -21,7 +21,7 @@ import mod_geotiff as gt
 import matplotlib.pyplot as plt
 
 # Germany
-nClusters = 144
+nClusters = 96
 factorSurr = 30
 radius = 3.5
 nSimulatneously = 5

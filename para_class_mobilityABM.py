@@ -24,21 +24,22 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from para_lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation
+from para_lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, aux, h5py, MPI
 
-import class_auxiliary as aux # Record, Memory, Writer, cartesian
+#import class_auxiliary as aux # Record, Memory, Writer, cartesian
 
 import igraph as ig
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import h5py
+#import h5py
 import time
 import os
 import math
 import copy
 import logging as lg
+
 from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
@@ -245,18 +246,24 @@ class Earth(World):
             self.date[1] +=1
             
         #update global data
-        for cell in self.iterEntRandom(_cell):
-            if cell.node['regionId'] == 6321:
-                self.globalRecord['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
-            elif cell.node['regionId'] == 1518:
-                self.globalRecord['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
-            elif cell.node['regionId'] == 1520:
-                self.globalRecord['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
+#        for cell in self.iterEntRandom(_cell):
+#            if cell.node['regionId'] == 6321:
+#                self.globalRecord['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
+#            elif cell.node['regionId'] == 1518:
+#                self.globalRecord['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
+#            elif cell.node['regionId'] == 1520:
+#                self.globalRecord['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
         
+        for cell in self.iterEntRandom(_cell):
+            self.globalRecord['stock_' + str(int(cell.node['regionId']))].add(self.time,np.asarray(cell.node['carsInCell']))
+
         # move values to global data class
-        self.globalRecord['stockNiedersachsen'].updateValues(self.time) 
-        self.globalRecord['stockBremen'].updateValues(self.time) 
-        self.globalRecord['stockHamburg'].updateValues(self.time) 
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].updateValues(self.time) 
+        
+#        self.globalRecord['stockNiedersachsen'].updateValues(self.time) 
+#        self.globalRecord['stockBremen'].updateValues(self.time) 
+#        self.globalRecord['stockHamburg'].updateValues(self.time) 
         
         self.computeTime[self.time] = time.time()-ttComp
         
@@ -272,9 +279,12 @@ class Earth(World):
         ttComp = time.time()
         #gather data back to the records
         
-        self.globalRecord['stockNiedersachsen'].gatherSyncDataToRec(self.time) 
-        self.globalRecord['stockBremen'].gatherSyncDataToRec(self.time) 
-        self.globalRecord['stockHamburg'].gatherSyncDataToRec(self.time) 
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time) 
+            
+#        self.globalRecord['stockNiedersachsen'].gatherSyncDataToRec(self.time) 
+#        self.globalRecord['stockBremen'].gatherSyncDataToRec(self.time) 
+#        self.globalRecord['stockHamburg'].gatherSyncDataToRec(self.time) 
         
         
         # proceed market in time
