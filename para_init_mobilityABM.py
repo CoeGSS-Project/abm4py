@@ -5,10 +5,11 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://wwww.globalclimateforum.org
 
-MOBILITY INNOVATION MARKET MODEL
+---- MoTMo ----
+MOBILITY TRANSFORMATION MODEL 
 -- INIT FILE --
 
-This file is part of GCFABM.
+This file is based on GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -153,7 +154,7 @@ def scenarioTestSmall(parameterInput, dirPath):
         setup.landLayer = setup.landLayer*0
         
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)    
-    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(5,10,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -165,7 +166,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emmisions','TCO']
+    setup.properties    = ['costs', 'emission']
 
     #agents
     setup.randomAgents     = False
@@ -175,9 +176,9 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
+    #maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    #minCarConvenience = 1 + setup.kappa
+    #setup.convB =  minCarConvenience / (maxDeviation)
  
     # only for packing with care
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
@@ -185,8 +186,14 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
     #del dummy
     
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO']:
+        setup[paName] /= setup['reductionFactor']
+
+    import pprint as pp
+    pp.pprint( "Final setting of the parameters")
+    pp.pprint(setup.toDict())
     lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
+    lg.info( setup.toDict())
     lg.info( "####################################")
     
     return setup
@@ -224,7 +231,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    setup.population = 30*setup.population+ setup.landLayer* np.random.randint(1,10,setup.landLayer.shape)*2
+    setup.population = 30*setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
     
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
@@ -234,7 +241,7 @@ def scenarioTestMedium(parameterInput, dirPath):
         
     setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
     setup.regionIdRaster[3:,0:3] = ((setup.landLayer[3:,0:3]*0)+1) *6321
-
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
     
     setup.landLayer[:,:5] = setup.landLayer[:,:5]*0
     #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
@@ -254,7 +261,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emmisions','TCO']
+    setup.properties    = ['emission','costs']
 
     #agents
     setup.randomAgents     = False
@@ -264,20 +271,14 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
-    
-    # only for packing with care
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
-    
-    #del dummy
-    
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO']:
+        setup[paName] /= setup['reductionFactor']
+
+    import pprint as pp
+    pp.pprint( "Final setting of the parameters")
+    pp.pprint(setup.toDict())
     lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
+    lg.info( setup.toDict())
     lg.info( "####################################")
     
     return setup
@@ -341,7 +342,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emmisions','TCO']
+    setup.properties    = ['emission','costs']
 
     #agents
     setup.randomAgents     = False
@@ -434,7 +435,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emmisions','TCO']
+    setup.properties    = ['emission','costs']
 
     #agents
     setup.randomAgents     = False
@@ -444,29 +445,34 @@ def scenarioNBH(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
     
     # Correciton of population depend parameter by the reduction factor
-    setup['initialGreen'] /= setup['reductionFactor']
-    setup['initialBrown'] /= setup['reductionFactor']
-    setup['initialOther'] /= setup['reductionFactor']
+    #setup['initialGreen'] /= setup['reductionFactor']
+    #setup['initialBrown'] /= setup['reductionFactor']
+    #setup['initialOther'] /= setup['reductionFactor']
     
-    setup['population']     /= setup['reductionFactor']
-    setup['urbanThreshold'] /= setup['reductionFactor']
-    setup['urbanCritical']  /= setup['reductionFactor']
-    setup['puplicTransBonus']  /= setup['reductionFactor']
-    setup.convD /= setup['reductionFactor']
+    #setup['population']     /= setup['reductionFactor']
+    #setup['urbanThreshold'] /= setup['reductionFactor']
+    #setup['urbanCritical']  /= setup['reductionFactor']
+    #setup['puplicTransBonus']  /= setup['reductionFactor']
+    #setup.convD /= setup['reductionFactor']
     
     # calculate dependent parameters
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
+    #maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
+    #minCarConvenience = 1 + setup.kappa
+    #setup.convB =  minCarConvenience / (maxDeviation)
     
     
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 
+                   'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
+                   'techExpBrown', 'techExpGreen','techExpOther', 
+                   'population']:
+        setup[paName] /= setup['reductionFactor']
+
+    import pprint as pp
+    pp.pprint( "Final setting of the parameters")
+    pp.pprint(setup.toDict())
     lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
+    lg.info( setup.toDict())
     lg.info( "####################################")
-    
-    nAgents    = np.nansum(setup.population)
-    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    lg.info( 'Running with ' + str(nAgents) + ' agents')
     
     return setup
 
@@ -555,7 +561,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emmisions','TCO']
+    setup.properties    = ['emission','costs']
 
     #agents
     setup.randomAgents     = False
@@ -601,28 +607,51 @@ def scenarioChina(calibatationInput):
 
 # Mobility setup setup
 def mobilitySetup(earth, parameters):
-    import math
-    def convienienceBrown(popDensity, paraA, paraB, paraC ,paraD, cell):
-         if popDensity<cell.urbanThreshold:
-            conv = paraA
-         else:
-            conv = max(0.2,paraA - paraB*(popDensity - cell.urbanThreshold)**2)          
-         return conv
-            
-    def convienienceGreen(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = max(0.1, paraA - paraB*(popDensity - cell.urbanThreshold)**2 + cell.kappa  )
+    
+    def convenienceBrown(density, pa, kappa, cell):
+        
+        conv = pa['minConvB'] +\
+        kappa * (pa['maxConvB'] - pa['minConvB']) * np.exp( - (density - pa['muConvB'])**2 / (2 * pa['sigmaConvB']**2) )
         return conv
     
-    def convienienceOther(popDensity, paraA, paraB, paraC ,paraD, cell):
-        conv = max(0.05 ,paraC/(1+math.exp((-paraD)*(popDensity-cell.urbanThreshold + cell.puplicTransBonus))))
+    def convenienceGreen(density, pa, kappa, cell):
+        conv = pa['minConvG'] + \
+        (pa['maxConvGInit']-pa['minConvG']) * (1-kappa)  * np.exp( - (density - pa['muConvGInit'])**2 / (2 * pa['sigmaConvGInit']**2) ) +  \
+        (1-pa['minConvG']) * kappa * (np.exp( - (density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2) ))
         return conv
     
-                         #(emmisions, TCO)         
-    earth.initBrand('brown',(500., parameters['initPriceBrown']), convienienceBrown, 'start', float(earth.para['initialBrown'])) # combustion car
+    def convenienceOther(density, pa, kappa, cell):
+        conv = pa['minConvO'] + \
+        ((pa['maxConvO'] - pa['minConvO']) + (kappa * 0.1)) * \
+        np.exp( - (density - pa['muConvO'])**2 / (2 * ((1-kappa) * pa['sigmaConvOInit'] + (kappa * pa['sigmaConvO']))**2) )
+        
+        return conv
     
-    earth.initBrand('green',(350., parameters['initPriceGreen']), convienienceGreen, 'start', float(earth.para['initialGreen'])) # green tech car
+                                 
+    earth.initBrand('brown',                                #name
+                    {'emission': 500., 'costs': parameters['initPriceBrown']},   #(emissions, TCO) 
+                    convenienceBrown,                       # convenience function
+                    'start',                                # time step of introduction in simulation
+                    earth.para['techSlopeBrown'],            # initial technical progress
+                    earth.para['techProgBrown'],           # slope of technical progress
+                    earth.para['techExpBrown'])             # initial experience
+    
+    earth.initBrand('green',                                                        #name
+                    {'emission': 350., 'costs': parameters['initPriceGreen']},       #(emissions, TCO) 
+                    convenienceGreen, 
+                    'start', 
+                    earth.para['techSlopeGreen'],            # initial technical progress
+                    earth.para['techProgGreen'],           # slope of technical progress
+                    earth.para['techExpGreen'])             # initial experience
 
-    earth.initBrand('other',(120., parameters['initPriceOther']), convienienceOther, 'start', float(earth.para['initialOther']))  # none or other
+    earth.initBrand('other', 
+                  #name
+                    {'emission': 120., 'costs': parameters['initPriceOther']},   #(emissions, TCO) 
+                    convenienceOther, 
+                    'start',
+                    earth.para['techSlopeOther'],            # initial technical progress
+                    earth.para['techProgOther'],           # slope of technical progress
+                    earth.para['techExpOther'])             # initial experience
             
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
@@ -933,7 +962,6 @@ def initSpatialLayer(earth, parameters):
         for cell in earth.iterEntRandom(_cell):
             cell.node['regionId'] = parameters.regionIdRaster[cell.node['pos']]
             
-    earth.initMemory(parameters.properties + ['utility','label','hhID'], parameters.memoryTime)
                      
 
     
@@ -956,7 +984,7 @@ def cellTest(earth, parameters):
             plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        sd
+        
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
@@ -1070,7 +1098,7 @@ def initGlobalRecords(earth, parameters):
     
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types', earth.enums['mobilityTypes'].values(), style ='plot')
-    earth.registerRecord('infraKappa', 'Infrastructure kappa', ['Kappa'], style ='plot')
+    earth.registerRecord('kappas', 'Technological maturity of mobility types', ['kappaB', 'kappaG', 'kappaO'], style ='plot')
     
     lg.info( 'Global records initialized in ' + str( time.time() - tt) + ' s' )
     
@@ -1131,7 +1159,7 @@ def runModel(earth, parameters):
             adult.setValue('lastAction', int(np.random.rand()*float(earth.para['mobNewPeriod'])))
     lg.info( 'Initial actions done')
     for cell in earth.iterEntRandom(_cell):
-        cell.step(earth.market.para['kappa'])
+        cell.step(earth.para, earth.market.currentMaturity)
     
     lg.info( 'Initial market step done')
     
@@ -1364,7 +1392,7 @@ if __name__ == '__main__':
 
     
     debug = False
-    
+    showFigures    = 1
 #    if mpiRank != 0:
 #        olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
 #        sys.stdout = olog_file
@@ -1405,7 +1433,8 @@ if __name__ == '__main__':
     fileName = sys.argv[1]
     parameters = Bunch()
     for item in csv.DictReader(open(fileName)):
-        parameters[item['name']] = aux.convertStr(item['value'])
+        if item['name'][0] != '#':
+            parameters[item['name']] = aux.convertStr(item['value'])
     lg.info('Setting loaded:')
     
     
@@ -1432,7 +1461,7 @@ if __name__ == '__main__':
         # no csv file given
         lg.info("no automatic calibration of parameters")
         
-    showFigures    = 1
+    
     
 
     if parameters.scenario == 0:

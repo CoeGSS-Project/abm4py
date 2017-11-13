@@ -1422,7 +1422,7 @@ class World:
         self.io = self.IO(self, nSteps, self.para['outPath'])
         lg.debug('Init IO done')
         # Globally synced variables
-        self.glob     = self.Globals(self)
+        self.graph.glob     = self.Globals(self)
         lg.debug('Init Globals done')
  
         # enumerations
@@ -1444,6 +1444,14 @@ class World:
         self.registerNodeType('inactiv', None, None)
         self.registerEdgeType('inactiv', None, None)        
         
+    def getNodeData(self, propName, nodeType=None):
+        nodeIdList = self.nodeDict[nodeType]
+        
+        return np.asarray(self.graph.vs[nodeIdList][propName])
+        
+    def getEdgeData(self, propName, edgeType=None):
+        
+        return self.graph.es.select(type=edgeType)[propName]
         
         
 # GENERAL FUNCTIONS
@@ -1740,17 +1748,17 @@ if __name__ == '__main__':
 # 
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file   
-    earth.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
-    earth.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
-    earth.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
-    print earth.glob['test']
-    print earth.glob['meantest']
-    print 'mean of values: ',earth.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
-    print 'std od values:  ',earth.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
-    earth.glob.sync()
-    print earth.glob['test']
-    print 'global mean: ', earth.glob['meantest']
-    print 'global std: ', earth.glob['stdtest']
+    earth.graph.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
+    earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
+    print earth.graph.glob['test']
+    print earth.graph.glob['meantest']
+    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
+    print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
+    earth.graph.glob.sync()
+    print earth.graph.glob['test']
+    print 'global mean: ', earth.graph.glob['meantest']
+    print 'global std: ', earth.graph.glob['stdtest']
     
     
 #    exit()

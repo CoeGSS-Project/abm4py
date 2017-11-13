@@ -5,10 +5,11 @@ Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
 
-MOBILITY INNOVATION MARKET MODEL
--- CLASS FILE --
+---- MoTMo ----
+MOBILITY TRANSFORMATION MODEL 
+-- Class definition FILE --
 
-This file is part of GCFABM.
+This file is based on GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -128,20 +129,16 @@ class Earth(World):
         self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
         #print self.globalRecord[name]
         if mpiReduce is not None:
-            self.glob.registerValue(name , np.asarray([0]*len(colLables)),mpiReduce)
-            self.globalRecord[name].glob = self.glob
+            self.graph.glob.registerValue(name , np.asarray([0]*len(colLables)),mpiReduce)
+            self.globalRecord[name].glob = self.graph.glob
             
     # init car market    
     def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0):
         self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
     
-    def initMemory(self, memeLabels, memoryTime):
-        self.memoryTime = memoryTime
-        for location in self.iterEntRandom(_cell):
-            location.initCellMemory(memoryTime, memeLabels)
 
-    def initBrand(self, label, propertyTuple, convFunction, initTimeStep, allTimeProduced):
-        brandID = self.market.initBrand(label, propertyTuple, initTimeStep, allTimeProduced)
+    def initBrand(self, label, propertyTuple, convFunction, initTimeStep, slope, initialProgress, allTimeProduced):
+        brandID = self.market.initBrand(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
         
         for cell in self.iterEntRandom(_cell):
             cell.traffic[brandID] = 0
@@ -268,11 +265,11 @@ class Earth(World):
         self.computeTime[self.time] = time.time()-ttComp
         
         ttSync = time.time()
-        self.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.glob.sync()
+        self.graph.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.sync()
         self.syncTime[self.time] = time.time()-ttSync
         lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
         
@@ -294,7 +291,7 @@ class Earth(World):
         ttCell = time.time()   
         #loop over cells
         for cell in self.iterEntRandom(_cell):
-            cell.step(self.market.currKappa)
+            cell.step(self.para, self.market.currentMaturity)
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')        
 
 
@@ -395,6 +392,58 @@ class Earth(World):
                 for key in self.globalRecord:
                     self.globalRecord[key].plot(self.para['outPath'])
 
+# ToDo
+class Good():
+    """ 
+    Definition of an economic good in an sence. The class is used to compute
+    technical progress in production and related unit costs.
+    
+    Technical progress is models according to the puplication of nagy+al2010
+    https://doi.org/10.1371/journal.pone.0052669
+    """
+    
+    def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
+        
+        self.label = label
+        self.currGrowthRate = 0
+        if progressType == 'wright':
+            
+            self.experience = experience # cummulative production up to now
+            self.technicalProgress = initialProgress
+            self.initialProperties = propDict.copy()
+            self.properties   = propDict
+            self.slope        = slope
+            self.maturity     = 1 - (1 / self.technicalProgress)
+            
+        else:
+            print 'not implemented'
+            # TODO add moore and SKC + ...
+    
+    def updateTechnicalProgress(self, production):
+        
+        self.currGrowthRate = 1 + (production) / float(self.experience)
+        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
+        for prop in self.properties.keys():
+            self.properties[prop] = self.properties[prop] / self.technicalProgress
+        
+        self.maturity       =    1 - (1 / self.technicalProgress)
+        
+        #update experience
+        self.experience += production
+        
+        return self.properties, self.technicalProgress, self.maturity
+    
+    def getProperties(self):
+        return self.properties
+    
+    def getProgress(self):
+        return self.technicalProgress
+    
+    def getMaturity(self):
+        return self.maturity
+    
+    def getGrowthRate(self):
+        return self.currGrowthRate
 
 class Market():
 
@@ -402,7 +451,7 @@ class Market():
         #import global variables
         self.globalRecord       = earth.globalRecord
         self.comm               = earth.mpi.comm
-        self.glob               = earth.glob
+        self.glob               = earth.graph.glob
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
         self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
         self.glob.registerStat('stdEmm' , np.asarray([0]*len(properties)),'std')
@@ -411,7 +460,7 @@ class Market():
         self.time                = time
         self.graph               = earth.graph
         self.nodeDict            = earth.nodeDict
-        self.properties          = properties                 # (currently: emissions, price)
+        self.properties          = properties                 # (currently: emission, costs)
         self.mobilityProp        = dict()                     # mobType -> [properties]
         self.nProp               = len(properties)
         #self.stock               = np.zeros([0,self.nProp+1]) # first column gives the mobTypeID  (rest: properties, sorted by car ID)
@@ -427,6 +476,8 @@ class Market():
         self.mobilityGrowthRates = list()                     # list of growth rates of brand
         self.techProgress        = list()                     # list of productivities of brand
         self.burnIn              = burnIn
+        
+        self.goods = dict()
         #self.greenInfraMalus     = greenInfraMalus
         #self.kappa               = self.greenInfraMalus
         self.sales               = list()
@@ -435,7 +486,7 @@ class Market():
         self.innovationWeig      = [1-earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]   # weights for calculating innovation distance
         self.allTimeProduced     = list()                     # list of previous produced numbers -> for technical progress
         self.para                = earth.para
-        self.currKappa           = self.para['kappa']
+        self.currentMaturity     = list()
 
         
     def getNTypes(self):
@@ -458,50 +509,55 @@ class Market():
         #self.mean = np.mean(stock,axis=0)                           # list of means of properties
         #self.std  = np.std(stock,axis=0)                            # same for std
         
-        self.mean = [self.glob['meanEmm'], self.glob['meanPrc']]
-        self.std  = [self.glob['stdEmm'],  self.glob['stdPrc']]
+        self.mean['emissions'] = self.glob['meanEmm']
+        self.mean['costs']     = self.glob['meanPrc']
+        
+        self.std['emissions']  = self.glob['stdEmm']
+        self.std['emissions']  = self.glob['stdPrc']
+
         
         lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
-        distances = list()         
-        for idx in range(len(stock)):
-            properties = stock[idx,:]
-            distance = self.distanceFromMean(properties)
-            distances.append(distance)
-        self.meanDist = np.mean(distances)
-        self.stdDist = np.std(distances)
+#        distances = list()         
+#        for idx in range(len(stock)):
+#            properties = stock[idx,:]
+#            distance = self.distanceFromMean(properties)
+#            distances.append(distance)
+#        self.meanDist = np.mean(distances)
+#        self.stdDist = np.std(distances)
 
-    def distanceFromMean(self, properties):        
-        distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
-        return distance
+#    def distanceFromMean(self, properties):        
+#        distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
+#        return distance
     
-    def getDistanceFromMean(self, properties): 
-        distance = (self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]  - self.meanDist)/self.stdDist          
-        return distance
+#    def getDistanceFromMean(self, properties): 
+#        distance = (self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]  - self.meanDist)/self.stdDist          
+#        return distance
 
         
     def setInitialStatistics(self, typeQuantities):
         total = sum(typeQuantities[mobIdx] for mobIdx in range(self.nMobTypes))
         shares = np.zeros(self.nMobTypes)
-        self.mean = np.zeros(self.nProp)
-        self.std = np.zeros(self.nProp)
+        
+        self.mean = dict()
+        self.std  = dict()
         
         for mobIdx in range(self.nMobTypes):
             shares[mobIdx] = typeQuantities[mobIdx]/total
         
-        for propIdx in range(self.nProp):
-            propMean = sum(shares[mobIdx]*self.mobilityProp[mobIdx][propIdx] for mobIdx in range(self.nMobTypes))
-            propVar = sum(shares[mobIdx]*(self.mobilityProp[mobIdx][propIdx])**2 for mobIdx in range(self.nMobTypes))-propMean**2
+        for prop in self.properties:
+            propMean = sum(shares[mobIdx]*self.mobilityProp[mobIdx][prop] for mobIdx in range(self.nMobTypes))
+            propVar = sum(shares[mobIdx]*(self.mobilityProp[mobIdx][prop])**2 for mobIdx in range(self.nMobTypes))-propMean**2
             propStd = math.sqrt(propVar)            
-            self.mean[propIdx] = propMean
-            self.std[propIdx] = propStd
+            self.mean[prop] = propMean
+            self.std[prop] = propStd
 
                         
     def ecology(self, emissions):
         
-        if self.std[0] == 0:
-            ecology = 1 / (1+math.exp((emissions-self.mean[0])/1))
+        if self.std['emission'] == 0:
+            ecology = 1 / (1+math.exp((emissions-self.mean['emission'])/1))
         else:
-            ecology = 1 / (1+math.exp((emissions-self.mean[0])/self.std[0]))
+            ecology = 1 / (1+math.exp((emissions-self.mean['emission'])/self.std['emission']))
         
         return ecology        
 
@@ -517,16 +573,22 @@ class Market():
         if self.time in self.mobilityInitDict.keys():
             
             for mobTuple in self.mobilityInitDict[self.time]:
-                for label, propertyTuple, _, mobTypeID in  mobTuple:
-                    self.addBrand2Market(label, propertyTuple, mobTypeID)
+                for label, propertyDict, _, mobTypeID in  mobTuple:
+                    self.addBrand2Market(label, propertyDict, mobTypeID)
         
         # only do technical change after the burn in phase
         if self.time > self.burnIn:
             self.computeTechnicalProgress()
-        self.globalRecord['infraKappa'].set(self.time, self.currKappa)
         
         # add sales to allTimeProduced
         self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
+        
+        if self.comm.rank == 0:
+            self.globalRecord['growthRate'].set(self.time, [self.goods[iGood].getGrowthRate() for iGood in self.goods.keys()])
+            self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)            
+            self.globalRecord['kappas'].set(self.time, self.currentMaturity)
+        
+        
         
         lg.debug('new value of allTimeProduced: ' + str(self.allTimeProduced))
         # reset sales
@@ -542,34 +604,35 @@ class Market():
         # calculate growth rates per brand:
         # oldCarsPerLabel = copy.copy(self.carsPerLabel)
         # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
-        lg.info( 'sales in market: ' +str(self.glob['sales']))
+        lg.info( 'sales in market: ' + str(self.glob['sales']))
         for i in range(self.nMobTypes):
             if not self.allTimeProduced[i] == 0.:
                 
-                newGrowthRate = (self.glob['sales'][i]) / float(self.allTimeProduced[i])
+                newGrowthRate = 1 + (self.glob['sales'][i]) / float(self.allTimeProduced[i])
             else: 
                 newGrowthRate = 0
             self.mobilityGrowthRates[i] = newGrowthRate          
+#        
+#        lg.debug('growth rate: ' + str(newGrowthRate))
+#        
+#        # technological progress:
+#        oldEtas = copy.copy(self.techProgress)
+#        for brandID in range(self.nMobTypes):
+#            self.techProgress[brandID] = oldEtas[brandID] * (max(0,self.mobilityGrowthRates[brandID]))   
+#        
         
-        lg.debug('growth rate: ' + str(newGrowthRate))
-        
-        # technological progress:
-        oldEtas = copy.copy(self.techProgress)
-        for brandID in range(self.nMobTypes):
-            self.techProgress[brandID] = oldEtas[brandID] * (1+ max(0,self.mobilityGrowthRates[brandID]))   
-        
-        if self.comm.rank == 0:
-            self.globalRecord['growthRate'].set(self.time, self.mobilityGrowthRates)
-            self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)
-        
-        # technical process of infrastructure -> given to cells                
-        self.currKappa = self.para['kappa'] / self.techProgress[1]
+#        
+#        # technical process of infrastructure -> given to cells                
+#        self.currKappa = self.para['kappa'] / self.techProgress[1]
         
         
-        
+        for iGood in self.goods.keys():
+            self.goods[iGood].updateTechnicalProgress(self.glob['sales'][iGood])
+            self.currentMaturity[iGood] = self.goods[iGood].getMaturity()
+            
         lg.debug('techProgress: ' + str(self.techProgress))
         
-    def initBrand(self, label, propertyTuple, initTimeStep, allTimeProduced):        
+    def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):        
         mobType = self.nMobTypes
         self.nMobTypes +=1 
         self.mobilityGrowthRates.append(0.)
@@ -579,17 +642,20 @@ class Market():
         self.stockByMobType.append(0)
         self.allTimeProduced.append(allTimeProduced)
         self.mobilityTypesToInit.append(label)
+        
+        self.goods[mobType] = Good(label, 'wright',initialProgress, slope, propertyDict, experience=allTimeProduced)
+        self.currentMaturity.append(self.goods[mobType].getMaturity())
         if initTimeStep not in self.mobilityInitDict.keys():
-            self.mobilityInitDict[initTimeStep] = [[label, propertyTuple, initTimeStep , mobType, allTimeProduced]]
+            self.mobilityInitDict[initTimeStep] = [[label, propertyDict, initTimeStep , mobType, allTimeProduced]]
         else:
-            self.mobilityInitDict[initTimeStep].append([label, propertyTuple, initTimeStep, mobType, allTimeProduced])
+            self.mobilityInitDict[initTimeStep].append([label, propertyDict, initTimeStep, mobType, allTimeProduced])
        
         return mobType
     
-    def addBrand2Market(self, label, propertyTuple, mobType):        
+    def addBrand2Market(self, label, propertyDict, mobType):        
         #add brand to the market           
         self.stockByMobType[mobType] = 0
-        self.mobilityProp[mobType]   = propertyTuple
+        self.mobilityProp[mobType]   = propertyDict
         self.mobilityLables[mobType] = label
         #self.buyCar(brandID,0)
         #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] -= 1
@@ -602,7 +668,9 @@ class Market():
     def currentCarProperties(self, mobTypeIdx):
         eta = self.techProgress[int(mobTypeIdx)]
         # draw the actual car property with a random component
-        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobTypeIdx], (1 + np.random.randn(self.nProp)*self.propRelDev))]
+        
+        
+        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobTypeIdx].values(), (1 + np.random.randn(self.nProp)*self.propRelDev))]
         return prop
     
     def buyCar(self, mobTypeIdx):
@@ -1339,16 +1407,11 @@ class Cell(Location):
         self.muEps = 1.               
         self.cellSize = 1.
         
-        self.urbanThreshold = earth.para['urbanThreshold']
-        self.puplicTransBonus = earth.para['puplicTransBonus']     
+#        self.urbanThreshold = earth.para['urbanThreshold']
+#        self.puplicTransBonus = earth.para['puplicTransBonus']     
        
         self.convFunctions = list()
         
-        self.paraA = earth.para['convA']
-        self.paraB = earth.para['convB']
-        self.paraC = earth.para['convC']
-        self.paraD = earth.para['convD']
-        self.kappa = earth.para['kappa']
         
     def initCellMemory(self, memoryLen, memeLabels):
         from collections import deque
@@ -1392,40 +1455,38 @@ class Cell(Location):
         return copy.copy(self.xCell[choice,:])
 
     def selfTest(self, world):
-        self.node['population'] = world.para['population'][self.node['pos']]
-        convAll = self.calculateConveniences()
+        population = world.para['population'][self.node['pos']]
+        self.node['population'] = population
+        #print self.node['population']
+        convAll = self.calculateConveniences(world.para, world.market.currentMaturity)
    
         for x in convAll:
             if np.isinf(x) or np.isnan(x) or x == 0:
                 import pdb
                 pdb.set_trace()
-        return convAll, self.getValue('population')
+        self.node['population'] = 0
+        return convAll, population
     
-    def calculateConveniences(self):
+    def calculateConveniences(self, parameters, currentMaturity):
         
         convAll = list()
         # convenience parameters:    
 
         #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
-        for funcCall in self.convFunctions:            
-            convAll.append(min(1., max(0.0,funcCall(popDensity, self.paraA, self.paraB, self.paraC, self.paraD, self))))            
+        for i, funcCall in enumerate(self.convFunctions):            
+            convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))            
+        print str(popDensity) + ': ' + str(convAll)
         return convAll
+    
 
         
-    def step(self, kappa):
+    def step(self, parameters, currentMaturity):
         """
         Manages the deletion of observation after a while
         """
-        self.kappa = kappa
-        self.deleteQueue.append(self.currDelList) # add current list to the queue for later
-        delList = self.deleteQueue.popleft()      # takes the list to delete
-        for obsID in delList:
-            self.obsMemory.remMeme(obsID)         # removes the obs from memory
-        self.currDelList = list()                 # restarts the list for the next step
         
-        
-        convAll = self.calculateConveniences()
+        convAll = self.calculateConveniences(parameters,currentMaturity)
         self.setValue('convenience', convAll)
         #self.trafficMixture()
 
@@ -1470,7 +1531,6 @@ class Opinion():
     Creates preferences for households, given their properties
     """
     def __init__(self, world):
-        self.innovationPriority = world.para['innoPriority']
         self.charAge            = world.para['charAge']
         self.indiRatio          = world.para['individualPrio']
         self.minIncomeEco       =world.para['minIncomeEco']
