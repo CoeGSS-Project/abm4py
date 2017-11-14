@@ -26,7 +26,6 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import itertools
-#import matplotlib.pyplot as plt
 import pandas as pd 
 import seaborn as sns
 import pickle
@@ -290,7 +289,7 @@ class Record():
     def __init__(self, name, colLables, nSteps, title, style='plot'):
         self.nRec = len(colLables)
         self.columns = colLables
-        self.rec = np.zeros([nSteps, self.nRec])
+        self.rec = np.zeros([nSteps, self.nRec])*np.nan
         self.name = name
         self.style = style
         self.nSteps = nSteps
@@ -327,6 +326,7 @@ class Record():
         self.rec[timeStep,idx] /= data
         
     def plot(self, path):
+        import matplotlib.pyplot as plt
         plt.figure()
         if self.style == 'plot':
             plt.plot(self.rec)
