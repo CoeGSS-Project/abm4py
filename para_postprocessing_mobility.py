@@ -41,16 +41,16 @@ salesProperties   = 1
 womanSharePerMobType = 0
 agePerMobType     = 0
 averageCarAge     = 0
-prefPerLabel      = 0
-utilPerLabel      = 0
-incomePerLabel    = 1
+prefPerLabel      = 1
+utilPerLabel      = 1
+incomePerLabel    = 0
 greenPerIncome    = 0
 expectUtil        = 1
 meanPrefPerLabel  = 0
 meanESSR          = 0
-meanConsequencePerLabel = 0
+meanConsequencePerLabel = 1
 printCellMaps     = 1
-emissionsPerLabel = 0
+emissionsPerLabel = 1
 peerBubbleSize    = 0
 doFolium          = 1
 cellMovie         = 0
@@ -91,7 +91,7 @@ path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 simParas   = loadObj(path + 'simulation_parameters')
 
 nBurnIn       = simParas['burnIn']
-withoutBurnIn = True
+withoutBurnIn = False
 years         = True         # only applicable in plots without burn-in
 
 print 'omniscient Agents: ' + str(simParas['omniscientAgents'])

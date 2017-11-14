@@ -186,7 +186,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')    
     #del dummy
     
-    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO']:
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
+                   'techExpBrown', 'techExpGreen','techExpOther' ]:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -221,12 +222,12 @@ def scenarioTestMedium(parameterInput, dirPath):
     #spatial
     setup.reductionFactor = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial     = True
-    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 0, 0], 
-                                    [0, 1, 0, 0, 0, 1, 1, 1, 0],
-                                    [1, 1, 1, 0, 0, 1, 0, 0, 0],
+    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 0], 
+                                    [0, 1, 0, 0, 0, 1, 1, 1, 1],
+                                    [1, 1, 1, 0, 0, 1, 0, 0, 1],
                                     [1, 1, 1, 1, 1, 1, 0, 0, 0],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
-                                    [1, 1, 1, 1, 0, 0, 0, 0, 0]])
+                                    [0, 0, 1, 1, 0, 0, 0, 0, 0]])
     
     
     convMat = np.asarray([[0,1,0],[1,0,1],[0,1,0]])
@@ -271,7 +272,8 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
     
     # calculate dependent parameters
-    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO']:
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
+                   'techExpBrown', 'techExpGreen','techExpOther' ]:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -622,7 +624,7 @@ def mobilitySetup(earth, parameters):
     
     def convenienceOther(density, pa, kappa, cell):
         conv = pa['minConvO'] + \
-        ((pa['maxConvO'] - pa['minConvO']) + (kappa * 0.1)) * \
+        ((pa['maxConvO'] - pa['minConvO']) * (kappa)) * \
         np.exp( - (density - pa['muConvO'])**2 / (2 * ((1-kappa) * pa['sigmaConvOInit'] + (kappa * pa['sigmaConvO']))**2) )
         
         return conv
@@ -984,7 +986,7 @@ def cellTest(earth, parameters):
             plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        
+    
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
@@ -1159,7 +1161,7 @@ def runModel(earth, parameters):
             adult.setValue('lastAction', int(np.random.rand()*float(earth.para['mobNewPeriod'])))
     lg.info( 'Initial actions done')
     for cell in earth.iterEntRandom(_cell):
-        cell.step(earth.para, earth.market.currentMaturity)
+        cell.step(earth.para, earth.market.getCurrentMaturity())
     
     lg.info( 'Initial market step done')
     
@@ -1309,7 +1311,7 @@ def onlinePostProcessing(earth):
         lg.info( 'Preferences - standart deviation within friends')
         avgStd= np.zeros([1,4])    
         for agent in earth.iterEntRandom(_hh): 
-            friendList = agent.getConnNodeIDs(nodeType=_hh)
+            friendList = agent.getPeerIDs(edgeType=_chh)
             if len(friendList)> 1:
                 #print df.ix[friendList].std()
                 avgStd += df.ix[friendList].std().values
@@ -1392,7 +1394,7 @@ if __name__ == '__main__':
 
     
     debug = False
-    showFigures    = 1
+    showFigures    = 0
 #    if mpiRank != 0:
 #        olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
 #        sys.stdout = olog_file

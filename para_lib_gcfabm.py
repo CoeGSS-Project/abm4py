@@ -1443,6 +1443,12 @@ class World:
         # inactive is used to virtually remove nodes
         self.registerNodeType('inactiv', None, None)
         self.registerEdgeType('inactiv', None, None)        
+
+#    def glob2loc(self, gID):
+#        return (gID - self.maxNodes)
+#    
+#    def loc2glob(self, nID):
+#        return (nID + self.maxNodes)
         
     def getNodeData(self, propName, nodeType=None):
         nodeIdList = self.nodeDict[nodeType]

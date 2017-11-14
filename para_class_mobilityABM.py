@@ -129,7 +129,7 @@ class Earth(World):
         self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
         #print self.globalRecord[name]
         if mpiReduce is not None:
-            self.graph.glob.registerValue(name , np.asarray([0]*len(colLables)),mpiReduce)
+            self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
             self.globalRecord[name].glob = self.graph.glob
             
     # init car market    
@@ -251,6 +251,9 @@ class Earth(World):
 #            elif cell.node['regionId'] == 1520:
 #                self.globalRecord['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
         
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].set(self.time,0)
+
         for cell in self.iterEntRandom(_cell):
             self.globalRecord['stock_' + str(int(cell.node['regionId']))].add(self.time,np.asarray(cell.node['carsInCell']))
 
@@ -265,10 +268,10 @@ class Earth(World):
         self.computeTime[self.time] = time.time()-ttComp
         
         ttSync = time.time()
-        self.graph.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.graph.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.graph.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
         self.graph.glob.sync()
         self.syncTime[self.time] = time.time()-ttSync
         lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
@@ -291,7 +294,7 @@ class Earth(World):
         ttCell = time.time()   
         #loop over cells
         for cell in self.iterEntRandom(_cell):
-            cell.step(self.para, self.market.currentMaturity)
+            cell.step(self.para, self.market.getCurrentMaturity())
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')        
 
 
@@ -405,13 +408,17 @@ class Good():
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
         
         self.label = label
-        self.currGrowthRate = 0
+        self.currGrowthRate = 1
         if progressType == 'wright':
             
             self.experience = experience # cummulative production up to now
             self.technicalProgress = initialProgress
             self.initialProperties = propDict.copy()
             self.properties   = propDict
+            
+            # setting initial price to match the initial technical progress
+            for propKey in self.initialProperties.keys():
+                self.initialProperties[propKey] *= initialProgress 
             self.slope        = slope
             self.maturity     = 1 - (1 / self.technicalProgress)
             
@@ -424,7 +431,7 @@ class Good():
         self.currGrowthRate = 1 + (production) / float(self.experience)
         self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
         for prop in self.properties.keys():
-            self.properties[prop] = self.properties[prop] / self.technicalProgress
+            self.properties[prop] = self.initialProperties[prop] / self.technicalProgress
         
         self.maturity       =    1 - (1 / self.technicalProgress)
         
@@ -441,6 +448,9 @@ class Good():
     
     def getMaturity(self):
         return self.maturity
+
+    def getExperience(self):
+        return self.experience    
     
     def getGrowthRate(self):
         return self.currGrowthRate
@@ -463,8 +473,6 @@ class Market():
         self.properties          = properties                 # (currently: emission, costs)
         self.mobilityProp        = dict()                     # mobType -> [properties]
         self.nProp               = len(properties)
-        #self.stock               = np.zeros([0,self.nProp+1]) # first column gives the mobTypeID  (rest: properties, sorted by car ID)
-        #self.owners              = list()                     # List of (ownerID, mobTypeID) index: mobID
         self.propRelDev          = propRelDev                 # relative deviation of the actual car propeties
         self.obsDict             = dict()                     # time -> other dictionary (see next line)
         self.obsDict[self.time]  = dict()                     # (used by agents, observations (=utilities) also saved in locations)
@@ -473,20 +481,10 @@ class Market():
         self.mobilityLables      = dict()                     # mobTypeID -> label
         self.mobilityInitDict    = dict()                     # list of (list of) initial values for each mobility type
         self.mobilityTypesToInit = list()                     # list of (mobility type) labels
-        self.mobilityGrowthRates = list()                     # list of growth rates of brand
-        self.techProgress        = list()                     # list of productivities of brand
         self.burnIn              = burnIn
-        
         self.goods = dict()
-        #self.greenInfraMalus     = greenInfraMalus
-        #self.kappa               = self.greenInfraMalus
         self.sales               = list()
-        self.meanDist            = 0.
-        self.stdDist             = 1.
-        self.innovationWeig      = [1-earth.para['innoWeigPrice'], earth.para['innoWeigPrice']]   # weights for calculating innovation distance
-        self.allTimeProduced     = list()                     # list of previous produced numbers -> for technical progress
         self.para                = earth.para
-        self.currentMaturity     = list()
 
         
     def getNTypes(self):
@@ -500,15 +498,14 @@ class Market():
         for label, propertyTuple, _, brandID, allTimeProduced in self.mobilityInitDict['start']:
              self.addBrand2Market(label, propertyTuple, brandID)
 
+    def getCurrentMaturity(self):
+        return [self.goods[iGood].getMaturity() for iGood in self.goods.keys()]
     
+    def getCurrentExperience(self):
+        return [self.goods[iGood].getExperience() for iGood in self.goods.keys()]
+    
+
     def computeStatistics(self):
-        distances=list()
-        
-        stock = np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])
-        #self.glob['sumProp'] = np.sum(stock, axis=0)
-        #self.mean = np.mean(stock,axis=0)                           # list of means of properties
-        #self.std  = np.std(stock,axis=0)                            # same for std
-        
         self.mean['emissions'] = self.glob['meanEmm']
         self.mean['costs']     = self.glob['meanPrc']
         
@@ -517,23 +514,7 @@ class Market():
 
         
         lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
-#        distances = list()         
-#        for idx in range(len(stock)):
-#            properties = stock[idx,:]
-#            distance = self.distanceFromMean(properties)
-#            distances.append(distance)
-#        self.meanDist = np.mean(distances)
-#        self.stdDist = np.std(distances)
-
-#    def distanceFromMean(self, properties):        
-#        distance = self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]            
-#        return distance
-    
-#    def getDistanceFromMean(self, properties): 
-#        distance = (self.innovationWeig[0]*(self.mean[0]-properties[0])/self.std[0]+self.innovationWeig[1]*(properties[1]-self.mean[1])/self.std[1]  - self.meanDist)/self.stdDist          
-#        return distance
-
-        
+       
     def setInitialStatistics(self, typeQuantities):
         total = sum(typeQuantities[mobIdx] for mobIdx in range(self.nMobTypes))
         shares = np.zeros(self.nMobTypes)
@@ -563,12 +544,7 @@ class Market():
 
         
     def step(self, world):
-        
-        self.obsDict[self.time] = dict()
-        #re-init key for next dict in new timestep
-        for key in self.obsDict[self.time]:
-            self.obsDict[self.time][key] = list()
-        
+
         # check if a new car is entering the market
         if self.time in self.mobilityInitDict.keys():
             
@@ -580,17 +556,14 @@ class Market():
         if self.time > self.burnIn:
             self.computeTechnicalProgress()
         
-        # add sales to allTimeProduced
-        self.allTimeProduced = [x+y for x,y in zip(self.allTimeProduced, self.glob['sales'])]
-        
         if self.comm.rank == 0:
             self.globalRecord['growthRate'].set(self.time, [self.goods[iGood].getGrowthRate() for iGood in self.goods.keys()])
-            self.globalRecord['allTimeProduced'].set(self.time, self.allTimeProduced)            
-            self.globalRecord['kappas'].set(self.time, self.currentMaturity)
+            self.globalRecord['allTimeProduced'].set(self.time, self.getCurrentExperience())            
+            self.globalRecord['kappas'].set(self.time, self.getCurrentMaturity())
         
         
         
-        lg.debug('new value of allTimeProduced: ' + str(self.allTimeProduced))
+        lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))
         # reset sales
         self.glob['sales'] = self.glob['sales']*0
         
@@ -605,46 +578,32 @@ class Market():
         # oldCarsPerLabel = copy.copy(self.carsPerLabel)
         # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
         lg.info( 'sales in market: ' + str(self.glob['sales']))
-        for i in range(self.nMobTypes):
-            if not self.allTimeProduced[i] == 0.:
-                
-                newGrowthRate = 1 + (self.glob['sales'][i]) / float(self.allTimeProduced[i])
-            else: 
-                newGrowthRate = 0
-            self.mobilityGrowthRates[i] = newGrowthRate          
-#        
-#        lg.debug('growth rate: ' + str(newGrowthRate))
-#        
-#        # technological progress:
-#        oldEtas = copy.copy(self.techProgress)
-#        for brandID in range(self.nMobTypes):
-#            self.techProgress[brandID] = oldEtas[brandID] * (max(0,self.mobilityGrowthRates[brandID]))   
-#        
-        
-#        
-#        # technical process of infrastructure -> given to cells                
-#        self.currKappa = self.para['kappa'] / self.techProgress[1]
-        
-        
+#        for i in range(self.nMobTypes):
+#            if not self.allTimeProduced[i] == 0.:
+#                
+#                newGrowthRate = 1 + (self.glob['sales'][i]) / float(self.allTimeProduced[i])
+#            else: 
+#                newGrowthRate = 1
+#            self.mobilityGrowthRates[i] = newGrowthRate          
+  
         for iGood in self.goods.keys():
             self.goods[iGood].updateTechnicalProgress(self.glob['sales'][iGood])
-            self.currentMaturity[iGood] = self.goods[iGood].getMaturity()
             
-        lg.debug('techProgress: ' + str(self.techProgress))
+        lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
         
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):        
         mobType = self.nMobTypes
         self.nMobTypes +=1 
-        self.mobilityGrowthRates.append(0.)
-        self.techProgress.append(1.)
+        #self.mobilityGrowthRates.append(1.)
+        #self.techProgress.append(1.)
         self.glob['sales'] = np.asarray([0]*self.nMobTypes)
 
         self.stockByMobType.append(0)
-        self.allTimeProduced.append(allTimeProduced)
+        #self.allTimeProduced.append(allTimeProduced)
         self.mobilityTypesToInit.append(label)
         
         self.goods[mobType] = Good(label, 'wright',initialProgress, slope, propertyDict, experience=allTimeProduced)
-        self.currentMaturity.append(self.goods[mobType].getMaturity())
+        #self.currentMaturity.append(self.goods[mobType].getMaturity())
         if initTimeStep not in self.mobilityInitDict.keys():
             self.mobilityInitDict[initTimeStep] = [[label, propertyDict, initTimeStep , mobType, allTimeProduced]]
         else:
@@ -665,21 +624,19 @@ class Market():
         #remove brand from the market
         del self.mobilityProp[label]
     
-    def currentCarProperties(self, mobTypeIdx):
-        eta = self.techProgress[int(mobTypeIdx)]
-        # draw the actual car property with a random component
-        
-        
-        prop =[float(x/eta * y) for x,y in zip( self.mobilityProp[mobTypeIdx].values(), (1 + np.random.randn(self.nProp)*self.propRelDev))]
-        return prop
-    
+   
     def buyCar(self, mobTypeIdx):
-        prop = self.currentCarProperties(mobTypeIdx)
+        # get current properties form good class
+        propDict = self.goods[mobTypeIdx].getProperties() 
+        
+        for key in propDict.keys():
+            propDict[key] *= (1 + np.random.randn()*self.propRelDev)
+            
         if self.time > self.burnIn:
             self.glob['sales'][int(mobTypeIdx)] += 1
     
         self.stockByMobType[int(mobTypeIdx)] += 1        
-        return prop    #return mobID, prop
+        return propDict    
     
 
 # %% --- entity classes ---
@@ -720,6 +677,7 @@ class Person(Agent):
         
         #print prop
         #print prior
+        assert not any(np.isnan(prior))
         
         try:
             post = prior * prop 
@@ -934,12 +892,11 @@ class Person(Agent):
         
         
         # weight friends
-        weights, ESSR = self.weightFriendExperience(world)
-        
-        
+        if self.isAware():
+            weights, ESSR = self.weightFriendExperience(world)
+
         # compute similarity
-        weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
-        weights = np.asarray(weights)
+        weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
         preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0]) 
         
         average = np.average(preferences, axis= 0, weights=weights)
@@ -1109,14 +1066,14 @@ class Household(Agent):
             
             person.node['mobType']   = int(actionIdx)
             
-            person.node['prop']      = properties
+            person.node['prop']      = properties.values()
             person.node['obsID']     = None
             if earth.time <  earth.para['omniscientBurnIn']:
                 person.node['lastAction'] = np.random.randint(0, int(1.5*earth.para['mobNewPeriod']))
             else:
                 person.node['lastAction'] = 0
             # add cost of mobility to the expenses
-            self.node['expenses'] += properties[1]
+            self.node['expenses'] += properties['costs']
             
  
     def undoActions(self,world, persons):
@@ -1129,7 +1086,7 @@ class Household(Agent):
             self.loc.remFromTraffic(adult.node['mobType'])
             
             # remove cost of mobility to the expenses
-            self.node['expenses'] -= adult.node['prop'][1]
+            self.node['expenses'] -= adult.node['prop'][0]
 
 
 
@@ -1166,12 +1123,12 @@ class Household(Agent):
             convenience = decay * self.loc.getValue('convenience')[actionIdx] + hhCarBonus               
             
             # calculate ecology:
-            emissions = mobProps[0]
+            emissions = mobProps[1]
             ecology = market.ecology(emissions)
             
+            experience = market.getCurrentExperience()
 
-            innovation = 1 - ( (market.allTimeProduced[adult.node['mobType']] 
-                             / np.sum(market.allTimeProduced))**.5 )
+            innovation = 1 - ( (experience[adult.node['mobType']] / np.sum(experience))**.5 )
             
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
@@ -1205,12 +1162,12 @@ class Household(Agent):
                         adult.node['lastAction'] = oldLastAction[adultIdx]
                     else:
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                        adult.node['prop'] = market.currentCarProperties(adult.node['mobType'])
+                        adult.node['prop'] = market.goods[adult.node['mobType']].getProperties().values()
                         if earth.time <  earth.para['burnIn']:
                             adult.node['lastAction'] = np.random.randint(0, earth.para['mobNewPeriod'])                    
                         else:
                             adult.node['lastAction'] = 0
-                    self.node['expenses'] += adult.node['prop'][1]
+                    self.node['expenses'] += adult.node['prop'][0]
                 
                 self.calculateConsequences(market)
                 utility = self.evalUtility(earth)
@@ -1458,7 +1415,7 @@ class Cell(Location):
         population = world.para['population'][self.node['pos']]
         self.node['population'] = population
         #print self.node['population']
-        convAll = self.calculateConveniences(world.para, world.market.currentMaturity)
+        convAll = self.calculateConveniences(world.para, world.market.getCurrentMaturity())
    
         for x in convAll:
             if np.isinf(x) or np.isnan(x) or x == 0:
@@ -1476,7 +1433,7 @@ class Cell(Location):
         popDensity = float(self.getValue('population'))/self.cellSize        
         for i, funcCall in enumerate(self.convFunctions):            
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))            
-        print str(popDensity) + ': ' + str(convAll)
+        #print str(popDensity) + ': ' + str(convAll)
         return convAll
     
 
