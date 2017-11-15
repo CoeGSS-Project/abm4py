@@ -224,8 +224,8 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.isSpatial     = True
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 0], 
                                     [0, 1, 0, 0, 0, 1, 1, 1, 1],
-                                    [1, 1, 1, 0, 0, 1, 0, 0, 1],
-                                    [1, 1, 1, 1, 1, 1, 0, 0, 0],
+                                    [1, 0, 1, 0, 0, 1, 0, 0, 1],
+                                    [1, 1, 1, 1, 1, 1, 0, 0, 1],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0],
                                     [0, 0, 1, 1, 0, 0, 0, 0, 0]])
     
@@ -262,7 +262,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emission','costs']
+    setup.properties    = ['costs', 'emission']
 
     #agents
     setup.randomAgents     = False
@@ -317,7 +317,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
         setup.landLayer = setup.landLayer * 0
     
     
-    printlg.info( 'max rank:',np.nanmax(setup.landLayer))
+    lg.info( 'max rank:',np.nanmax(setup.landLayer))
     
     setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
     setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
@@ -413,8 +413,12 @@ def scenarioNBH(parameterInput, dirPath):
     
     assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
     
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+    
     setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
     setup.regionIdRaster = setup.regionIdRaster.astype(int)
+    
+    
     
     if False:
         try:
@@ -437,7 +441,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emission','costs']
+    setup.properties    = ['costs', 'emission']
 
     #agents
     setup.randomAgents     = False
@@ -563,7 +567,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV      = 0
     
     #cars and infrastructure
-    setup.properties    = ['emission','costs']
+    setup.properties    = ['costs', 'emission']
 
     #agents
     setup.randomAgents     = False
@@ -629,26 +633,34 @@ def mobilitySetup(earth, parameters):
         
         return conv
     
-                                 
+    from collections import OrderedDict
+    propDict = OrderedDict()
+    propDict['costs']   =  parameters['initPriceBrown']
+    propDict['emission'] = 500
     earth.initBrand('brown',                                #name
-                    {'emission': 500., 'costs': parameters['initPriceBrown']},   #(emissions, TCO) 
+                    propDict,   #(emissions, TCO) 
                     convenienceBrown,                       # convenience function
                     'start',                                # time step of introduction in simulation
                     earth.para['techSlopeBrown'],            # initial technical progress
                     earth.para['techProgBrown'],           # slope of technical progress
                     earth.para['techExpBrown'])             # initial experience
-    
+
+    propDict = OrderedDict()
+    propDict['costs']   =  parameters['initPriceGreen']
+    propDict['emission'] = 350    
     earth.initBrand('green',                                                        #name
-                    {'emission': 350., 'costs': parameters['initPriceGreen']},       #(emissions, TCO) 
+                    propDict,       #(emissions, TCO) 
                     convenienceGreen, 
                     'start', 
                     earth.para['techSlopeGreen'],            # initial technical progress
                     earth.para['techProgGreen'],           # slope of technical progress
                     earth.para['techExpGreen'])             # initial experience
 
-    earth.initBrand('other', 
-                  #name
-                    {'emission': 120., 'costs': parameters['initPriceOther']},   #(emissions, TCO) 
+    propDict = OrderedDict()
+    propDict['costs']   =  parameters['initPriceOther']
+    propDict['emission'] = 120  
+    earth.initBrand('other',  #name
+                    propDict,   #(emissions, TCO) 
                     convenienceOther, 
                     'start',
                     earth.para['techSlopeOther'],            # initial technical progress
@@ -690,6 +702,7 @@ def householdSetup(earth, parameters, calibration=False):
     lg.info( 'Agents on process:' +str(nAgentsOnProcess))
     hhData = dict()
     currIdx = dict()
+    h5Files = dict()
     for i, region in enumerate(regionIdxList):
         idx = 0
         
@@ -703,18 +716,15 @@ def householdSetup(earth, parameters, calibration=False):
             
             earth.view(str(earth.mpi.rank) + '.png')
         
-        h5File      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
-        dset = h5File.get('people')
-        hhData[i] = dset[agentStart:agentEnd,]
-    
+        # all processes open all region files (not sure if necessary)
+        h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
         
-    
-        #print hhData
-        earth.mpi.comm.Barrier()
-        h5File.close()
-    
+   
         if nAgentsOnProcess[earth.mpi.comm.rank,i] == 0:
             continue
+        
+        dset = h5Files[i].get('people')
+        hhData[i] = dset[agentStart:agentEnd,]
 
         # find the correct possition in file 
         nPers = int(hhData[i][idx,0])
@@ -723,6 +733,13 @@ def householdSetup(earth, parameters, calibration=False):
             #new index for start of a complete household
             idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers,0]) !=0)[0][0]
         currIdx[i] = int(idx)
+    
+    
+    earth.mpi.comm.Barrier() # all loading done
+    for h5File in h5Files:
+        h5File.close()
+    lg.info( 'Loading agents from file done')    
+        
     opinion =  Opinion(earth)
     nAgentsCell = 0
     for x,y in earth.locDict.keys():
@@ -781,7 +798,6 @@ def householdSetup(earth, parameters, calibration=False):
                 
                 pers = Person(earth, preferences =prefTuple,
                                      hhID        = hh.gID,
-                                     prefTyp     = prefTyp,
                                      gender     = genders[iPers],
                                      age         = ages[iPers],
                                      util        = 0.,
@@ -810,7 +826,7 @@ def householdSetup(earth, parameters, calibration=False):
             if nAgentsCell <= 0:
            
                     break
-    lg.info( 'agents loaded from file')
+    lg.info( 'Allgents initialized')
     if earth.queuing:
         earth.queue.dequeueVertices(earth)
         earth.queue.dequeueEdges(earth)
@@ -931,7 +947,6 @@ def initTypes(earth, parameters):
                                                   'gID',
                                                   'hhID',
                                                   'preferences',
-                                                  'prefTyp',
                                                   'gender',
                                                   'age',
                                                   'util',     # current utility
@@ -986,7 +1001,7 @@ def cellTest(earth, parameters):
             plt.scatter(popArray,convArray[i,:], s=2)    
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-    
+        sdf
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
@@ -1000,6 +1015,11 @@ def generateNetwork(earth, parameters):
 def initMobilityTypes(earth, parameters):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,500.])
+    for goodKey in earth.market.goods.keys():
+        #print earth.market.goods[goodKey].properties.keys()
+        #print earth.market.properties
+        assert earth.market.goods[goodKey].properties.keys() == earth.market.properties
+    
  
 def initGlobalRecords(earth, parameters):
     tt = time.time()
@@ -1233,23 +1253,23 @@ def writeSummary(earth, calRunId, paraDf, parameters):
         lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
 
 
-        cellList = earth.graph.vs[earth.nodeDict[_cell]]
-        cellListBremen = cellList.select(regionId_eq=1518)
-        cellListNieder = cellList.select(regionId_eq=6321)
-
-        carsInBremen = np.asarray(cellListBremen['carsInCell'])
-        carsInNieder = np.asarray(cellListNieder['carsInCell'])
-
-        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
-        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
-
-        lg.info( 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000))
-        lg.info( 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000))
-
-        lg.info( 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000))
-        lg.info( 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000))
-
-        
+#        cellList = earth.graph.vs[earth.nodeDict[_cell]]
+#        cellListBremen = cellList.select(regionId_eq=1518)
+#        cellListNieder = cellList.select(regionId_eq=6321)
+#
+#        carsInBremen = np.asarray(cellListBremen['carsInCell'])
+#        carsInNieder = np.asarray(cellListNieder['carsInCell'])
+#
+#        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
+#        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
+#
+#        lg.info( 'Bremem - green cars per 1000 people: ' + str(np.sum(carsInBremen[:,1])/np.sum(nPeopleBremen)*1000))
+#        lg.info( 'Bremem - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:,0])/np.sum(nPeopleBremen)*1000))
+#
+#        lg.info( 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:,1])/np.sum(nPeopleNieder)*1000))
+#        lg.info( 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:,0])/np.sum(nPeopleNieder)*1000))
+#
+#        
      
         
         

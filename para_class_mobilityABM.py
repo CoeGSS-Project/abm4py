@@ -441,7 +441,7 @@ class Good():
         return self.properties, self.technicalProgress, self.maturity
     
     def getProperties(self):
-        return self.properties
+        return self.properties.values()
     
     def getProgress(self):
         return self.technicalProgress
@@ -627,10 +627,8 @@ class Market():
    
     def buyCar(self, mobTypeIdx):
         # get current properties form good class
-        propDict = self.goods[mobTypeIdx].getProperties() 
+        propDict = self.goods[mobTypeIdx].getProperties() * (1 + np.random.randn(self.nProp)*self.propRelDev)
         
-        for key in propDict.keys():
-            propDict[key] *= (1 + np.random.randn()*self.propRelDev)
             
         if self.time > self.burnIn:
             self.glob['sales'][int(mobTypeIdx)] += 1
@@ -862,19 +860,23 @@ class Person(Agent):
         weigList   = [1./len(connList)]*len(connList)    
         return contactList, connList, weigList
 
-    def computeExpUtil(self,world):
+    def computeExpUtil(self,earth):
         #get weights from friends
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp) 
         weights = np.asarray(weights)
         
+
         # compute weighted mean of all friends
-        communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
+        if earth.para['weightConnections']:
+            communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
+        else:
+            communityUtil = np.mean(np.asarray(self.getPeerValues('commUtil',_cpp)[0]),axis=0)
         
         selfUtil = self.node['selfUtil'][:]
         mobType   = self.node['mobType']
         
         # weighting by 3
-        selfUtil[mobType] *= world.para['selfTrust']
+        selfUtil[mobType] *= earth.para['selfTrust']
        
         if len(selfUtil) != 3 or len(communityUtil) != 3:
             print 'error: ' 
@@ -885,22 +887,22 @@ class Person(Agent):
         self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0) 
         
         # adjust mean since double of weigth - very bad code - sorry        
-        self.node['commUtil'][mobType] /= (world.para['selfTrust']+1)/2
+        self.node['commUtil'][mobType] /= (earth.para['selfTrust']+1)/2
 
 
-    def step(self, world):
+    def step(self, earth):
         
         
         # weight friends
-        if self.isAware():
-            weights, ESSR = self.weightFriendExperience(world)
+        if earth.para['weightConnections'] and self.isAware(earth.para['mobNewPeriod']):
+            weights, ESSR = self.weightFriendExperience(earth)
 
-        # compute similarity
-        weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
-        preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0]) 
-        
-        average = np.average(preferences, axis= 0, weights=weights)
-        self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
+            # compute similarity
+            weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
+            preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0]) 
+            
+            average = np.average(preferences, axis= 0, weights=weights)
+            self.node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
     
         # socialize
 #        if ESSR < 0.1 and np.random.rand() >0.99:
@@ -1066,14 +1068,13 @@ class Household(Agent):
             
             person.node['mobType']   = int(actionIdx)
             
-            person.node['prop']      = properties.values()
-            person.node['obsID']     = None
+            person.node['prop']      = properties
             if earth.time <  earth.para['omniscientBurnIn']:
                 person.node['lastAction'] = np.random.randint(0, int(1.5*earth.para['mobNewPeriod']))
             else:
                 person.node['lastAction'] = 0
             # add cost of mobility to the expenses
-            self.node['expenses'] += properties['costs']
+            self.node['expenses'] += properties[0]
             
  
     def undoActions(self,world, persons):
@@ -1162,7 +1163,7 @@ class Household(Agent):
                         adult.node['lastAction'] = oldLastAction[adultIdx]
                     else:
                         adult.node['mobType'] = combinedActions[combinationIdx][adultIdx]
-                        adult.node['prop'] = market.goods[adult.node['mobType']].getProperties().values()
+                        adult.node['prop'] = market.goods[adult.node['mobType']].getProperties()
                         if earth.time <  earth.para['burnIn']:
                             adult.node['lastAction'] = np.random.randint(0, earth.para['mobNewPeriod'])                    
                         else:
@@ -1171,6 +1172,18 @@ class Household(Agent):
                 
                 self.calculateConsequences(market)
                 utility = self.evalUtility(earth)
+                
+                if False:
+                    #%%
+                    import pprint as pp
+                    print combinedActions[combinationIdx,:]
+                    [pp.pprint(adult.node['prop'][0]) for adult in self.adults]
+                    [pp.pprint(adult.node['consequences']) for adult in self.adults]
+                    [pp.pprint(adult.node['preferences']) for adult in self.adults]
+                    [pp.pprint(adult.node['util']) for adult in self.adults]
+                    #%%
+                
+                
                 utilities.append(utility)
             
             # reset old node values
@@ -1198,6 +1211,13 @@ class Household(Agent):
                 self.calculateConsequences(market)
                 self.util = self.evalUtility(earth)
              
+                if self.util < 1:
+                    lg.info( 'New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
+                    lg.info(self.node)
+                    lg.info('properties: ' + str([adult.node['prop'][0] for adult in self.adults]))
+                    lg.info('consequence: '+ str([adult.node['consequences'] for adult in self.adults]))
+                    lg.info('preferences: '+ str([adult.node['preferences'] for adult in self.adults]))
+                    lg.info('utility: ' +    str([adult.node['util']  for adult in self.adults]))
         else:
             actionTaken = False
         
