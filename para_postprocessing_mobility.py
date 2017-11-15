@@ -33,6 +33,8 @@ from class_auxiliary import loadObj, getEnvironment
 
 #sns.set_color_codes("dark")
 sns.color_palette("Paired")
+
+percentile = 0.1
 #%% init
 plotRecords       = 1
 plotCarStockBar   = 1
@@ -138,8 +140,13 @@ nSteps, nPers, nPersProp = persMat.shape
 nSteps, nHhs,  nHhProp   = hhMat.shape    
 nPrior = len(enums['priorities'])
 
+prefTypeIds= dict()
+for i,prefIdx in enumerate(persPropDict['preferences']):
+    nPerCut= int(float(nPers) * percentile)
+    prefTypeIds[i] = np.argsort(persMat[0,:,persPropDict['preferences'][i]])[-nPerCut:]
+    
 del persMatStep, hhMatStep
-
+persMat[0,prefTypeIds[i],persPropDict['preferences'][i]]
 #%%
 reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)
 if plotRecords:
@@ -250,8 +257,10 @@ if False:
     timeStep = 120
     plt.figure()
     idx = 0
-    for prefType in range(3):
-        boolMask = persMat[timeStep,:,persPropDict['prefTyp'][0]] == prefType
+    for prefType in range(4):
+        boolMask = np.full(persMat.shape[1], False, dtype=bool)
+        boolMask[prefTypeIds[prefType]] = True
+        #boolMask = persMat[timeStep,:,persPropDict['prefTyp'][0]] == prefType
         x = persMat[timeStep,boolMask,persPropDict['consequences'][idx]]
         y = persMat[timeStep,boolMask,persPropDict['preferences'][idx]]
 
@@ -396,7 +405,9 @@ if peerBubbleSize:
     #std = np.zeros([nSteps,3])
     for time in range(nSteps):
         for mobType in range(3):
-            res[time,mobType] = np.mean(persMat[time,persMat[time,:,persPropDict['prefTyp'][0]]==mobType,persPropDict['peerBubbleHeterogeneity'][0]])
+            boolMask = np.full(persMat.shape[1], False, dtype=bool)
+            boolMask[prefTypeIds[prefType]] = True
+            res[time,mobType] = np.mean(persMat[time,boolMask,persPropDict['peerBubbleHeterogeneity'][0]])
             #std[time,mobType] = np.std(persMat[time,persMat[time,:,persPropDict['mobType'][0]]==mobType,persPropDict['age'][0]])
     fig = plt.figure()
     
@@ -488,10 +499,11 @@ if expectUtil  == 1:
     newLegStr += [ string + ledAdd[0] for string in  legStr]
     for prefType in range(4):
         plt.gca().set_prop_cycle(None)
-        boolMask = np.asarray(persMat[0,:,persPropDict['prefTyp']]) == prefType
-        plt.plot(np.mean(data[:,boolMask[0],0],axis=1),style[prefType+1])
-        plt.plot(np.mean(data[:,boolMask[0],1],axis=1),style[prefType+1])
-        plt.plot(np.mean(data[:,boolMask[0],2],axis=1),style[prefType+1])
+        boolMask = np.full(persMat.shape[1], False, dtype=bool)
+        boolMask[prefTypeIds[prefType]] = True
+        plt.plot(np.mean(data[:,boolMask,0],axis=1),style[prefType+1])
+        plt.plot(np.mean(data[:,boolMask,1],axis=1),style[prefType+1])
+        plt.plot(np.mean(data[:,boolMask,2],axis=1),style[prefType+1])
         newLegStr += [ string + ledAdd[prefType+1] for string in  legStr]
     if withoutBurnIn:
         plt.xlim([nBurnIn,nSteps])
@@ -517,7 +529,8 @@ if expectUtil  == 1:
             boolMask = persMat[time,:,persPropDict['mobType'][0]] == carLabel
             res[time, carLabel, 0] = np.mean(persMat[time,boolMask,persPropDict['util'][0]])    
             for prefType in range(4):
-                boolMask2 = np.asarray(persMat[0,:,persPropDict['prefTyp'][0]]) == prefType
+                boolMask2 = np.full(persMat.shape[1], False, dtype=bool)
+                boolMask2[prefTypeIds[prefType]] = True
                 res[time, carLabel, prefType+1] = np.mean(persMat[time,boolMask & boolMask2,persPropDict['util'][0]])    
     
     newLegStr= list()
@@ -576,6 +589,37 @@ if plotCarSales:
     plt.tight_layout()
     plt.savefig(path + 'salesPerMobType')
     
+#%% consequences per mobility type
+
+if emissionsPerLabel:
+    fig = plt.figure()
+    res = np.zeros([nSteps,len(enums['brands'])])
+    for i in range(2):
+        plt.subplot(2,1,i+1)
+        for time in range(nSteps):
+            for carLabel in range(len(enums['brands'])):
+                idx = persMat[time,:,persPropDict['mobType'][0]] == carLabel
+                res[time, carLabel] = np.mean(persMat[time,idx,persPropDict['prop'][i]])
+        legStr = list()
+        for label in range(len(enums['brands'])):
+            legStr.append(enums['brands'][label])        
+        
+        plt.plot(res)
+        if i == 0:
+            plt.title('Average costs by mobility type')
+        else:
+            plt.title('Average emissions by mobility type')
+        if withoutBurnIn: 
+            plt.xlim([nBurnIn,nSteps])
+        if years:
+            years = (nSteps - nBurnIn) / 12
+            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
+    plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
+    plt.legend(legStr,loc=0)    
+    plt.tight_layout()
+    plt.savefig(path + 'meanEmmissionsPerMobType')
+#plt.show()
+
 #%%
 if salesProperties:
     plt.figure(figsize=[15,10])
@@ -717,12 +761,14 @@ if False:
     df = pd.DataFrame(agMat[step,:,:],columns=columns)
     
 #%% priority types per mobility types
-    
-prefTypes = np.zeros(nPrior)
-for prefTyp in range(0,nPrior):
-    prefTypes[prefTyp] = np.sum(persMat[0,:,persPropDict['prefTyp'][0]] == prefTyp)
+
+prefTypePerPerson =  np.argmax(persMat[0,:,persPropDict['preferences']],axis=0)
 
 if prefPerLabel:
+    prefTypes = np.zeros(nPrior)
+    for prefTyp in range(0,nPrior):
+        prefTypes[prefTyp] = np.sum(prefTypePerPerson == prefTyp)
+    
     res = dict()
     for carLabel in range(len(enums['brands'])):
         res[carLabel] = np.zeros([nSteps,nPrior])
@@ -731,7 +777,7 @@ if prefPerLabel:
         for carLabel in range(len(enums['brands'])):
             idx = persMat[time,:, persPropDict['mobType'][0]] == carLabel
             for prefType in range(nPrior):
-                res[carLabel][time,prefType] = np.sum(persMat[time,idx,persPropDict['prefTyp'][0]] == prefType) / prefTypes[prefType]
+                res[carLabel][time,prefType] = np.sum(prefTypePerPerson[idx] == prefType) / prefTypes[prefType]
     
     legStr = list()
     for prefType in range(nPrior):
@@ -788,7 +834,8 @@ if utilPerLabel:
             boolMask = persMat[time,:,persPropDict['mobType'][0]] == carLabel
             res[time, carLabel, 0] = np.mean(persMat[time,boolMask,persPropDict['util'][0]])    
             for prefType in range(4):
-                boolMask2 = np.asarray(persMat[0,:,persPropDict['prefTyp'][0]]) == prefType
+                boolMask2 = np.full(persMat.shape[1], False, dtype=bool)
+                boolMask2[prefTypeIds[prefType]] = True
                 res[time, carLabel, prefType+1] = np.mean(persMat[time,boolMask & boolMask2,persPropDict['util'][0]])    
     
     newLegStr= list()
@@ -1017,36 +1064,7 @@ if meanConsequencePerLabel:
     plt.savefig(path + 'meanConsequencesPerMobType')
 print 1
 
-#%% print consequences per mobility type
 
-if emissionsPerLabel:
-    fig = plt.figure()
-    res = np.zeros([nSteps,len(enums['brands'])])
-    for i in range(2):
-        plt.subplot(2,1,i+1)
-        for time in range(nSteps):
-            for carLabel in range(len(enums['brands'])):
-                idx = persMat[time,:,persPropDict['mobType'][0]] == carLabel
-                res[time, carLabel] = np.mean(persMat[time,idx,persPropDict['prop'][i]])
-        legStr = list()
-        for label in range(len(enums['brands'])):
-            legStr.append(enums['brands'][label])        
-        
-        plt.plot(res)
-        if i == 0:
-            plt.title('Average emissions by mobility type')
-        else:
-            plt.title('Average price by mobility type')
-        if withoutBurnIn: 
-            plt.xlim([nBurnIn,nSteps])
-        if years:
-            years = (nSteps - nBurnIn) / 12
-            plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)          
-    plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
-    plt.legend(legStr,loc=0)    
-    plt.tight_layout()
-    plt.savefig(path + 'meanEmmissionsPerMobType')
-#plt.show()
 #%% loading cell agent file
 
 
