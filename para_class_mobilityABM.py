@@ -194,19 +194,30 @@ class Earth(World):
         tt = time.time()
         edgeList = list()
         weigList  = list()
+        populationList = list()
         for agent, x in self.iterEntAndIDRandom(nodeType):
             
-            frList, edges, weights = agent.generateContactNetwork(self)
+            nContacts = np.random.randint(self.para['minFriends'],self.para['maxFriends'])
+            frList, edges, weights = agent.generateContactNetwork(self, nContacts)
             edgeList += edges
             weigList += weights
+            populationList.append(agent.loc.node['population'])
+            
         self.addEdges(edgeList, type=edgeType, weig=weigList)
-
+        lg.info( 'Connections queued in -- ' + str( time.time() - tt) + ' s')
+        
         if self.queuing:                
             self.queue.dequeueEdges(self)     
             
-        lg.info( 'Network created in -- ' + str( time.time() - tt) + ' s')
-        
+        lg.info( 'Social network created in -- ' + str( time.time() - tt) + ' s')
+        lg.info( 'Average population: ' + str(np.mean(np.asarray(populationList))) + ' - Ecount: ' + str(self.graph.ecount()))
 
+        fid = open(self.para['outPath']+ '/initTimes.out', 'a')
+        fid.writelines('r' + str(self.mpi.comm.rank) + ', ' + 
+                       str( time.time() - tt) + ',' + 
+                       str(np.mean(np.asarray(populationList))) + ',' + 
+                       str(self.graph.ecount()) + '\n')
+    
     def step(self):
         """ 
         Method to proceed the next time step
@@ -676,15 +687,16 @@ class Person(Agent):
         #print prop
         #print prior
         assert not any(np.isnan(prior))
-        
+
+
         try:
             post = prior * prop 
         except:
             import pdb
             pdb.set_trace()
 
-        #sumPrior = np.sum(prior)
-        #post = post / np.sum(post) * sumPrior
+        if np.any(np.isnan(post)) or np.any(np.isinf(post)):
+            
         
         post = post / np.sum(post) 
         
@@ -699,9 +711,22 @@ class Person(Agent):
                     import pdb
                     pdb.set_trace()
             return post, self.node['ESSR']
+        
         else:
-            import pdb
-            pdb.set_trace()
+            import pprint as pp
+            print 'post values:'
+            for value in post:
+                print value,
+            print ''
+            print 'diff values:'
+            for value in diff:
+                print value,
+            print ''
+            print 'friendUtil values:'                
+            for value in friendUtil:
+                print value,
+            print ''
+
     
     def socialize(self, world):
         
@@ -756,7 +781,7 @@ class Person(Agent):
         
         return contactList, connList
         
-    def generateContactNetwork(self, world, nContacts = None,  currentContacts = None, addYourself = True):
+    def generateContactNetwork(self, world, nContacts,  currentContacts = None, addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for 
         proximity in space, priorities and income
@@ -767,14 +792,12 @@ class Person(Agent):
             isInit=True
         else:
             isInit=False
+        
         if currentContacts is None:
             currentContacts = [self.nID]
         else:
             currentContacts.append(self.nID)
-        
-        if nContacts is None:
-            nContacts = np.random.randint(world.para['minFriends'],world.para['maxFriends'])
-        
+       
         contactList = list()
         connList   = list()
         ownPref    = self.node['preferences']
@@ -963,8 +986,9 @@ class Household(Agent):
     def CESUtil(self, x, alpha):
         uti = 0.
         s = 2.    # elasticity of substitution, has to be float!        
+        factor = 100
         for i in range(len(x)):
-            uti += (alpha[i]*x[i]**(s-1))**(1/s)
+            uti += (alpha[i]*(factor * x[i])**(s-1))**(1/s)
             #print uti 
         utility = uti**(s/(s-1))
         if  np.isnan(utility) or np.isinf(utility):
@@ -1177,9 +1201,9 @@ class Household(Agent):
                     #%%
                     import pprint as pp
                     print combinedActions[combinationIdx,:]
-                    [pp.pprint(adult.node['prop'][0]) for adult in self.adults]
+                    [pp.pprint(adult.node['prop'][0]) + ', ' for adult in self.adults]
                     [pp.pprint(adult.node['consequences']) for adult in self.adults]
-                    [pp.pprint(adult.node['preferences']) for adult in self.adults]
+                    #[pp.pprint(adult.node['preferences']) for adult in self.adults]
                     [pp.pprint(adult.node['util']) for adult in self.adults]
                     #%%
                 
@@ -1212,7 +1236,9 @@ class Household(Agent):
                 self.util = self.evalUtility(earth)
              
                 if self.util < 1:
-                    lg.info( 'New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
+                    lg.info('####' + str(self.nID) + '#####')
+                    lg.info('New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
+                    lg.info('possible utilitties: ' + str(utilities))
                     lg.info(self.node)
                     lg.info('properties: ' + str([adult.node['prop'][0] for adult in self.adults]))
                     lg.info('consequence: '+ str([adult.node['consequences'] for adult in self.adults]))

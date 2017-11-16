@@ -947,7 +947,8 @@ class World:
                                          'w', 
                                          driver='mpio', 
                                          comm=world.mpi.comm, 
-                                         libver='latest')
+                                         libver='latest',
+                                         info = world.mpi.info)
             self.comm        = world.mpi.comm
             self.outData     = dict()
             self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -1050,6 +1051,10 @@ class World:
                 self.comm = mpiComm
             self.rank = self.comm.Get_rank()
             self.size = self.comm.Get_size()
+                
+            self.info = MPI.Info.Create()                                                   
+            self.info.Set("romio_ds_write", "disable")                                      
+            self.info.Set("romio_ds_read", "disable") 
                 
             self.peers    = list()     # list of ranks of all processes that have ghost duplicates of this process   
             

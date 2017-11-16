@@ -9,7 +9,6 @@ processing records
 
 import matplotlib as mpl
 mpl.use('Agg')
-
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -54,7 +53,7 @@ meanConsequencePerLabel = 1
 printCellMaps     = 1
 emissionsPerLabel = 1
 peerBubbleSize    = 0
-doFolium          = 1
+doFolium          = 0
 cellMovie         = 0
 
 #plotRecords       = 0
@@ -211,40 +210,7 @@ if plotRecords:
         years = (nSteps - nBurnIn) / 12 / factor
         plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
         plt.title(' stock ' + reDf.ix[re]['alpha'])                
-#    plt.subplot(1,3,2)
-#    group = h5File.get_node('/glob/stockBremen')
-#    data = group.read()
-#    plt.plot(data)
-#    group = h5File.get_node('/calData/stockBremen')
-#    cData = group.read()
-#    plt.gca().set_prop_cycle(None)
-#    for i in range(1,data.shape[1]):
-#        plt.plot(cData[:,0], cData[:,i],'o')
-#        print cData[:,i]
-#    if log:
-#        plt.yscale('log')
-#    plt.xlim([nBurnIn,nSteps])
-#    years = (nSteps - nBurnIn) / 12 / factor
-#    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
-#    plt.title('Bremen')                
-#    plt.subplot(1,3,3)    
-#    group = h5File.get_node('/glob/stockHamburg')
-#    data = group.read()
-#    hh = plt.plot(data)
-#    group = h5File.get_node('/calData/stockHamburg')
-#    cData = group.read()
-#    plt.gca().set_prop_cycle(None)
-#    for i in range(1,data.shape[1]):
-#        plt.plot(cData[:,0], cData[:,i],'o')
-#        print cData[:,i]
-#    if log:
-#        plt.yscale('log')    
-#    plt.xlim([nBurnIn,nSteps])    
-#    factor = 5
-#    years = (nSteps - nBurnIn) / 12 / factor
-#    plt.xticks(np.linspace(nBurnIn,nSteps,years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)    
-#    plt.title('Hamburg')
-    
+
     plt.figlegend(hh,['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
     plt.tight_layout()
     plt.subplots_adjust(bottom=.15)
@@ -315,6 +281,7 @@ if averageCarAge:
     plt.tight_layout()
     plt.savefig(path + 'fleetAge')
 
+#%% mean ESSR
 if meanESSR:
     res = np.zeros([nSteps,3])
     for time in range(nSteps):

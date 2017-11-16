@@ -154,7 +154,7 @@ def scenarioTestSmall(parameterInput, dirPath):
         setup.landLayer = setup.landLayer*0
         
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)    
-    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape) 
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -576,21 +576,18 @@ def scenarioGer(parameterInput, dirPath):
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
     
+    #setup.population = (setup.population ** .5) * 100
     # Correciton of population depend parameter by the reduction factor
-    setup['initialGreen'] /= setup['reductionFactor']
-    setup['initialBrown'] /= setup['reductionFactor']
-    setup['initialOther'] /= setup['reductionFactor']
+    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 
+                   'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
+                   'techExpBrown', 'techExpGreen','techExpOther', 
+                   'population']:
+        setup[paName] /= setup['reductionFactor']
     
-    setup['population']     /= setup['reductionFactor']
-    setup['urbanThreshold'] /= setup['reductionFactor']
-    setup['urbanCritical']  /= setup['reductionFactor']
-    setup['puplicTransBonus']  /= setup['reductionFactor']
-    setup.convD /= setup['reductionFactor']
-    
+    for p in range(0,105,5) : 
+        print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0],p))
+    print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
     
     
     lg.info( "Final setting of the parameters")
@@ -703,6 +700,13 @@ def householdSetup(earth, parameters, calibration=False):
     hhData = dict()
     currIdx = dict()
     h5Files = dict()
+
+    for i, region in enumerate(regionIdxList):
+        # all processes open all region files (not sure if necessary)
+        #h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
+        h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r')
+    earth.mpi.comm.Barrier()    
+        
     for i, region in enumerate(regionIdxList):
         idx = 0
         
@@ -716,15 +720,14 @@ def householdSetup(earth, parameters, calibration=False):
             
             earth.view(str(earth.mpi.rank) + '.png')
         
-        # all processes open all region files (not sure if necessary)
-        h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm)
-        
-   
-        if nAgentsOnProcess[earth.mpi.comm.rank,i] == 0:
-            continue
         
         dset = h5Files[i].get('people')
         hhData[i] = dset[agentStart:agentEnd,]
+        
+        if nAgentsOnProcess[earth.mpi.comm.rank,i] == 0:
+            continue
+        
+
 
         # find the correct possition in file 
         nPers = int(hhData[i][idx,0])
@@ -736,8 +739,9 @@ def householdSetup(earth, parameters, calibration=False):
     
     
     earth.mpi.comm.Barrier() # all loading done
-    for h5File in h5Files:
-        h5File.close()
+    
+    for i, region in enumerate(regionIdxList):
+        h5Files[i].close()
     lg.info( 'Loading agents from file done')    
         
     opinion =  Opinion(earth)
@@ -826,7 +830,7 @@ def householdSetup(earth, parameters, calibration=False):
             if nAgentsCell <= 0:
            
                     break
-    lg.info( 'Allgents initialized')
+    lg.info( 'All agents initialized')
     if earth.queuing:
         earth.queue.dequeueVertices(earth)
         earth.queue.dequeueEdges(earth)
@@ -1005,9 +1009,9 @@ def cellTest(earth, parameters):
     
 def generateNetwork(earth, parameters):
     # %% Generate Network
-    tt = time.time()
+    #tt = time.time()
     earth.generateSocialNetwork(_pers,_cpp)
-    lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
+    #lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
     if parameters.scenario == 0:
         earth.view(str(earth.mpi.rank) + '.png')
         
