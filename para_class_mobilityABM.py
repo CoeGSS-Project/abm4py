@@ -695,7 +695,7 @@ class Person(Agent):
             import pdb
             pdb.set_trace()
 
-        if np.any(np.isnan(post)) or np.any(np.isinf(post)):
+        
             
         
         post = post / np.sum(post) 
@@ -1236,6 +1236,8 @@ class Household(Agent):
                 self.util = self.evalUtility(earth)
              
                 if self.util < 1:
+                    import pdb
+                    pdb.set_trace()
                     lg.info('####' + str(self.nID) + '#####')
                     lg.info('New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
                     lg.info('possible utilitties: ' + str(utilities))
@@ -1543,7 +1545,7 @@ class Opinion():
         
         
         # priority of ecology
-        ce = 0
+        ce = 0.5
         if sex == 2:
             ce +=1.5
         if income>self.minIncomeEco:
@@ -1554,7 +1556,7 @@ class Opinion():
                 ce += 1
         elif income>2*self.minIncomeEco:
             if np.random.rand(1) > 0.8:
-                ce+=1.5
+                ce+=2.5
             
 
         ce = float(ce)**2

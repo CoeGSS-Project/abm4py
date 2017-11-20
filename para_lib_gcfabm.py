@@ -59,7 +59,9 @@ later:
   
 """
 
-from mpi4py import MPI
+import mpi4py
+mpi4py.rc.threads = False
+from mpi4py import MPI 
 import h5py  
 from os.path import expanduser
 home = expanduser("~")

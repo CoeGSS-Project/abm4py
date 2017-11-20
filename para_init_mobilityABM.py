@@ -63,8 +63,8 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-import mpi4py
-mpi4py.rc.threads = False 
+#import mpi4py
+#mpi4py.rc.threads = False 
 
 import sys, os
 from os.path import expanduser
@@ -1125,8 +1125,8 @@ def initGlobalRecords(earth, parameters):
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types', earth.enums['mobilityTypes'].values(), style ='plot')
     earth.registerRecord('kappas', 'Technological maturity of mobility types', ['kappaB', 'kappaG', 'kappaO'], style ='plot')
+    earth.registerRecord('mobProp', 'Properties', ['kappaB', 'kappaG', 'kappaO'], style ='plot')
     
-    lg.info( 'Global records initialized in ' + str( time.time() - tt) + ' s' )
     
 def initAgentOutput(earth):
     #%% Init of agent file
