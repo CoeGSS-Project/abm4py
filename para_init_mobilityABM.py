@@ -55,7 +55,7 @@ long-term:
     - jointly create their income
     - place the correct people to the differen regions (different hh distributions)
     - add advertising to experience
-    
+
 """
 
 #%%
@@ -708,7 +708,12 @@ def householdSetup(earth, parameters, calibration=False):
     earth.mpi.comm.Barrier()    
         
     for i, region in enumerate(regionIdxList):
-        idx = 0
+#        if i >0:
+#            offset= 398700
+#        else:
+# 
+
+        offset =0
         
         
         agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]))
@@ -722,13 +727,13 @@ def householdSetup(earth, parameters, calibration=False):
         
         
         dset = h5Files[i].get('people')
-        hhData[i] = dset[agentStart:agentEnd,]
+        hhData[i] = dset[offset + agentStart: offset + agentEnd,]
         
         if nAgentsOnProcess[earth.mpi.comm.rank,i] == 0:
             continue
         
 
-
+        idx=0
         # find the correct possition in file 
         nPers = int(hhData[i][idx,0])
         if np.sum(np.diff(hhData[i][idx:idx+nPers,0])) !=0:
@@ -774,6 +779,11 @@ def householdSetup(earth, parameters, calibration=False):
             
             income = hhData[regionIdx][currIdx[regionIdx],3]
             income *= parameters.mobIncomeShare
+            
+            
+            # assuring that the income is not zero
+            assert income > 0
+            
             nKids = np.sum(ages<18)
             
             # creating houshold
@@ -1607,8 +1617,6 @@ if __name__ == '__main__':
     
     householdSetup(earth, parameters)
     
-    
-
     generateNetwork(earth, parameters)
     
     initMobilityTypes(earth, parameters)

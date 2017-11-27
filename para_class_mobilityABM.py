@@ -198,7 +198,12 @@ class Earth(World):
         for agent, x in self.iterEntAndIDRandom(nodeType):
             
             nContacts = np.random.randint(self.para['minFriends'],self.para['maxFriends'])
+            #ttt = time.time()
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
+            #print str(time.time() - ttt) +' vs ',
+            #ttt = time.time()
+            #frList, edges, weights = agent.generateContactNetwork2(self, nContacts)
+            #print time.time() - ttt            
             edgeList += edges
             weigList += weights
             populationList.append(agent.loc.node['population'])
@@ -225,7 +230,7 @@ class Earth(World):
         tt = time.time()
         self.time += 1
         self.timeStep = self.time
-        
+#        self.minPrice = 1
         
         ttComp = time.time()
         # time management
@@ -572,12 +577,11 @@ class Market():
             self.globalRecord['allTimeProduced'].set(self.time, self.getCurrentExperience())            
             self.globalRecord['kappas'].set(self.time, self.getCurrentMaturity())
         
-        
-        
         lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))
         # reset sales
         self.glob['sales'] = self.glob['sales']*0
         
+        self.minPrice = np.min([good.getProperties()[0] for good in self.goods.itervalues()])
         
         #compute new statistics        
         self.computeStatistics()
@@ -713,19 +717,14 @@ class Person(Agent):
             return post, self.node['ESSR']
         
         else:
-            import pprint as pp
-            print 'post values:'
-            for value in post:
-                print value,
-            print ''
-            print 'diff values:'
-            for value in diff:
-                print value,
-            print ''
-            print 'friendUtil values:'                
-            for value in friendUtil:
-                print value,
-            print ''
+            lg.debug( 'post values:')
+            lg.debug([ value for value in post])
+            lg.debug('diff values:')
+            lg.debug([value for value in diff])
+            lg.debug('friendUtil values:')               
+            lg.debug([value for value in friendUtil])
+           
+            return prior, self.node['ESSR']
 
     
     def socialize(self, world):
@@ -780,8 +779,114 @@ class Person(Agent):
         connList    = [(self.nID, idx) for idx in contactIds]
         
         return contactList, connList
-        
+
     def generateContactNetwork(self, world, nContacts,  currentContacts = None, addYourself = True):
+        """
+        Method to generate a preliminary friend network that accounts for 
+        proximity in space, priorities and income
+        """
+        
+    
+        if currentContacts is None:
+            isInit=True
+        else:
+            isInit=False
+        
+        if currentContacts is None:
+            currentContacts = [self.nID]
+        else:
+            currentContacts.append(self.nID)
+       
+        contactList = list()
+        connList   = list()
+        ownPref    = self.node['preferences']
+        ownIncome  = self.hh.node['income']
+
+        contactIds     = list()
+        
+
+
+        #get spatial weights to all connected cells
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
+        #print cellConnWeights
+        #print [world.graph.vs[i]['gID']  for i in cellIds]
+        
+        personIdsAll = list()
+        nPers = list()
+        cellWeigList = list()
+        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
+            
+            cellWeigList.append(cellWeight)
+            personIds = world.entDict[cellIdx].getPersons()
+            personIdsAll.extend(personIds)
+            nPers.append(len(personIds))
+            
+        # return nothing if too few candidates
+        if not isInit and nPers > nContacts:
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')    
+            return [],[],[]
+            
+        weightData = np.zeros([np.sum(nPers),6])    
+
+        idx = 0
+        for nP, we in zip(nPers, cellWeigList):
+            weightData[idx:idx+nP,0] = we
+            idx = idx+ nP
+        del idx 
+        
+        hhIDs = [world.glob2loc[x] for x in world.graph. world.getNodeValues('hhID', idxList=personIdsAll)]      
+        weightData[:,1] = np.abs(world.graph. world.getNodeValues('income', idxList=hhIDs) - ownIncome)
+        weightData[:,2:6] = world.getNodeValues('preferences',   idxList=personIdsAll)
+        
+        
+        for i in range(world.nPref):
+            weightData[:,i+2]  = (weightData[:,i+2] - ownPref[i])**2
+        
+        weightData[:,2] = np.sum(weightData[:,2:6], axis=1)
+        
+        nullIds  = weightData== 0
+        
+        #weight = inverse of distance
+        np.seterr(divide='ignore')
+        weightData = 1/weightData
+        np.seterr(divide='warn')
+        
+        weightData[nullIds] = 0
+        
+        # normalization per row
+        weightData[:,:3] = weightData[:,:3] / np.sum(weightData[:,:3],axis=0)
+        #np.sum(weightData[:,:3] / np.sum(weightData[:,:3],axis=0),axis=0)
+        
+        #combining weights to the first row
+        weightData[:,0] = np.prod(weightData[:,:3],axis=1)
+        
+        #normalizing final row
+        weightData[:,0] = weightData[:,0] / np.sum(weightData[:,0],axis=0)
+        
+        if np.sum(weightData[:,0]>0) < nContacts:
+            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.node['pos']))
+            lg.info( "population = " + str(self.loc.node['population']) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0])))
+            
+            nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
+
+        if nContacts < 1:
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+
+        else:
+            # adding contacts
+            ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData[:,0])
+            contactList = [ personIdsAll[idx] for idx in ids ]
+            connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
+    
+        if isInit and world.para['addYourself'] and addYourself:
+            #add yourself as a friend
+            contactList.append(self.nID)
+            connList.append((self.nID,self.nID))
+        
+        weigList   = [1./len(connList)]*len(connList)    
+        return contactList, connList, weigList
+        
+    def generateContactNetwork2(self, world, nContacts,  currentContacts = None, addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for 
         proximity in space, priorities and income
@@ -875,7 +980,7 @@ class Person(Agent):
                 connList   = [(self.nID, contactIds[idx]) for idx in ids]
                 
             
-        if world.para['addYourself'] and addYourself:
+        if not isInit and self.para['addYourself'] and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
             connList.append((self.nID,self.nID))
@@ -901,10 +1006,13 @@ class Person(Agent):
         # weighting by 3
         selfUtil[mobType] *= earth.para['selfTrust']
        
-        if len(selfUtil) != 3 or len(communityUtil) != 3:
+        if len(selfUtil) != 3 or len(communityUtil.shape) == 0 or communityUtil.shape[0] != 3:
+            print 'nID: ' + str(self.nID)
             print 'error: ' 
             print 'communityUtil: ' + str(communityUtil)
             print 'selfUtil: ' + str(selfUtil)
+            print 'nEdges: ' + str(len(edges))
+            
             return 
             
         self.node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0) 
@@ -980,6 +1088,10 @@ class Household(Agent):
         if np.isnan(utility) or np.isinf(utility):
             import pdb
             pdb.set_trace()
+        
+        # assert the limit of utility
+        assert utility > 0 and utility <= factor
+        
         return utility
 
     
@@ -994,6 +1106,10 @@ class Household(Agent):
         if  np.isnan(utility) or np.isinf(utility):
             import pdb
             pdb.set_trace()
+            
+        # assert the limit of utility
+        assert utility > 0 and utility <= factor
+        
         return utility
  
                         
@@ -1123,8 +1239,9 @@ class Household(Agent):
             carInHh = True
             
         # calculate money consequence
-        money = max(0, 1 - self.node['expenses'] /self.node['income'])
-                
+        money = max(1e-5, 1 - self.node['expenses'] /self.node['income'])
+        
+        
         for adult in self.adults:
             hhCarBonus = 0.
             #get action of the person
@@ -1154,6 +1271,10 @@ class Household(Agent):
             experience = market.getCurrentExperience()
 
             innovation = 1 - ( (experience[adult.node['mobType']] / np.sum(experience))**.5 )
+            
+            # assuring that consequences are within 0 and 1
+            for consequence in [convenience, ecology, money, innovation]:
+                assert consequence <= 1 and consequence > 0
             
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
@@ -1236,16 +1357,16 @@ class Household(Agent):
                 self.util = self.evalUtility(earth)
              
                 if self.util < 1:
-                    import pdb
-                    pdb.set_trace()
-                    lg.info('####' + str(self.nID) + '#####')
-                    lg.info('New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
-                    lg.info('possible utilitties: ' + str(utilities))
-                    lg.info(self.node)
-                    lg.info('properties: ' + str([adult.node['prop'][0] for adult in self.adults]))
-                    lg.info('consequence: '+ str([adult.node['consequences'] for adult in self.adults]))
-                    lg.info('preferences: '+ str([adult.node['preferences'] for adult in self.adults]))
-                    lg.info('utility: ' +    str([adult.node['util']  for adult in self.adults]))
+                    #import pdb
+                    #pdb.set_trace()
+                    lg.debug('####' + str(self.nID) + '#####')
+                    lg.debug('New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
+                    lg.debug('possible utilitties: ' + str(utilities))
+                    lg.debug(self.node)
+                    lg.debug('properties: ' + str([adult.node['prop'] for adult in self.adults]))
+                    lg.debug('consequence: '+ str([adult.node['consequences'] for adult in self.adults]))
+                    lg.debug('preferences: '+ str([adult.node['preferences'] for adult in self.adults]))
+                    lg.debug('utility: ' +    str([adult.node['util']  for adult in self.adults]))
         else:
             actionTaken = False
         
@@ -1320,10 +1441,13 @@ class Household(Agent):
             persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
             
         else:
-            persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
-            #print persGetInfoList
-            if any(persGetInfoList):
-                doCheckMobAlternatives = True
+            if True:#len(self.adults)*earth.market.minPrice < self.node['income']:
+                
+                #self.node['nPers']
+                persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
+                #print persGetInfoList
+                if any(persGetInfoList):
+                    doCheckMobAlternatives = True
                 
             
         if doCheckMobAlternatives:
@@ -1369,14 +1493,15 @@ class Household(Agent):
         actionTaken = False
         doCheckMobAlternatives = False
 
-        
-        if earth.time < earth.para['burnIn']:
-            doCheckMobAlternatives = True
-            persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
-        else:
-            persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
-            if any (persGetInfoList):
+        if True:#len(self.adults)*earth.market.minPrice < self.node['income']:
+              
+            if earth.time < earth.para['burnIn']:
                 doCheckMobAlternatives = True
+                persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
+            else:
+                persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
+                if any (persGetInfoList):
+                    doCheckMobAlternatives = True
                             
         if doCheckMobAlternatives:            
             actionTaken = self.bestMobilityChoice(earth, persGetInfoList)
@@ -1623,6 +1748,9 @@ class Opinion():
         pref = np.asarray([ ccAll, ceAll, cmAll, ciAll])
         pref = pref ** radicality
         pref = pref / np.sum(pref)
+        
+        assert all (pref > 0) and all (pref < 1)
+        
         return tuple(pref)
      
 # %% --- main ---

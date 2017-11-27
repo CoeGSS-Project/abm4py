@@ -1626,8 +1626,11 @@ class World:
     def setNodeValues(self,prop,nodeType, value):
         self.graph.vs[self.nodeDict[nodeType]][prop] = value
 
-    def getNodeValues(self,prop,nodeType):
-        return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
+    def getNodeValues(self,prop,nodeType=None, idxList=None):
+        if idxList:
+            return np.asarray(self.graph.vs[idxList][prop])
+        elif nodeType:
+            return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
 
     def getEntity(self,nodeID):
         return self.entDict[nodeID]

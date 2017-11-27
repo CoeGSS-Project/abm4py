@@ -43,31 +43,31 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-plotFunc.append('plot_globalRecords')
-plotFunc.append('plot_stockAllRegions')
-plotFunc.append('scatterConVSPref')
-plotFunc.append('plot_averageCarAge')
-plotFunc.append('plot_meanESSR')
-plotFunc.append('plot_peerBubbleSize')
-plotFunc.append('plot_agePerMobType')
-plotFunc.append('plot_womanSharePerMobType')
-plotFunc.append('plot_expectUtil')
-plotFunc.append('plot_carStockBarPlot')
-plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
-plotFunc.append('plot_salesProperties')
-plotFunc.append('plot_prefPerLabel')
-plotFunc.append('plot_utilPerLabel')
-plotFunc.append('plot_greenPerIncome')
-plotFunc.append('plot_incomePerLabel')
-plotFunc.append('plot_meanPrefPerLabel')
-plotFunc.append('plot_meanConsequencePerLabel')
-plotFunc.append('plot_cellMaps')
-plotFunc.append('plot_cellMovie')
-plotFunc.append('plot_sharesPerCell')
+#plotFunc.append('plot_globalRecords')
+#plotFunc.append('plot_stockAllRegions')
+#plotFunc.append('scatterConVSPref')
+#plotFunc.append('plot_averageCarAge')
+#plotFunc.append('plot_meanESSR')
+#plotFunc.append('plot_peerBubbleSize')
+#plotFunc.append('plot_agePerMobType')
+#plotFunc.append('plot_womanSharePerMobType')
+#plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_carStockBarPlot')
+#plotFunc.append('plot_carSales')
+#plotFunc.append('plot_consequencePerLabel')
+#plotFunc.append('plot_salesProperties')
+#plotFunc.append('plot_prefPerLabel')
+#plotFunc.append('plot_utilPerLabel')
+#plotFunc.append('plot_greenPerIncome')
+#plotFunc.append('plot_incomePerLabel')
+#plotFunc.append('plot_meanPrefPerLabel')
+#plotFunc.append('plot_meanConsequencePerLabel')
+#plotFunc.append('plot_cellMaps')
+#plotFunc.append('plot_cellMovie')
 plotFunc.append('plot_carsPerCell')
-plotFunc.append('plot_conveniencePerCell')
-plotFunc.append('plot_population')
+#plotFunc.append('plot_greenCarsPerCell')
+#plotFunc.append('plot_conveniencePerCell')
+#plotFunc.append('plot_population')
 plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
@@ -709,7 +709,7 @@ def plot_greenPerIncome(data, propDict, parameters, enums, filters):
     for i,year in enumerate([2005, 2010, 2015, 2020, 2025, 2029]):
         
         plt.subplot(2,3,i+1)
-        time = (nBurnIn + (year-2005) * 12)-1
+        timeStep = (nBurnIn + (year-2005) * 12)-1
         
         #for carLabel in range(len(enums['brands'])):
         if timeStep < data.hh.shape[0]:
@@ -887,10 +887,10 @@ def plot_cellMaps(data, propDict, parameters, enums, filters):
 #        meanEco[step,:] = meanVect[3:6]
 #        meanPrc[step,:] = meanVect[6:]
     
-    plt.figure()
+    fig = plt.figure(figsize=(12,8))
     #plt.subplot(2,2,1)
     plt.plot(meanCon)
-    plt.legend(enums['brands'].values())
+    plt.legend(enums['brandTitles'].values())
     plt.title('convenience, mean over cells')
     plt.savefig(path + 'conveniencePerCell')
 
@@ -957,9 +957,10 @@ def plot_cellMovie(data, propDict, parameters, enums, filters):
     
     #dsfg
     
-def plot_sharesPerCell(data, propDict, parameters, enums, filters):
+def plot_carsPerCell(data, propDict, parameters, enums, filters):
     #%%
     import copy
+    fig = plt.figure(figsize=(12,8))
     plt.clf()
     posArray = data.ce[0,:,propDict.ce['pos']].astype(int)
     landLayer = np.zeros(np.max(data.ce[0,:,propDict.ce['pos']]+1,axis=1).astype(int).tolist())
@@ -975,6 +976,10 @@ def plot_sharesPerCell(data, propDict, parameters, enums, filters):
     for iBrand in range(3):
         res = landLayer*1.0
         res[posArray[0],posArray[1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] / data.ce[step,:,propDict.ce['population'][0]]
+        #cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+        res[np.isinf(res)] = 0
+        res[np.isnan(res)] = 0
+        bounds = [0, np.nanpercentile(res,95)]
         #print np.max(res)
         test = test + res
         if iBrand == 1:
@@ -982,9 +987,11 @@ def plot_sharesPerCell(data, propDict, parameters, enums, filters):
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
         plt.pcolormesh(np.flipud(res))
-        #plt.clim([0,1])
+        
         plt.colorbar()
+        plt.clim(bounds)
         plt.title(enums['brands'][iBrand] + ' cars per cells')
+        plt.tight_layout()
         plt.savefig(path + 'carsPerCell')
 
 def plot_doFolium(data, propDict, parameters, enums, filters):
@@ -1062,10 +1069,11 @@ def plot_doFolium(data, propDict, parameters, enums, filters):
         if step > parameters['nSteps']:
             break
         # green cars per 1000 people
-        data = data.ce[step,:,propDict.ce['carsInCell'][1]] / data.ce[step,:,propDict.ce['population']]*1000
+        #peData = data.ce[step,:,propDict.ce['carsInCell'][1]] / data.ce[step,:,propDict.ce['population']]*1000
         #arrayData = cellDataAsMap(landLayer,posArray, data)
         # green cars per 1000 people
         arrayData = data.ce[step,:,propDict.ce['carsInCell'][1]] / (data.ce[step,:,propDict.ce['carsInCell'][0]] + data.ce[step,:,propDict.ce['carsInCell'][1]])
+        arrayData = cellDataAsMap(landLayer,posArray, arrayData)
         arrayData[np.isnan(arrayData)] = 0
         bounds = (0, 1)
     for year in [2005, 2010, 2015, 2020, 2025, 2030]:
@@ -1075,8 +1083,8 @@ def plot_doFolium(data, propDict, parameters, enums, filters):
         # green cars per 1000 people
         #data = data.ce[step,:,propDict.ce['carsInCell'][1]] / data.ce[step,:,propDict.ce['population']]*1000
         # green cars per 1000 people
-        data = data.ce[step,:,propDict.ce['carsInCell'][1]] / (data.ce[step,:,propDict.ce['carsInCell'][0]] + data.ce[step,:,propDict.ce['carsInCell'][1]])
-        arrayData = cellDataAsMap(landLayer,posArray, data)
+        arrayData = data.ce[step,:,propDict.ce['carsInCell'][1]] / (data.ce[step,:,propDict.ce['carsInCell'][0]] + data.ce[step,:,propDict.ce['carsInCell'][1]])
+        arrayData = cellDataAsMap(landLayer,posArray, arrayData)
         arrayData[np.isnan(arrayData)] = 0
         cm = matplotlib.cm.get_cmap('YlGn')
         normed_data = (arrayData - bounds[0]) / (bounds[1]- bounds[0])
@@ -1094,7 +1102,7 @@ def plot_doFolium(data, propDict, parameters, enums, filters):
     foMap.save(path +  'greenCarShare.html')
         
 
-def plot_carsPerCell(data, propDict, parameters, enums, filters):
+def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     
     from matplotlib.colors import ListedColormap
     my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
@@ -1110,8 +1118,8 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
     res = landLayer*1.0
     res[res==0] = np.nan
     fig = plt.figure(figsize=(12,8))
-    data = data.ce[parameters['nSteps']-1,:,propDict.ce['carsInCell'][iBrand]] / data.ce[parameters['nSteps']-1,:,propDict.ce['population'][0]] * 1000
-    bounds = [np.nanmin(data), np.nanpercentile(data,95)]
+    cellData = data.ce[parameters['nSteps']-1,:,propDict.ce['carsInCell'][iBrand]] / data.ce[parameters['nSteps']-1,:,propDict.ce['population'][0]] * 1000
+    bounds = [0, np.nanpercentile(cellData,98)]
     posArray = data.ce[0,:,propDict.ce['pos']].astype(int)
     for i, year in enumerate (years):
         tt = (year - 2005)*12 + nBurnIn
@@ -1119,13 +1127,14 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
         
         plt.subplot(2,2,i+1)
         
-        data = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
-        data[np.isinf(data)] = 0
+        cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+        cellData[np.isinf(cellData)] = 0
         
         print bounds
-        res[posArray[0],posArray[1]] = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+        res[posArray[0],posArray[1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
         
-        plt.imshow(res, cmap=my_cmap) 
+        #plt.imshow(res, cmap=my_cmap) 
+        plt.imshow(res)
         plt.colorbar()
         plt.clim(bounds)
         plt.tight_layout()
@@ -1164,7 +1173,7 @@ def plot_conveniencePerCell(data, propDict, parameters, enums, filters):
         plt.pcolormesh(np.flipud(res))
         #plt.clim([0,1])
         plt.colorbar()
-        plt.title('convenience of ' + enums['brands'][iBrand] + ' cars per cells')
+        plt.title('convenience of ' + enums['brandTitles'])
     plt.savefig(path + 'conveniencePerCell')
 
 def plot_population(data, propDict, parameters, enums, filters):
@@ -1207,6 +1216,10 @@ if __name__ == "__main__":
     
     filters = filter_PrefTypes(data, propDict, parameters, enums, filters)
     filters = filter_householdIDsPerMobType(data, propDict, parameters, enums, filters)
+    enums['brandTitles'] = dict()
+    enums['brandTitles'][0] = 'Combustion engined cars'
+    enums['brandTitles'][1] = 'Electric powered cars'
+    enums['brandTitles'][2] = 'Alternative mobility types'
     parameters['plotYears'] = plotYears
     parameters['withoutBurnIn'] = withoutBurnIn
     print 'loading done in ' + str(time.time() - tt) + ' s'
@@ -1215,9 +1228,12 @@ if __name__ == "__main__":
         try:
             print 'Executing: ' + funcCall + '...', 
             locals()[funcCall](data, propDict, parameters, enums, filters)
+            #plt.close()
             print ' done in ' + str(time.time() - tt) + ' s'
         except Exception as e:
             
             print 'failed to plot: ' + funcCall
             print e
+            import traceback
+            traceback.print_exc()
     print 'All done'

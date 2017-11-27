@@ -108,12 +108,12 @@ np.save('output/E' + str(ensNo) + '_cal_stock_ham.npy',dataHb)
 
 if False:
 #%%s
-    ensNo =7
+    ensNo =6
     
     nSteps  = 560
     nBurnIn = 200
     factor = 5
-    log    = 1
+    log    = 0
     lineWidth = .2
 
     years = (nSteps - nBurnIn) / 12 / factor
