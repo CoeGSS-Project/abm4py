@@ -56,7 +56,7 @@ long-term:
     - place the correct people to the differen regions (different hh distributions)
     - add advertising to experience
 
-"""
+q"""
 
 #%%
 #TODO
@@ -633,7 +633,7 @@ def mobilitySetup(earth, parameters):
     from collections import OrderedDict
     propDict = OrderedDict()
     propDict['costs']   =  parameters['initPriceBrown']
-    propDict['emission'] = 500
+    propDict['emission'] = parameters['initEmBrown']
     earth.initBrand('brown',                                #name
                     propDict,   #(emissions, TCO) 
                     convenienceBrown,                       # convenience function
@@ -644,7 +644,7 @@ def mobilitySetup(earth, parameters):
 
     propDict = OrderedDict()
     propDict['costs']   =  parameters['initPriceGreen']
-    propDict['emission'] = 350    
+    propDict['emission'] = parameters['initEmGreen']    
     earth.initBrand('green',                                                        #name
                     propDict,       #(emissions, TCO) 
                     convenienceGreen, 
@@ -655,7 +655,7 @@ def mobilitySetup(earth, parameters):
 
     propDict = OrderedDict()
     propDict['costs']   =  parameters['initPriceOther']
-    propDict['emission'] = 120  
+    propDict['emission'] = parameters['initEmOther']  
     earth.initBrand('other',  #name
                     propDict,   #(emissions, TCO) 
                     convenienceOther, 
@@ -774,15 +774,19 @@ def householdSetup(earth, parameters, calibration=False):
             
             if currIdx[regionIdx]+nPers > hhData[regionIdx].shape[0]:
                 print 'Region: ' + str(regionIdxList[regionIdx])
-                print 'asked Size: ' + str(currIdx[regionIdx]+nPers)
+                print 'asked size: ' + str(currIdx[regionIdx]+nPers)
                 print 'hhDate shape: ' + str(hhData[regionIdx].shape)
             
             income = hhData[regionIdx][currIdx[regionIdx],3]
+            
+            # minimal income
+            income = max(400.,income)
+            
             income *= parameters.mobIncomeShare
             
-            
             # assuring that the income is not zero
-            assert income > 0
+            
+            #assert income > 0
             
             nKids = np.sum(ages<18)
             

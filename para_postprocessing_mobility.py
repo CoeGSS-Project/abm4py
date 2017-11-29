@@ -62,10 +62,10 @@ _pe  = 2
 #plotFunc.append('plot_incomePerLabel')
 #plotFunc.append('plot_meanPrefPerLabel')
 #plotFunc.append('plot_meanConsequencePerLabel')
-#plotFunc.append('plot_cellMaps')
-#plotFunc.append('plot_cellMovie')
+plotFunc.append('plot_cellMaps')
+plotFunc.append('plot_cellMovie')
 plotFunc.append('plot_carsPerCell')
-#plotFunc.append('plot_greenCarsPerCell')
+plotFunc.append('plot_greenCarsPerCell')
 #plotFunc.append('plot_conveniencePerCell')
 #plotFunc.append('plot_population')
 plotFunc.append('plot_doFolium')
@@ -109,51 +109,48 @@ def cellDataAsMap(landLayer, posArray, cellData):
     return cellArray
 
 
-def loadData(path, parameters):
     
-    from bunch import Bunch
     
-    data        = Bunch()
-    propDict    = Bunch()
-    filters     = Bunch()
-    filters.ce  = Bunch()
-    filters.pe  = Bunch()
-    filters.hh  = Bunch()
-    
+        
+def loadData(path, parameters, data, propDict, filters, nodeType):
+
     h5file = ta.open_file(path + 'nodeOutput.hdf5', mode = "r")
     
-    propDict.ce   = loadObj(path + 'attributeList_type1')
-    propDict.hh   = loadObj(path + 'attributeList_type2')
-    propDict.pe   = loadObj(path + 'attributeList_type3')
-    
-    
-
     def getData(parameters, nodeType,timeStep):
         
         dataPath = '/' + str(nodeType)+ '/' + str(timeStep).zfill(parameters['timeStepMag'])
         node = h5file.get_node(dataPath)
         array = node.read()
-                
-        return array
+    
+        return array         
+        
 
-    data.ceStep = getData(parameters,1,0)
-    data.ce = np.zeros([parameters['nSteps'], data.ceStep.shape[0],data.ceStep.shape[1]])    
-    for step in range(parameters['nSteps']):
-        data.ce[step,:,:] = getData(parameters,1,step)
+    if nodeType == 0:
+        filters.ce      = Bunch()
+        propDict.ce     = loadObj(path + 'attributeList_type1')
+        data.ceStep     = getData(parameters,1,0)
+        data.ce         = np.zeros([parameters['nSteps'], data.ceStep.shape[0],data.ceStep.shape[1]])    
+        for step in range(parameters['nSteps']):
+            data.ce[step,:,:] = getData(parameters,1,step)
     
-    data.hhStep = getData(parameters,2,0)        
-    data.hh   = np.zeros([parameters['nSteps'], data.hhStep.shape[0],data.hhStep.shape[1]])
-    for step in range(parameters['nSteps']):
-        data.hh[step,:,:] = getData(parameters,2,step)
-  
-    data.peStep = getData(parameters,3,0)  
-    data.pe     = np.zeros([parameters['nSteps'], data.peStep.shape[0],data.peStep.shape[1]])
-    for step in range(parameters['nSteps']):
-        data.pe[step,:,:] = getData(parameters,3,step)
+    if nodeType == 1:
+        filters.hh      = Bunch()
+        propDict.hh     = loadObj(path + 'attributeList_type2') 
+        data.hhStep     = getData(parameters,2,0)        
+        data.hh         = np.zeros([parameters['nSteps'], data.hhStep.shape[0],data.hhStep.shape[1]])
+        for step in range(parameters['nSteps']):
+            data.hh[step,:,:] = getData(parameters,2,step)
+    if nodeType ==2:
+        filters.pe      = Bunch()
+        propDict.pe     = loadObj(path + 'attributeList_type3')
+        data.peStep     = getData(parameters,3,0)  
+        data.pe         = np.zeros([parameters['nSteps'], data.peStep.shape[0],data.peStep.shape[1]])
+        for step in range(parameters['nSteps']):
+            data.pe[step,:,:] = getData(parameters,3,step)
     
-    nSteps, nHhs,  nceProp   = data.ce.shape    
-    nSteps, nPers, nPersProp = data.pe.shape
-    nSteps, nHhs,  nHHProp   = data.hh.shape    
+#    nSteps, nHhs,  nceProp   = data.ce.shape    
+#    nSteps, nPers, nPersProp = data.pe.shape
+#    nSteps, nHhs,  nHHProp   = data.hh.shape    
     
     return data, propDict, filters
     
@@ -660,6 +657,7 @@ def plot_utilPerLabel(data, propDict, parameters, enums, filters):
     fig = plt.figure(figsize=(12,8))
     res = np.zeros([parameters['nSteps'],len(enums['brands']), 5])
     for ti in range(parameters['nSteps']):
+        
         for carLabel in range(0,len(enums['brands'])):
             boolMask = data.pe[ti,:,propDict.pe['mobType'][0]] == carLabel
             res[ti, carLabel, 0] = np.mean(data.pe[ti,boolMask,propDict.pe['util'][0]])    
@@ -980,19 +978,21 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
         res[np.isinf(res)] = 0
         res[np.isnan(res)] = 0
         bounds = [0, np.nanpercentile(res,95)]
-        #print np.max(res)
+        if bounds[0] == bounds[1]:
+            bounds = [0, np.nanmax(res)]
+        print bounds
         test = test + res
         if iBrand == 1:
             arrayData = copy.copy(res)
         #res[landLayer==False] = np.nan
         plt.subplot(2,2,iBrand+1)
         plt.pcolormesh(np.flipud(res))
-        
-        plt.colorbar()
         plt.clim(bounds)
+        plt.colorbar()
+        
         plt.title(enums['brands'][iBrand] + ' cars per cells')
-        plt.tight_layout()
-        plt.savefig(path + 'carsPerCell')
+    plt.tight_layout()
+    plt.savefig(path + 'carsPerCell')
 
 def plot_doFolium(data, propDict, parameters, enums, filters):
     bounds = (0,1)
@@ -1039,8 +1039,12 @@ def plot_doFolium(data, propDict, parameters, enums, filters):
         normed_data = (arrayData - bounds[0]) / (bounds[1]- bounds[0])
         #minmax = np.nanpercentile(arrayData,2), np.nanpercentile(arrayData,98)
         colored_data = cm(normed_data)
-        foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0, name = str(year))
-        
+        if parameters['scenario'] ==3:
+            foMap.addImage(colored_data, mercator=False, latMin=53.9167-62.*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118.*0.04166666,min_=0,max_=0, name = str(year))
+        elif parameters['scenario'] ==7:
+            delta = -.12
+            foMap.addImage(colored_data, mercator=False, latMin=55.0833+delta-186.*0.04166666, latMax=55.0833+delta,lonMin=5.875,lonMax=5.875+219.*0.04166666,min_=0,max_=0, name = str(year))
+            
     from branca.utilities import color_brewer
     cols = color_brewer('YlGn',6)
     cmap = folium.LinearColormap(cols,vmin=float(bounds[0]),vmax=float(bounds[1]), caption='Electric cars per 1000 people')
@@ -1090,8 +1094,12 @@ def plot_doFolium(data, propDict, parameters, enums, filters):
         normed_data = (arrayData - bounds[0]) / (bounds[1]- bounds[0])
         #minmax = np.nanpercentile(arrayData,2), np.nanpercentile(arrayData,98)
         colored_data = cm(normed_data)
-        foMap.addImage(colored_data, mercator=False, latMin=53.9167-62*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118*0.04166666,min_=0,max_=0, name = str(year))
-        
+        if parameters['scenario'] ==3:
+            foMap.addImage(colored_data, mercator=False, latMin=53.9167-62.*0.04166666, latMax=53.9167,lonMin=6.625,lonMax=6.625+118.*0.04166666,min_=0,max_=0, name = str(year))
+        elif parameters['scenario'] ==7:
+            delta = -.12
+            foMap.addImage(colored_data, mercator=False, latMin=55.0833+delta-186.*0.04166666, latMax=55.0833+delta,lonMin=5.875,lonMax=5.875+219.*0.04166666,min_=0,max_=0, name = str(year))
+           
     from branca.utilities import color_brewer
     cols = color_brewer('YlGn',6)
     cmap = folium.LinearColormap(cols,vmin=float(bounds[0]),vmax=float(bounds[1]), caption='Electric car share')
@@ -1120,6 +1128,8 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     fig = plt.figure(figsize=(12,8))
     cellData = data.ce[parameters['nSteps']-1,:,propDict.ce['carsInCell'][iBrand]] / data.ce[parameters['nSteps']-1,:,propDict.ce['population'][0]] * 1000
     bounds = [0, np.nanpercentile(cellData,98)]
+    if bounds[0] == bounds[1]:
+        bounds = [0, np.nanmax(cellData)]
     posArray = data.ce[0,:,propDict.ce['pos']].astype(int)
     for i, year in enumerate (years):
         tt = (year - 2005)*12 + nBurnIn
@@ -1210,12 +1220,36 @@ plt.show()
 if __name__ == "__main__":
     
     import time
+    from bunch import Bunch
     tt = time.time()
     parameters, enums = loadMisc(path)
-    data, propDict, filters = loadData(path, parameters)
     
-    filters = filter_PrefTypes(data, propDict, parameters, enums, filters)
-    filters = filter_householdIDsPerMobType(data, propDict, parameters, enums, filters)
+    
+    data        = Bunch()
+    propDict    = Bunch()
+    filters     = Bunch()
+    try:
+        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=0)
+    except:
+        print "failed to load cell data"
+#    try:
+#        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=1)
+#    except:
+#        print "failed to load household data"
+#    try:
+#        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=2)
+#    except:
+#        print "failed to load people data"
+    
+    try:
+        filters = filter_PrefTypes(data, propDict, parameters, enums, filters)
+    except:
+        print "failed to run filter_PrefTypes"
+    try:
+        filters = filter_householdIDsPerMobType(data, propDict, parameters, enums, filters)
+    except:
+        print "failed to run filter_householdIDsPerMobType"
+
     enums['brandTitles'] = dict()
     enums['brandTitles'][0] = 'Combustion engined cars'
     enums['brandTitles'][1] = 'Electric powered cars'
@@ -1223,6 +1257,7 @@ if __name__ == "__main__":
     parameters['plotYears'] = plotYears
     parameters['withoutBurnIn'] = withoutBurnIn
     print 'loading done in ' + str(time.time() - tt) + ' s'
+    
     for funcCall in plotFunc:
         tt = time.time()
         try:

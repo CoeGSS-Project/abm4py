@@ -825,24 +825,32 @@ class Person(Agent):
         if not isInit and nPers > nContacts:
             lg.info('ID: ' + str(self.nID) + ' failed to generate friend')    
             return [],[],[]
-            
-        weightData = np.zeros([np.sum(nPers),6])    
+           
+        #setup of indices of columes:    
+        idxColSp = 0
+        idxColIn = 1
+        idxColPr = range(idxColIn+1,world.nPref+idxColIn+1)
+        weightData = np.zeros([np.sum(nPers),len(idxColPr) +2])    
 
+        #colSpat = 0
+        #colInco = 1
+        #colPref = [2,3,4,5]
         idx = 0
+        
         for nP, we in zip(nPers, cellWeigList):
-            weightData[idx:idx+nP,0] = we
+            weightData[idx:idx+nP,idxColSp] = we
             idx = idx+ nP
         del idx 
         
         hhIDs = [world.glob2loc[x] for x in world.graph. world.getNodeValues('hhID', idxList=personIdsAll)]      
-        weightData[:,1] = np.abs(world.graph. world.getNodeValues('income', idxList=hhIDs) - ownIncome)
-        weightData[:,2:6] = world.getNodeValues('preferences',   idxList=personIdsAll)
+        weightData[:,idxColIn] = np.abs(world.graph. world.getNodeValues('income', idxList=hhIDs) - ownIncome)
+        weightData[:,idxColPr] = world.getNodeValues('preferences',   idxList=personIdsAll)
         
         
-        for i in range(world.nPref):
-            weightData[:,i+2]  = (weightData[:,i+2] - ownPref[i])**2
+        for i in idxColPr:
+            weightData[:,i]  = (weightData[:,i] - ownPref[i-2])**2
         
-        weightData[:,2] = np.sum(weightData[:,2:6], axis=1)
+        weightData[:,idxColPr[0]] = np.sum(weightData[:,idxColPr], axis=1)
         
         nullIds  = weightData== 0
         
@@ -1239,7 +1247,7 @@ class Household(Agent):
             carInHh = True
             
         # calculate money consequence
-        money = max(1e-5, 1 - self.node['expenses'] /self.node['income'])
+        money = max(1e-5, 1 - self.node['expenses'] / self.node['income'])
         
         
         for adult in self.adults:
