@@ -68,22 +68,17 @@ home = expanduser("~")
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 import logging as lg
-#lg.info('Directory: ' +  dir_path)
 import sys
 import socket
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
-    sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
     
 
 import igraph as ig
 import numpy as np
-
 import time 
 from bunch import Bunch
-#import array
-#from pprint import pprint
-
 from class_graph import WorldGraph
 import class_auxiliary as aux # Record, Memory, Writer, cartesian
 
@@ -414,7 +409,9 @@ class Cache():
 # general ABM entity class for objects connected with the graph
 
 class Entity():
-
+    """ 
+    Most basic class from which agents of different type are derived
+    """
     
         
     def __init__(self, world, nID = None, **kwProperties):
@@ -713,7 +710,6 @@ class GhostLocation(Entity):
     def __init__(self, world, owner, nID=None, **kwProperties):
 
         Entity.__init__(self,world, nID, **kwProperties)
-        #self.graph.vs[self.nID]['pos']= (xPos,yPos)
         self.mpiOwner = int(owner)
         self.queuing = world.queuing
 
@@ -964,10 +960,8 @@ class World:
                 world.mpi.comm.Barrier()
                 tt = time.time()
                 lg.info(' NodeType: ' +str(nodeType))
-                #if world.mpi.comm.rank == 0:
                 self.h5File.create_group(str(nodeType))
                 
-                    #group = self.latMinMax = node._f_getattr('LATMINMAX')
                 lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
                 
@@ -985,7 +979,7 @@ class World:
                 cumSumNAgents = np.zeros(self.comm.size+1).astype(int)
                 cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
                 loc2GlobIdx = (cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
-                #print loc2GlobIdx
+                
                 lg.info( 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
                 
@@ -1061,16 +1055,12 @@ class World:
             self.peers    = list()     # list of ranks of all processes that have ghost duplicates of this process   
             
             self.ghostNodeQueue = dict()
-            #self.ghostEdgeQueue = dict()
-            
             self.ghostNodeSend  = dict()     # ghost vertices on this process that receive information
             self.ghostNodeRecv  = dict()     # vertices on this process that provide information to ghost nodes on other process
             self.buffer         = dict()
             self.messageSize    = dict()
             self.sendReqList    = list()
-            #self.ghostEdgeIn  = dict()     # ghost edves on this process that receive information
-            #self.ghostEdgeOut = dict()     # edges on this process that provide information to ghost nodes on other process
-            
+
             self.reduceDict = dict()
             world.send = self.comm.send
             world.recv = self.comm.recv    
@@ -1085,12 +1075,9 @@ class World:
             self.a2aBuff = []
             for x in range(self.comm.size):
                 self.a2aBuff.append([])
-            #print self.a2aBuff
-            #print len(self.a2aBuff)
+
             
         def __add2Buffer__(self, mpiPeer, data):
-            #print 'adding to:',mpiPeer
-            #print 'mpiPeer',mpiPeer
             self.a2aBuff[mpiPeer].append(data)
             
         def __all2allSync__(self):
@@ -1214,20 +1201,14 @@ class World:
     
                 nodeSeq = world.graph.vs[IDsList]
                 
-                # setting up ghost out Comm
+                # setting up ghost out communication
                 self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.nodeProperies[nodeType][:]
                 #print propList
                 dataPackage = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
                 self.__add2Buffer__(mpiPeer, dataPackage)
-#                if mpiPeer not in announcements:
-#                    announcements[mpiPeer] = list()
-#                announcements[mpiPeer].append((nodeType, getsize(packageDict)))            
-#            
-#            self.__sendDataAnnouncement__(announcements) #only required for initial communication
+                
             recvBuffer = self.__all2allSync__()
-
-            #pprint(recvBuffer[mpiPeer])
             
             for mpiPeer in self.peers:
                 if len(recvBuffer[mpiPeer]) > 0: # will receive a message
@@ -1248,8 +1229,6 @@ class World:
                     self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
                     
                     propList = world.graph.nodeProperies[nodeType][:]
-                    #print propList
-                    #propList.remove('nID')
                     
                 
                     for i, prop in enumerate(propList):
@@ -1262,26 +1241,17 @@ class World:
                         GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
                         
                         agent = GhostAgentClass(world, mpiPeer, nID=nID)
-                        #print 'creating ghost with nID: ' + str(nID)
-                        #world.registerNode(agent,nodeType) 
+
                         
                         parentEntity = world.entDict[world.glob2loc[gID]]
                         edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
     
-                        #print 'edgeType' + str(edgeType)
+
                         agent.register(world, parentEntity, edgeType)
-                        #cell.registerEntityAtLocation(world, agent, edgeType)
-                    # create entity with nodes (queing)
-                    # deque
-                    # set data from buffer
-            
-            #self.__clearSendRequests__()
             
         
         
         def sendRecvGhostUpdate(self, nodeTypeList='all', propertyList='all'):
-            
-            #dataDict = dict()
 
             for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
@@ -1312,15 +1282,14 @@ class World:
                         for i, prop in enumerate(propertyList):
                             nodeSeq[prop] = dataPackage[i+1]
            
-            #self.__clearSendRequests__()
+
             
         def updateGhostNodes(self, nodeTypeList= 'all', propertyList='all'):
+            
             tt = time.time()
-            
             self.sendRecvGhostUpdate(nodeTypeList, propertyList)
-            #self.recvGhostUpdate(nodeTypeList, propertyList)
-            
             lg.debug('Ghost update required: ' + str(time.time()-tt) + ' seconds')
+            
             
         def all2all(self, value):
             if isinstance(value,int):            
@@ -1366,25 +1335,8 @@ class World:
         # GRAPH
         self.graph    = WorldGraph(self, directed=True)
         self.para['outPath'] = outPath
-     
-
-        # setting additional debug output
-#        if self.debug:
-#            # inint pprint as additional output
-#            import pprint
-#            def debugPrint(*argv):
-#                if not isinstance(argv, str):
-#                    argv = str(argv)
-#                pprint.pprint('DEBUG: ' + argv)
-#            self.dprint = debugPrint
-#        else:
-#            # init dummy that does nothing
-#            def debugDummy(*argv):
-#                pass
-#            self.dprint = debugDummy
         
-        
-        
+   
         # list of types
         self.graph.nodeTypes = list()
         self.graph.edgeTypes = list()
@@ -1409,10 +1361,6 @@ class World:
             self.addEdges   = self.graph.add_edges   
             self.delEdges    = self.graph.delete_edges
             self.addVertex  = self.graph.add_vertex
-        # making global functions available
-        
-           
-        
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
@@ -1422,9 +1370,6 @@ class World:
         else:
             self.isRoot = False
         
-
-
-
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
         lg.debug('Init IO done')
@@ -1451,11 +1396,6 @@ class World:
         self.registerNodeType('inactiv', None, None)
         self.registerEdgeType('inactiv', None, None)        
 
-#    def glob2loc(self, gID):
-#        return (gID - self.maxNodes)
-#    
-#    def loc2glob(self, nID):
-#        return (nID + self.maxNodes)
         
     def getNodeData(self, propName, nodeType=None):
         nodeIdList = self.nodeDict[nodeType]
@@ -1474,7 +1414,7 @@ class World:
             i += 1
             yield (self.maxNodes*(self.mpi.rank+1)) +i
 
-
+    #TODO add init for non-spatial init of communication
     def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject=Location, GhstLocClassObject=GhostLocation):
         """
         Auiliary function to contruct a simple connected layer of spatial locations.
@@ -1505,7 +1445,7 @@ class World:
                     self.registerLocation(loc, x, y)          # only for real cells
                     #self.registerNode(loc,nodeType)     # only for real cells
                     loc.register(self)
-        #print self.locDict
+
         # create ghost location nodes 
         for (x,y), loc in self.locDict.items():
 
@@ -1525,11 +1465,7 @@ class World:
                         #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
                         
-                        #self.cellMapIdxList.append(np.ravel_multi_index((xDst,yDst), dims=IDArray.shape))
-                        #print IDArray
-                        # so far ghost nodes are not in entDict, nodeDict, entList
-                        
-                        self.registerNode(loc,nodeType,ghost=True)
+                        self.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
                         ghostLocationList.append(loc)
         self.graph.IDArray = IDArray
         
@@ -1586,7 +1522,8 @@ class World:
                 yield self.graph.es[i]
     
     def iterEntRandom(self,nodeType, ghosts = False, random=True):
-        """ Iteration over entities of specified type. Default returns 
+        """ 
+        Iteration over entities of specified type. Default returns 
         non-ghosts in random order.
         """
         if isinstance(nodeType,str):
@@ -1606,7 +1543,8 @@ class World:
             return  [self.entList[i] for i in nodeDict]
         
     def iterEntAndIDRandom(self, nodeType, ghosts = False, random=True):
-        """ Iteration over entities of specified type and their IDs . Default returns 
+        """ 
+        Iteration over entities of specified type and their IDs . Default returns 
         non-ghosts in random order.
         """
         if isinstance(nodeType,str):
@@ -1777,9 +1715,7 @@ if __name__ == '__main__':
     print 'global std: ', earth.graph.glob['stdtest']
     
     
-#    exit()
 
-    #log_file = open("message.log","w")
     import sys
     
 

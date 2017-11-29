@@ -22,7 +22,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 
 
 TODOs
@@ -56,8 +56,7 @@ long-term:
     - place the correct people to the differen regions (different hh distributions)
     - add advertising to experience
 
-q"""
-
+"""
 #%%
 #TODO
 # random iteration (even pairs of agents)
@@ -69,15 +68,15 @@ q"""
 import sys, os
 from os.path import expanduser
 home = expanduser("~")
-#sys.path.append(home + '/python/decorators/')
-sys.path.append(home + '/python/modules/')
-sys.path.append(home + '/python/agModel/modules/')
+sys.path.append('../../lib/')
+sys.path.append('../../modules/')
+
 
 import socket
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = [dir_path + '/h5py/build/lib.linux-x86_64-2.7'] + sys.path 
-    sys.path = [dir_path + '/mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path 
+    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path 
 else:
     import matplotlib
     matplotlib.use('Agg')    
@@ -89,7 +88,7 @@ import time
 #from mpi4py import  MPI
 #import h5py
 
-from para_class_mobilityABM import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion, aux, h5py, MPI
+from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell,  Earth, Opinion, aux, h5py, MPI
 #import class_auxiliary  as aux #convertStr
 comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
@@ -144,7 +143,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     #spatial
     setup.reductionFactor = 50000
     setup.isSpatial       = True
-    setup.connRadius      = 1.5     # radíus of cells that get an connection
+    setup.connRadius      = 2.0     # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[ 1     , 1, 1 , np.nan, np.nan],
                                     [ np.nan, 1, 1 , np.nan, 0     ],
                                     [ np.nan, 0, 0 , 0     , 0     ]])
@@ -607,6 +606,7 @@ def scenarioChina(calibatationInput):
 ###############################################################################
 ###############################################################################
 
+# %% Setup functions
 
 # Mobility setup setup
 def mobilitySetup(earth, parameters):
@@ -1157,7 +1157,11 @@ def initAgentOutput(earth):
     lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
     
 
-def calGreenNeigbourhoodShareDist(earth):
+
+
+# %% Online processing functions
+
+def plot_calGreenNeigbourhoodShareDist(earth):
     if parameters.showFigures:
         #%%
         import matplotlib.pylab as pl
@@ -1173,7 +1177,7 @@ def calGreenNeigbourhoodShareDist(earth):
                                 label=['brown', 'green', 'other'])
         pl.legend()
         
-def plotIncomePerNetwork(earth):        
+def plot_incomePerNetwork(earth):        
     #%%
         import matplotlib.pylab as pl
         
@@ -1187,6 +1191,22 @@ def plotIncomePerNetwork(earth):
         n, bins, patches = pl.hist(incomeList, 20, normed=0, histtype='bar',
                                 label=['average imcome '])
         pl.legend()
+       
+def plot_computingTimes(earth):        
+    plt.figure()
+        
+    allTime = np.zeros(earth.nSteps)
+    colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
+    
+
+    for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
+        plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
+        allTime += var
+    plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
+    plt.tight_layout()
+    plt.ylim([0, np.percentile(allTime,99)])
+    plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
+        
     #%%
 def runModel(earth, parameters):
 
@@ -1220,7 +1240,7 @@ def runModel(earth, parameters):
         earth.step() # looping over all cells
         
         #plt.figure()
-        #calGreenNeigbourhoodShareDist(earth)
+        #plot_calGreenNeigbourhoodShareDist(earth)
         #plt.show()
 
     
@@ -1232,12 +1252,12 @@ def runModel(earth, parameters):
         earth.io.finalizeAgentFile()
     earth.finalize()        
 
-def writeSummary(earth, calRunId, paraDf, parameters):
+def writeSummary(earth, parameters):
     
     fid = open(earth.para['outPath'] + '/summary.out','w')
-    fid.writelines('Calibration run id: ' + str(calRunId) + '\n')
+    
     fid.writelines('Parameters:')
-    paraDf.to_csv(fid)
+    
     errorTot = 0
     for re in earth.para['regionIDList']:
         error = earth.globalRecord['stock_' + str(re)].evaluateRelativeError()
@@ -1433,12 +1453,6 @@ if __name__ == '__main__':
     
     debug = False
     showFigures    = 0
-#    if mpiRank != 0:
-#        olog_file  = open('output/log' + str(mpiRank) + '.txt', 'w')
-#        sys.stdout = olog_file
-#        elog_file  = open('output/err' + str(mpiRank) + '.txt', 'w')
-#        sys.stderr = elog_file
-
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
     
@@ -1459,16 +1473,14 @@ if __name__ == '__main__':
     
     lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
     
+    # wait for all processes - debug only for poznan to debug segmentation fault
     comm.Barrier()
     if comm.rank == 0:
         print 'log files created'
         
-    #import subprocess
-    #output = subprocess.check_output("cat /proc/loadavg", shell=True)
-    
-    #lg.info('on node: ' + socket.gethostname() + ' with average load: ' + output)
     lg.info('on node: ' + socket.gethostname())
     dirPath = os.path.dirname(os.path.realpath(__file__))
+
     # loading of standart parameters
     fileName = sys.argv[1]
     parameters = Bunch()
@@ -1479,28 +1491,6 @@ if __name__ == '__main__':
     
     
     parameters['outPath'] = outputPath
-    
-    # loading of changing calibration parameters
-    if len(sys.argv) > 3:
-        # got calibration id
-        paraFileName = sys.argv[2]
-        colID = int(sys.argv[3])
-        parameters['calibration'] = True
-        
-        calParaDf = pd.read_csv(paraFileName, index_col= 0, header = 0, skiprows = range(1,colID+1), nrows = 1)
-        calRunID = calParaDf.index[0]
-        for colName in calParaDf.columns:
-            lg.info('Setting "' + colName + '" to value: ' + str(calParaDf[colName][calRunID]))
-            parameters[colName] = aux.convertStr(str(calParaDf[colName][calRunID]))
-        
-
-    else:
-        parameters['calibration'] = False
-        calRunID = -999
-        calParaDf = pd.DataFrame()
-        # no csv file given
-        lg.info("no automatic calibration of parameters")
-        
     
     
 
@@ -1543,10 +1533,8 @@ if __name__ == '__main__':
         parameters.resourcePath = dirPath + '/resources_nie/'
         parameters = scenarioTestMedium(parameters, dirPath)
         parameters.showFigures = showFigures
-        #parameters = scenarioNiedersachsen(parameters)
         earth = initEarth(parameters)
         mobilitySetup(earth, parameters)
-        #earth = prioritiesCalibrationTest()
         earth = setupHouseholdsWithOptimalChoice()
         
         
@@ -1618,15 +1606,12 @@ if __name__ == '__main__':
     
     initGlobalRecords(earth, parameters)
     
-    
     householdSetup(earth, parameters)
     
     generateNetwork(earth, parameters)
     
     initMobilityTypes(earth, parameters)
-    
-    
-    #earth.view(str(earth.mpi.rank) + '.png')
+
     initAgentOutput(earth)
     
     if parameters.scenario == 0:
@@ -1650,37 +1635,20 @@ if __name__ == '__main__':
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
     
     if earth.isRoot:
-        writeSummary(earth, calRunID, calParaDf, parameters)
+        writeSummary(earth, parameters)
         
     if earth.para['showFigures']:
+        
         onlinePostProcessing(earth)
     
-    plt.figure()
+        plot_computingTimes(earth)
     
-    allTime = np.zeros(earth.nSteps)
-    colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
-    
-
-    for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
-        plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
-        allTime += var
-    plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
-    plt.tight_layout()
-    plt.ylim([0, np.percentile(allTime,99)])
-    plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
+        
     
     
-    #tmp = earth.mpi.comm.gather(earth.computeTime)
-    #if mpiRank == 0:
-    #    print tmp
     
-
-#    if earth.isRoot:
-#        writeSummary(earth, calRunID, calParaDf, parameters)
     
-   
-
-
-
     
- 
+    
+    
+    

@@ -41,7 +41,7 @@ ax2.set_xticklabels(cityDict.values(),rotation=45)
 plt.ylim([0,1])
 ax1 = plt.subplot(2,2,2)
 
-minConvG = .01
+minConvG = .1
 maxConvGInit = 0.4
 sigmaConvGInit = 20000.
 sigmaConvG = 30000

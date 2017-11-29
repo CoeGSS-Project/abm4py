@@ -25,22 +25,17 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from para_lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, aux, h5py, MPI
-
-#import class_auxiliary as aux # Record, Memory, Writer, cartesian
-
+from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, aux, h5py, MPI
 import igraph as ig
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-#import h5py
 import time
 import os
 import math
 import copy
 import logging as lg
-
 from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
@@ -103,21 +98,6 @@ class Earth(World):
         if self.para['omniscientBurnIn']>self.para['burnIn']:
             self.para['omniscientBurnIn']=self.para['burnIn']
         
-        
-#        try:
-#            import socket
-#            if (mpiComm is None or mpiComm.rank ==0) and socket.gethostname() != 'gcf-VirtualBox':
-#                #os.system('git commit -a -m "automatic commit"')
-#            
-#                import git
-#                repo = git.Repo(search_parent_directories=True)
-#                self.para["gitVersionSHA"] = repo.head.object.hexsha
-#        except:
-#            print "Warning git version of the code not documented"
-#            print "Please install gitpython using: pip install gitpython"
-
-            
-        
         if not os.path.isdir('output'):
             os.mkdir('output')
         
@@ -127,7 +107,7 @@ class Earth(World):
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
 
         self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
-        #print self.globalRecord[name]
+        
         if mpiReduce is not None:
             self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
             self.globalRecord[name].glob = self.graph.glob
@@ -150,21 +130,17 @@ class Earth(World):
 
              
     def plotTraffic(self,label):
-        #import matplotlib.pyplot as plt
-        #import numpy.ma as ma
         traffic = self.graph.IdArray *0
         if label in self.market.mobilityLables.itervalues():
             brandID = self.market.mobilityLables.keys()[self.market.mobilityLables.values().index(label)]
             
             for cell in self.iterEntRandom(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
-        #Zm = ma.masked_invalid(traffic)
+
         plt.clf()
         plt.imshow(traffic, cmap='jet',interpolation=None)
         plt.colorbar()
         plt.tight_layout()
-        #plt.pcolormesh(Zm.T)
-        #plt.pcolormesh(traffic)
         plt.title('traffic of ' + label)
         plt.savefig('output/traffic' + label + str(self.time).zfill(3) + '.png')
         
@@ -198,12 +174,8 @@ class Earth(World):
         for agent, x in self.iterEntAndIDRandom(nodeType):
             
             nContacts = np.random.randint(self.para['minFriends'],self.para['maxFriends'])
-            #ttt = time.time()
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
-            #print str(time.time() - ttt) +' vs ',
-            #ttt = time.time()
-            #frList, edges, weights = agent.generateContactNetwork2(self, nContacts)
-            #print time.time() - ttt            
+          
             edgeList += edges
             weigList += weights
             populationList.append(agent.loc.node['population'])
@@ -257,16 +229,7 @@ class Earth(World):
                 self.date[1] += 1
         elif self.timeUnit == 1: # years
             self.date[1] +=1
-            
-        #update global data
-#        for cell in self.iterEntRandom(_cell):
-#            if cell.node['regionId'] == 6321:
-#                self.globalRecord['stockNiedersachsen'].add(self.time,np.asarray(cell.node['carsInCell']))
-#            elif cell.node['regionId'] == 1518:
-#                self.globalRecord['stockBremen'].add(self.time,np.asarray(cell.node['carsInCell']))
-#            elif cell.node['regionId'] == 1520:
-#                self.globalRecord['stockHamburg'].add(self.time,np.asarray(cell.node['carsInCell']))
-        
+ 
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
 
@@ -276,11 +239,7 @@ class Earth(World):
         # move values to global data class
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].updateValues(self.time) 
-        
-#        self.globalRecord['stockNiedersachsen'].updateValues(self.time) 
-#        self.globalRecord['stockBremen'].updateValues(self.time) 
-#        self.globalRecord['stockHamburg'].updateValues(self.time) 
-        
+
         self.computeTime[self.time] = time.time()-ttComp
         
         ttSync = time.time()
@@ -297,14 +256,8 @@ class Earth(World):
         
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time) 
-            
-#        self.globalRecord['stockNiedersachsen'].gatherSyncDataToRec(self.time) 
-#        self.globalRecord['stockBremen'].gatherSyncDataToRec(self.time) 
-#        self.globalRecord['stockHamburg'].gatherSyncDataToRec(self.time) 
-        
-        
+
         # proceed market in time
-        #print 'sales after sync: ',self.glob['sales']
         self.market.step(self) # Statistics are computed here
         
         ttCell = time.time()   
@@ -355,16 +308,14 @@ class Earth(World):
             self.queue.dequeueEdges(self)        
             
         self.computeTime[self.time] += time.time()-ttComp
-        # proceed step
-        #self.writeAgentFile()
-        
+
+        # waiting for other processes
         ttWait = time.time()
         self.mpi.comm.Barrier()
-        
         self.waitTime[self.time] += time.time()-ttWait
 
+        # I/O
         ttIO = time.time()
-        #earth.writeAgentFile()
         self.io.gatherNodeData(self.time)
         self.io.writeDataToFile()
         self.ioTime[self.time] = time.time()-ttIO
@@ -440,7 +391,7 @@ class Good():
             
         else:
             print 'not implemented'
-            # TODO add moore and SKC + ...
+            # TODO add Moore and SKC + ...
     
     def updateTechnicalProgress(self, production):
         
@@ -589,17 +540,12 @@ class Market():
         self.time +=1 
                     
     def computeTechnicalProgress(self):
-        # calculate growth rates per brand:
-        # oldCarsPerLabel = copy.copy(self.carsPerLabel)
-        # self.carsPerLabel = np.bincount(self.stock[:,0].astype(int), minlength=self.nMobTypes).astype(float)           
+        """
+        calculate growth rates per technology:
+        """
+        
         lg.info( 'sales in market: ' + str(self.glob['sales']))
-#        for i in range(self.nMobTypes):
-#            if not self.allTimeProduced[i] == 0.:
-#                
-#                newGrowthRate = 1 + (self.glob['sales'][i]) / float(self.allTimeProduced[i])
-#            else: 
-#                newGrowthRate = 1
-#            self.mobilityGrowthRates[i] = newGrowthRate          
+       
   
         for iGood in self.goods.keys():
             self.goods[iGood].updateTechnicalProgress(self.glob['sales'][iGood])
@@ -609,16 +555,11 @@ class Market():
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):        
         mobType = self.nMobTypes
         self.nMobTypes +=1 
-        #self.mobilityGrowthRates.append(1.)
-        #self.techProgress.append(1.)
         self.glob['sales'] = np.asarray([0]*self.nMobTypes)
-
         self.stockByMobType.append(0)
-        #self.allTimeProduced.append(allTimeProduced)
         self.mobilityTypesToInit.append(label)
-        
         self.goods[mobType] = Good(label, 'wright',initialProgress, slope, propertyDict, experience=allTimeProduced)
-        #self.currentMaturity.append(self.goods[mobType].getMaturity())
+
         if initTimeStep not in self.mobilityInitDict.keys():
             self.mobilityInitDict[initTimeStep] = [[label, propertyDict, initTimeStep , mobType, allTimeProduced]]
         else:
@@ -631,8 +572,6 @@ class Market():
         self.stockByMobType[mobType] = 0
         self.mobilityProp[mobType]   = propertyDict
         self.mobilityLables[mobType] = label
-        #self.buyCar(brandID,0)
-        #self.stockByMobType.loc[self.stockByMobType.index[-1],brandID] -= 1
         self.obsDict[self.time][mobType] = list()
                 
     def remBrand(self,label):
@@ -684,23 +623,16 @@ class Person(Agent):
         
         prior = np.asarray(edges['weig'])
         prior = prior / np.sum(prior)      
-        #if any([value is None for value in prop]) or any([value is None for value in prior]):
-        #    import pdb
-        #    pdb.set_trace()
-        
-        #print prop
-        #print prior
         assert not any(np.isnan(prior))
 
 
+        # TODO - re-think how to avoide
         try:
             post = prior * prop 
         except:
             import pdb
             pdb.set_trace()
 
-        
-            
         
         post = post / np.sum(post) 
         
@@ -729,7 +661,6 @@ class Person(Agent):
     
     def socialize(self, world):
         
-        tt = time.time()
 #        drop 10% of old connections
 #        print 'ID:', self.nID, 
 #        print "prior", 
@@ -802,15 +733,9 @@ class Person(Agent):
         ownPref    = self.node['preferences']
         ownIncome  = self.hh.node['income']
 
-        contactIds     = list()
-        
-
 
         #get spatial weights to all connected cells
-        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                    
-        #print cellConnWeights
-        #print [world.graph.vs[i]['gID']  for i in cellIds]
-        
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()                          
         personIdsAll = list()
         nPers = list()
         cellWeigList = list()
@@ -832,11 +757,7 @@ class Person(Agent):
         idxColPr = range(idxColIn+1,world.nPref+idxColIn+1)
         weightData = np.zeros([np.sum(nPers),len(idxColPr) +2])    
 
-        #colSpat = 0
-        #colInco = 1
-        #colPref = [2,3,4,5]
         idx = 0
-        
         for nP, we in zip(nPers, cellWeigList):
             weightData[idx:idx+nP,idxColSp] = we
             idx = idx+ nP
@@ -1166,13 +1087,10 @@ class Household(Agent):
         for i,adult in enumerate(self.adults):
             
             if getInfoList[i]: #or (earth.time < earth.para['burnIn']):
-            #actionIds, eUtils = adult.getExpectedUtility(earth)
                 adult.computeExpUtil(earth)
                 actionIds = [-1, 0, 1, 2]
                 eUtils = [adult.node['util']] + adult.node['commUtil'].tolist()
-            #nonNanIdx = np.isnan(eUtils) == False
-            #eUtils = eUtils[nonNanIdx]
-            #actions = actionIds[nonNanIdx].tolist()
+
             else:
                 actionIds, eUtils = [-1], [adult.node['util']]
 #               
@@ -1210,7 +1128,7 @@ class Household(Agent):
         Method to execute the optimal actions for selected persons of the household
         """
         for person, actionIdx in zip(persons, actionIds):
-            #print 1
+            
             properties = earth.market.buyCar(actionIdx)
             self.loc.addToTraffic(actionIdx)
             
@@ -1230,8 +1148,7 @@ class Household(Agent):
         Method to undo actions
         """
         for adult in persons:
-            #mobID = adult.node['mobID']
-            #world.market.sellCar(mobID)
+
             self.loc.remFromTraffic(adult.node['mobType'])
             
             # remove cost of mobility to the expenses
@@ -1257,12 +1174,6 @@ class Household(Agent):
             actionIdx = adult.node['mobType']
             mobProps = adult.node['prop']
                 
-            # calculate convenience:
-            #if (adult.node['lastAction'] > 2*market.mobNewPeriod) and (actionIdx != 2):
-                #decay = math.exp(-(adult.node['lastAction'] - 2*market.mobNewPeriod)**2)
-                
-            #else:
-            #    decay = 1.
             if (actionIdx != 2):
                 decay = 1- (1/(1+math.exp(-0.1*(adult.node['lastAction']-market.para['mobNewPeriod']))))                
             else:
@@ -1287,7 +1198,10 @@ class Household(Agent):
             adult.node['consequences'] = [convenience, ecology, money, innovation]
 
 
-    def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):          # for test setupHouseholdsWithOptimalCars   (It's the best choice. It's true.)        
+    def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):          
+        """
+        (It's the best choice. It's true. It's huge)        
+        """
         market = earth.market
         actionTaken = True
         if len(self.adults) > 0 :
@@ -1349,7 +1263,7 @@ class Household(Agent):
             # get best combination
             bestUtilIdx = np.argmax(utilities)
             bestCombination = combinedActions[bestUtilIdx]
-            #print bestCombination
+            
                 
             # set best combination 
             if self.decisionFunction(oldUtil, utilities[bestUtilIdx]):
@@ -1365,8 +1279,6 @@ class Household(Agent):
                 self.util = self.evalUtility(earth)
              
                 if self.util < 1:
-                    #import pdb
-                    #pdb.set_trace()
                     lg.debug('####' + str(self.nID) + '#####')
                     lg.debug('New Util: ' +str(self.util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
                     lg.debug('possible utilitties: ' + str(utilities))
@@ -1449,7 +1361,7 @@ class Household(Agent):
             persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
             
         else:
-            if True:#len(self.adults)*earth.market.minPrice < self.node['income']:
+            if True:#len(self.adults)*earth.market.minPrice < self.node['income']: #TODO
                 
                 #self.node['nPers']
                 persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
@@ -1518,7 +1430,8 @@ class Household(Agent):
             self.evalExpectedUtility(earth, [True] * len(self.adults))
             
         self.computeTime += time.time() - tt
-            
+         
+#TODO Check if reporter class is still useful        
 class Reporter(Household):
     
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
@@ -1544,10 +1457,6 @@ class Cell(Location):
         self.sigmaEps = 1.
         self.muEps = 1.               
         self.cellSize = 1.
-        
-#        self.urbanThreshold = earth.para['urbanThreshold']
-#        self.puplicTransBonus = earth.para['puplicTransBonus']     
-       
         self.convFunctions = list()
         
         
@@ -1595,7 +1504,6 @@ class Cell(Location):
     def selfTest(self, world):
         population = world.para['population'][self.node['pos']]
         self.node['population'] = population
-        #print self.node['population']
         convAll = self.calculateConveniences(world.para, world.market.getCurrentMaturity())
    
         for x in convAll:
@@ -1608,13 +1516,10 @@ class Cell(Location):
     def calculateConveniences(self, parameters, currentMaturity):
         
         convAll = list()
-        # convenience parameters:    
-
-        #paraA, paraC, paraD = 1., .2, 0.07
         popDensity = float(self.getValue('population'))/self.cellSize        
         for i, funcCall in enumerate(self.convFunctions):            
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))            
-        #print str(popDensity) + ': ' + str(convAll)
+
         return convAll
     
 
@@ -1626,23 +1531,19 @@ class Cell(Location):
         
         convAll = self.calculateConveniences(parameters,currentMaturity)
         self.setValue('convenience', convAll)
-        #self.trafficMixture()
 
     
     def registerObs(self, hhID, prop, util, label):
         """
         Adds a car to the cell pool of observations
         """
-        #prop.append(util)
-        #obsID = self.currID
         meme = prop + [util, label, hhID]
         assert not any(np.isnan(meme))
         obsID = self.obsMemory.addMeme(meme)
         self.currDelList.append(obsID)
         
-        #self.currID +=1
         return obsID
-#        
+        
 
 
 class GhostCell(GhostLocation, Cell):
