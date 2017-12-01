@@ -1034,7 +1034,11 @@ class World:
                 #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
                 saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
     class Mpi():
-
+        """
+        MPI communication module that controles all communcation between
+        different processes.
+        ToDo: change to communication using numpy
+        """
 
         def __init__(self, world, mpiComm=None):
 
@@ -1070,22 +1074,33 @@ class World:
 
         #%% Privat functions
         def __clearBuffer__(self):
+            """
+            Method to clear all2all buffer
+            """
             self.a2aBuff = []
             for x in range(self.comm.size):
                 self.a2aBuff.append([])
 
 
         def __add2Buffer__(self, mpiPeer, data):
+            """
+            Method to add data to all2all data to buffer
+            """
             self.a2aBuff[mpiPeer].append(data)
 
         def __all2allSync__(self):
+            """
+            Privat all2all communication method
+            """
             recvBuffer = self.comm.alltoall(self.a2aBuff)
             self.__clearBuffer__()
             return recvBuffer
 
 
         def __packData__(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
-
+            """
+            Privat method to pack all data for MPI transfer
+            """
             dataSize = 0
             nNodes = len(nodeSeq)
             dataPackage = list()
@@ -1099,7 +1114,139 @@ class World:
             #lg.info('package size: ' + str(dataSize))
             return dataPackage, dataSize
 
+
+        def __transferGhoseNodes__(self, world):
+            """
+            Privat method to initially transfer the data between processes and to create
+            ghost nodes from the received data
+            """
+
+            messageSize = 0
+            #%%Packing of data
+            for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
+
+                #get size of send array
+                IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
+                connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
+
+
+
+                nodeSeq = world.graph.vs[IDsList]
+
+                # setting up ghost out communication
+                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
+                propList = world.graph.nodeProperies[nodeType][:]
+                #print propList
+                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                self.__add2Buffer__(mpiPeer, dataPackage)
+                messageSize = messageSize + packageSize
+            recvBuffer = self.__all2allSync__()
+
+            lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
+
+            for mpiPeer in self.peers:
+                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
+                    pass
+
+                for dataPackage in recvBuffer[mpiPeer]:
+
+            #%% create ghost agents from dataDict
+
+                    nNodes, nodeType = dataPackage[0]
+
+                    nIDStart= world.graph.vcount()
+                    nIDs = range(nIDStart,nIDStart+nNodes)
+                    world.graph.add_vertices(nNodes)
+                    nodeSeq = world.graph.vs[nIDs]
+
+                    # setting up ghostIn communicator
+                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
+
+                    propList = world.graph.nodeProperies[nodeType][:]
+
+
+                    for i, prop in enumerate(propList):
+                        nodeSeq[prop] = dataPackage[i+1]
+
+                    gIDsCells = dataPackage[-1]
+
+                    # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
+                    for nID, gID in zip(nIDs, gIDsCells):
+
+                        GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+
+                        agent = GhostAgentClass(world, mpiPeer, nID=nID)
+
+
+                        parentEntity = world.entDict[world.__glob2loc__[gID]]
+                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
+
+
+                        agent.register(world, parentEntity, edgeType)
+
+
+            lg.info('################## Ratio of ghost agents ################################################')
+            for iType, nodeType in enumerate(world.graph.nodeTypes):
+
+                if len(world.nodeDict[iType]) > 0:
+                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
+                    lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
+            lg.info('#########################################################################################')
+
+
+        def __updateGhostNodeData__(self, nodeTypeList='all', propertyList='all'):
+            """
+            Privat method to update the data between processes for existing ghost nodes
+            """
+            tt = time.time()
+            messageSize = 0
+            for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
+                if nodeTypeList == 'all' or nodeType in nodeTypeList:
+                    nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
+
+                    if propertyList == 'all':
+                        propertyList = self.world.graph.nodeProperies[nodeType][:]
+                        propertyList.remove('gID')
+
+                    dataPackage ,packageSize = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    messageSize = messageSize + packageSize
+                    self.__add2Buffer__(mpiPeer, dataPackage)
+
+            syncPackTime = time.time() -tt
+
+            tt = time.time()
+            recvBuffer = self.__all2allSync__()
+            pureSyncTime = time.time() -tt
+
+            tt = time.time()
+            for mpiPeer in self.peers:
+                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
+
+
+                    for dataPackage in recvBuffer[mpiPeer]:
+                        mNodes, nodeType = dataPackage[0]
+
+                        if propertyList == 'all':
+                            propertyList= self.world.graph.nodeProperies[nodeType][:]
+                            #print propertyList
+                            propertyList.remove('gID')
+
+                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
+                        for i, prop in enumerate(propertyList):
+                            nodeSeq[prop] = dataPackage[i+1]
+            syncUnpackTime = time.time() -tt
+
+            lg.info('Sync times - ' +
+                    ' pack: ' + str(syncPackTime) + ' s , ' +
+                    ' comm: ' + str(pureSyncTime) + ' s , ' +
+                    ' unpack: ' + str(syncUnpackTime) + ' s , ')
+            return messageSize
+
         def initCommunicationViaLocations(self, ghostLocationList, locNodeType):
+            """
+            Method to initialize the communication based on the spatial
+            distribution
+            """
 
             tt = time.time()
             # acquire the global IDs for the ghostNodes
@@ -1174,7 +1321,24 @@ class World:
             lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
 
-        #%% Nodes
+
+
+        def updateGhostNodes(self, nodeTypeList= 'all', propertyList='all'):
+            """
+            Method to update ghost node data on all processes
+            """
+            tt = time.time()
+            messageSize = self.sendRecvGhostUpdate(nodeTypeList, propertyList)
+
+            if self.world.time == 0:
+                lg.info('Ghost update (of approx size ' +
+                     str(messageSize * 24. / 1000. ) + ' KB)' +
+                     ' required: ' + str(time.time()-tt) + ' seconds')
+            else:
+                lg.debug('Ghost update (of approx size ' +
+                         str(messageSize * 24. / 1000. ) + ' KB)' +
+                         ' required: ' + str(time.time()-tt) + ' seconds')
+
         def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
             if (nodeType, mpiPeer) not in self.ghostNodeQueue.keys():
@@ -1187,129 +1351,12 @@ class World:
 
 
 
-        def sendRecvGhostNodes(self, world):
-
-            messageSize = 0
-            #%%Packing of data
-            for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
-
-                #get size of send array
-                IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
-                connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
-
-
-
-                nodeSeq = world.graph.vs[IDsList]
-
-                # setting up ghost out communication
-                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
-                propList = world.graph.nodeProperies[nodeType][:]
-                #print propList
-                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
-                self.__add2Buffer__(mpiPeer, dataPackage)
-                messageSize = messageSize + packageSize
-            recvBuffer = self.__all2allSync__()
-
-            lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
-
-            for mpiPeer in self.peers:
-                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
-                    pass
-
-                for dataPackage in recvBuffer[mpiPeer]:
-
-            #%% create ghost agents from dataDict
-
-                    nNodes, nodeType = dataPackage[0]
-
-                    nIDStart= world.graph.vcount()
-                    nIDs = range(nIDStart,nIDStart+nNodes)
-                    world.graph.add_vertices(nNodes)
-                    nodeSeq = world.graph.vs[nIDs]
-
-                    # setting up ghostIn communicator
-                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
-
-                    propList = world.graph.nodeProperies[nodeType][:]
-
-
-                    for i, prop in enumerate(propList):
-                        nodeSeq[prop] = dataPackage[i+1]
-
-                    gIDsCells = dataPackage[-1]
-                    #print 'creating ' + str(len(nIDs)) + ' ghost agents of type' + str(nodeType)
-                    for nID, gID in zip(nIDs, gIDsCells):
-
-                        GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
-
-                        agent = GhostAgentClass(world, mpiPeer, nID=nID)
-
-
-                        parentEntity = world.entDict[world.__glob2loc__[gID]]
-                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
-
-
-                        agent.register(world, parentEntity, edgeType)
-
-
-            lg.info('################## Ratio of ghost agents ################################################')
-            for iType, nodeType in enumerate(world.graph.nodeTypes):
-
-                if len(world.nodeDict[iType]) > 0:
-                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
-                    lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
-            lg.info('#########################################################################################')
-
-
-        def sendRecvGhostUpdate(self, nodeTypeList='all', propertyList='all'):
-            messageSize = 0
-            for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
-                if nodeTypeList == 'all' or nodeType in nodeTypeList:
-                    nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
-
-                    if propertyList == 'all':
-                        propertyList = self.world.graph.nodeProperies[nodeType][:]
-                        propertyList.remove('gID')
-
-                    dataPackage ,packageSize = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
-                    messageSize = messageSize + packageSize
-                    self.__add2Buffer__(mpiPeer, dataPackage)
-            recvBuffer = self.__all2allSync__()
-
-
-            for mpiPeer in self.peers:
-                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
-
-
-                    for dataPackage in recvBuffer[mpiPeer]:
-                        mNodes, nodeType = dataPackage[0]
-
-                        if propertyList == 'all':
-                            propertyList= self.world.graph.nodeProperies[nodeType][:]
-                            #print propertyList
-                            propertyList.remove('gID')
-
-                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
-                        for i, prop in enumerate(propertyList):
-                            nodeSeq[prop] = dataPackage[i+1]
-            return messageSize
-
-
-        def updateGhostNodes(self, nodeTypeList= 'all', propertyList='all'):
-
-            tt = time.time()
-            messageSize = self.sendRecvGhostUpdate(nodeTypeList, propertyList)
-            if earth.time == 1:
-                lg.info('Ghost update (of approx size ' +
-                     str(messageSize * 24. / 1000. ) + ' KB)' +
-                     ' required: ' + str(time.time()-tt) + ' seconds')
-            else:
-                lg.debug('Ghost update (of approx size ' +
-                         str(messageSize * 24. / 1000. ) + ' KB)' +
-                         ' required: ' + str(time.time()-tt) + ' seconds')
-
-
         def all2all(self, value):
+            """
+            This method is a quick communication implementation that allows +
+            sharing data between all processes
+
+            """
             if isinstance(value,int):
                 buff = np.empty(1*self.comm.size,dtype=np.int)
                 buff = self.comm.alltoall([value]*self.comm.size)
@@ -1320,7 +1367,6 @@ class World:
                 buff = np.empty(1*self.comm.size,dtype=np.str)
                 buff = self.comm.alltoall([value]*self.comm.size)
             else:
-
                 buff = self.comm.alltoall([value]*self.comm.size)
 
             return buff
@@ -1456,21 +1502,37 @@ class World:
         return self.graph.es.select(type=edgeType)[propName]
 
     def getLocationDict(self):
+        """
+        The locationDict contains all instances of locations that are
+        accessed by (x,y) Koordinates
+        """
         return self.locDict
 
     def getNodeDict(self, nodeType):
+        """
+        The nodeDict contains all instances of different entity types
+        """
         return self.nodeDict[nodeType]
 
     def getParameter(self,paraName=None):
+        """
+        Returns a dictionary of all simulations parameters
+        """
         if paraName is not None:
             return self.para[paraName]
         else:
             return self.para
 
     def setParameter(self, paraName, paraValue):
+        """
+        This method is used to set parameters of the simulation
+        """
         self.para[paraName] = paraValue
 
     def setParameters(self, parameterDict):
+        """
+        This method allows to set multiple parameters at once
+        """
         for key in parameterDict.keys():
             self.setParameter(key, parameterDict[key])
 
@@ -1901,7 +1963,7 @@ if __name__ == '__main__':
 
     print str(earth.mpi.rank) + ' SendQueue ' + str(earth.mpi.ghostNodeQueue)
 
-    earth.mpi.sendRecvGhostNodes(earth)
+    earth.mpi.transferGhoseNodes(earth)
     #earth.mpi.recvGhostNodes(earth)
 
     earth.queue.dequeueVertices(earth)
