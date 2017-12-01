@@ -605,7 +605,8 @@ def scenarioChina(calibatationInput):
 # %% Setup functions
 
 # Mobility setup setup
-def mobilitySetup(earth, parameters):
+def mobilitySetup(earth):
+    parameters = earth.getParameter()
 
     def convenienceBrown(density, pa, kappa, cell):
 
@@ -637,9 +638,9 @@ def mobilitySetup(earth, parameters):
                     propDict,   #(emissions, TCO)
                     convenienceBrown,                       # convenience function
                     'start',                                # time step of introduction in simulation
-                    earth.para['techSlopeBrown'],            # initial technical progress
-                    earth.para['techProgBrown'],           # slope of technical progress
-                    earth.para['techExpBrown'])             # initial experience
+                    parameters['techSlopeBrown'],            # initial technical progress
+                    parameters['techProgBrown'],           # slope of technical progress
+                    parameters['techExpBrown'])             # initial experience
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceGreen']
@@ -648,9 +649,9 @@ def mobilitySetup(earth, parameters):
                     propDict,       #(emissions, TCO)
                     convenienceGreen,
                     'start',
-                    earth.para['techSlopeGreen'],            # initial technical progress
-                    earth.para['techProgGreen'],           # slope of technical progress
-                    earth.para['techExpGreen'])             # initial experience
+                    parameters['techSlopeGreen'],            # initial technical progress
+                    parameters['techProgGreen'],           # slope of technical progress
+                    parameters['techExpGreen'])             # initial experience
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceOther']
@@ -659,21 +660,22 @@ def mobilitySetup(earth, parameters):
                     propDict,   #(emissions, TCO)
                     convenienceOther,
                     'start',
-                    earth.para['techSlopeOther'],            # initial technical progress
-                    earth.para['techProgOther'],           # slope of technical progress
-                    earth.para['techExpOther'])             # initial experience
+                    parameters['techSlopeOther'],            # initial technical progress
+                    parameters['techProgOther'],           # slope of technical progress
+                    parameters['techExpOther'])             # initial experience
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
 
     return earth
     ##############################################################################
 
-def householdSetup(earth, parameters, calibration=False):
+def householdSetup(earth, calibration=False):
+    parameters = earth.getParameter()
     tt = time.time()
 
     nAgents = 0
     nHH     = 0
-    tmp = np.unique(parameters.regionIdRaster)
+    tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
     #print regionIdxList
@@ -681,11 +683,13 @@ def householdSetup(earth, parameters, calibration=False):
     #pdb.set_trace()
     nRegions = np.sum(tmp>0)
 
-    boolMask = parameters['landLayer']==earth.mpi.comm.rank
-    nAgentsOnProcess = np.ndarray(nRegions)
+    mpi = earth.returnMpiComm()
+
+    boolMask = parameters['landLayer']==mpi.rank
+    nAgentsOnProcess = np.zeros(nRegions)
     for i, region in enumerate(regionIdxList):
-        boolMask2 = parameters.regionIdRaster== region
-        nAgentsOnProcess[i] = np.sum(parameters.population[boolMask & boolMask2])
+        boolMask2 = parameters['regionIdRaster']== region
+        nAgentsOnProcess[i] = np.sum(parameters['population'][boolMask & boolMask2])
 
         if nAgentsOnProcess[i] > 0:
             # calculate start in the agent file (20 overhead for complete households)
@@ -703,8 +707,8 @@ def householdSetup(earth, parameters, calibration=False):
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
         #h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
-        h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r')
-    earth.mpi.comm.Barrier()
+        h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + '.hdf5', 'r')
+    mpi.Barrier()
 
     for i, region in enumerate(regionIdxList):
 #        if i >0:
@@ -715,8 +719,8 @@ def householdSetup(earth, parameters, calibration=False):
         offset =0
 
 
-        agentStart = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank,i]))
-        agentEnd   = int(np.sum(nAgentsOnProcess[:earth.mpi.comm.rank+1,i]))
+        agentStart = int(np.sum(nAgentsOnProcess[:mpi.rank,i]))
+        agentEnd   = int(np.sum(nAgentsOnProcess[:mpi.rank+1,i]))
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
         lg.debug('Vertex count: ' +str(earth.graph.vcount()))
@@ -728,7 +732,7 @@ def householdSetup(earth, parameters, calibration=False):
         dset = h5Files[i].get('people')
         hhData[i] = dset[offset + agentStart: offset + agentEnd,]
 
-        if nAgentsOnProcess[earth.mpi.comm.rank, i] == 0:
+        if nAgentsOnProcess[mpi.rank, i] == 0:
             continue
 
 
@@ -742,7 +746,7 @@ def householdSetup(earth, parameters, calibration=False):
         currIdx[i] = int(idx)
 
 
-    earth.mpi.comm.Barrier() # all loading done
+    mpi.Barrier() # all loading done
 
     for i, region in enumerate(regionIdxList):
         h5Files[i].close()
@@ -750,23 +754,17 @@ def householdSetup(earth, parameters, calibration=False):
 
     opinion     = Opinion(earth)
     nAgentsCell = 0
-    for x, y in earth.locDict.keys():
+    locDict = earth.getLocationDict()
+    for x, y in locDict.keys():
         #print x,y
-        nAgentsCell = int(parameters.population[x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
-        #print nAgentsCell
-        loc = earth.entDict[earth.locDict[x, y].nID]
-        region = parameters.regionIdRaster[x, y]
-#        try:
+        nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
+        loc = earth.getEntity(locDict[x, y].nID)
+        region = parameters['regionIdRaster'][x, y]
         regionIdx = np.where(regionIdxList == region)[0][0]
-#        except:
-#            regionIdx = 1
 
         while 1:
 
-            #creating persons as agents
-            #print hhData.keys()
-            #print currIdx.keys()
-            nPers = int(hhData[regionIdx][currIdx[regionIdx], 0])
+            nPers   = int(hhData[regionIdx][currIdx[regionIdx], 0])
             #print nPers,'-',nAgents
             ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 1])
             genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 2])
@@ -780,7 +778,7 @@ def householdSetup(earth, parameters, calibration=False):
 
             # set minimal income
             income = max(400., income)
-            income *= parameters.mobIncomeShare
+            income *= parameters['mobIncomeShare']
 
             nKids = np.sum(ages<18)
 
@@ -807,8 +805,7 @@ def householdSetup(earth, parameters, calibration=False):
 
                 if ages[iPers]< 18:
                     continue    #skip kids
-                prefTuple = opinion.getPref(ages[iPers], genders[iPers], nKids, nPers, income, parameters.radicality)
-                prefTyp = np.argmax(prefTuple)
+                prefTuple = opinion.getPref(ages[iPers], genders[iPers], nKids, nPers, income, parameters['radicality'])
 
                 pers = Person(earth,
                               preferences = prefTuple,
@@ -816,10 +813,10 @@ def householdSetup(earth, parameters, calibration=False):
                               gender      = genders[iPers],
                               age         = ages[iPers],
                               util        = 0.,
-                              commUtil    = [50.]*earth.para['nMobTypes'],
-                              selfUtil    = [np.nan]*earth.para['nMobTypes'],
+                              commUtil    = [50.]*parameters['nMobTypes'],
+                              selfUtil    = [np.nan]*parameters['nMobTypes'],
                               mobType     = 0,
-                              prop        = [0]*len(parameters.properties),
+                              prop        = [0]*len(parameters['properties']),
                               consequences= [0]*len(prefTuple),
                               lastAction  = 0,
                               ESSR        = 1,
@@ -831,9 +828,6 @@ def householdSetup(earth, parameters, calibration=False):
 
                 # adding reference to the person to household
                 hh.adults.append(pers)
-
-                earth.nPrefTypes[prefTyp] += 1
-
 
             currIdx[regionIdx]  += nPers
             nHH                 += 1
@@ -929,14 +923,12 @@ def initEarth(simNo,
     earth.enums['mobilityTypes'][2] = 'other'
 
 
-    earth.nPref = len(earth.enums['priorities'])
-    earth.nPrefTypes = [0]* earth.nPref
-
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
 
     return earth
 
-def initTypes(earth, parameters):
+def initTypes(earth):
+    parameters = earth.getParameter()
     _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
                                   propertyList = ['type',
                                                   'gID',
@@ -987,26 +979,28 @@ def initTypes(earth, parameters):
 
     return _cell, _hh, _pers
 
-def initSpatialLayer(earth, parameters):
-    connList= aux.computeConnectionList(parameters.connRadius, ownWeight=1)
-    earth.initSpatialLayer(parameters.landLayer,
+def initSpatialLayer(earth):
+    parameters = earth.getParameter()
+    connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1)
+    earth.initSpatialLayer(parameters['landLayer'],
                            connList, _cell,
                            LocClassObject=Cell,
                            GhstLocClassObject=GhostCell)
 
-    if hasattr(parameters,'regionIdRaster'):
+    if 'regionIdRaster' in parameters.keys():
 
         for cell in earth.iterEntRandom(_cell):
-            cell.node['regionId'] = parameters.regionIdRaster[cell.node['pos']]
+            cell.node['regionId'] = parameters['regionIdRaster'][cell.node['pos']]
 
 
 
 
 
-def cellTest(earth, parameters):
+def cellTest(earth):
     #%% cell convenience test
-    convArray = np.zeros([earth.market.getNTypes(),len(earth.nodeDict[1])])
-    popArray = np.zeros([len(earth.nodeDict[1])])
+    nLocations = len(earth.getLocationDict())
+    convArray = np.zeros([earth.market.getNTypes(), nLocations])
+    popArray = np.zeros(nLocations)
     for i, cell in enumerate(earth.iterEntRandom(_cell)):
         convAll, population = cell.selfTest(earth)
         convArray[:, i] = convAll
@@ -1022,16 +1016,17 @@ def cellTest(earth, parameters):
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
 
-def generateNetwork(earth, parameters):
+def generateNetwork(earth):
+    parameters = earth.getParameter()
     # %% Generate Network
     #tt = time.time()
     earth.generateSocialNetwork(_pers,_cpp)
     #lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
-    if parameters.scenario == 0:
+    if parameters['scenario'] == 0:
         earth.view(str(earth.mpi.rank) + '.png')
 
 
-def initMobilityTypes(earth, parameters):
+def initMobilityTypes(earth):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,500.])
     for goodKey in earth.market.goods.keys():
@@ -1040,10 +1035,11 @@ def initMobilityTypes(earth, parameters):
         assert earth.market.goods[goodKey].properties.keys() == earth.market.properties
 
 
-def initGlobalRecords(earth, parameters):
+def initGlobalRecords(earth):
+    parameters = earth.getParameter()
 
-    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv', index_col=0, header=1)
-    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv', index_col=0, header=1)
+    calDataDfCV = pd.read_csv(parameters['resourcePath'] + 'calDataCV.csv', index_col=0, header=1)
+    calDataDfEV = pd.read_csv(parameters['resourcePath'] + 'calDataEV.csv', index_col=0, header=1)
 
     for re in parameters['regionIDList']:
         earth.registerRecord('stock_' + str(re),
@@ -1058,7 +1054,7 @@ def initGlobalRecords(earth, parameters):
         for column in calDataDfCV.columns[1:]:
             value = [np.nan]*3
             year = int(column)
-            timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
+            timeIdx = 12* (year - parameters['startDate'][1]) + parameters['burnIn']
             value[0] = (calDataDfCV[column]['re_' + str(re)] ) / parameters['reductionFactor']
             if column in calDataDfEV.columns[1:]:
                 value[1] = (calDataDfEV[column]['re_' + str(re)] ) / parameters['reductionFactor']
@@ -1068,74 +1064,6 @@ def initGlobalRecords(earth, parameters):
             values.append(value)
 
         earth.globalRecord['stock_' + str(re)].addCalibrationData(timeIdxs,values)
-
-#    earth.registerRecord('stockBremen',
-#                         'total use per mobility type - Bremen',
-#                         earth.enums['mobilityTypes'].values(),
-#                         style ='plot',
-#                         mpiReduce='sum')
-#
-#    calDataDfCV = pd.read_csv(parameters.resourcePath + 'calDataCV.csv',index_col=0, header=1)
-#    calDataDfEV = pd.read_csv(parameters.resourcePath + 'calDataEV.csv',index_col=0, header=1)
-#    timeIdxs = list()
-#    values   = list()
-#    for column in calDataDfCV.columns[1:]:
-#        value = [np.nan]*3
-#        year = int(column)
-#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-#        value[0] = (calDataDfCV[column]['re_1518'] ) / parameters['reductionFactor']
-#        if column in calDataDfEV.columns[1:]:
-#            value[1] = (calDataDfEV[column]['re_1518'] ) / parameters['reductionFactor']
-#
-#
-#        timeIdxs.append(timeIdx)
-#        values.append(value)
-#
-#    earth.globalRecord['stockBremen'].addCalibrationData(timeIdxs,values)
-#
-#    earth.registerRecord(name='stockNiedersachsen',
-#                         title='total use per mobility type - Niedersachsen',
-#                         colLables=earth.enums['mobilityTypes'].values(),
-#                         style ='plot',
-#                         mpiReduce='sum')
-#
-#    timeIdxs = list()
-#    values   = list()
-#    for column in calDataDfCV.columns[1:]:
-#        value = [np.nan]*3
-#        year = int(column)
-#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-#        value[0] = ( calDataDfCV[column]['re_6321']) / parameters['reductionFactor']
-#        if column in calDataDfEV.columns[1:]:
-#            value[1] = ( calDataDfEV[column]['re_6321']) / parameters['reductionFactor']
-#
-#
-#        timeIdxs.append(timeIdx)
-#        values.append(value)
-#
-#    earth.globalRecord['stockNiedersachsen'].addCalibrationData(timeIdxs,values)
-#
-#    earth.registerRecord('stockHamburg',
-#                         'total use per mobility type - Hamburg',
-#                         earth.enums['mobilityTypes'].values(),
-#                         style ='plot',
-#                         mpiReduce='sum')
-#
-#    timeIdxs = list()
-#    values   = list()
-#    for column in calDataDfCV.columns[1:]:
-#        value = [np.nan]*3
-#        year = int(column)
-#        timeIdx = 12* (year - parameters['startDate'][1]) + earth.para['burnIn']
-#        value[0] = ( calDataDfCV[column]['re_1520']) / parameters['reductionFactor']
-#        if column in calDataDfEV.columns[1:]:
-#            value[1] = ( calDataDfEV[column]['re_1520']) / parameters['reductionFactor']
-#
-#
-#        timeIdxs.append(timeIdx)
-#        values.append(value)
-
-#    earth.globalRecord['stockHamburg'].addCalibrationData(timeIdxs,values)
 
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types',
                          earth.enums['mobilityTypes'].values(), style='plot')
@@ -1168,10 +1096,10 @@ def initAgentOutput(earth):
 
 def plot_calGreenNeigbourhoodShareDist(earth):
     if parameters.showFigures:
-
-        relarsPerNeigborhood = np.zeros([len(earth.nodeDict[_pers]),3])
-        for i, persId in enumerate(earth.nodeDict[_pers]):
-            person = earth.entDict[persId]
+        nPersons = len(earth.getNodeDict(_pers))
+        relarsPerNeigborhood = np.zeros([nPersons,3])
+        for i, persId in enumerate(earth.getNodeDict(_pers)):
+            person = earth.getEntity(persId)
             x,__ = person.getConnNodeValues('mobType',_pers)
             for mobType in range(3):
                 relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
@@ -1576,21 +1504,21 @@ if __name__ == '__main__':
                       caching=True,
                       queuing=True)
 
-    _cell, _hh, _pers = initTypes(earth,parameters)
+    _cell, _hh, _pers = initTypes(earth)
 
-    initSpatialLayer(earth, parameters)
+    initSpatialLayer(earth)
 
-    mobilitySetup(earth, parameters)
+    mobilitySetup(earth)
 
-    cellTest(earth, parameters)
+    cellTest(earth)
 
-    initGlobalRecords(earth, parameters)
+    initGlobalRecords(earth)
 
-    householdSetup(earth, parameters)
+    householdSetup(earth)
 
-    generateNetwork(earth, parameters)
+    generateNetwork(earth)
 
-    initMobilityTypes(earth, parameters)
+    initMobilityTypes(earth)
 
     initAgentOutput(earth)
 

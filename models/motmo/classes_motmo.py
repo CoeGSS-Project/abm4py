@@ -91,6 +91,7 @@ class Earth(World):
 
         self.globalRecord = dict() # storage of global data
 
+
         # transfer all parameters to earth
         parameters.simNo = simNo
         self.setParameters(Bunch.toDict(parameters))
@@ -102,6 +103,8 @@ class Earth(World):
             os.mkdir('output')
 
 
+    def nPriorities(self):
+        return len(self.enums['priorities'])
 
 
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
@@ -426,14 +429,13 @@ class Market():
 
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0):
         #import global variables
-        self.globalRecord       = earth.globalRecord
-        self.comm               = earth.mpi.comm
-        self.glob               = earth.graph.glob
-        self.glob.registerValue('sales' , np.asarray([0]),'sum')
-        self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
-        self.glob.registerStat('stdEmm' , np.asarray([0]*len(properties)),'std')
-        self.glob.registerStat('meanPrc' , np.asarray([0]*len(properties)),'mean')
-        self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')
+        self.globalRecord        = earth.returnGlobalRecord()
+        self.comm                = earth.returnMpiComm()
+        self.glob                = earth.returnGlobals()
+        self.graph               = earth.returnGraph()
+        self.para                = earth.getParameter()
+
+
         self.time                = time
         self.graph               = earth.graph
         self.nodeDict            = earth.nodeDict
@@ -451,7 +453,13 @@ class Market():
         self.burnIn              = burnIn
         self.goods = dict()
         self.sales               = list()
-        self.para                = earth.para
+
+        #adding market globals
+        self.glob.registerValue('sales' , np.asarray([0]),'sum')
+        self.glob.registerStat('meanEmm' , np.asarray([0]*len(properties)),'mean')
+        self.glob.registerStat('stdEmm' , np.asarray([0]*len(properties)),'std')
+        self.glob.registerStat('meanPrc' , np.asarray([0]*len(properties)),'mean')
+        self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')
 
     def getNTypes(self):
         return self.nMobTypes
@@ -741,7 +749,8 @@ class Person(Agent):
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)
-            personIds = world.entDict[cellIdx].getPersons()
+            personIds = world.getEntity(cellIdx).getPersons()
+
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -753,7 +762,7 @@ class Person(Agent):
         #setup of indices of columes:
         idxColSp = 0
         idxColIn = 1
-        idxColPr = range(idxColIn+1,world.nPref+idxColIn+1)
+        idxColPr = range(idxColIn+1,world.nPriorities()+idxColIn+1)
         weightData = np.zeros([np.sum(nPers),len(idxColPr) +2])
 
         idx = 0
@@ -762,8 +771,8 @@ class Person(Agent):
             idx = idx+ nP
         del idx
 
-        hhIDs = [world.glob2loc[x] for x in world.graph. world.getNodeValues('hhID', idxList=personIdsAll)]
-        weightData[:,idxColIn] = np.abs(world.graph. world.getNodeValues('income', idxList=hhIDs) - ownIncome)
+        hhIDs = [world.glob2loc(x) for x in world.getNodeValues('hhID', idxList=personIdsAll)]
+        weightData[:,idxColIn] = np.abs(world.getNodeValues('income', idxList=hhIDs) - ownIncome)
         weightData[:,idxColPr] = world.getNodeValues('preferences',   idxList=personIdsAll)
 
 
@@ -806,7 +815,7 @@ class Person(Agent):
             contactList = [ personIdsAll[idx] for idx in ids ]
             connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
 
-        if isInit and world.para['addYourself'] and addYourself:
+        if isInit and world.getParameter('addYourself') and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
             connList.append((self.nID,self.nID))
@@ -814,107 +823,7 @@ class Person(Agent):
         weigList   = [1./len(connList)]*len(connList)
         return contactList, connList, weigList
 
-    def generateContactNetwork2(self, world, nContacts,  currentContacts = None, addYourself = True):
-        """
-        Method to generate a preliminary friend network that accounts for
-        proximity in space, priorities and income
-        """
 
-
-        if currentContacts is None:
-            isInit=True
-        else:
-            isInit=False
-
-        if currentContacts is None:
-            currentContacts = [self.nID]
-        else:
-            currentContacts.append(self.nID)
-
-        contactList = list()
-        connList   = list()
-        ownPref    = self.node['preferences']
-        ownIncome  = self.hh.node['income']
-
-        contactIds     = list()
-        propDiffList   = list()
-        incoDiffList   = list()
-        spatWeigList   = list()
-
-
-
-        #get spatial weights to all connected cells
-        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
-        #print cellConnWeights
-        #print [world.graph.vs[i]['gID']  for i in cellIds]
-
-        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
-
-            personIds = world.entDict[cellIdx].getPersons()
-
-
-            if currentContacts is not None:
-                #remove current contact from potential connections
-                personIds = [person for person in personIds if person not in currentContacts]
-
-            for personIdx in personIds:
-                person = world.entDict[personIdx]
-                propDiffList.append(np.sum([(x-y)**2 for x,y in zip (person.node['preferences'], ownPref ) ])) # TODO look if get faster
-                incoDiffList.append(np.abs(person.hh.node['income'] - ownIncome))
-
-            contactIds.extend(personIds)
-            spatWeigList.extend([cellWeight]*len(personIds))
-
-
-        # return nothing if too few candidates
-        if not isInit and not len(contactIds) > nContacts:
-            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
-
-        else:
-            np.seterr(divide='ignore')
-            propWeigList = np.array(propDiffList)
-            nullIds  = propWeigList == 0
-            propWeigList = 1 / propWeigList
-            propWeigList[nullIds] = 0
-            propWeigList = propWeigList / np.sum(propWeigList)
-
-
-            incoWeigList = np.array(incoDiffList)
-            nullIds  = incoWeigList == 0
-            incoWeigList = 1 / incoWeigList
-            incoWeigList[nullIds] = 0
-            np.seterr(divide='warn')
-            incoWeigList = incoWeigList / np.sum(incoWeigList)
-
-
-            spatWeigList = spatWeigList / np.sum(spatWeigList)
-            spatWeigList = spatWeigList / np.sum(spatWeigList)
-
-            weights = propWeigList * spatWeigList * incoWeigList
-            weights = weights / np.sum(weights)
-
-            if np.sum(weights>0) < nContacts:
-                lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.node['pos']))
-                lg.info( "population = " + str(self.loc.node['population']) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0])))
-
-                nContacts = min(np.sum(weights>0)-1,nContacts)
-
-            if nContacts < 1:
-                lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
-            else:
-                # adding contacts
-                ids = np.random.choice(len(weights), nContacts, replace=False, p=weights)
-                contactList = [ contactIds[idx] for idx in ids ]
-                connList   = [(self.nID, contactIds[idx]) for idx in ids]
-
-
-        if not isInit and self.para['addYourself'] and addYourself:
-            #add yourself as a friend
-            contactList.append(self.nID)
-            connList.append((self.nID,self.nID))
-
-        weigList   = [1./len(connList)]*len(connList)
-        return contactList, connList, weigList
 
     def computeExpUtil(self,earth):
         #get weights from friends
@@ -1004,10 +913,11 @@ class Household(Agent):
 
         if world.para['util'] == 'cobb':
             self.utilFunc = self.cobbDouglasUtil
-        elif world.para['util'] == 'ces':
+        elif world.getParamerter('util') == 'ces':
             self.utilFunc = self.CESUtil
         self.computeTime = 0
 
+    @staticmethod
     def cobbDouglasUtil(x, alpha):
         utility = 1.
         factor = 100
@@ -1022,7 +932,7 @@ class Household(Agent):
 
         return utility
 
-
+    @staticmethod
     def CESUtil(x, alpha):
         uti = 0.
         s = 2.    # elasticity of substitution, has to be float!
@@ -1499,9 +1409,9 @@ class Cell(Location):
         return copy.copy(self.xCell[choice,:])
 
     def selfTest(self, world):
-        population = world.para['population'][self.node['pos']]
+        population = world.getParameter('population')[self.node['pos']]
         self.node['population'] = population
-        convAll = self.calculateConveniences(world.para, world.market.getCurrentMaturity())
+        convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
 
         for x in convAll:
             if np.isinf(x) or np.isnan(x) or x == 0:
@@ -1566,25 +1476,25 @@ class Opinion():
     Creates preferences for households, given their properties
     """
     def __init__(self, world):
-        self.charAge            = world.para['charAge']
-        self.indiRatio          = world.para['individualPrio']
-        self.minIncomeEco       =world.para['minIncomeEco']
-        self.convIncomeFraction =world.para['charIncome']
+        self.charAge            = world.getParameter('charAge')
+        self.indiRatio          = world.getParameter('individualPrio')
+        self.minIncomeEco       = world.getParameter('minIncomeEco')
+        self.convIncomeFraction = world.getParameter('charIncome')
 
-    def getPref(self,age,sex,nKids, nPers,income, radicality):
+    def getPref(self, age, sex, nKids, nPers, income, radicality):
 
 
         # priority of ecology
         ce = 0.5
         if sex == 2:
             ce +=1.5
-        if income>self.minIncomeEco:
+        if income > self.minIncomeEco:
             rn = np.random.rand(1)
             if rn > 0.9:
                 ce += 2
             elif rn > 0.6:
                 ce += 1
-        elif income>2*self.minIncomeEco:
+        elif income > 2 * self.minIncomeEco:
             if np.random.rand(1) > 0.8:
                 ce+=2.5
 

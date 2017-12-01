@@ -1086,17 +1086,18 @@ class World:
 
         def __packData__(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
 
+            dataSize = 0
             nNodes = len(nodeSeq)
             dataPackage = list()
             dataPackage.append((nNodes,nodeType))
             for prop in propList:
                 dataPackage.append(nodeSeq[prop])
-
+                dataSize += len(nodeSeq)
             if connList is not None:
                 dataPackage.append(connList)
-
-
-            return dataPackage
+                dataSize += len(connList)
+            #lg.info('package size: ' + str(dataSize))
+            return dataPackage, dataSize
 
         def initCommunicationViaLocations(self, ghostLocationList, locNodeType):
 
@@ -1167,8 +1168,8 @@ class World:
                 lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
-                    self.world.glob2loc[gID] = nID
-                    self.world.loc2glob[nID] = gID
+                    self.world.__glob2loc__[gID] = nID
+                    self.world.__loc2glob__[nID] = gID
                 #self.world.mpi.comm.Barrier()
             lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
@@ -1188,6 +1189,7 @@ class World:
 
         def sendRecvGhostNodes(self, world):
 
+            messageSize = 0
             #%%Packing of data
             for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
 
@@ -1203,10 +1205,12 @@ class World:
                 self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.nodeProperies[nodeType][:]
                 #print propList
-                dataPackage = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
                 self.__add2Buffer__(mpiPeer, dataPackage)
-
+                messageSize = messageSize + packageSize
             recvBuffer = self.__all2allSync__()
+
+            lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
 
             for mpiPeer in self.peers:
                 if len(recvBuffer[mpiPeer]) > 0: # will receive a message
@@ -1241,16 +1245,24 @@ class World:
                         agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
 
-                        parentEntity = world.entDict[world.glob2loc[gID]]
+                        parentEntity = world.entDict[world.__glob2loc__[gID]]
                         edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
 
 
                         agent.register(world, parentEntity, edgeType)
 
 
+            lg.info('################## Ratio of ghost agents ################################################')
+            for iType, nodeType in enumerate(world.graph.nodeTypes):
+
+                if len(world.nodeDict[iType]) > 0:
+                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
+                    lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
+            lg.info('#########################################################################################')
+
 
         def sendRecvGhostUpdate(self, nodeTypeList='all', propertyList='all'):
-
+            messageSize = 0
             for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
                     nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
@@ -1259,7 +1271,8 @@ class World:
                         propertyList = self.world.graph.nodeProperies[nodeType][:]
                         propertyList.remove('gID')
 
-                    dataPackage = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    dataPackage ,packageSize = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    messageSize = messageSize + packageSize
                     self.__add2Buffer__(mpiPeer, dataPackage)
             recvBuffer = self.__all2allSync__()
 
@@ -1279,14 +1292,21 @@ class World:
                         nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
                         for i, prop in enumerate(propertyList):
                             nodeSeq[prop] = dataPackage[i+1]
-
+            return messageSize
 
 
         def updateGhostNodes(self, nodeTypeList= 'all', propertyList='all'):
 
             tt = time.time()
-            self.sendRecvGhostUpdate(nodeTypeList, propertyList)
-            lg.debug('Ghost update required: ' + str(time.time()-tt) + ' seconds')
+            messageSize = self.sendRecvGhostUpdate(nodeTypeList, propertyList)
+            if earth.time == 1:
+                lg.info('Ghost update (of approx size ' +
+                     str(messageSize * 24. / 1000. ) + ' KB)' +
+                     ' required: ' + str(time.time()-tt) + ' seconds')
+            else:
+                lg.debug('Ghost update (of approx size ' +
+                         str(messageSize * 24. / 1000. ) + ' KB)' +
+                         ' required: ' + str(time.time()-tt) + ' seconds')
 
 
         def all2all(self, value):
@@ -1304,6 +1324,16 @@ class World:
                 buff = self.comm.alltoall([value]*self.comm.size)
 
             return buff
+
+    class Random():
+
+        def __init__(self, world):
+            self.world = world # make world availabel in class random
+
+        def entity(nChoice, entType):
+            ids = np.random.choice(earth.nodeDict[entType],nChoice,replace=False)
+            return [earth.entDict[idx] for idx in ids]
+
 
     #%% INIT WORLD
     def __init__(self,
@@ -1387,13 +1417,28 @@ class World:
         self.entDict   = dict()
         self.locDict   = dict()
 
-        self.glob2loc = dict()  # reference from global IDs to local IDs
-        self.loc2glob = dict()  # reference from local IDs to global IDs
+        self.__glob2loc__ = dict()  # reference from global IDs to local IDs
+        self.__loc2glob__ = dict()  # reference from local IDs to global IDs
 
         # inactive is used to virtually remove nodes
         self.registerNodeType('inactiv', None, None)
         self.registerEdgeType('inactiv', None, None)
 
+
+
+    def __globIDGen__(self):
+        i = -1
+        while i < self.maxNodes:
+            i += 1
+            yield (self.maxNodes*(self.mpi.rank+1)) +i
+
+# GENERAL FUNCTIONS
+
+    def glob2loc(self, idx):
+        return self.__glob2loc__[idx]
+
+    def loc2glob(self, idx):
+        return self.__loc2glob__[idx]
 
     def getNodeData(self, propName, nodeType=None):
         """
@@ -1410,13 +1455,45 @@ class World:
         """
         return self.graph.es.select(type=edgeType)[propName]
 
+    def getLocationDict(self):
+        return self.locDict
 
-# GENERAL FUNCTIONS
-    def __globIDGen__(self):
-        i = -1
-        while i < self.maxNodes:
-            i += 1
-            yield (self.maxNodes*(self.mpi.rank+1)) +i
+    def getNodeDict(self, nodeType):
+        return self.nodeDict[nodeType]
+
+    def getParameter(self,paraName=None):
+        if paraName is not None:
+            return self.para[paraName]
+        else:
+            return self.para
+
+    def setParameter(self, paraName, paraValue):
+        self.para[paraName] = paraValue
+
+    def setParameters(self, parameterDict):
+        for key in parameterDict.keys():
+            self.setParameter(key, parameterDict[key])
+
+
+    def getNodeValues(self,prop,nodeType=None, idxList=None):
+        """
+        Method to read values of node sequences at once
+        Return type is numpy array
+        """
+        if idxList:
+            return np.asarray(self.graph.vs[idxList][prop])
+        elif nodeType:
+            return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
+
+    def getEntity(self,nodeID=None, globID=None):
+        """
+        Methode to retrieve a certain instance of an entity by the nodeID
+        """
+        if nodeID is not None:
+            return self.entDict[nodeID]
+        if globID is not None:
+            return self.entDict[self.__glob2loc__[globID]]
+
 
     #TODO add init for non-spatial init of communication
     def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject=Location, GhstLocClassObject=GhostLocation):
@@ -1575,24 +1652,7 @@ class World:
         """
         self.graph.vs[self.nodeDict[nodeType]][prop] = value
 
-    def getNodeValues(self,prop,nodeType=None, idxList=None):
-        """
-        Method to read values of node sequences at once
-        Return type is numpy array
-        """
-        if idxList:
-            return np.asarray(self.graph.vs[idxList][prop])
-        elif nodeType:
-            return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
 
-    def getEntity(self,nodeID=None, globID=None):
-        """
-        Methode to retrieve a certain instance of an entity by the nodeID
-        """
-        if nodeID:
-            return self.entDict[nodeID]
-        if globID:
-            return self.entDict[self.glob2loc[globID]]
 
     def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, propertyList = ['type', 'gID']):
         """
@@ -1651,15 +1711,15 @@ class World:
         -> update of:
             - entList
             - endDict
-            - glob2loc
-            - loc2glob
+            - __glob2loc__
+            - __loc2glob__
         """
         #print 'assert' + str((len(self.entList), agent.nID))
         assert len(self.entList) == agent.nID
         self.entList.append(agent)
         self.entDict[agent.nID] = agent
-        self.glob2loc[agent.gID] = agent.nID
-        self.loc2glob[agent.nID] = agent.gID
+        self.__glob2loc__[agent.gID] = agent.nID
+        self.__loc2glob__[agent.nID] = agent.gID
 
         if ghost:
             self.ghostNodeDict[typ].append(agent.nID)
@@ -1673,22 +1733,29 @@ class World:
         -> update of:
             - entList
             - endDict
-            - glob2loc
-            - loc2glob
+            - __glob2loc__
+            - __loc2glob__
         """
         self.entList[agent.nID] = None
         del self.entDict[agent.nID]
-        del self.glob2loc[agent.gID]
-        del self.loc2glob[agent.gID]
+        del self.__glob2loc__[agent.gID]
+        del self.__loc2glob__[agent.gID]
 
     def registerLocation(self, location, x, y):
 
         self.locDict[x,y] = location
 
-    def setParameters(self, parameterDict):
-        for key in parameterDict.keys():
-            self.para[key] = parameterDict[key]
+    def returnMpiComm(self):
+        return self.mpi.comm
 
+    def returnGraph(self):
+        return self.graph
+
+    def returnGlobalRecord(self):
+        return self.globalRecord
+
+    def returnGlobals(self):
+        return self.graph.glob
 
     def view(self,filename = 'none', vertexProp='none', dispProp='gID', layout=None):
         try:
