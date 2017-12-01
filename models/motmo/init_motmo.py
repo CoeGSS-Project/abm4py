@@ -31,29 +31,22 @@ short-term:
     - utility test center
     - realistic physical values
     - test learning niches
-    - I/O on lustre
     - utility potential for omnicent knowledge
     - MCMC evolution of the synthetic population
         - add/remove households and draw acceptance accourding to available statistics
         - what about if no data is available ??? -> extrapolation of statistics
 
-    - (done) combine self-experience with community-experience
     - entropy on networks (distribution of weights)
         - entire network
         - per agent
     - save connections + properties to output
     - synthetic poplulations of bremen and hamburg
-    - (done) include communication of experiences to ghost agents !!!!!!
     - add price incentive (4000 euro in 2017)
 
 long-term:
     - cut connections with near-zero weights
     - replace removed connections with new ones
         - rebuffering of sequences of nodes and edges
-
-    - join the synthetic people of niedersachsen, bremen and hamburg
-    - jointly create their income
-    - place the correct people to the differen regions (different hh distributions)
     - add advertising to experience
 
 """
@@ -823,8 +816,6 @@ def householdSetup(earth, calibration=False):
                               peerBubbleHeterogeneity = 0.)
 
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
-                #pers.queueConnection(hh.nID,edgeType=_chp)
-                #pers.registerAtLocation(earth, x,y)
 
                 # adding reference to the person to household
                 hh.adults.append(pers)

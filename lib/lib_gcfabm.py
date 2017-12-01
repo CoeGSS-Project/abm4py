@@ -38,23 +38,19 @@ Thus, the function "location.registerEntity" does initialize ghost copies
 
 TODOs:
 
-soon:
-    - copy important graph functon to world and agument it to fit with caching and queuing
-    - redirect all output to the correct folder
+sooner:
     - IO of connections and their attributes
-    - per node collecting of communting and waiting times
-    - reach usage of 100 parallell processes (96)
-    - partitioning of the cell grid via metis or some other graph partioner
-    - debug flag to control additional output
     - allow movements of agents - transfer between nodes
     - (optional) write attribute names to hdf5 file
+    - MPI communication with numpy arrays (seems nuch faster)
 
 later:
     - movement of agents between processes
     - implement mpi communication of string attributes
     - implement output of string attributes
     - reach usage of 1000 parallell processes (960) -> how to do with only 3800 Locations??
-    - multipthreading within locatons??
+        - other resolution available!
+        - share locatons between processes
 
 
 """
@@ -951,7 +947,9 @@ class World:
 
 
         def initNodeFile(self, world, nodeTypes):
-            """ Initialized the internal data structure for later I/O"""
+            """
+            Initializes the internal data structure for later I/O
+            """
             lg.info('start init of the node file')
 
             for nodeType in nodeTypes:
@@ -1012,19 +1010,31 @@ class World:
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
         def gatherNodeData(self, timeStep):
-            """ Transfers data from the graph to the I/O storage"""
+            """
+            Transfers data from the graph to the I/O storage
+            """
             for typ in self.outData.keys():
                 self.outData[typ].addData(timeStep, self.graph)
 
         def writeDataToFile(self):
-            """ Writing data to hdf5 file"""
+            """
+            Writing data to hdf5 file
+            """
             for typ in self.outData.keys():
                 self.outData[typ].writeData(self.h5File)
 
         def initEdgeFile(self, edfeTypes):
+            """
+            ToDo
+            """
             pass
 
         def finalizeAgentFile(self):
+            """
+            finalizing the agent files - closes the file and saves the
+            attribute files
+            ToDo: include attributes in the agent file
+            """
             self.h5File.close()
             lg.info( 'Agent file closed')
             from class_auxiliary import saveObj
