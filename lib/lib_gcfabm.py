@@ -1345,7 +1345,7 @@ class World:
             Method to update ghost node data on all processes
             """
             tt = time.time()
-            messageSize = self.sendRecvGhostUpdate(nodeTypeList, propertyList)
+            messageSize = self.__updateGhostNodeData__(nodeTypeList, propertyList)
 
             if self.world.time == 0:
                 lg.info('Ghost update (of approx size ' +
