@@ -831,7 +831,7 @@ def householdSetup(earth, calibration=False):
         earth.queue.dequeueVertices(earth)
         earth.queue.dequeueEdges(earth)
 
-    earth.mpi.updateGhostNodes(earth)
+    earth.mpi.transferGhoseNodes(earth)
     #earth.mpi.comm.Barrier()
     #earth.mpi.recvGhostNodes(earth)
 

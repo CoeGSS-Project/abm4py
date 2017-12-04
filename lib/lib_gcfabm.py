@@ -1132,86 +1132,8 @@ class World:
             return dataPackage, dataSize
 
 
-        def __transferGhoseNodes__(self, world):
-            """
-            Privat method to initially transfer the data between processes and to create
-            ghost nodes from the received data
-            """
 
-            messageSize = 0
-            #%%Packing of data
-            for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
-
-                #get size of send array
-                IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
-                connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
-
-
-
-                nodeSeq = world.graph.vs[IDsList]
-
-                # setting up ghost out communication
-                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
-                propList = world.graph.nodeProperies[nodeType][:]
-                #print propList
-                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
-                self.__add2Buffer__(mpiPeer, dataPackage)
-                messageSize = messageSize + packageSize
-            recvBuffer = self.__all2allSync__()
-
-            lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
-
-            for mpiPeer in self.peers:
-                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
-                    pass
-
-                for dataPackage in recvBuffer[mpiPeer]:
-
-            #%% create ghost agents from dataDict
-
-                    nNodes, nodeType = dataPackage[0]
-
-                    nIDStart= world.graph.vcount()
-                    nIDs = range(nIDStart,nIDStart+nNodes)
-                    world.graph.add_vertices(nNodes)
-                    nodeSeq = world.graph.vs[nIDs]
-
-                    # setting up ghostIn communicator
-                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
-
-                    propList = world.graph.nodeProperies[nodeType][:]
-
-
-                    for i, prop in enumerate(propList):
-                        nodeSeq[prop] = dataPackage[i+1]
-
-                    gIDsCells = dataPackage[-1]
-
-                    # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
-                    for nID, gID in zip(nIDs, gIDsCells):
-
-                        GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
-
-                        agent = GhostAgentClass(world, mpiPeer, nID=nID)
-
-
-                        parentEntity = world.entDict[world.__glob2loc__[gID]]
-                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
-
-
-                        agent.register(world, parentEntity, edgeType)
-
-
-            lg.info('################## Ratio of ghost agents ################################################')
-            for iType, nodeType in enumerate(world.graph.nodeTypes):
-
-                if len(world.nodeDict[iType]) > 0:
-                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
-                    lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
-            lg.info('#########################################################################################')
-
-
-        def __updateGhostNodeData__(self, nodeTypeList='all', propertyList='all'):
+        def __updateGhostNodeData__(self, nodeTypeList= 'all', propertyList= 'all'):
             """
             Privat method to update the data between processes for existing ghost nodes
             """
@@ -1336,6 +1258,84 @@ class World:
                     self.world.__loc2glob__[nID] = gID
                 #self.world.mpi.comm.Barrier()
             lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
+
+        def transferGhoseNodes(self, world):
+            """
+            Privat method to initially transfer the data between processes and to create
+            ghost nodes from the received data
+            """
+
+            messageSize = 0
+            #%%Packing of data
+            for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
+
+                #get size of send array
+                IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
+                connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
+
+
+
+                nodeSeq = world.graph.vs[IDsList]
+
+                # setting up ghost out communication
+                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
+                propList = world.graph.nodeProperies[nodeType][:]
+                #print propList
+                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                self.__add2Buffer__(mpiPeer, dataPackage)
+                messageSize = messageSize + packageSize
+            recvBuffer = self.__all2allSync__()
+
+            lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
+
+            for mpiPeer in self.peers:
+                if len(recvBuffer[mpiPeer]) > 0: # will receive a message
+                    pass
+
+                for dataPackage in recvBuffer[mpiPeer]:
+
+            #%% create ghost agents from dataDict
+
+                    nNodes, nodeType = dataPackage[0]
+
+                    nIDStart= world.graph.vcount()
+                    nIDs = range(nIDStart,nIDStart+nNodes)
+                    world.graph.add_vertices(nNodes)
+                    nodeSeq = world.graph.vs[nIDs]
+
+                    # setting up ghostIn communicator
+                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
+
+                    propList = world.graph.nodeProperies[nodeType][:]
+
+
+                    for i, prop in enumerate(propList):
+                        nodeSeq[prop] = dataPackage[i+1]
+
+                    gIDsCells = dataPackage[-1]
+
+                    # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
+                    for nID, gID in zip(nIDs, gIDsCells):
+
+                        GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+
+                        agent = GhostAgentClass(world, mpiPeer, nID=nID)
+
+
+                        parentEntity = world.entDict[world.__glob2loc__[gID]]
+                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
+
+
+                        agent.register(world, parentEntity, edgeType)
+
+
+            lg.info('################## Ratio of ghost agents ################################################')
+            for iType, nodeType in enumerate(world.graph.nodeTypes):
+
+                if len(world.nodeDict[iType]) > 0:
+                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
+                    lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
+            lg.info('#########################################################################################')
 
 
 
