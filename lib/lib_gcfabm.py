@@ -42,7 +42,14 @@ sooner:
     - IO of connections and their attributes
     - allow movements of agents - transfer between nodes
     - (optional) write attribute names to hdf5 file
-    - MPI communication with numpy arrays (seems nuch faster)
+    - MPI communication with numpy arrays (seems much faster)
+    - DOCUMENTATION
+    - caching not only of out-connections?!
+
+    - re-think communication model (access restrictions)
+        - documentation of it
+    - re-think role of edge types and strong connection with connected
+      node types
 
 later:
     - movement of agents between processes
