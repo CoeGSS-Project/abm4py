@@ -65,6 +65,7 @@ import time
 from copy import copy
 from os.path import expanduser
 home = expanduser("~")
+
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
 
@@ -74,9 +75,11 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+
 else:
     import matplotlib
     matplotlib.use('Agg')
+
 #from deco_util import timing_function
 import numpy as np
 
@@ -789,7 +792,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, edgeType=_clh)
             #hh.registerAtLocation(earth,x,y,_hh,_clh)
 
-            hh.loc.node['population'] += nPers
+            hh.loc.addValue('population',  nPers)
 
             for iPers in range(nPers):
 
@@ -981,8 +984,7 @@ def initSpatialLayer(earth):
     if 'regionIdRaster' in parameters.keys():
 
         for cell in earth.iterEntRandom(_cell):
-            cell.node['regionId'] = parameters['regionIdRaster'][cell.node['pos']]
-
+            cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
 
 
 
@@ -990,7 +992,7 @@ def initSpatialLayer(earth):
 def cellTest(earth):
     #%% cell convenience test
     nLocations = len(earth.getLocationDict())
-    convArray = np.zeros([earth.market.getNTypes(), nLocations])
+    convArray = np.zeros([earth.market.getNMobTypes(), nLocations])
     popArray = np.zeros(nLocations)
     for i, cell in enumerate(earth.iterEntRandom(_cell)):
         convAll, population = cell.selfTest(earth)
@@ -1105,7 +1107,7 @@ def plot_incomePerNetwork(earth):
     for i, persId in enumerate(earth.nodeDict[_pers]):
         person = earth.entDict[persId]
         x, friends = person.getConnNodeValues('mobType',_pers)
-        incomes = [earth.entDict[friend].hh.node['income'] for friend in friends]
+        incomes = [earth.entDict[friend].hh.getValue('income') for friend in friends]
         incomeList[i,0] = np.mean(incomes)
 
     n, bins, patches = plt.hist(incomeList, 20, normed=0, histtype='bar',
@@ -1134,7 +1136,7 @@ def runModel(earth, parameters):
     tt = time.time()
     for household in earth.iterEntRandom(_hh):
 
-        household.takeAction(earth, household.adults, np.random.randint(0, earth.market.nMobTypes, len(household.adults)))
+        household.takeAction(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
             adult.setValue('lastAction', int(np.random.rand() * float(earth.para['mobNewPeriod'])))
 
@@ -1447,7 +1449,7 @@ if __name__ == '__main__':
         _cell, _hh, _pers = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
         for cell in earth.iterEntRandom(_cell):
-            cell.node['population'] = parameters.population[cell.node['pos']]
+            cell.setValue('population',parameters.population[cell.node['pos']])
         #earth.view('spatial_graph.png')
         aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
 
@@ -1462,7 +1464,7 @@ if __name__ == '__main__':
         _cell, _hh, _pers = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
         for cell in earth.iterEntRandom(_cell):
-            cell.node['population'] = parameters.population[cell.node['pos']]
+            cell.setValue('population', parameters.population[cell.getValue('pos')])
         #earth.view('spatial_graph.png')
 
         earth.graph.add_edge(995,2057)

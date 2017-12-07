@@ -163,11 +163,11 @@ class Queue():
             for entity in [world.entList[i] for i in self.nodeTypeList[nodeType]]:
 
                 #print 'entity.nID:' + str(entity.nID)
-                entity.node = self.graph.vs[entity.nID]
+                entity._node = self.graph.vs[entity.nID]
                 #print 'node index:'  + str(entity.node.index)
                 #entity.register(world)
                 #print 'assert ' + str((entity.nID, entity.node.index))
-                assert entity.nID == entity.node.index
+                assert entity.nID == entity._node.index
 
         # reset queue
         self.currNodeID     = None
@@ -417,7 +417,7 @@ class Entity():
 
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
-        self.graph  = world.graph
+        self._graph  = world.graph
         self.gID    = self.__getGlobID__(world)
 
 
@@ -425,57 +425,57 @@ class Entity():
         if nID is not None:
 
             self.nID = nID
-            self.node = self.graph.vs[nID]
-            #print 'nID:' + str(nID) + ' gID: ' + str(self.node['gID'])
-            self.gID = self.node['gID']
+            self._node = self._graph.vs[nID]
+            #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
+            self.gID = self._node['gID']
             return
 
         # create instance newly
 
-        self.nID, self.node = world.addVertex(nodeType, self.gID, **kwProperties)
+        self.nID, self._node = world.addVertex(nodeType, self.gID, **kwProperties)
 
 
         if world.caching:
-            self.cache  = Cache(self.graph, self.nID)
+            self._cache  = Cache(self._graph, self.nID)
 
             # definition of access functions
-            self.getPeerValues = self.cache.getPeerValues
-            self.setPeerValues = self.cache.setPeerValues
-            self.getPeers = self.cache.getPeers
-            self.getPeerIDs = self.cache.getPeerIDs
+            self.getPeerValues = self._cache.getPeerValues
+            self.setPeerValues = self._cache.setPeerValues
+            self.getPeers      = self._cache.getPeers
+            self.getPeerIDs    = self._cache.getPeerIDs
 
-            self.getEdgeValues = self.cache.getEdgeValues
-            self.setEdgeValues = self.cache.setEdgeValues
-            self.getEdges = self.cache.getEdges
+            self.getEdgeValues = self._cache.getEdgeValues
+            self.setEdgeValues = self._cache.setEdgeValues
+            self.getEdges      = self._cache.getEdges
 
         else:
-            self.cache = None
+            self._cache = None
 
 
 
 
     def setPeerValues(self, prop, values, nodeType=None):
-        nodeDict = self.node.neighbors(mode='out')
+        nodeDict = self._node.neighbors(mode='out')
         if nodeType is None:
             neighbourIDs = [node.index for node in nodeDict]
         else:
             neighbourIDs = [node.index for node in nodeDict if node['type'] == nodeType]
 
         for node in nodeDict:
-            self.graph.vs[neighbourIDs][prop] = values
+            self._graph.vs[neighbourIDs][prop] = values
 
     def getPeerIDs(self, edgeType=None):
-        eList  = self.graph.incident(self.nID,mode="out")
+        eList  = self._graph.incident(self.nID,mode="out")
 
         if edgeType is not None:
-            edges = self.graph.es[eList].select(type=edgeType)
+            edges = self._graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=0)
+            edges = self._graph.es[eList].select(type_ne=0)
 
         return [edge.target for edge in edges]
 
     def getPeerSeq(self, edgeType=None):
-        return self.graph.vs[self.getPeerIDs(edgeType)]
+        return self._graph.vs[self.getPeerIDs(edgeType)]
 
     def getPeerValues(self, prop, edgeType=None):
         return self.getPeerSeq(edgeType)[prop], self.getPeerSeq(edgeType)
@@ -485,12 +485,12 @@ class Entity():
         """
         privat function to access the values of  edges
         """
-        eList  = self.graph.incident(self.nID,mode="out")
+        eList  = self._graph.incident(self.nID,mode="out")
 
         if edgeType is not None:
-            edges = self.graph.es[eList].select(type=edgeType)
+            edges = self._graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=0)
+            edges = self._graph.es[eList].select(type_ne=0)
 
         return edges[prop], edges
 
@@ -498,12 +498,12 @@ class Entity():
         """
         privat function to access the values of  edges
         """
-        eList  = self.graph.incident(self.nID,mode="out")
+        eList  = self._graph.incident(self.nID,mode="out")
 
         if edgeType is not None:
-            edges = self.graph.es[eList].select(type=edgeType)
+            edges = self._graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=0)
+            edges = self._graph.es[eList].select(type_ne=0)
 
         edges[prop] = values
 
@@ -511,21 +511,21 @@ class Entity():
         """
         privat function to access the values of  edges
         """
-        eList  = self.graph.incident(self.nID,mode="out")
+        eList  = self._graph.incident(self.nID,mode="out")
 
         if edgeType is not None:
-            edges = self.graph.es[eList].select(type=edgeType)
+            edges = self._graph.es[eList].select(type=edgeType)
         else:
-            edges = self.graph.es[eList].select(type_ne=0)
+            edges = self._graph.es[eList].select(type_ne=0)
 
         return edges
 
 
     def getNeigbourhood(self, order):
-        neigIDList = self.graph.neighborhood(self.nID, order)
+        neigIDList = self._graph.neighborhood(self.nID, order)
         neigbours = []
         for neigID in neigIDList:
-            neigbours.append(self.graph.vs[neigID])
+            neigbours.append(self._graph.vs[neigID])
         return neigbours, neigIDList
 
 
@@ -536,58 +536,58 @@ class Entity():
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
-        self.graph.add_edge(self.nID,friendID, **kwpropDict)
-        if self.cache:
-            self.cache.edgesALL = None
-            self.cache.peersALL = None
-            del self.cache.edgesByType[edgeType]
-            self.cache.peersByType = dict()  # TODO less efficient
+        self._graph.add_edge(self.nID,friendID, **kwpropDict)
+        if self._cache:
+            self._cache.edgesALL = None
+            self._cache.peersALL = None
+            del self._cache.edgesByType[edgeType]
+            self._cache.peersByType = dict()  # TODO less efficient
 
     def remConnection(self, friendID=None, edgeID=None):
 
         if edgeID is None and friendID:
-            eID = self.graph.get_eid(self.nID,friendID)
+            eID = self._graph.get_eid(self.nID,friendID)
 
-        edgeType = self.graph.es[eID]['type']
-        self.graph.es[eID]['type'] = 0 # inactive
-        if self.cache:
-            self.cache.edgesALL = None
-            del self.cache.edgesByType[edgeType]
-            self.cache.peersByType = dict()
+        edgeType = self._graph.es[eID]['type']
+        self._graph.es[eID]['type'] = 0 # inactive
+        if self._cache:
+            self._cache.edgesALL = None
+            del self._cache.edgesByType[edgeType]
+            self._cache.peersByType = dict()
 
     def remConnections(self, friendIDs=None, edgeIDs=None):
 
         if edgeIDs is None and friendIDs:
 
-            eIDs = [ self.graph.get_eid(self.nID,friendID) for friendID in friendIDs]
+            eIDs = [ self._graph.get_eid(self.nID,friendID) for friendID in friendIDs]
 
-        edgeTypes = np.unique(np.asarray(self.graph.es[eIDs]['type']))
-        self.graph.es[eIDs]['type'] = 0
+        edgeTypes = np.unique(np.asarray(self._graph.es[eIDs]['type']))
+        self._graph.es[eIDs]['type'] = 0
 
         # inactive
-        if self.cache:
-            self.cache.edgesALL = None
+        if self._cache:
+            self._cache.edgesALL = None
             for edgeType in edgeTypes:
-                del self.cache.edgesByType[edgeType]
-                del self.cache.peersByType[edgeType]
+                del self._cache.edgesByType[edgeType]
+                del self._cache.peersByType[edgeType]
 
 
     def setValue(self,prop,value):
-        self.node[prop] = value
+        self._node[prop] = value
 
     def getValue(self,prop):
-        return self.node[prop]
+        return self._node[prop]
 
     def addValue(self, prop, value, idx = None):
         if idx is None:
-            self.node[prop] += value
+            self._node[prop] += value
         else:
-            self.node[prop][idx] += value
+            self._node[prop][idx] += value
 
     def delete(self, world):
 
 
-        #self.graph.delete_vertices(nID) # not really possible at the current igraph lib
+        #self._graph.delete_vertices(nID) # not really possible at the current igraph lib
         # Thus, the node is set to inactive and removed from the iterator lists
         # This is due to the library, but the problem is general and pose a challenge.
         world.graph.vs[self.nID]['type'] = 0 #set to inactive
@@ -596,9 +596,9 @@ class Entity():
         world.deRegisterNode()
 
         # get all edges - in and out
-        eIDList  = self.graph.incident(self.nID)
+        eIDList  = self._graph.incident(self.nID)
         #set edges to inactive
-        self.graph[eIDList]['type'] = 0
+        self._graph[eIDList]['type'] = 0
 
 
     def register(self, world, parentEntity=None, edgeType=None, ghost=False):
@@ -940,7 +940,7 @@ class World:
         def __init__(self, world, nSteps, outputPath = ''): # of IO
 
             self.outputPath  = outputPath
-            self.graph       = world.graph
+            self._graph       = world.graph
             #self.timeStep   = world.timeStep
             self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                          'w',
@@ -1003,7 +1003,7 @@ class World:
 
                         if isinstance(entProp,(list,tuple)):
                             # add mutiple fields
-                            nProp = len(self.graph.vs[rec.ag2FileIdx[0]][attr])
+                            nProp = len(self._graph.vs[rec.ag2FileIdx[0]][attr])
                         else:
                             #add one field
                             nProp = 1
@@ -1021,7 +1021,7 @@ class World:
             Transfers data from the graph to the I/O storage
             """
             for typ in self.outData.keys():
-                self.outData[typ].addData(timeStep, self.graph)
+                self.outData[typ].addData(timeStep, self._graph)
 
         def writeDataToFile(self):
             """
@@ -1823,6 +1823,12 @@ class World:
     def registerLocation(self, location, x, y):
 
         self.locDict[x,y] = location
+
+    def resetEdgeCache(self):
+        self._cache.resetEdgeCache()
+
+    def resetNodeCache(self):
+        self._cache.resetNodeCache()
 
     def returnMpiComm(self):
         return self.mpi.comm
