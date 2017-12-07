@@ -112,7 +112,7 @@ class Queue():
 
         if nodeType not in self.nodeProperties.keys():
             # init of new nodeType
-            propertiesOfType = self.graph.nodeProperies[nodeType]
+            propertiesOfType = self.graph.getPropOfNodeType(nodeType,kind='all')
             #print propertiesOfType
             #print kwProperties.keys()
             assert all([prop in propertiesOfType for prop in kwProperties.keys()]) # check that all given properties are registered
@@ -929,12 +929,18 @@ class World:
                     else:
                         self.data[:,self.attrIdx[attr]] = graph.vs[self.ag2FileIdx][attr]
 
-            def writeData(self, h5File):
+            def writeData(self, h5File, folderName=None):
                 #print self.header
-                path = '/' + str(self.nodeType)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
-                #print 'IO-path: ' + path
-                self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
-                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
+                if folderName is None:
+                    path = '/' + str(self.nodeType)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
+                    #print 'IO-path: ' + path
+                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
+                    self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
+                else:
+                    path = '/' + str(self.nodeType)+ '/' + folderName
+                    #print 'IO-path: ' + path
+                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
+                    self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
 
         #%% Init of the IO class
         def __init__(self, world, nSteps, outputPath = ''): # of IO
@@ -949,7 +955,8 @@ class World:
                                          libver='latest',
                                          info = world.mpi.info)
             self.comm        = world.mpi.comm
-            self.outData     = dict()
+            self.dynamicData = dict()
+            self.staticData  = dict() # only saved once at timestep == 0
             self.timeStepMag = int(np.ceil(np.log10(nSteps)))
 
 
@@ -986,49 +993,86 @@ class World:
                 lg.info( 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
 
-                rec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
-                self.attributes = world.graph.nodeProperies[nodeType][:]
-                self.attributes.remove('type')
 
+                # static data
+                staticRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
+                attributes = world.graph.nodeTypes[nodeType].staProp
+                attributes.remove('type')
+                lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
-
-                lg.info( 'record created in  ' + str(time.time()-tt)  + ' seconds')
-
-
-                for attr in self.attributes:
+                for attr in attributes:
                     #check if first property of first entity is string
-                    entProp = world.graph.vs[rec.ag2FileIdx[0]][attr]
+                    entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
                     if not isinstance(entProp,str):
 
 
                         if isinstance(entProp,(list,tuple)):
                             # add mutiple fields
-                            nProp = len(self._graph.vs[rec.ag2FileIdx[0]][attr])
+                            nProp = len(self._graph.vs[staticRec.ag2FileIdx[0]][attr])
                         else:
                             #add one field
                             nProp = 1
 
-                        rec.addAttr(attr, nProp)
+                        staticRec.addAttr(attr, nProp)
 
                 tt = time.time()
                 # allocate storage
-                rec.initStorage()
-                self.outData[nodeType] = rec
+                staticRec.initStorage()
+                self.staticData[nodeType] = staticRec
+                lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+
+                # dynamic data
+                dynamicRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
+                attributes = world.graph.nodeTypes[nodeType].dynProp
+
+
+
+
+                lg.info('Dynamic record created in  ' + str(time.time()-tt)  + ' seconds')
+
+
+                for attr in attributes:
+                    #check if first property of first entity is string
+                    entProp = world.graph.vs[dynamicRec.ag2FileIdx[0]][attr]
+                    if not isinstance(entProp,str):
+
+
+                        if isinstance(entProp,(list,tuple)):
+                            # add mutiple fields
+                            nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
+                        else:
+                            #add one field
+                            nProp = 1
+
+                        dynamicRec.addAttr(attr, nProp)
+
+                tt = time.time()
+                # allocate storage
+                dynamicRec.initStorage()
+                self.dynamicData[nodeType] = dynamicRec
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
         def gatherNodeData(self, timeStep):
             """
-            Transfers data from the graph to the I/O storage
+            Transfers data from the graph to record for the I/O
             """
-            for typ in self.outData.keys():
-                self.outData[typ].addData(timeStep, self._graph)
+            if timeStep == 0:
+                for typ in self.staticData.keys():
+                    self.staticData[typ].addData(timeStep, self._graph)
 
-        def writeDataToFile(self):
+            for typ in self.dynamicData.keys():
+                self.dynamicData[typ].addData(timeStep, self._graph)
+
+        def writeDataToFile(self, timeStep):
             """
             Writing data to hdf5 file
             """
-            for typ in self.outData.keys():
-                self.outData[typ].writeData(self.h5File)
+            if timeStep == 0:
+                for typ in self.staticData.keys():
+                    self.staticData[typ].writeData(self.h5File, folderName='static')
+
+            for typ in self.dynamicData.keys():
+                self.dynamicData[typ].writeData(self.h5File)
 
         def initEdgeFile(self, edfeTypes):
             """
@@ -1046,8 +1090,8 @@ class World:
             lg.info( 'Agent file closed')
             from class_auxiliary import saveObj
 
-            for nodeType in self.outData.keys():
-                record = self.outData[nodeType]
+            for nodeType in self.dynamicData.keys():
+                record = self.dynamicData[nodeType]
                 #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
                 saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
     class Mpi():
@@ -1133,7 +1177,7 @@ class World:
 
 
 
-        def __updateGhostNodeData__(self, nodeTypeList= 'all', propertyList= 'all'):
+        def __updateGhostNodeData__(self, nodeTypeList= 'dyn', propertyList= 'dyn'):
             """
             Privat method to update the data between processes for existing ghost nodes
             """
@@ -1143,8 +1187,8 @@ class World:
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
                     nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
 
-                    if propertyList == 'all':
-                        propertyList = self.world.graph.nodeProperies[nodeType][:]
+                    if propertyList in ['all', 'dyn', 'sta']:
+                        propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
                         propertyList.remove('gID')
 
                     dataPackage ,packageSize = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
@@ -1195,7 +1239,7 @@ class World:
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
                 #print owner
-                x,y   = ghLoc.node['pos']
+                x,y   = ghLoc._node['pos']
                 if owner not in mpiRequest:
                     mpiRequest[owner]   = (list(), 'gID')
                     mpiReqIDList[owner] = list()
@@ -1259,7 +1303,7 @@ class World:
                 #self.world.mpi.comm.Barrier()
             lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
-        def transferGhoseNodes(self, world):
+        def transferGhostNodes(self, world):
             """
             Privat method to initially transfer the data between processes and to create
             ghost nodes from the received data
@@ -1279,7 +1323,7 @@ class World:
 
                 # setting up ghost out communication
                 self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
-                propList = world.graph.nodeProperies[nodeType][:]
+                propList = world.graph.getPropOfNodeType(nodeType, kind='all')
                 #print propList
                 dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
                 self.__add2Buffer__(mpiPeer, dataPackage)
@@ -1306,7 +1350,7 @@ class World:
                     # setting up ghostIn communicator
                     self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
 
-                    propList = world.graph.nodeProperies[nodeType][:]
+                    propList = world.graph.getPropOfNodeType(nodeType, kind='all')
 
 
                     for i, prop in enumerate(propList):
@@ -1323,17 +1367,17 @@ class World:
 
 
                         parentEntity = world.entDict[world.__glob2loc__[gID]]
-                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity.node['type'], nodeType]
+                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity._node['type'], nodeType]
 
 
                         agent.register(world, parentEntity, edgeType)
 
 
             lg.info('################## Ratio of ghost agents ################################################')
-            for iType, nodeType in enumerate(world.graph.nodeTypes):
-
-                if len(world.nodeDict[iType]) > 0:
-                    nGhostsRatio = float(len(world.ghostNodeDict[iType])) / float(len(world.nodeDict[iType]))
+            for nodeTypeIdx in world.graph.nodeTypes.keys():
+                nodeType = world.graph.nodeTypes[nodeTypeIdx].typeStr
+                if len(world.nodeDict[nodeTypeIdx]) > 0:
+                    nGhostsRatio = float(len(world.ghostNodeDict[nodeTypeIdx])) / float(len(world.nodeDict[nodeTypeIdx]))
                     lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
             lg.info('#########################################################################################')
 
@@ -1428,18 +1472,7 @@ class World:
         self.para['outPath'] = outPath
 
 
-        # list of types
-        self.graph.nodeTypes = list()
-        self.graph.edgeTypes = list()
-        self.graph.nodeTypes2edgeTypes = dict()
 
-        # dict of classes to init node automatically
-        self.graph.nodeType2Class = dict()
-        self.graph.class2NodeType = dict()
-
-        # list of properties per type
-        self.graph.nodeProperies = dict()
-        self.graph.edgeProperies = dict()
 
         # queues
         if self.queuing:
@@ -1733,7 +1766,7 @@ class World:
 
 
 
-    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, propertyList = ['type', 'gID']):
+    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = ['type', 'gID'], dynamicProperies = []):
         """
         Method to register a node type:
         - Registers the properties of each nodeType for other purposes, e.g. I/O
@@ -1748,11 +1781,12 @@ class World:
 
         """
         # type is an required property
-        assert 'type' and 'gID' in propertyList
+        assert 'type' and 'gID' in staticProperies
 
         nodeTypeIdx = len(self.graph.nodeTypes)
-        self.graph.nodeTypes.append(typeStr)
-        self.graph.nodeProperies[nodeTypeIdx] = propertyList
+
+        self.graph.addNodeType(nodeTypeIdx, typeStr, staticProperies, dynamicProperies)
+
         # same nodeType for ghost and non-ghost
         self.graph.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
         self.graph.class2NodeType[AgentClass]       = nodeTypeIdx
@@ -1763,7 +1797,7 @@ class World:
         return nodeTypeIdx
 
 
-    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, propertyList = ['type']):
+    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperies = ['type'], dynamicProperies=[]):
         """
         Method to register a edge type:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
@@ -1773,12 +1807,15 @@ class World:
         - update of enumerations
 
         """
-        assert 'type' in propertyList # type is an required property
+        assert 'type' in staticProperies # type is an required property
 
         edgeTypeIdx = len(self.graph.edgeTypes)
-        self.graph.edgeTypes.append(edgeTypeIdx)
+        #self.graph.edgeTypes.append(edgeTypeIdx)
         self.graph.nodeTypes2edgeTypes[nodeType1, nodeType2] = edgeTypeIdx
-        self.graph.edgeProperies[edgeTypeIdx] = propertyList
+
+        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies)
+
+        #self.graph.edgeProperies[edgeTypeIdx] = propertyList
         #self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)
         self.enums[typeStr] = edgeTypeIdx
 
@@ -1986,7 +2023,7 @@ if __name__ == '__main__':
 
     print str(earth.mpi.rank) + ' SendQueue ' + str(earth.mpi.ghostNodeQueue)
 
-    earth.mpi.transferGhoseNodes(earth)
+    earth.mpi.transferGhostNodes(earth)
     #earth.mpi.recvGhostNodes(earth)
 
     earth.queue.dequeueVertices(earth)

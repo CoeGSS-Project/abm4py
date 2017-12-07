@@ -322,7 +322,7 @@ class Earth(World):
         # I/O
         ttIO = time.time()
         self.io.gatherNodeData(self.time)
-        self.io.writeDataToFile()
+        self.io.writeDataToFile(self.time)
         self.ioTime[self.time] = time.time()-ttIO
 
 

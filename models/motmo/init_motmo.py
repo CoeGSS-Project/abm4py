@@ -834,7 +834,7 @@ def householdSetup(earth, calibration=False):
         earth.queue.dequeueVertices(earth)
         earth.queue.dequeueEdges(earth)
 
-    earth.mpi.transferGhoseNodes(earth)
+    earth.mpi.transferGhostNodes(earth)
     #earth.mpi.comm.Barrier()
     #earth.mpi.recvGhostNodes(earth)
 
@@ -924,34 +924,31 @@ def initEarth(simNo,
 def initTypes(earth):
     parameters = earth.getParameter()
     _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
-                                  propertyList = ['type',
-                                                  'gID',
-                                                  'pos',
-                                                  'population',
+                               staticProperies  = ['type', 'gID', 'pos', 'regionId'],
+                               dynamicProperies = ['population',
                                                   'convenience',
-                                                  'regionId',
                                                   'carsInCell',])
 
 
     _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
-                                  propertyList =  ['type',
+                               staticProperies  = ['type',
                                                    'gID',
                                                    'pos',
                                                    'hhSize',
-                                                   'nKids',
-                                                   'income',
+                                                   'nKids'],
+                               dynamicProperies =  ['income',
                                                    'expUtil',
                                                    'util',
                                                    'expenses'])
 
 
     _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
-                                  propertyList = ['type',
+                                staticProperies  = ['type',
                                                   'gID',
                                                   'hhID',
                                                   'preferences',
-                                                  'gender',
-                                                  'age',
+                                                  'gender'],
+                                dynamicProperies = ['age',
                                                   'util',     # current utility
                                                   'commUtil', # comunity utility
                                                   'selfUtil', # own utility at time of action
