@@ -26,7 +26,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 import itertools
-import pandas as pd 
+import pandas as pd
 import seaborn as sns
 import pickle
 
@@ -53,7 +53,7 @@ def writeAdjFile(graph,fileName):
     for adjline, popu in zip(adjList, popList):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
     fid.close()
-    
+
 
 #def getsize(obj_0):
 #    """Recursively iterate to sum size of object & members."""
@@ -79,7 +79,7 @@ def writeAdjFile(graph,fileName):
 
 
 def getEnvironment(comm, getSimNo=True):
-    
+
     if comm == None or comm.rank == 0 :
         # get simulation number from file
         try:
@@ -98,15 +98,15 @@ def getEnvironment(comm, getSimNo=True):
             print 'Please create file "environment" which contains the simulation'
             print 'and the baseOutputPath'
             print '#################################################'
-            print "0" 
+            print "0"
             print 'basepath/'
             print '#################################################'
     else:
         simNo    = None
         baseOutputPath = None
 
-    
-    if getSimNo:   
+
+    if getSimNo:
         if comm is None:
             return simNo, baseOutputPath
         simNo = comm.bcast(simNo, root=0)
@@ -122,27 +122,27 @@ def getEnvironment(comm, getSimNo=True):
         return baseOutputPath
 
 def createOutputDirectory(comm, baseOutputPath, simNo):
-    
+
         dirPath  = baseOutputPath + 'sim' + str(simNo).zfill(4)
-        
+
         if comm.rank ==0:
             import os
-            
+
             if not os.path.isdir(dirPath):
                 os.mkdir(dirPath)
 
         comm.Barrier()
         if comm.rank ==0:
             print 'output directory created'
-        
+
         return dirPath
-    
+
 def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
     """
     Method for easy computing a connections list of regular grids
     """
-    connList = []  
-    
+    connList = []
+
     intRad = int(radius)
     for x in range(-intRad,intRad+1):
         for y in range(-intRad,intRad+1):
@@ -226,20 +226,20 @@ def loadObj(name ):
 
 
 class Writer():
-    
+
     def __init__(self, world, filename):
         self.fid = open('output/' + filename,'w')
         self.world = world
         self.world.reporter.append(self)
-        
+
     def write(self,outStr):
         self.fid.write(str(self.world.time) + ' - ' + outStr + '\n')
-        
+
     def close(self):
         self.fid.close()
 
 class Memory():
-    
+
     def __init__(self, memeLabels):
         self.freeRows  = list()
         self.columns   = dict()
@@ -262,9 +262,9 @@ class Memory():
             row = self.memory.shape[0]
             self.memory = np.vstack(( self.memory, meme))
             self.ID2Row[memeID] = row
-        
+
         return memeID
-            
+
     def remMeme(self,memeID):
         """
         remove meme to memory
@@ -273,7 +273,7 @@ class Memory():
         self.memory[row] = np.nan
         self.freeRows.append(row)
         del self.ID2Row[memeID]
-    
+
     def getMeme(self,memeID,columns):
         """
         used the memeID to identfy the row and returns the meme
@@ -281,11 +281,11 @@ class Memory():
         cols = [self.columns[x] for x in columns]
         rows = [self.ID2Row[x]   for x in memeID]
         return self.memory[np.ix_(rows,cols)]
-    
-    
-    
+
+
+
 class Record():
-    
+
     def __init__(self, name, colLables, nSteps, title, style='plot'):
         self.nRec = len(colLables)
         self.columns = colLables
@@ -294,37 +294,37 @@ class Record():
         self.style = style
         self.nSteps = nSteps
         self.title  = title
-    
+
     def addCalibrationData(self, timeIdxs, values):
         self.calDataDict = dict()
         for idx, value in zip(timeIdxs, values):
             self.calDataDict[idx] = value
-    
-        
+
+
     def updateValues(self, timeStep):
         self.glob[self.name] = self.rec[timeStep,:]
-        
+
     def gatherSyncDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
-        
+
     def set(self, timeStep, data):
         self.rec[timeStep,:] = data
-        
+
     def setIdx(self, timeStep, data, idx):
         self.rec[timeStep,idx] = data
-    
+
     def add(self, timeStep, data):
         self.rec[timeStep,:] += data
-        
+
     def addIdx(self, timeStep, data, idx):
         self.rec[timeStep,idx] += data
-    
+
     def div(self, timeStep, data):
         self.rec[timeStep,:] /= data
-        
+
     def divIdx(self, timeStep, data, idx):
         self.rec[timeStep,idx] /= data
-        
+
     def plot(self, path):
         import matplotlib.pyplot as plt
         plt.figure()
@@ -335,20 +335,20 @@ class Record():
                 for x,y in self.calDataDict.iteritems():
                     if x <= calData.shape[0]:
                         calData[x,:] = y
-                    
+
                 plt.plot(calData,'d')
-            
+
         elif self.style == 'stackedBar':
             nCars = np.zeros(self.nSteps)
             colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
             for i, brand in enumerate(self.columns):
                plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color =colorPal[i], width=1)
                nCars += self.rec[:,i]
-            
+
         plt.legend(self.columns)
         plt.title(self.title)
         plt.savefig(path +'/' + self.name + '.png')
-        
+
     def saveCSV(self, path):
         df = pd.DataFrame(self.rec, columns=self.columns)
         df.to_csv(path +'/' + self.name + '.csv')
@@ -356,23 +356,23 @@ class Record():
     def save2Hdf5(self, h5File):
         dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
         dset[:] = self.rec
-        dset.attrs['columns'] = self.columns   
-        
+        dset.attrs['columns'] = self.columns
+
         if hasattr(self,'calDataDict'):
             tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
             for i, key in enumerate(self.calDataDict.keys()):
                 tmp[i,:] = [key] + self.calDataDict[key]
-            
+
             dset = h5File.create_dataset('calData/' + self.name, tmp.shape, dtype='f8')
             dset[:] = tmp
-            
-            
+
+
     def evaluateRelativeError(self):
         if hasattr(self,'calDataDict'):
-            
+
             err = 0
             for timeIdx ,calValues in self.calDataDict.iteritems():
-                
+
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
                        err += np.abs(calValue - self.rec[timeIdx,i]) / calValue
@@ -380,8 +380,8 @@ class Record():
             fid.write(str(err))
             fid.close()
             return err
-        
+
         else:
             return None
-        
-        
+
+

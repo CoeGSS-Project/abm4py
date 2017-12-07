@@ -926,8 +926,8 @@ def initTypes(earth):
     _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
                                staticProperies  = ['type', 'gID', 'pos', 'regionId'],
                                dynamicProperies = ['population',
-                                                  'convenience',
-                                                  'carsInCell',])
+                                                   'convenience',
+                                                   'carsInCell',])
 
 
     _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
@@ -943,11 +943,11 @@ def initTypes(earth):
 
 
     _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
-                                staticProperies  = ['type',
-                                                  'gID',
-                                                  'hhID',
-                                                  'preferences',
-                                                  'gender'],
+                                staticProperies = ['type',
+                                                   'gID',
+                                                   'hhID',
+                                                   'preferences',
+                                                   'gender'],
                                 dynamicProperies = ['age',
                                                   'util',     # current utility
                                                   'commUtil', # comunity utility

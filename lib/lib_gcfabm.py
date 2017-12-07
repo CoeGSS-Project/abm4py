@@ -41,11 +41,9 @@ TODOs:
 sooner:
     - IO of connections and their attributes
     - allow movements of agents - transfer between nodes
-    - (optional) write attribute names to hdf5 file
     - MPI communication with numpy arrays (seems much faster)
     - DOCUMENTATION
     - caching not only of out-connections?!
-
     - re-think communication model (access restrictions)
         - documentation of it
     - re-think role of edge types and strong connection with connected
@@ -970,7 +968,10 @@ class World:
                 world.mpi.comm.Barrier()
                 tt = time.time()
                 lg.info(' NodeType: ' +str(nodeType))
-                self.h5File.create_group(str(nodeType))
+                group = self.h5File.create_group(str(nodeType))
+
+                group.attrs.create('dynamicProps', world.graph.getPropOfNodeType(nodeType, 'dyn'))
+                group.attrs.create('staticProps', world.graph.getPropOfNodeType(nodeType, 'sta'))
 
                 lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
@@ -1086,6 +1087,20 @@ class World:
             attribute files
             ToDo: include attributes in the agent file
             """
+
+            for nodeType in self.dynamicData.keys():
+                group = self.h5File.get('/' + str(nodeType))
+                record = self.dynamicData[nodeType]
+                for attrKey in record.attrIdx.keys():
+                    group.attrs.create(attrKey, record.attrIdx[attrKey])
+
+            for nodeType in self.staticData.keys():
+                group = self.h5File.get('/' + str(nodeType))
+                record = self.staticData[nodeType]
+                for attrKey in record.attrIdx.keys():
+                    group.attrs.create(attrKey, record.attrIdx[attrKey])
+
+
             self.h5File.close()
             lg.info( 'Agent file closed')
             from class_auxiliary import saveObj
