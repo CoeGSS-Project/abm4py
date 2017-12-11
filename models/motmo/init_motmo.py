@@ -62,6 +62,7 @@ import sys, os
 import socket
 import csv
 import time
+import guppy
 from copy import copy
 from os.path import expanduser
 home = expanduser("~")
@@ -1511,6 +1512,9 @@ if __name__ == '__main__':
     initMobilityTypes(earth)
 
     initAgentOutput(earth)
+
+    cell = earth.entDict[0]
+    #cell.setWorld(earth)
 
     if parameters.scenario == 0:
         earth.view('output/graph.png')

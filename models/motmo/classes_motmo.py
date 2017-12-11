@@ -602,7 +602,7 @@ class Market():
 
 
 class Person(Agent):
-
+    __slots__ = ['gID', 'nID']
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
 
@@ -906,7 +906,7 @@ class GhostHousehold(GhostAgent):
         self.loc.hhList.append(self.nID)
 
 class Household(Agent):
-
+    __slots__ = ['gID', 'nID']
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
 

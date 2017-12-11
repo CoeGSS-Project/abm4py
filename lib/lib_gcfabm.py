@@ -40,7 +40,6 @@ TODOs:
 
 sooner:
     - IO of connections and their attributes
-    - allow movements of agents - transfer between nodes
     - MPI communication with numpy arrays (seems much faster)
     - DOCUMENTATION
     - caching not only of out-connections?!
@@ -411,12 +410,17 @@ class Entity():
     """
     Most basic class from which agents of different type are derived
     """
+    __slots__ = ['gID', 'nID']
 
 
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
-        self._graph  = world.graph
-        self.gID    = self.__getGlobID__(world)
+
+        if not hasattr(self, '_graph'):
+            self.setGraph(world.graph)
+        #self._graph = world.graph
+
+        self.gID    = self.getGlobID(world)
 
 
         # create instance from existing node
@@ -449,8 +453,9 @@ class Entity():
         else:
             self._cache = None
 
-
-
+    @classmethod
+    def setGraph(cls, graph):
+        cls._graph = graph
 
     def setPeerValues(self, prop, values, nodeType=None):
         nodeDict = self._node.neighbors(mode='out')
@@ -610,8 +615,7 @@ class Entity():
 
 class Agent(Entity):
 
-    def __getGlobID__(self,world):
-        return world.globIDGen.next()
+
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in kwProperties.keys():
@@ -620,6 +624,9 @@ class Agent(Entity):
             nID = kwProperties['nID']
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(world.mpi.rank)
+
+    def getGlobID(self,world):
+        return world.globIDGen.next()
 
     def registerChild(self, world, entity, edgeType):
         if edgeType is not None:
@@ -656,7 +663,7 @@ class GhostAgent(Entity):
         Entity.register(self, world, parentEntity, edgeType, ghost= True)
 
 
-    def __getGlobID__(self,world):
+    def getGlobID(self,world):
 
         return None # global ID need to be acquired via MPI communication
 
@@ -672,7 +679,7 @@ class GhostAgent(Entity):
 ################ LOCATION CLASS #########################################
 class Location(Entity):
 
-    def __getGlobID__(self,world):
+    def getGlobID(self,world):
         return world.globIDGen.next()
 
     def __init__(self, world, **kwProperties):
@@ -702,7 +709,7 @@ class Location(Entity):
 
 class GhostLocation(Entity):
 
-    def __getGlobID__(self,world):
+    def getGlobID(self,world):
 
         return None
 
@@ -1146,10 +1153,10 @@ class World:
             world.isend = self.comm.isend
             world.irecv = self.comm.irecv
 
-            self.__clearBuffer__()
+            self._clearBuffer()
 
         #%% Privat functions
-        def __clearBuffer__(self):
+        def _clearBuffer(self):
             """
             Method to clear all2all buffer
             """
@@ -1158,22 +1165,22 @@ class World:
                 self.a2aBuff.append([])
 
 
-        def __add2Buffer__(self, mpiPeer, data):
+        def _add2Buffer(self, mpiPeer, data):
             """
             Method to add data to all2all data to buffer
             """
             self.a2aBuff[mpiPeer].append(data)
 
-        def __all2allSync__(self):
+        def _all2allSync(self):
             """
             Privat all2all communication method
             """
             recvBuffer = self.comm.alltoall(self.a2aBuff)
-            self.__clearBuffer__()
+            self._clearBuffer()
             return recvBuffer
 
 
-        def __packData__(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
+        def _packData(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
             """
             Privat method to pack all data for MPI transfer
             """
@@ -1192,7 +1199,7 @@ class World:
 
 
 
-        def __updateGhostNodeData__(self, nodeTypeList= 'dyn', propertyList= 'dyn'):
+        def _updateGhostNodeData(self, nodeTypeList= 'dyn', propertyList= 'dyn'):
             """
             Privat method to update the data between processes for existing ghost nodes
             """
@@ -1206,14 +1213,14 @@ class World:
                         propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
                         propertyList.remove('gID')
 
-                    dataPackage ,packageSize = self.__packData__(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    dataPackage ,packageSize = self._packData(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
                     messageSize = messageSize + packageSize
-                    self.__add2Buffer__(mpiPeer, dataPackage)
+                    self._add2Buffer(mpiPeer, dataPackage)
 
             syncPackTime = time.time() -tt
 
             tt = time.time()
-            recvBuffer = self.__all2allSync__()
+            recvBuffer = self._all2allSync()
             pureSyncTime = time.time() -tt
 
             tt = time.time()
@@ -1271,10 +1278,10 @@ class World:
                     # send request of global IDs
                     lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))
                     #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
-                    self.__add2Buffer__(mpiDest, mpiRequest[mpiDest])
+                    self._add2Buffer(mpiDest, mpiRequest[mpiDest])
 
             lg.debug( 'requestOut:' + str(self.a2aBuff))
-            requestIn = self.__all2allSync__()
+            requestIn = self._all2allSync()
             lg.debug( 'requestIn:' +  str(requestIn))
 
 
@@ -1299,9 +1306,9 @@ class World:
                 # send requested global IDs
                 lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))
 
-                self.__add2Buffer__(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
+                self._add2Buffer(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
 
-            requestRecv = self.__all2allSync__()
+            requestRecv = self._all2allSync()
 
             for mpiDest in mpiRequest.keys():
                 #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
@@ -1313,8 +1320,8 @@ class World:
                 lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
-                    self.world.__glob2loc__[gID] = nID
-                    self.world.__loc2glob__[nID] = gID
+                    self.world._glob2loc[gID] = nID
+                    self.world._loc2glob[nID] = gID
                 #self.world.mpi.comm.Barrier()
             lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
@@ -1340,10 +1347,10 @@ class World:
                 self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')
                 #print propList
-                dataPackage, packageSize = self.__packData__( nodeType, mpiPeer, nodeSeq,  propList, connList)
-                self.__add2Buffer__(mpiPeer, dataPackage)
+                dataPackage, packageSize = self._packData( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                self._add2Buffer(mpiPeer, dataPackage)
                 messageSize = messageSize + packageSize
-            recvBuffer = self.__all2allSync__()
+            recvBuffer = self._all2allSync()
 
             lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
 
@@ -1381,7 +1388,7 @@ class World:
                         agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
 
-                        parentEntity = world.entDict[world.__glob2loc__[gID]]
+                        parentEntity = world.entDict[world._glob2loc[gID]]
                         edgeType = world.graph.nodeTypes2edgeTypes[parentEntity._node['type'], nodeType]
 
 
@@ -1404,7 +1411,7 @@ class World:
             Method to update ghost node data on all processes
             """
             tt = time.time()
-            messageSize = self.__updateGhostNodeData__(nodeTypeList, propertyList)
+            messageSize = self._updateGhostNodeData(nodeTypeList, propertyList)
 
             if self.world.time == 0:
                 lg.info('Ghost update (of approx size ' +
@@ -1474,7 +1481,7 @@ class World:
         self.para     = dict()
         self.spatial  = spatial
         self.maxNodes = int(maxNodes)
-        self.globIDGen = self.__globIDGen__()
+        self.globIDGen = self._globIDGen()
         self.nSteps   = nSteps
         self.debug    = debug
 
@@ -1528,8 +1535,8 @@ class World:
         self.entDict   = dict()
         self.locDict   = dict()
 
-        self.__glob2loc__ = dict()  # reference from global IDs to local IDs
-        self.__loc2glob__ = dict()  # reference from local IDs to global IDs
+        self._glob2loc = dict()  # reference from global IDs to local IDs
+        self._loc2glob = dict()  # reference from local IDs to global IDs
 
         # inactive is used to virtually remove nodes
         self.registerNodeType('inactiv', None, None)
@@ -1537,7 +1544,7 @@ class World:
 
 
 
-    def __globIDGen__(self):
+    def _globIDGen(self):
         i = -1
         while i < self.maxNodes:
             i += 1
@@ -1546,10 +1553,10 @@ class World:
 # GENERAL FUNCTIONS
 
     def glob2loc(self, idx):
-        return self.__glob2loc__[idx]
+        return self._glob2loc[idx]
 
     def loc2glob(self, idx):
-        return self.__loc2glob__[idx]
+        return self._loc2glob[idx]
 
     def getNodeData(self, propName, nodeType=None):
         """
@@ -1569,7 +1576,7 @@ class World:
     def getLocationDict(self):
         """
         The locationDict contains all instances of locations that are
-        accessed by (x,y) Koordinates
+        accessed by (x,y) coordinates
         """
         return self.locDict
 
@@ -1619,7 +1626,7 @@ class World:
         if nodeID is not None:
             return self.entDict[nodeID]
         if globID is not None:
-            return self.entDict[self.__glob2loc__[globID]]
+            return self.entDict[self._glob2loc[globID]]
 
 
     #TODO add init for non-spatial init of communication
@@ -1842,15 +1849,15 @@ class World:
         -> update of:
             - entList
             - endDict
-            - __glob2loc__
-            - __loc2glob__
+            - _glob2loc
+            - _loc2glob
         """
         #print 'assert' + str((len(self.entList), agent.nID))
         assert len(self.entList) == agent.nID
         self.entList.append(agent)
         self.entDict[agent.nID] = agent
-        self.__glob2loc__[agent.gID] = agent.nID
-        self.__loc2glob__[agent.nID] = agent.gID
+        self._glob2loc[agent.gID] = agent.nID
+        self._loc2glob[agent.nID] = agent.gID
 
         if ghost:
             self.ghostNodeDict[typ].append(agent.nID)
@@ -1864,13 +1871,13 @@ class World:
         -> update of:
             - entList
             - endDict
-            - __glob2loc__
-            - __loc2glob__
+            - _glob2loc
+            - _loc2glob
         """
         self.entList[agent.nID] = None
         del self.entDict[agent.nID]
-        del self.__glob2loc__[agent.gID]
-        del self.__loc2glob__[agent.gID]
+        del self._glob2loc[agent.gID]
+        del self._loc2glob[agent.gID]
 
     def registerLocation(self, location, x, y):
 
