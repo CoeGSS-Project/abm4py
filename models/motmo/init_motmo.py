@@ -62,7 +62,7 @@ import sys, os
 import socket
 import csv
 import time
-import guppy
+#import guppy
 from copy import copy
 from os.path import expanduser
 home = expanduser("~")
