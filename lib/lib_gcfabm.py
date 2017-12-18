@@ -161,6 +161,9 @@ class Queue():
 
                 #print 'entity.nID:' + str(entity.nID)
                 entity._node = self.graph.vs[entity.nID]
+                # redireciton of internal functionality:
+                entity.getValue = entity._node.__getitem__
+                entity.setValue = entity._node.__setitem__
                 #print 'node index:'  + str(entity.node.index)
                 #entity.register(world)
                 #print 'assert ' + str((entity.nID, entity.node.index))
@@ -430,11 +433,17 @@ class Entity():
             self._node = self._graph.vs[nID]
             #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
             self.gID = self._node['gID']
+            # redireciton of internal functionality:
+            self.getValue = self._node.__getitem__
+            self.setValue = self._node.__setitem__
             return
 
         # create instance newly
 
         self.nID, self._node = world.addVertex(nodeType, self.gID, **kwProperties)
+        # redireciton of internal functionality:
+        self.getValue = self._node.__getitem__
+        self.setValue = self._node.__setitem__
 
 
         if world.caching:
@@ -452,6 +461,9 @@ class Entity():
 
         else:
             self._cache = None
+            
+
+            
 
     @classmethod
     def setGraph(cls, graph):
@@ -574,12 +586,6 @@ class Entity():
                 del self._cache.edgesByType[edgeType]
                 del self._cache.peersByType[edgeType]
 
-
-    def setValue(self,prop,value):
-        self._node[prop] = value
-
-    def getValue(self,prop):
-        return self._node[prop]
 
     def addValue(self, prop, value, idx = None):
         if idx is None:
