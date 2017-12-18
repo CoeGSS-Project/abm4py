@@ -1615,7 +1615,7 @@ class World:
             self.setParameter(key, parameterDict[key])
 
 
-    def getNodeValues(self,prop,nodeType=None, idxList=None):
+    def getNodeValues(self, prop, nodeType=None, idxList=None):
         """
         Method to read values of node sequences at once
         Return type is numpy array
@@ -1624,6 +1624,16 @@ class World:
             return np.asarray(self.graph.vs[idxList][prop])
         elif nodeType:
             return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
+
+    def setNodeValues(self, prop, valueList, nodeType=None, idxList=None):
+        """
+        Method to read values of node sequences at once
+        Return type is numpy array
+        """
+        if idxList:
+            self.graph.vs[idxList][prop] = valueList
+        elif nodeType:
+            self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
 
     def getEntity(self,nodeID=None, globID=None):
         """
@@ -1785,12 +1795,6 @@ class World:
             return  [(self.entList[i], i) for i in shuffled_list]
         else:
             return  [(self.entList[i], i) for i in nodeDict]
-
-    def setNodeValues(self,prop,nodeType, value):
-        """
-        Method to set values for multiple nodes at once
-        """
-        self.graph.vs[self.nodeDict[nodeType]][prop] = value
 
 
 
