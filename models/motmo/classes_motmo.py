@@ -843,7 +843,7 @@ class Person(Agent):
         # weighting by 3
         selfUtil[mobType] *= earth.para['selfTrust']
 
-        if len(selfUtil) != 3 or len(communityUtil.shape) == 0 or communityUtil.shape[0] != 3:
+        if len(selfUtil) != earth.para['nMobTypes'] or len(communityUtil.shape) == 0 or communityUtil.shape[0] != earth.para['nMobTypes']:
             print 'nID: ' + str(self.nID)
             print 'error: '
             print 'communityUtil: ' + str(communityUtil)
@@ -851,11 +851,13 @@ class Person(Agent):
             print 'nEdges: ' + str(len(edges))
 
             return
-
-        self._node['commUtil'] = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
+        tmp = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
+        tmp[mobType] /= (earth.para['selfTrust']+1)/2
+        
+        self._node['commUtil'] = tmp.tolist()
 
         # adjust mean since double of weigth - very bad code - sorry
-        self._node['commUtil'][mobType] /= (earth.para['selfTrust']+1)/2
+        
 
 
     def step(self, earth):
@@ -997,8 +999,9 @@ class Household(Agent):
 
             if getInfoList[i]: #or (earth.time < earth.para['burnIn']):
                 adult.computeExpUtil(earth)
-                actionIds = [-1, 0, 1, 2]
-                eUtils = [adult.getValue('util')] + adult.getValue('commUtil').tolist()
+                actionIds = [-1] + range(earth.para['nMobTypes'])
+
+                eUtils = [adult.getValue('util')] + adult.getValue('commUtil')
 
             else:
                 actionIds, eUtils = [-1], [adult.getValue('util')]
@@ -1353,7 +1356,7 @@ class Reporter(Household):
 class Cell(Location):
 
     def __init__(self, earth,  **kwProperties):
-        kwProperties.update({'population': 0, 'convenience': [0,0,0], 'carsInCell':[0,0,0], 'regionId':0})
+        kwProperties.update({'population': 0, 'convenience': [0,0,0,0,0], 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()

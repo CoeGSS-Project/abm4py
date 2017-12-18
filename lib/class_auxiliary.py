@@ -357,7 +357,7 @@ class Record():
         dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
         dset[:] = self.rec
         dset.attrs['columns'] = self.columns
-
+        print self.name
         if hasattr(self,'calDataDict'):
             tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
             for i, key in enumerate(self.calDataDict.keys()):

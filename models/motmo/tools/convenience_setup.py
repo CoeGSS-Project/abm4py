@@ -20,7 +20,7 @@ sigmaConvB = 25000.
 muConvB = 0.
 plt.figure(3)
 plt.clf()
-ax1 = plt.subplot(2,2,1)
+ax1 = plt.subplot(2,3,1)
 
 
 for kappaB in np.linspace(.9,1,10):
@@ -39,7 +39,7 @@ ax2.set_xticks(cityDict.keys())
 ax2.set_xticklabels(cityDict.values(),rotation=45)
 
 plt.ylim([0,1])
-ax1 = plt.subplot(2,2,2)
+ax1 = plt.subplot(2,3,2)
 
 minConvG = .1
 maxConvGInit = 0.4
@@ -65,19 +65,53 @@ plt.ylim([0,1])
 
 
 
-ax1 = plt.subplot(2,2,3)
+ax1 = plt.subplot(2,3,3)
 sigmaConvOInit = 20000.
 muConvO = 60000.
 sigmaConvO = 60000
 
 
 maxConvO = 0.3
+minConvO = 0.1
+for kappaO in np.linspace(0,1,10):
+    
+    y = minConvO + ((maxConvO - minConvO) * (kappaO)) * np.exp( - (x - muConvO)**2 / (2 * ((1-kappaO) * sigmaConvOInit + (kappaO * sigmaConvO))**2) )
+    plt.scatter(x,y,s=2)
+plt.legend(['Puplic'])    
+ax1.set_xlim([0, 60000])  
+print 1
+plt.ylim([0,1])
+
+ax1 = plt.subplot(2,3,4)
+sigmaConvOInit = 3000.
+muConvO = 60000.
+sigmaConvO = 10000
+
+
+maxConvO = 0.4
 minConvO = 0.05
 for kappaO in np.linspace(0,1,10):
     
     y = minConvO + ((maxConvO - minConvO) * (kappaO)) * np.exp( - (x - muConvO)**2 / (2 * ((1-kappaO) * sigmaConvOInit + (kappaO * sigmaConvO))**2) )
     plt.scatter(x,y,s=2)
-plt.legend(['other'])    
+plt.legend(['Shared'])    
+ax1.set_xlim([0, 60000])  
+print 1
+plt.ylim([0,1])
+
+ax1 = plt.subplot(2,3,5)
+sigmaConvOInit = 30000.
+muConvO = 60000.
+sigmaConvO = 30000
+
+
+maxConvO = 0.02
+minConvO = 0.00
+for kappaO in np.linspace(0,1,10):
+    
+    y = minConvO + ((maxConvO - minConvO) * (kappaO)) * np.exp( - (x - muConvO)**2 / (2 * ((1-kappaO) * sigmaConvOInit + (kappaO * sigmaConvO))**2) )
+    plt.scatter(x,y,s=2)
+plt.legend(['None'])    
 ax1.set_xlim([0, 60000])  
 print 1
 plt.ylim([0,1])

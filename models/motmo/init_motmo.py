@@ -186,8 +186,12 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     #del dummy
 
-    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
-                   'techExpBrown', 'techExpGreen','techExpOther']:
+    for paName in ['sigmaConvB',
+                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
+                   'sigmaConvPInit','muConvP','sigmaConvP',
+                   'sigmaConvSInit','muConvS','sigmaConvS',
+                   'sigmaConvNInit','muConvN','sigmaConvN',
+                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -272,8 +276,12 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
     # calculate dependent parameters
-    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG', 'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
-                   'techExpBrown', 'techExpGreen','techExpOther' ]:
+    for paName in ['sigmaConvB',
+                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
+                   'sigmaConvPInit','muConvP','sigmaConvP',
+                   'sigmaConvSInit','muConvS','sigmaConvS',
+                   'sigmaConvNInit','muConvN','sigmaConvN',
+                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -619,12 +627,28 @@ def mobilitySetup(earth):
         (1 - pa['minConvG']) * kappa * (np.exp(-(density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2)))
         return conv
 
-    def convenienceOther(density, pa, kappa, cell):
-        conv = pa['minConvO'] + \
-        ((pa['maxConvO'] - pa['minConvO']) * (kappa)) * \
-        np.exp(-(density - pa['muConvO'])**2 / (2 * ((1 - kappa) * \
-                   pa['sigmaConvOInit'] + (kappa * pa['sigmaConvO']))**2))
+    def conveniencePuplic(density, pa, kappa, cell):
+        conv = pa['minConvP'] + \
+        ((pa['maxConvP'] - pa['minConvP']) * (kappa)) * \
+        np.exp(-(density - pa['muConvP'])**2 / (2 * ((1 - kappa) * \
+                   pa['sigmaConvPInit'] + (kappa * pa['sigmaConvP']))**2))
+        
+        return conv
+    
+    def convenienceShared(density, pa, kappa, cell):
+        conv = pa['minConvS'] + \
+        ((pa['maxConvS'] - pa['minConvS']) * (kappa)) * \
+        np.exp(-(density - pa['muConvS'])**2 / (2 * ((1 - kappa) * \
+                   pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2))
+        return conv
+        
 
+    
+    def convenienceNone(density, pa, kappa, cell):
+        conv = pa['minConvN'] + \
+        ((pa['maxConvN'] - pa['minConvN']) * (kappa)) * \
+        np.exp(-(density - pa['muConvN'])**2 / (2 * ((1 - kappa) * \
+                   pa['sigmaConvNInit'] + (kappa * pa['sigmaConvN']))**2))        
         return conv
 
     from collections import OrderedDict
@@ -651,18 +675,44 @@ def mobilitySetup(earth):
                     parameters['techExpGreen'])             # initial experience
 
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceOther']
-    propDict['emission'] = parameters['initEmOther']
-    earth.initBrand('other',  #name
+    propDict['costs']    = parameters['initPricePuplic']
+    propDict['emission'] = parameters['initEmPuplic']
+    earth.initBrand('Puplic',  #name
                     propDict,   #(emissions, TCO)
-                    convenienceOther,
+                    conveniencePuplic,
                     'start',
-                    parameters['techSlopeOther'],            # initial technical progress
-                    parameters['techProgOther'],           # slope of technical progress
-                    parameters['techExpOther'])             # initial experience
+                    parameters['techSlopePuplic'],            # initial technical progress
+                    parameters['techProgPuplic'],           # slope of technical progress
+                    parameters['techExpPuplic'])             # initial experience
+
+    
+
+
+    propDict = OrderedDict()
+    propDict['costs']    = parameters['initPriceShared']
+    propDict['emission'] = parameters['initEmShared']
+    earth.initBrand('Shared',  #name
+                    propDict,   #(emissions, TCO)
+                    convenienceShared,
+                    'start',
+                    parameters['techSlopeShared'],            # initial technical progress
+                    parameters['techProgShared'],           # slope of technical progress
+                    parameters['techExpShared'])             # initial experience
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
+    
+    propDict = OrderedDict()
+    propDict['costs']    = parameters['initPriceNone']
+    propDict['emission'] = parameters['initEmNone']
+    earth.initBrand('None',  #name
+                    propDict,   #(emissions, TCO)
+                    convenienceNone,
+                    'start',
+                    parameters['techSlopeNone'],            # initial technical progress
+                    parameters['techProgNone'],           # slope of technical progress
+                    parameters['techExpNone'])             # initial experience
 
+    earth.para['nMobTypes'] = len(earth.enums['brands'])
     return earth
     ##############################################################################
 
@@ -915,8 +965,9 @@ def initEarth(simNo,
     earth.enums['mobilityTypes'] = dict()
     earth.enums['mobilityTypes'][1] = 'green'
     earth.enums['mobilityTypes'][0] = 'brown'
-    earth.enums['mobilityTypes'][2] = 'other'
-
+    earth.enums['mobilityTypes'][2] = 'Pupic'
+    earth.enums['mobilityTypes'][3] = 'Shared'
+    earth.enums['mobilityTypes'][4] = 'None'
 
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
 
@@ -1001,11 +1052,15 @@ def cellTest(earth):
     if earth.para['showFigures']:
 
         plt.figure()
-        for i in range(earth.market.getNTypes()):
-            plt.subplot(2, 2, i+1)
+        for i in range(earth.market.getNMobTypes()):
+            if earth.market.getNMobTypes() > 4:
+                plt.subplot(3, int(np.ceil(earth.market.getNMobTypes()/3.)), i+1)
+            else:
+                plt.subplot(2, 2, i+1)
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
+        
 
 def generateNetwork(earth):
     parameters = earth.getParameter()
@@ -1019,7 +1074,7 @@ def generateNetwork(earth):
 
 def initMobilityTypes(earth):
     earth.market.initialCarInit()
-    earth.market.setInitialStatistics([1000.,2.,500.])
+    earth.market.setInitialStatistics([1000.,2.,350., 100.,50.])
     for goodKey in earth.market.goods.keys():
         #print earth.market.goods[goodKey].properties.keys()
         #print earth.market.properties
@@ -1043,7 +1098,7 @@ def initGlobalRecords(earth):
         timeIdxs = list()
         values   = list()
         for column in calDataDfCV.columns[1:]:
-            value = [np.nan]*3
+            value = [np.nan]*earth.para['nMobTypes']
             year = int(column)
             timeIdx = 12* (year - parameters['startDate'][1]) + parameters['burnIn']
             value[0] = (calDataDfCV[column]['re_' + str(re)] ) / parameters['reductionFactor']
@@ -1061,9 +1116,9 @@ def initGlobalRecords(earth):
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
                          earth.enums['mobilityTypes'].values(), style='plot')
     earth.registerRecord('kappas', 'Technological maturity of mobility types',
-                         ['kappaB', 'kappaG', 'kappaO'], style='plot')
+                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
     earth.registerRecord('mobProp', 'Properties',
-                         ['kappaB', 'kappaG', 'kappaO'], style='plot')
+                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
 
 
 def initAgentOutput(earth):
@@ -1351,7 +1406,7 @@ if __name__ == '__main__':
 
 
     debug = False
-    showFigures    = 0
+    showFigures    = 1
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
 

@@ -43,7 +43,7 @@ percentile = 0.1
 plotFunc = list()
 
 
-doTry = False
+doTry = True
 
 #%% ENUMERATIONS
 _ce  = 0
@@ -51,32 +51,32 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-plotFunc.append('plot_globalRecords')
-plotFunc.append('plot_stockAllRegions')
-plotFunc.append('scatterConVSPref')
-plotFunc.append('plot_averageCarAge')
-plotFunc.append('plot_meanESSR')
-plotFunc.append('plot_peerBubbleSize')
-plotFunc.append('plot_agePerMobType')
-plotFunc.append('plot_womanSharePerMobType')
-plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_globalRecords')
+#plotFunc.append('plot_stockAllRegions')
+#plotFunc.append('scatterConVSPref')
+#plotFunc.append('plot_averageCarAge')
+#plotFunc.append('plot_meanESSR')
+#plotFunc.append('plot_peerBubbleSize')
+#plotFunc.append('plot_agePerMobType')
+#plotFunc.append('plot_womanSharePerMobType')
+#plotFunc.append('plot_expectUtil')
 plotFunc.append('plot_carStockBarPlot')
-plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
-plotFunc.append('plot_salesProperties')
-plotFunc.append('plot_prefPerLabel')
-plotFunc.append('plot_utilPerLabel')
-plotFunc.append('plot_greenPerIncome')
-plotFunc.append('plot_incomePerLabel')
-plotFunc.append('plot_meanPrefPerLabel')
-plotFunc.append('plot_meanConsequencePerLabel')
-plotFunc.append('plot_cellMaps')
-plotFunc.append('plot_cellMovie')
-plotFunc.append('plot_carsPerCell')
-plotFunc.append('plot_greenCarsPerCell')
-plotFunc.append('plot_conveniencePerCell')
-plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+#plotFunc.append('plot_carSales')
+#plotFunc.append('plot_consequencePerLabel')
+#plotFunc.append('plot_salesProperties')
+#plotFunc.append('plot_prefPerLabel')
+#plotFunc.append('plot_utilPerLabel')
+#plotFunc.append('plot_greenPerIncome')
+#plotFunc.append('plot_incomePerLabel')
+#plotFunc.append('plot_meanPrefPerLabel')
+#plotFunc.append('plot_meanConsequencePerLabel')
+#plotFunc.append('plot_cellMaps')
+#plotFunc.append('plot_cellMovie')
+#plotFunc.append('plot_carsPerCell')
+#plotFunc.append('plot_greenCarsPerCell')
+#plotFunc.append('plot_conveniencePerCell')
+#plotFunc.append('plot_population')
+#plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -532,9 +532,10 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     #  plot car stock as bar plot
     legStr = list()
 
-    carMat = np.zeros([parameters['nSteps'],3])
+    carMat = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
+    mobMin = parameters['nMobTypes']
     for ti in range(parameters['nSteps']):
-        carMat[ti,:]= np.bincount(data.pe[ti,:,propDict.pe['mobType'][0]].astype(int),minlength=3).astype(float)
+        carMat[ti,:]= np.bincount(data.pe[ti,:,propDict.pe['mobType'][0]].astype(int),minlength=mobMin).astype(float)
 
     plt.figure()
     enums   = loadObj(path + 'enumerations')
@@ -542,8 +543,13 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     #parameters['nSteps'] = agMat.shape[0]
     nCars = np.zeros(parameters['nSteps'])
     colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
+    
+    tmp = colorPal[0]
+    colorPal[0] = colorPal[1]
+    colorPal[1] = tmp
+    
     for i, brand in enumerate(enums['brands'].values()):
-       plt.bar(np.arange(parameters['nSteps']), carMat[:,i],bottom=nCars, color =colorPal[[1,0,2][i]], width=1)
+       plt.bar(np.arange(parameters['nSteps']), carMat[:,i],bottom=nCars, color =colorPal[i], width=1)
        nCars += carMat[:,i]
        legStr.append(brand)
 #plt.legend(legStr)
@@ -554,7 +560,7 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    plt.legend(['Combustion engine', 'Electric engine', 'other mobility types'],loc=0)
+    plt.legend(enums['brands'].values(),loc=0)
     plt.tight_layout()
     plt.xlim([0,parameters['nSteps']])
     plt.ylim([0, np.sum(carMat[ti,:])])
@@ -1242,7 +1248,7 @@ def plot_population(data, propDict, parameters, enums, filters):
 
     plt.imshow(res)
     plt.colorbar()
-    #plt.clim([0,1])
+    #plt.clim([0,1])d
 
     plt.title('population')
     plt.savefig(path + 'population')
@@ -1334,7 +1340,7 @@ if __name__ == "__main__":
             try:
                 print 'Executing: ' + funcCall + '...',
                 locals()[funcCall](data, propDict, parameters, enums, filters)
-                #plt.close()
+                plt.close('all')
                 
             except Exception as e:
     
