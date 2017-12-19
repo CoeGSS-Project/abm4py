@@ -756,10 +756,10 @@ class World:
             self.reduceDict = dict()
             self.operations = dict()
 
-            self.operations['sum'] = MPI.SUM
+            self.operations['sum']  = MPI.SUM
             self.operations['prod'] = MPI.PROD
-            self.operations['min'] = MPI.MIN
-            self.operations['max'] = MPI.MAX
+            self.operations['min']  = MPI.MIN
+            self.operations['max']  = MPI.MAX
 
             #staticical reductions/aggregations
             self.statsDict      = dict()
@@ -767,8 +767,8 @@ class World:
             self.nValues        = dict()
             self.statOperations = dict()
             self.statOperations['mean'] = np.mean
-            self.statOperations['std'] = np.std
-            self.statOperations['var'] = np.std
+            self.statOperations['std']  = np.std
+            self.statOperations['var']  = np.std
 
 
             #self.operations['std'] = MPI.Op.Create(np.std)
