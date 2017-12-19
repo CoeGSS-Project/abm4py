@@ -51,32 +51,33 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-#plotFunc.append('plot_globalRecords')
-#plotFunc.append('plot_stockAllRegions')
-#plotFunc.append('scatterConVSPref')
-#plotFunc.append('plot_averageCarAge')
-#plotFunc.append('plot_meanESSR')
-#plotFunc.append('plot_peerBubbleSize')
-#plotFunc.append('plot_agePerMobType')
-#plotFunc.append('plot_womanSharePerMobType')
-#plotFunc.append('plot_expectUtil')
+plotFunc.append('plot_globalRecords')
+plotFunc.append('plot_stockAllRegions')
+plotFunc.append('scatterConVSPref')
+plotFunc.append('plot_averageCarAge')
+plotFunc.append('plot_meanESSR')
+plotFunc.append('plot_peerBubbleSize')
+plotFunc.append('plot_agePerMobType')
+plotFunc.append('plot_womanSharePerMobType')
+plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_utilPerMobType')
 plotFunc.append('plot_carStockBarPlot')
-#plotFunc.append('plot_carSales')
-#plotFunc.append('plot_consequencePerLabel')
-#plotFunc.append('plot_salesProperties')
-#plotFunc.append('plot_prefPerLabel')
-#plotFunc.append('plot_utilPerLabel')
-#plotFunc.append('plot_greenPerIncome')
-#plotFunc.append('plot_incomePerLabel')
-#plotFunc.append('plot_meanPrefPerLabel')
-#plotFunc.append('plot_meanConsequencePerLabel')
-#plotFunc.append('plot_cellMaps')
-#plotFunc.append('plot_cellMovie')
-#plotFunc.append('plot_carsPerCell')
-#plotFunc.append('plot_greenCarsPerCell')
-#plotFunc.append('plot_conveniencePerCell')
-#plotFunc.append('plot_population')
-#plotFunc.append('plot_doFolium')
+plotFunc.append('plot_carSales')
+plotFunc.append('plot_consequencePerLabel')
+plotFunc.append('plot_salesProperties')
+plotFunc.append('plot_prefPerLabel')
+plotFunc.append('plot_utilPerLabel')
+plotFunc.append('plot_greenPerIncome')
+plotFunc.append('plot_incomePerLabel')
+plotFunc.append('plot_meanPrefPerLabel')
+plotFunc.append('plot_meanConsequencePerLabel')
+plotFunc.append('plot_cellMaps')
+plotFunc.append('plot_cellMovie')
+plotFunc.append('plot_carsPerCell')
+plotFunc.append('plot_greenCarsPerCell')
+plotFunc.append('plot_conveniencePerCell')
+plotFunc.append('plot_population')
+plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -495,6 +496,7 @@ def plot_womanSharePerMobType(data, propDict, parameters, enums, filters):
     plt.savefig(path + 'womanShareGreen')
 
 
+
 def plot_expectUtil(data, propDict, parameters, enums, filters):
     fig = plt.figure(figsize=(12,8))
     peData = np.asarray(data.pe[:,:,propDict.pe['commUtil']])
@@ -511,9 +513,8 @@ def plot_expectUtil(data, propDict, parameters, enums, filters):
         plt.gca().set_prop_cycle(None)
         boolMask = np.full(peData.shape[1], False, dtype=bool)
         boolMask[filters.pe['prefTypeIDs'][prefType]] = True
-        plt.plot(np.mean(peData[:,boolMask,0],axis=1),style[prefType+1])
-        plt.plot(np.mean(peData[:,boolMask,1],axis=1),style[prefType+1])
-        plt.plot(np.mean(peData[:,boolMask,2],axis=1),style[prefType+1])
+        for mobType in range(peData.shape[2]):
+            plt.plot(np.mean(peData[:,boolMask,mobType],axis=1),style[prefType+1])
         newLegStr += [ string + ledAdd[prefType+1] for string in  legStr]
     if withoutBurnIn:
         plt.xlim([nBurnIn,parameters['nSteps']])
@@ -682,7 +683,7 @@ def plot_prefPerLabel(data, propDict, parameters, enums, filters):
     for prefType in range(parameters['nPriorities']):
         legStr.append(enums['priorities'][prefType])
     for carLabel in range(len(enums['brands'])):
-        plt.subplot(2,2,carLabel+1)
+        plt.subplot(2,int(np.ceil(parameters['nMobTypes']/2.)),carLabel+1)
         plt.plot(res[carLabel])
         plt.title(enums['brands'][carLabel])
         if withoutBurnIn:
@@ -902,7 +903,7 @@ def plot_meanConsequencePerLabel(data, propDict, parameters, enums, filters):
 
     h = list()
     for carLabel in range(0,len(enums['brands'])):
-        plt.subplot(2,2,carLabel+1)
+        plt.subplot(2,int(np.ceil(parameters['nMobTypes']/2.)),carLabel+1)
         h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
         if withoutBurnIn:
@@ -925,9 +926,9 @@ def plot_cellMaps(data, propDict, parameters, enums, filters):
     propDict.ce = loadObj(path + 'attributeList_type1')
 
 
-    meanCon   = np.zeros([parameters['nSteps'],3])
-    meanEco   = np.zeros([parameters['nSteps'],3])
-    meanPrc   = np.zeros([parameters['nSteps'],3])
+    meanCon   = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
+    meanEco   = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
+    meanPrc   = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
     for ti in range(parameters['nSteps']):
         meanVect = np.mean(data.ce[ti,:,propDict.ce['convenience']],axis=1)
         meanCon[ti,:] = meanVect
@@ -1020,7 +1021,7 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
     res = landLayer*1.0
     step = parameters['nSteps']-1
     test = landLayer*0
-    for iBrand in range(3):
+    for iBrand in range(parameters['nMobTypes']):
         res = landLayer*1.0
         res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] / data.ce[step,:,propDict.ce['population'][0]]
         #cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
@@ -1034,7 +1035,7 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
         if iBrand == 1:
             arrayData = copy.copy(res)
         #res[landLayer==False] = np.nan
-        plt.subplot(2,2,iBrand+1)
+        plt.subplot(2,int(np.ceil(parameters['nMobTypes']/2.)),iBrand+1)
         plt.pcolormesh(np.flipud(res))
         plt.clim(bounds)
         plt.colorbar()

@@ -65,6 +65,7 @@ import time
 #import guppy
 from copy import copy
 from os.path import expanduser
+import pdb
 home = expanduser("~")
 
 sys.path.append('../../lib/')
@@ -1406,7 +1407,8 @@ if __name__ == '__main__':
 
 
     debug = False
-    showFigures    = 1
+    showFigures    = False
+    
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
 

@@ -26,6 +26,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, aux, h5py, MPI
+import pdb
 import igraph as ig
 import numpy as np
 import pandas as pd
@@ -215,16 +216,21 @@ class Earth(World):
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
             newValue = np.rint(self.getNodeValues('lastAction',_pers) / self.para['burnInTimeFactor']).astype(int)
-            self.setNodeValues('lastAction',_pers, newValue)
+            self.setNodeValues('lastAction', newValue, _pers)
 
-        if self.timeStep+5 == self.para['burnIn']:
+        elif self.timeStep+5 == self.para['burnIn']:
             lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
             oldValue = self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
             stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
 
-            self.setNodeValues('lastAction',_pers, stochastricRoundValue)
+            self.setNodeValues('lastAction', stochastricRoundValue, _pers)
+            
+        else:
+            lastActions = self.getNodeValues('lastAction',_pers)
+            self.setNodeValues('lastAction',lastActions+1, _pers)
+            
 
         # progressing time
         if self.timeUnit == 1: #months
@@ -244,6 +250,9 @@ class Earth(World):
         # move values to global data class
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
+
+        self.market.updateSales()
+
 
         self.computeTime[self.time] = time.time()-ttComp
 
@@ -284,7 +293,7 @@ class Earth(World):
                 if np.random.rand()<1e-4:
                     household.stepOmniscient(self)
                 else:
-                    household.step(self)
+                    household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')
 
         if self.queuing:
@@ -380,7 +389,11 @@ class Good():
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
 
         self.label = label
-        self.currGrowthRate = 1
+        self.currGrowthRate     = 1
+        self.oldStock           = 0
+        self.currStock          = 0
+        self.replacementRate    = 0.01
+        
         if progressType == 'wright':
 
             self.experience = experience # cummulative production up to now
@@ -398,7 +411,16 @@ class Good():
             print 'not implemented'
             # TODO add Moore and SKC + ...
 
-    def updateTechnicalProgress(self, production):
+    def updateTechnicalProgress(self, production=None):
+        """
+        Computes the technical progress
+        If the production is not given, internally the stock and the replacement
+        rate is used calcualte sales
+        """ 
+        
+        # if production is not given, the internal sales is used
+        if production is None:
+            production = self.salesModel()
 
         self.currGrowthRate = 1 + (production) / float(self.experience)
         self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
@@ -410,8 +432,34 @@ class Good():
         #update experience
         self.experience += production
 
-        return self.properties, self.technicalProgress, self.maturity
+        
 
+    def step(self, doTechProgress=True):
+        """ replaces the old stock by the current Stock and computes the 
+        technical progress
+        """
+        if doTechProgress:
+            self.updateTechnicalProgress()
+        
+        self.oldStock = self.currStock
+        
+        return self.properties, self.technicalProgress, self.maturity
+        
+
+    def buy(self,quantity=1):
+        self.currStock +=1
+        return self.properties.values()
+
+    def sell(self, quantity=1):
+        self.currStock -=1
+    
+    
+    def salesModel(self):
+        sales = np.max([0,self.currStock - self.oldStock])
+        sales = sales + self.oldStock * self.replacementRate
+        return sales
+    
+    
     def getProperties(self):
         return self.properties.values()
 
@@ -434,7 +482,7 @@ class Market():
         self.globalRecord        = earth.returnGlobalRecord()
         self.comm                = earth.returnMpiComm()
         self.glob                = earth.returnGlobals()
-        self._graph             = earth.returnGraph()
+        self._graph              = earth.returnGraph()
         self.para                = earth.getParameter()
 
         self.time                = time
@@ -451,7 +499,7 @@ class Market():
         self.mobilityInitDict    = dict()                     # list of (list of) initial values for each mobility type
         self.mobilityTypesToInit = list()                     # list of (mobility type) labels
         self.burnIn              = burnIn
-        self.goods = dict()
+        self.goods               = dict()
         self.sales               = list()
 
         #adding market globals
@@ -461,6 +509,11 @@ class Market():
         self.glob.registerStat('meanPrc' , np.asarray([0]*len(properties)),'mean')
         self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')
 
+    def updateSales(self):
+        for iGood in self.goods.keys():
+            self.glob['sales'][int(iGood)] = self.goods[iGood].salesModel()
+            
+            
     def getNMobTypes(self):
         return self.__nMobTypes__
 
@@ -527,8 +580,15 @@ class Market():
                     self.addBrand2Market(label, propertyDict, mobTypeID)
 
         # only do technical change after the burn in phase
-        if self.time > self.burnIn:
-            self.computeTechnicalProgress()
+        doTechProgress = self.time > self.burnIn
+        if doTechProgress:
+            lg.info( 'sales in market: ' + str(self.glob['sales']))
+            
+        for iGood in self.goods.keys():
+            self.goods[iGood].step(doTechProgress)
+
+        if doTechProgress:
+            lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
 
         if self.comm.rank == 0:
             self.globalRecord['growthRate'].set(self.time, [self.goods[iGood].getGrowthRate() for iGood in self.goods.keys()])
@@ -546,18 +606,6 @@ class Market():
 
         self.time +=1
 
-    def computeTechnicalProgress(self):
-        """
-        calculate growth rates per technology:
-        """
-
-        lg.info( 'sales in market: ' + str(self.glob['sales']))
-
-
-        for iGood in self.goods.keys():
-            self.goods[iGood].updateTechnicalProgress(self.glob['sales'][iGood])
-
-        lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
 
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
         mobType = self.__nMobTypes__
@@ -576,9 +624,9 @@ class Market():
 
     def addBrand2Market(self, label, propertyDict, mobType):
         #add brand to the market
-        self.stockByMobType[mobType] = 0
-        self.mobilityProp[mobType]   = propertyDict
-        self.mobilityLables[mobType] = label
+        self.stockByMobType[mobType]     = 0
+        self.mobilityProp[mobType]       = propertyDict
+        self.mobilityLables[mobType]     = label
         self.obsDict[self.time][mobType] = list()
 
     def remBrand(self,label):
@@ -588,14 +636,14 @@ class Market():
 
     def buyCar(self, mobTypeIdx):
         # get current properties form good class
-        propDict = self.goods[mobTypeIdx].getProperties() * (1 + np.random.randn(self.nProp)*self.propRelDev)
+        propDict = self.goods[mobTypeIdx].buy() * (1 + np.random.randn(self.nProp)*self.propRelDev)
 
-
-        if self.time > self.burnIn:
-            self.glob['sales'][int(mobTypeIdx)] += 1
-
-        self.stockByMobType[int(mobTypeIdx)] += 1
         return propDict
+    
+    
+    def sellCar(self, mobTypeIdx):
+        self.goods[mobTypeIdx].sell()
+        
 
 
 # %% --- entity classes ---
@@ -642,7 +690,7 @@ class Person(Agent):
 
 
         post = post / np.sum(post)
-
+        
         if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
             if np.sum(post) > 0:
                 edges['weig'] = post
@@ -838,9 +886,9 @@ class Person(Agent):
             communityUtil = np.mean(np.asarray(self.getPeerValues('commUtil',_cpp)[0]),axis=0)
 
         selfUtil = self._node['selfUtil'][:]
-        mobType   = self._node['mobType']
+        mobType  = self._node['mobType']
 
-        # weighting by 3
+        # weighting by selftrust
         selfUtil[mobType] *= earth.para['selfTrust']
 
         if len(selfUtil) != earth.para['nMobTypes'] or len(communityUtil.shape) == 0 or communityUtil.shape[0] != earth.para['nMobTypes']:
@@ -852,13 +900,27 @@ class Person(Agent):
 
             return
         tmp = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
-        tmp[mobType] /= (earth.para['selfTrust']+1)/2
+        tmp[mobType] /= (earth.para['selfTrust']+1)/2.
         
         self._node['commUtil'] = tmp.tolist()
 
         # adjust mean since double of weigth - very bad code - sorry
         
 
+    def imitate(self):
+        #pdb.set_trace()
+        if np.random.rand() > .99:
+            return np.random.choice(len(self.getValue('commUtil')))
+        else:
+            peerUtil     = np.asarray(self.getPeerValues('util',_cpp)[0])
+            peerMobType  = np.asarray(self.getPeerValues('mobType',_cpp)[0])
+            weights      = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
+            
+            fitness = peerUtil * weights
+            fitness = fitness / np.sum(fitness)
+        
+            return np.random.choice(peerMobType,p=fitness)
+        
 
     def step(self, earth):
 
@@ -1055,17 +1117,17 @@ class Household(Agent):
             self.addValue('expenses', properties[0])
 
 
-    def undoActions(self,world, persons):
+    def undoActions(self, world, persons):
         """
         Method to undo actions
         """
         for adult in persons:
-
-            self.loc.remFromTraffic(adult.getValue('mobType'))
+            mobType = adult.getValue('mobType')
+            self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
             self.addValue('expenses', -1 * adult.getValue('prop')[0])
-
+            world.market.sellCar(mobType)
 
 
     def calculateConsequences(self, market):
@@ -1144,7 +1206,7 @@ class Household(Agent):
                         adult.setValue('mobType', combinedActions[combinationIdx][adultIdx])
                         adult.setValue('prop', market.goods[adult.getValue('mobType')].getProperties())
                         if earth.time <  earth.para['burnIn']:
-                            adult.setValue('lastAction', np.random.randint(0, earth.para['mobNewPeriod']))
+                            adult.setValue('lastAction', np.random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
                         else:
                             adult.setValue('lastAction', 0)
                     self.setValue('expenses', adult.getValue('prop')[0])
@@ -1228,7 +1290,7 @@ class Household(Agent):
         possibilities = aux.cartesian(actionsList)
         return possibilities
 
-
+    
 
     def maxUtilChoice(self, combActions, overallUtil):
         #best action
@@ -1258,11 +1320,32 @@ class Household(Agent):
         return actors, actions, overallUtil[propActionIdx]
 
 
+    def evolutionaryStep(self, earth):
+        """
+        Evolutionary time step that uses components of genetic algorithms
+        on social networks to mimic the evolutions of norms / social learning.
+        The friends of an agents are replacing the population in a genetic
+        algorithm from which no genes evolve by mutation, crossover and random.
+        """
+        tt = time.time()
+        
+        actionIds = [adult.imitate() for adult in self.adults]
+        
+        
+        self.undoActions(earth, self.adults)
+        self.takeAction(earth, self.adults, actionIds)
+            
+        self.calculateConsequences(earth.market)
+        self.evalUtility(earth, actionTaken=True)
+
+        for adult in self.adults:
+            adult.computeExpUtil(earth)
+            
+        self.computeTime += time.time() - tt
+
     def step(self, earth):
         tt = time.time()
-        for adult in self.adults:
-            adult.addValue('lastAction', 1)
-            #adult.node['lastAction'] += 1
+
         actionTaken = False
         doCheckMobAlternatives = False
 
@@ -1317,9 +1400,6 @@ class Household(Agent):
     def stepOmniscient(self, earth):
         tt = time.time()
 
-        for adult in self.adults:
-            adult.addValue('lastAction', 1)
-            #adult.node['lastAction'] += 1
         actionTaken = False
         doCheckMobAlternatives = False
 
@@ -1414,6 +1494,7 @@ class Cell(Location):
     def selfTest(self, world):
         population = world.getParameter('population')[self._node['pos']]
         self._node['population'] = population
+
         convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
 
         for x in convAll:
@@ -1426,7 +1507,8 @@ class Cell(Location):
     def calculateConveniences(self, parameters, currentMaturity):
 
         convAll = list()
-        popDensity = float(self.getValue('population'))/self.cellSize
+
+        popDensity = np.float(self.getValue('population'))/self.cellSize
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
 
