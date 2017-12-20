@@ -1148,14 +1148,14 @@ class Household(Agent):
             actionIdx = adult.getValue('mobType')
             mobProps = adult.getValue('prop')
 
-            if (actionIdx != 2):
-                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
-            else:
-                decay = 1.
-            if (actionIdx == 2) and carInHh:
-                hhCarBonus = 0.2
+#            if (actionIdx != 2):
+#                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
+#            else:
+#                decay = 1.
+#            if (actionIdx == 2) and carInHh:
+#                hhCarBonus = 0.2
 
-            convenience = decay * self.loc.getValue('convenience')[actionIdx] + hhCarBonus
+            convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
 
             # calculate ecology:
             emissions = mobProps[1]
@@ -1493,14 +1493,14 @@ class Cell(Location):
 
     def selfTest(self, world):
         population = world.getParameter('population')[self._node['pos']]
-        self._node['population'] = population
+        self._node['population'] = population #/ float(world.getParameter('reductionFactor'))
 
         convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
 
-        for x in convAll:
-            if np.isinf(x) or np.isnan(x) or x == 0:
-                import pdb
-                pdb.set_trace()
+#        for x in convAll:
+#            if np.isinf(x) or np.isnan(x) or x == 0:
+#                import pdb
+#                pdb.set_trace()
         self._node['population'] = 0
         return convAll, population
 

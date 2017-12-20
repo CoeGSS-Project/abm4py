@@ -579,12 +579,14 @@ def scenarioGer(parameterInput, dirPath):
 
     #setup.population = (setup.population ** .5) * 100
     # Correciton of population depend parameter by the reduction factor
-    for paName in ['sigmaConvB','sigmaConvGInit','sigmaConvG',
-                   'muConvGInit','muConvG','sigmaConvOInit','muConvO','sigmaConvO',
-                   'techExpBrown', 'techExpGreen','techExpOther',
+    for paName in ['sigmaConvB',
+                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
+                   'sigmaConvPInit','muConvP','sigmaConvP',
+                   'sigmaConvSInit','muConvS','sigmaConvS',
+                   'sigmaConvNInit','muConvN','sigmaConvN',
+                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
-
     for p in range(0, 105, 5) :
         print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
     print 'max population' + str(np.nanmax(setup.population))
@@ -678,7 +680,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPricePuplic']
     propDict['emission'] = parameters['initEmPuplic']
-    earth.initBrand('Puplic',  #name
+    earth.initBrand('public',  #name
                     propDict,   #(emissions, TCO)
                     conveniencePuplic,
                     'start',
@@ -692,7 +694,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceShared']
     propDict['emission'] = parameters['initEmShared']
-    earth.initBrand('Shared',  #name
+    earth.initBrand('shared',  #name
                     propDict,   #(emissions, TCO)
                     convenienceShared,
                     'start',
@@ -705,7 +707,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceNone']
     propDict['emission'] = parameters['initEmNone']
-    earth.initBrand('None',  #name
+    earth.initBrand('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
                     'start',
@@ -723,6 +725,7 @@ def householdSetup(earth, calibration=False):
 
     nAgents = 0
     nHH     = 0
+    overheadAgents = 50 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -741,20 +744,20 @@ def householdSetup(earth, calibration=False):
 
         if nAgentsOnProcess[i] > 0:
             # calculate start in the agent file (20 overhead for complete households)
-            nAgentsOnProcess[i] += 50
+            nAgentsOnProcess[i] += overheadAgents
 
     #print mpiRank, nAgentsOnProcess
     nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
     #print nAgentsPerProcess
     nAgentsOnProcess = np.array(nAgentsPerProcess)
-    lg.info( 'Agents on process:' +str(nAgentsOnProcess))
+    lg.info('Agents on process:' + str(nAgentsOnProcess))
     hhData = dict()
     currIdx = dict()
     h5Files = dict()
 
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
-        #h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
+        # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
         h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + '.hdf5', 'r')
     mpi.Barrier()
 
@@ -762,7 +765,6 @@ def householdSetup(earth, calibration=False):
 #        if i >0:
 #            offset= 398700
 #        else:
-#
 
         offset =0
 
@@ -771,7 +773,7 @@ def householdSetup(earth, calibration=False):
         agentEnd   = int(np.sum(nAgentsOnProcess[:mpi.rank+1,i]))
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
-        lg.debug('Vertex count: ' +str(earth.graph.vcount()))
+        lg.debug('Vertex count: ' + str(earth.graph.vcount()))
         if earth.debug:
 
             earth.view(str(earth.mpi.rank) + '.png')
@@ -779,11 +781,13 @@ def householdSetup(earth, calibration=False):
 
         dset = h5Files[i].get('people')
         hhData[i] = dset[offset + agentStart: offset + agentEnd,]
-
+        print hhData[i].shape
+        
         if nAgentsOnProcess[mpi.rank, i] == 0:
             continue
 
-
+        assert hhData[i].shape[0] >= nAgentsOnProcess[mpi.rank,i] + overheadAgents
+        
         idx = 0
         # find the correct possition in file
         nPers = int(hhData[i][idx, 0])
@@ -806,9 +810,9 @@ def householdSetup(earth, calibration=False):
     for x, y in locDict.keys():
         #print x,y
         nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
-        loc = earth.getEntity(locDict[x, y].nID)
-        region = parameters['regionIdRaster'][x, y]
-        regionIdx = np.where(regionIdxList == region)[0][0]
+        loc         = earth.getEntity(locDict[x, y].nID)
+        region      = parameters['regionIdRaster'][x, y]
+        regionIdx   = np.where(regionIdxList == region)[0][0]
 
         while 1:
 
@@ -828,7 +832,7 @@ def householdSetup(earth, calibration=False):
             income = max(400., income)
             income *= parameters['mobIncomeShare']
 
-            nKids = np.sum(ages<18)
+            nKids = np.sum(ages < 18)
 
             # creating houshold
             hh = Household(earth,
@@ -935,35 +939,34 @@ def initEarth(simNo,
                      burnIn=parameters.burnIn)
 
     earth.market.mean = np.array([400., 300.])
-    earth.market.std = np.array([100., 50.])
+    earth.market.std  = np.array([100., 50.])
     #init location memory
     earth.enums = dict()
 
 
 
-    earth.enums['priorities'] = dict()
-
+    earth.enums['priorities']    = dict()
     earth.enums['priorities'][0] = 'convinience'
     earth.enums['priorities'][1] = 'ecology'
     earth.enums['priorities'][2] = 'money'
     earth.enums['priorities'][3] = 'imitation'
 
-    earth.enums['properties'] = dict()
+    earth.enums['properties']    = dict()
     earth.enums['properties'][1] = 'emissions'
     earth.enums['properties'][2] = 'TCO'
 
-    earth.enums['nodeTypes'] = dict()
+    earth.enums['nodeTypes']    = dict()
     earth.enums['nodeTypes'][1] = 'cell'
     earth.enums['nodeTypes'][2] = 'household'
     earth.enums['nodeTypes'][3] = 'pers'
 
-    earth.enums['consequences'] = dict()
+    earth.enums['consequences']    = dict()
     earth.enums['consequences'][0] = 'convenience'
     earth.enums['consequences'][1] = 'eco-friendliness'
     earth.enums['consequences'][2] = 'remaining money'
     earth.enums['consequences'][3] = 'innovation'
 
-    earth.enums['mobilityTypes'] = dict()
+    earth.enums['mobilityTypes']    = dict()
     earth.enums['mobilityTypes'][1] = 'green'
     earth.enums['mobilityTypes'][0] = 'brown'
     earth.enums['mobilityTypes'][2] = 'Pupic'
@@ -1061,7 +1064,7 @@ def cellTest(earth):
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        
+        asd
 
 def generateNetwork(earth):
     parameters = earth.getParameter()
@@ -1407,7 +1410,7 @@ if __name__ == '__main__':
 
 
     debug = False
-    showFigures    = False
+    showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
