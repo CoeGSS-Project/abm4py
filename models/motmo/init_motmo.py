@@ -55,9 +55,8 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-#import mpi4py
-#mpi4py.rc.threads = False
-
+import mpi4py
+mpi4py.rc.threads = False
 import sys, os
 import socket
 import csv
@@ -781,12 +780,12 @@ def householdSetup(earth, calibration=False):
 
         dset = h5Files[i].get('people')
         hhData[i] = dset[offset + agentStart: offset + agentEnd,]
-        print hhData[i].shape
+        #print hhData[i].shape
         
         if nAgentsOnProcess[mpi.rank, i] == 0:
             continue
 
-        assert hhData[i].shape[0] >= nAgentsOnProcess[mpi.rank,i] + overheadAgents
+        assert hhData[i].shape[0] >= nAgentsOnProcess[mpi.rank,i]
         
         idx = 0
         # find the correct possition in file
@@ -876,9 +875,9 @@ def householdSetup(earth, calibration=False):
 
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
 
-                # adding reference to the person to household
-                hh.adults.append(pers)
 
+            
+            
             currIdx[regionIdx]  += nPers
             nHH                 += 1
 
@@ -904,7 +903,11 @@ def householdSetup(earth, calibration=False):
         ghostCell.updatePeList(earth.graph)
         ghostCell.updateHHList(earth.graph)
 
-
+    
+    for hh in earth.iterEntRandom(_hh, ghosts = False, random=False):
+        # caching all adult node in one hh
+        hh.setAdultNodeList(earth)
+        
     earth.mpi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
             ' Housholds created in -- ' + str(time.time() - tt) + ' s')
@@ -1193,7 +1196,7 @@ def runModel(earth, parameters):
     tt = time.time()
     for household in earth.iterEntRandom(_hh):
 
-        household.takeAction(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
+        household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
             adult.setValue('lastAction', int(np.random.rand() * float(earth.para['mobNewPeriod'])))
 

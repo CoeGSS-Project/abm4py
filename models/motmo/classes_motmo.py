@@ -563,9 +563,9 @@ class Market():
     def ecology(self, emissions):
 
         if self.std['emission'] == 0:
-            ecology = 1 / (1+math.exp((emissions-self.mean['emission'])/1))
+            ecology = 1 / (1+np.exp((emissions-self.mean['emission'])/1))
         else:
-            ecology = 1 / (1+math.exp((emissions-self.mean['emission'])/self.std['emission']))
+            ecology = 1 / (1+np.exp((emissions-self.mean['emission'])/self.std['emission']))
 
         return ecology
 
@@ -634,6 +634,13 @@ class Market():
         del self.mobilityProp[label]
 
 
+    def getMobProps(self):
+        return np.asarray([self.goods[iGood].getProperties() * 
+                           (1 + np.random.randn(self.nProp)*self.propRelDev) 
+                           for iGood in range(self.__nMobTypes__)])
+    
+    
+    
     def buyCar(self, mobTypeIdx):
         # get current properties form good class
         propDict = self.goods[mobTypeIdx].buy() * (1 + np.random.randn(self.nProp)*self.propRelDev)
@@ -666,6 +673,7 @@ class Person(Agent):
         self.loc = parentEntity.loc
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
+        self.hh.addAdult(self)
 
 
     def weightFriendExperience(self, world):
@@ -919,7 +927,7 @@ class Person(Agent):
             fitness = peerUtil * weights
             fitness = fitness / np.sum(fitness)
         
-            return np.random.choice(peerMobType,p=fitness)
+            return np.random.choice(peerMobType, 2, p=fitness)
         
 
     def step(self, earth):
@@ -981,6 +989,7 @@ class Household(Agent):
             self.utilFunc = self.CESUtil
         self.computeTime = 0
 
+
     @staticmethod
     def cobbDouglasUtil(x, alpha):
         utility = 1.
@@ -1026,7 +1035,13 @@ class Household(Agent):
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)
 
-
+    def addAdult(self, personInstance):
+        """adding reference to the person to household"""
+        self.adults.append(personInstance)
+        
+    def setAdultNodeList(self, world):
+        adultIdList = [adult.nID for adult in self.adults]
+        self.adultNodeList = world.graph.vs[adultIdList]
 
     def evalUtility(self, world, actionTaken=False):
         """
@@ -1097,7 +1112,7 @@ class Household(Agent):
         return combActions, overallUtil
 
 
-    def takeAction(self, earth, persons, actionIds):
+    def takeActions(self, earth, persons, actionIds):
         """
         Method to execute the optimal actions for selected persons of the household
         """
@@ -1129,6 +1144,39 @@ class Household(Agent):
             self.addValue('expenses', -1 * adult.getValue('prop')[0])
             world.market.sellCar(mobType)
 
+    def testConsequences(self, earth, actionIds):
+        
+        consMat = np.zeros([actionIds.shape[0], actionIds.shape[1], earth.nPriorities()])
+        
+        _conv = 0
+        _eco  = 1
+        _mon  = 2
+        _immi = 3
+        
+        hhCarBonus = 0.2
+        mobProperties = earth.market.getMobProps()
+        experience    = np.asarray(earth.market.getCurrentExperience())
+        sumExperience = np.sum(experience)
+        convCell      = np.asarray(self.loc.getValue('convenience'))
+        income        = self.getValue('income')
+        
+        for ix, actions in enumerate(actionIds):
+            
+            #convenience
+            consMat[ix,:,_conv] = convCell[actions]
+            if any(actions < 2):
+                consMat[ix,actions==2,_conv] += hhCarBonus
+                
+            #ecology
+            consMat[ix,:,_eco] = earth.market.ecology(mobProperties[actions,1])
+            
+            consMat[ix,:,_mon] = max(1e-5, 1 - np.sum(mobProperties[actions,0]) / income)
+            
+            #immitation
+            consMat[ix,:,_immi] = experience[actions] / sumExperience
+            
+        return consMat
+        
 
     def calculateConsequences(self, market):
 
@@ -1146,20 +1194,20 @@ class Household(Agent):
             #get action of the person
 
             actionIdx = adult.getValue('mobType')
-            mobProps = adult.getValue('prop')
+            mobProps  = adult.getValue('prop')
 
 #            if (actionIdx != 2):
 #                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
 #            else:
 #                decay = 1.
-#            if (actionIdx == 2) and carInHh:
-#                hhCarBonus = 0.2
+            if (actionIdx == 2) and carInHh:
+                hhCarBonus = 0.2
 
             convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
 
             # calculate ecology:
             emissions = mobProps[1]
-            ecology = market.ecology(emissions)
+            ecology   = market.ecology(emissions)
 
             experience = market.getCurrentExperience()
 
@@ -1246,7 +1294,7 @@ class Household(Agent):
                     actionTaken = False
                 actions = actionIds[ actionIds != -1]
                 self.undoActions(earth, actors)
-                self.takeAction(earth, actors, actions)     # remove not-actions (i.e. -1 in list)
+                self.takeActions(earth, actors, actions)     # remove not-actions (i.e. -1 in list)
                 self.calculateConsequences(market)
                 util = self.evalUtility(earth)
 
@@ -1291,6 +1339,7 @@ class Household(Agent):
         return possibilities
 
     
+    
 
     def maxUtilChoice(self, combActions, overallUtil):
         #best action
@@ -1320,6 +1369,22 @@ class Household(Agent):
         return actors, actions, overallUtil[propActionIdx]
 
 
+    def householdOptimization(self, earth, actionOptions):
+        
+        combinedActionsOptions = aux.cartesian(actionOptions)
+        
+        consMat = self.testConsequences(earth, aux.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
+        utilities = np.zeros(consMat.shape[0])
+        
+        prioMat = np.asarray(self.adultNodeList['preferences']) # [nPers x nPriorities]
+        for iAction in range(consMat.shape[0]):
+            for iPers in range(len(self.adults)):
+                utilities[iAction] += self.utilFunc(consMat[iAction,iPers,:], prioMat[iPers,:])
+                
+        bestOpt = combinedActionsOptions[np.argmax(utilities)]
+        return bestOpt
+    
+
     def evolutionaryStep(self, earth):
         """
         Evolutionary time step that uses components of genetic algorithms
@@ -1329,11 +1394,12 @@ class Household(Agent):
         """
         tt = time.time()
         
-        actionIds = [adult.imitate() for adult in self.adults]
+        bestIndividualActionsIds = [adult.imitate() for adult in self.adults]
         
+        bestOpt = self.householdOptimization(earth, bestIndividualActionsIds)
         
         self.undoActions(earth, self.adults)
-        self.takeAction(earth, self.adults, actionIds)
+        self.takeActions(earth, self.adults, bestOpt)
             
         self.calculateConsequences(earth.market)
         self.evalUtility(earth, actionTaken=True)
@@ -1387,7 +1453,7 @@ class Household(Agent):
 
             if actionTaken:
                 self.undoActions(earth, personsToTakeAction)
-                self.takeAction(earth, personsToTakeAction, actions)
+                self.takeActions(earth, personsToTakeAction, actions)
 
             self.calculateConsequences(earth.market)
             self.evalUtility(earth, actionTaken)

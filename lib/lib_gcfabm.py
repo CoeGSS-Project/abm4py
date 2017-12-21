@@ -243,7 +243,9 @@ class Queue():
         self.edgeDeleteList = list()
 
 class Cache():
-
+    """
+    As default only out peers and out connections are in the cache. 
+    """
     def __init__(self, graph, nID):
         self.graph       = graph
         self.nID         = nID
