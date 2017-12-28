@@ -60,7 +60,7 @@ plotFunc.append('plot_peerBubbleSize')
 plotFunc.append('plot_agePerMobType')
 plotFunc.append('plot_womanSharePerMobType')
 plotFunc.append('plot_expectUtil')
-#plotFunc.append('plot_utilPerMobType')
+plotFunc.append('plot_selfUtil')
 plotFunc.append('plot_carStockBarPlot')
 plotFunc.append('plot_carSales')
 plotFunc.append('plot_consequencePerLabel')
@@ -525,9 +525,37 @@ def plot_expectUtil(data, propDict, parameters, enums, filters):
     #plt.title("Expectations for mobility types ")
     plt.legend(newLegStr,loc=0)
     plt.tight_layout()
-    plt.savefig(path + 'expectedUtility2')
+    plt.savefig(path + 'expectedUtility')
 
+def plot_selfUtil(data, propDict, parameters, enums, filters):
+    fig = plt.figure(figsize=(12,8))
+    peData = np.asarray(data.pe[:,:,propDict.pe['selfUtil']])
 
+    plt.plot(np.nanmean(peData,axis=1),linewidth=3)
+    legStr = list()
+    for label in range(len(enums['brands'])):
+        legStr.append(enums['brands'][label])
+    style = ['-','-', ':','--','-.']
+    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (immi)']
+    newLegStr = []
+    newLegStr += [ string + ledAdd[0] for string in  legStr]
+    for prefType in range(4):
+        plt.gca().set_prop_cycle(None)
+        boolMask = np.full(peData.shape[1], False, dtype=bool)
+        boolMask[filters.pe['prefTypeIDs'][prefType]] = True
+        for mobType in range(peData.shape[2]):
+            plt.plot(np.nanmean(peData[:,boolMask,mobType],axis=1),style[prefType+1])
+        newLegStr += [ string + ledAdd[prefType+1] for string in  legStr]
+    if withoutBurnIn:
+        plt.xlim([nBurnIn,parameters['nSteps']])
+    if parameters['plotYears']:
+        years = (parameters['nSteps'] - nBurnIn) / 12
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+
+    #plt.title("Expectations for mobility types ")
+    plt.legend(newLegStr,loc=0)
+    plt.tight_layout()
+    plt.savefig(path + 'selfUtility')
 
 def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     #  plot car stock as bar plot
@@ -568,13 +596,13 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     plt.savefig(path + 'carStock')
 
 def plot_carSales(data, propDict, parameters, enums, filters):
-    carSales = np.zeros([parameters['nSteps'],3])
+    carSales = np.zeros([parameters['nSteps'],len(enums['brands'])])
     for ti in range(parameters['nSteps']):
         for brand in range(0,len(enums['brands'])):
             #idx = data.pe[ti,:,propDict.pe['predMeth'][0]] == 1
             #carSales[ti,:] = np.bincount(data.pe[ti,idx,propDict.pe['type'][0]].astype(int),minlength=3).astype(float)
             boolMask = data.pe[ti,:,propDict.pe['lastAction'][0]]== 0
-            carSales[ti,:] = np.bincount(data.pe[ti,boolMask,propDict.pe['mobType'][0]].astype(int),minlength=3).astype(float)
+            carSales[ti,:] = np.bincount(data.pe[ti,boolMask,propDict.pe['mobType'][0]].astype(int),minlength=len(enums['brands'])).astype(float)
 
 
     fig = plt.figure()
@@ -863,7 +891,7 @@ def plot_meanPrefPerLabel(data, propDict, parameters, enums, filters):
 
     h = list()
     for carLabel in range(len(enums['brands'])):
-        plt.subplot(2,2,carLabel+1)
+        plt.subplot(2,int(np.ceil(parameters['nMobTypes']/2.)),carLabel+1)
         h.append(plt.plot(res[carLabel]))
         plt.title(enums['brands'][carLabel])
         #plt.legend(legStr,loc=0)
@@ -966,7 +994,7 @@ def plot_cellMovie(data, propDict, parameters, enums, filters):
 
     res = landLayer*1.
     res[res == 0] = np.nan
-    for iBrand in range(3):
+    for iBrand in range(len(enums['brands'])):
         ceData = data.ce[-1,:,propDict.ce['carsInCell'][iBrand]] / data.ce[-1,:,propDict.ce['population'][0]] * 1000
         ceData[np.isinf(ceData)] = 0
         bounds[iBrand] = [np.nanmin(ceData), np.nanpercentile(ceData,95)]
@@ -1355,3 +1383,31 @@ if __name__ == "__main__":
             locals()[funcCall](data, propDict, parameters, enums, filters)
         print ' done in ' + str(time.time() - tt) + ' s'
     print 'All done'
+    
+#%%
+selfUtil = np.asarray(data.pe[:,:,propDict.pe['selfUtil']])
+commUtil  = np.asarray(data.pe[:,:,propDict.pe['selfUtil']])
+mobType  = np.asarray(data.pe[:,:,propDict.pe['mobType']]) 
+consequences  = np.asarray(data.pe[:,:,propDict.pe['consequences']]) 
+#%%
+iPers= 20
+plt.clf()
+plt.subplot(2,2,1)
+plt.plot(mobType[:,iPers,0],'o')
+plt.yticks(range(5),enums['brands'].values())
+#plt.ylabel()
+plt.title('mobType')
+plt.subplot(2,2,2)
+plt.plot(selfUtil[:,iPers,:])
+plt.legend(enums['brands'].values())
+plt.title('selfUtil')
+plt.subplot(2,2,3)
+plt.plot(commUtil[:,iPers,:])
+plt.title('commUtil')
+plt.subplot(2,2,4)
+plt.plot(consequences[:,iPers,:])
+plt.title('consequences')
+#box = ax.get_position()
+#ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+#plt.legend(loc = "center left", bbox_to_anchor = (1, 0.5))
+plt.legend(enums['consequences'].values(),bbox_to_anchor=(1.00, 1.05))

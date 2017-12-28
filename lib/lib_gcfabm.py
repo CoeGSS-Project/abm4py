@@ -254,6 +254,7 @@ class Cache():
 
         self.peersAll    = None
         self.peersByType = dict()
+        self.getPeerValues2 = self.peersByType.__getitem__
 
     def __reCachePeers__(self, edgeType=None):
 
@@ -349,6 +350,7 @@ class Cache():
 
             return self.edgesByType[edgeType]
 
+    
     def getPeerValues(self, prop, edgeType=None):
         # check if re-caching is required
         self.__checkPeerCache__(edgeType)
@@ -453,6 +455,7 @@ class Entity():
 
             # definition of access functions
             self.getPeerValues = self._cache.getPeerValues
+            self.getPeerValues2 = self._cache.getPeerValues2
             self.setPeerValues = self._cache.setPeerValues
             self.getPeers      = self._cache.getPeers
             self.getPeerIDs    = self._cache.getPeerIDs
@@ -744,11 +747,16 @@ class World:
         and are synced via mpi. Global variables need to be registered together with
         the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
 
+        
         #TODO
+        - enforce the setting (and reading) of global stats
         - implement mean, deviation, std as reduce operators
 
 
         """
+        
+
+
         def __init__(self, world):
 
             self.comm = world.mpi.comm
@@ -756,8 +764,9 @@ class World:
 
             # simple reductions
             self.reduceDict = dict()
+            
+            # MPI operations
             self.operations = dict()
-
             self.operations['sum']  = MPI.SUM
             self.operations['prod'] = MPI.PROD
             self.operations['min']  = MPI.MIN
@@ -765,14 +774,15 @@ class World:
 
             #staticical reductions/aggregations
             self.statsDict      = dict()
-            self.values         = dict()
+            self.locValues      = dict()
+            self.gloValues      = dict()
             self.nValues        = dict()
-            self.statOperations = dict()
-            self.statOperations['mean'] = np.mean
-            self.statOperations['std']  = np.std
-            self.statOperations['var']  = np.std
 
-
+            # self implemented operations
+            statOperations = dict()
+            statOperations['mean'] = np.mean
+            statOperations['std']  = np.std
+            statOperations['var']  = np.std
             #self.operations['std'] = MPI.Op.Create(np.std)
 
         #%% simple global reductions
@@ -790,8 +800,9 @@ class World:
                 #print op
                 for globName in self.reduceDict[redType]:
                     #print globName
+                    lg.debug('local value of ' + globName + ' : ' + str(self[globName]))
                     self[globName] = self.comm.allreduce(self[globName],op)
-
+                    lg.debug(str(op) + ' of ' + globName + ' : ' + str(self[globName]))
 
         #%% statistical global reductions/aggregations
         def registerStat(self, globName, values, statType):

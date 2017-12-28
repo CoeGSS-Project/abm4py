@@ -50,6 +50,12 @@ _cell = 1
 _hh   = 2
 _pers = 3
 
+#consequences
+_conv = 0
+_eco  = 1
+_mon  = 2
+_immi = 3
+
 #%% --- Global classes ---
 
 
@@ -636,7 +642,7 @@ class Market():
 
     def getMobProps(self):
         return np.asarray([self.goods[iGood].getProperties() * 
-                           (1 + np.random.randn(self.nProp)*self.propRelDev) 
+                           (1 + np.random.randn(self.nProp) * self.propRelDev) 
                            for iGood in range(self.__nMobTypes__)])
     
     
@@ -680,6 +686,7 @@ class Person(Agent):
         friendUtil = np.asarray(self.getPeerValues('commUtil',_cpp)[0])[:,self._node['mobType']]
         ownUtil  = self.getValue('util')
         edges = self.getEdges(_cpp)
+        
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
@@ -880,39 +887,41 @@ class Person(Agent):
         return contactList, connList, weigList
 
 
-
-    def computeExpUtil(self,earth):
+    def computeCommunityUtility(self,earth):
         #get weights from friends
         weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
         weights = np.asarray(weights)
 
-
+        commUtil = self._node['commUtil'] # old value
+        
         # compute weighted mean of all friends
         if earth.para['weightConnections']:
-            communityUtil = np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
+            commUtil += np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
         else:
-            communityUtil = np.mean(np.asarray(self.getPeerValues('commUtil',_cpp)[0]),axis=0)
+            commUtil += np.mean(np.asarray(self.getPeerValues('commUtil',_cpp)[0]),axis=0)
 
-        selfUtil = self._node['selfUtil'][:]
-        mobType  = self._node['mobType']
+        mobType  = self.getValue('mobType')
+        
+        
+        # adding weighted selfUtil selftrust
+        commUtil[mobType] += self.getValue('selfUtil')[mobType] * earth.para['selfTrust']
 
-        # weighting by selftrust
-        selfUtil[mobType] *= earth.para['selfTrust']
+        commUtil /= 2.
+        commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
-        if len(selfUtil) != earth.para['nMobTypes'] or len(communityUtil.shape) == 0 or communityUtil.shape[0] != earth.para['nMobTypes']:
+
+        if len(self.getValue('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:
             print 'nID: ' + str(self.nID)
             print 'error: '
-            print 'communityUtil: ' + str(communityUtil)
-            print 'selfUtil: ' + str(selfUtil)
+            print 'communityUtil: ' + str(commUtil)
+            print 'selfUtil: ' + str(self.getValue('selfUtil'))
             print 'nEdges: ' + str(len(edges))
 
             return
-        tmp = np.nanmean(np.asarray([communityUtil,selfUtil]),axis=0)
-        tmp[mobType] /= (earth.para['selfTrust']+1)/2.
         
-        self._node['commUtil'] = tmp.tolist()
+        self.setValue('commUtil', commUtil.tolist())
 
-        # adjust mean since double of weigth - very bad code - sorry
+        
         
 
     def imitate(self):
@@ -932,9 +941,10 @@ class Person(Agent):
 
     def step(self, earth):
 
-
+        self.computeCommunityUtility(earth)
+        
         # weight friends
-        if earth.para['weightConnections'] and self.isAware(earth.para['mobNewPeriod']):
+        if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
             weights, ESSR = self.weightFriendExperience(earth)
 
             # compute similarity
@@ -979,6 +989,9 @@ class GhostHousehold(GhostAgent):
 
 class Household(Agent):
     __slots__ = ['gID', 'nID']
+    
+
+        
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
 
@@ -993,35 +1006,48 @@ class Household(Agent):
     @staticmethod
     def cobbDouglasUtil(x, alpha):
         utility = 1.
-        factor = 100
-        for i in range(len(x)):
-            utility *= (factor*x[i])**alpha[i]
-        if np.isnan(utility) or np.isinf(utility):
-            import pdb
-            pdb.set_trace()
+        factor = 100.
+        for i in xrange(len(x)):
+            utility *= (factor*x[i])**alpha[i] 
+        #if np.isnan(utility) or np.isinf(utility):  ##OPTPRODUCTION
+        #    import pdb                              ##OPTPRODUCTION
+        #    pdb.set_trace()                         ##OPTPRODUCTION
 
         # assert the limit of utility
         assert utility > 0 and utility <= factor
 
+        return utility / factor
+    
+    @staticmethod
+    def cobbDouglasUtilArray(x, alpha):
+        utility = 1.
+        factor = 100.
+        
+        utility = np.sum((factor * x) ** alpha) / factor
+        
+        # assert the limit of utility
+        assert utility > 0 and utility <= factor
+
         return utility
+    
 
     @staticmethod
     def CESUtil(x, alpha):
         uti = 0.
         s = 2.    # elasticity of substitution, has to be float!
-        factor = 100
-        for i in range(len(x)):
+        factor = 100.
+        for i in xrange(len(x)):
             uti += (alpha[i]*(factor * x[i])**(s-1))**(1/s)
             #print uti
         utility = uti**(s/(s-1))
-        if  np.isnan(utility) or np.isinf(utility):
-            import pdb
-            pdb.set_trace()
+        #if  np.isnan(utility) or np.isinf(utility): ##OPTPRODUCTION
+        #    import pdb                              ##OPTPRODUCTION
+        #    pdb.set_trace()                         ##OPTPRODUCTION
 
         # assert the limit of utility
         assert utility > 0 and utility <= factor
 
-        return utility
+        return utility / factor
 
 
     #def registerAtLocation(self, world,x,y, nodeType, edgeType):
@@ -1075,7 +1101,7 @@ class Household(Agent):
         for i,adult in enumerate(self.adults):
 
             if getInfoList[i]: #or (earth.time < earth.para['burnIn']):
-                adult.computeExpUtil(earth)
+                adult.computeCommunityUtility(earth)
                 actionIds = [-1] + range(earth.para['nMobTypes'])
 
                 eUtils = [adult.getValue('util')] + adult.getValue('commUtil')
@@ -1148,15 +1174,12 @@ class Household(Agent):
         
         consMat = np.zeros([actionIds.shape[0], actionIds.shape[1], earth.nPriorities()])
         
-        _conv = 0
-        _eco  = 1
-        _mon  = 2
-        _immi = 3
+
         
         hhCarBonus = 0.2
         mobProperties = earth.market.getMobProps()
         experience    = np.asarray(earth.market.getCurrentExperience())
-        sumExperience = np.sum(experience)
+        sumExperience = sum(experience)
         convCell      = np.asarray(self.loc.getValue('convenience'))
         income        = self.getValue('income')
         
@@ -1166,6 +1189,7 @@ class Household(Agent):
             consMat[ix,:,_conv] = convCell[actions]
             if any(actions < 2):
                 consMat[ix,actions==2,_conv] += hhCarBonus
+                consMat[ix,actions==4,_conv] += hhCarBonus
                 
             #ecology
             consMat[ix,:,_eco] = earth.market.ecology(mobProperties[actions,1])
@@ -1173,9 +1197,42 @@ class Household(Agent):
             consMat[ix,:,_mon] = max(1e-5, 1 - np.sum(mobProperties[actions,0]) / income)
             
             #immitation
-            consMat[ix,:,_immi] = experience[actions] / sumExperience
+            consMat[ix,:,_immi] = 1 - ( (experience[actions] / sumExperience) **.5)
             
         return consMat
+
+
+    def testConsequences2(self, earth, actionIds):
+        
+        consMat = np.zeros([actionIds.shape[0], actionIds.shape[1], earth.nPriorities()])
+        
+
+        
+        hhCarBonus = 0.2
+        mobProperties = earth.market.getMobProps()
+        experience    = earth.market.getCurrentExperience()
+        sumExperience = sum(experience)
+        convCell      = self.loc.getValue('convenience')
+        income        = self.getValue('income')
+        
+        for ix, actions in enumerate(actionIds):
+            
+            #convenience
+            consMat[ix,:,_conv] = [convCell[action] for action in actions]
+            if any(actions < 2):
+                consMat[ix,actions==2,_conv] += hhCarBonus
+                consMat[ix,actions==4,_conv] += hhCarBonus
+                
+            #ecology
+            consMat[ix,:,_eco] = [earth.market.ecology(mobProperties[action,1]) for action in actions]
+            
+            consMat[ix,:,_mon] = max(1e-5, 1 - sum([mobProperties[action,0] for action in actions] / income)) 
+            
+            #immitation
+            consMat[ix,:,_immi] = [1 - ( (experience[action] / sumExperience) **.5) for action in actions]
+            
+        return consMat
+        
         
 
     def calculateConsequences(self, market):
@@ -1364,26 +1421,32 @@ class Household(Agent):
         # return persons that buy a new car (action is not -1)
         actors = np.array(self.adults)[ actions != -1]
         actions = actions[ actions != -1]
-        if overallUtil[propActionIdx] is None:
-            print 1
+        #if overallUtil[propActionIdx] is None: ##OPTPRODUCTION
+        #    print 1                            ##OPTPRODUCTION
         return actors, actions, overallUtil[propActionIdx]
 
 
     def householdOptimization(self, earth, actionOptions):
-        
+        if len(actionOptions) == 0:
+            import pdb
+            pdb.set_trace()
         combinedActionsOptions = aux.cartesian(actionOptions)
         
+        #tt2 = time.time()
         consMat = self.testConsequences(earth, aux.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
+        #print 'testConsequences : ' +str(time.time() -tt2)
+        #tt2 = time.time()
+        #consMat = self.testConsequences2(earth, aux.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
+        #print 'testConsequences2: ' +str(time.time() -tt2)
         utilities = np.zeros(consMat.shape[0])
-        
-        prioMat = np.asarray(self.adultNodeList['preferences']) # [nPers x nPriorities]
+        #print 'done'
+        prioMat = self.adultNodeList['preferences'] # [nPers x nPriorities]
         for iAction in range(consMat.shape[0]):
             for iPers in range(len(self.adults)):
-                utilities[iAction] += self.utilFunc(consMat[iAction,iPers,:], prioMat[iPers,:])
+                utilities[iAction] += self.utilFunc(consMat[iAction,iPers,:], prioMat[iPers])
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
-        return bestOpt
-    
+        return bestOpt, np.max(utilities)
 
     def evolutionaryStep(self, earth):
         """
@@ -1395,17 +1458,22 @@ class Household(Agent):
         tt = time.time()
         
         bestIndividualActionsIds = [adult.imitate() for adult in self.adults]
-        
-        bestOpt = self.householdOptimization(earth, bestIndividualActionsIds)
-        
+        #print 'imiate: ' +str(time.time() -tt)
+        tt2 = time.time()
+        bestOpt, bestUtil = self.householdOptimization(earth, bestIndividualActionsIds)
+        #print 'opt: ' +str(time.time() -tt2)
+        tt3 = time.time()
         self.undoActions(earth, self.adults)
         self.takeActions(earth, self.adults, bestOpt)
             
         self.calculateConsequences(earth.market)
+        
         self.evalUtility(earth, actionTaken=True)
+        
+        #print 'eval: ' +str(time.time() -tt3)
+        #print str(bestUtil) + ' -> ' + str(util)
 
-        for adult in self.adults:
-            adult.computeExpUtil(earth)
+
             
         self.computeTime += time.time() - tt
 
@@ -1483,7 +1551,7 @@ class Household(Agent):
             actionTaken = self.bestMobilityChoice(earth, persGetInfoList)
             self.calculateConsequences(earth.market)
             util = self.evalUtility(earth, actionTaken)
-            self.evalExpectedUtility(earth, [True] * len(self.adults))
+            #self.evalExpectedUtility(earth, [True] * len(self.adults))
 
         self.computeTime += time.time() - tt
 

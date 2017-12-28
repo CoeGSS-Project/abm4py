@@ -154,8 +154,10 @@ def scenarioTestSmall(parameterInput, dirPath):
         setup.landLayer = setup.landLayer*0
 
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-    setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
-
+    
+    #setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
+    setup.population = (np.isnan(setup.landLayer)==0)* 13
+    
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
     setup.recAgent      = []       # reporter agents that return a diary
@@ -236,7 +238,8 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
     setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    setup.population = 30 * setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
+    #setup.population = 30 * setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
+    setup.population = 50 * setup.population 
 
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
@@ -814,12 +817,20 @@ def householdSetup(earth, calibration=False):
         regionIdx   = np.where(regionIdxList == region)[0][0]
 
         while 1:
-
+            successFlag = False
             nPers   = int(hhData[regionIdx][currIdx[regionIdx], 0])
             #print nPers,'-',nAgents
             ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 1])
             genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 2])
-
+            
+            nAdults = np.sum(np.asarray(ages)>= 18)
+            nKids = np.sum(np.asarray(ages) < 18)
+            
+            if nAdults == 0:
+                currIdx[regionIdx]  += nPers
+                lg.info('Household without adults skipped')
+                continue
+                
             if currIdx[regionIdx] + nPers > hhData[regionIdx].shape[0]:
                 print 'Region: ' + str(regionIdxList[regionIdx])
                 print 'asked size: ' + str(currIdx[regionIdx] + nPers)
@@ -831,7 +842,7 @@ def householdSetup(earth, calibration=False):
             income = max(400., income)
             income *= parameters['mobIncomeShare']
 
-            nKids = np.sum(ages < 18)
+            
 
             # creating houshold
             hh = Household(earth,
@@ -848,23 +859,27 @@ def householdSetup(earth, calibration=False):
             #hh.registerAtLocation(earth,x,y,_hh,_clh)
 
             hh.loc.addValue('population',  nPers)
-
+            
+            assert nAdults > 0
+            
             for iPers in range(nPers):
 
                 nAgentsCell -= 1
                 nAgents     += 1
 
-                if ages[iPers]< 18:
+                if ages[iPers] < 18:
                     continue    #skip kids
                 prefTuple = opinion.getPref(ages[iPers], genders[iPers], nKids, nPers, income, parameters['radicality'])
 
+                
+                
                 pers = Person(earth,
                               preferences = prefTuple,
                               hhID        = hh.gID,
                               gender      = genders[iPers],
                               age         = ages[iPers],
                               util        = 0.,
-                              commUtil    = [50.]*parameters['nMobTypes'],
+                              commUtil    = [0.5, 0.1, 0.4, 0.3, 0.1], # [0.5]*parameters['nMobTypes'],
                               selfUtil    = [np.nan]*parameters['nMobTypes'],
                               mobType     = 0,
                               prop        = [0]*len(parameters['properties']),
@@ -874,13 +889,15 @@ def householdSetup(earth, calibration=False):
                               peerBubbleHeterogeneity = 0.)
 
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
-
-
+                
+                successFlag = True
             
             
             currIdx[regionIdx]  += nPers
             nHH                 += 1
-
+            if not successFlag:
+                import pdb
+                pdb.set_trace()
             if nAgentsCell <= 0:
                 break
     lg.info('All agents initialized')
@@ -907,6 +924,7 @@ def householdSetup(earth, calibration=False):
     for hh in earth.iterEntRandom(_hh, ghosts = False, random=False):
         # caching all adult node in one hh
         hh.setAdultNodeList(earth)
+        assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')
         
     earth.mpi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
@@ -1412,7 +1430,7 @@ if __name__ == '__main__':
     # GLOBAL INIT  MPI
 
 
-    debug = False
+    debug = True
     showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
@@ -1606,7 +1624,7 @@ if __name__ == '__main__':
 
         onlinePostProcessing(earth)
 
-        plot_computingTimes(earth)
+    plot_computingTimes(earth)
 
 
 
