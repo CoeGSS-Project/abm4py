@@ -260,7 +260,7 @@ class Earth(World):
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
 
         
-
+        
 
         self.computeTime[self.time] = time.time()-ttComp
 
@@ -274,6 +274,9 @@ class Earth(World):
         self.graph.glob.sync()
         
         self.syncTime[self.time] = time.time()-ttSync
+        
+        
+        
         lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
 
         ttComp = time.time()
@@ -281,6 +284,9 @@ class Earth(World):
 
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
+
+        tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
+        self.globalRecord['mobProp'].set(self.time,np.asarray(tmp))
 
         # proceed market in time
         self.market.step(self) # Statistics are computed here
@@ -569,7 +575,7 @@ class Market():
         self.mean['costs']     = self.glob['meanPrc']
 
         self.std['emissions']  = self.glob['stdEmm']
-        self.std['emissions']  = self.glob['stdPrc']
+        self.std['costs']  = self.glob['stdPrc']
 
 
         lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
@@ -594,10 +600,10 @@ class Market():
 
     def ecology(self, emissions):
 
-        if self.std['emission'] == 0:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emission'])/1))
+        if self.std['emissions'] == 0:
+            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/1))
         else:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emission'])/self.std['emission']))
+            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
 
         return ecology
 
@@ -1283,7 +1289,7 @@ class Household(Agent):
 #                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
 #            else:
 #                decay = 1.
-            if (actionIdx == 2) and carInHh:
+            if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
             convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus

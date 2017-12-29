@@ -168,7 +168,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emission']
+    setup.properties    = ['costs', 'emissions']
 
     #agents
     setup.randomAgents     = False
@@ -228,12 +228,12 @@ def scenarioTestMedium(parameterInput, dirPath):
     #spatial
     setup.isSpatial         = True
     
-    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 0, 1 , 1, 1],
-                                    [0, 1, 0, 0, 0, 1, 1, 1, 1, 1 , 1, 0],
-                                    [1, 0, 1, 0, 0, 1, 0, 0, 1, 1 , 0, 0],
-                                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 0 , 0, 0],
-                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1 , 1, 1]])
-
+    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1 , 1, 1],
+                                    [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 , 1, 0],
+                                    [1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1 , 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0 , 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
+                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
     a = 60000.
     b = 45000.
     c = 30000.
@@ -243,11 +243,12 @@ def scenarioTestMedium(parameterInput, dirPath):
     g = 10000.
     h = 5000.
     i = 1500.
-    setup.population  = np.asarray([[0, 0, 0, 0, e, d, c, c, 0, g, h, i],
-                                    [0, c, 0, 0, 0, c, c, d, e, f, g, 0],
-                                    [b, 0, c, 0, 0, d, 0, 0, e, f, 0, 0],
-                                    [b, c, d, d, d, d, 0, 0, f, 0, 0, 0],
-                                    [a, b, c, c, d, e, f, 0, 0, i, i, i]])
+    setup.population  = np.asarray([[0, 0, 0, 0, e, d, c, d, h, 0, g, h, i],
+                                    [0, c, 0, 0, 0, e, d, d, e, e, f, g, 0],
+                                    [b, 0, c, 0, e, e, i, 0, 0, g, f, 0, 0],
+                                    [b, c, d, d, e, e, 0, 0, 0, g, i, i, 0],
+                                    [a, b, c, c, d, e, f, 0, 0, 0, i, i, i],
+                                    [a, a, c, c, d, f, f, 0, 0, 0, i, i, g]])    
     del a, b, c, d, e, f, g, h, i
 
     #convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
@@ -283,7 +284,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emission']
+    setup.properties    = ['costs', 'emissions']
 
     #agents
     setup.randomAgents     = False
@@ -362,7 +363,7 @@ def scenarioNiedersachsen(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['emission','costs']
+    setup.properties    = ['costs', 'emissions']
 
     #agents
     setup.randomAgents     = False
@@ -459,7 +460,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emission']
+    setup.properties    = ['costs', 'emissions']
 
     #agents
     setup.randomAgents     = False
@@ -585,7 +586,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emission']
+    setup.properties    = ['costs', 'emissions']
 
     #agents
     setup.randomAgents     = False
@@ -644,7 +645,7 @@ def mobilitySetup(earth):
         conv = pa['minConvG'] + \
         (pa['maxConvGInit']-pa['minConvG']) * \
         (1 - kappa)  * np.exp( - (density - pa['muConvGInit'])**2 / (2 * pa['sigmaConvGInit']**2)) +  \
-        (1 - pa['minConvG']) * kappa * (np.exp(-(density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2)))
+        (pa['maxConvG'] - pa['minConvG']) * kappa * (np.exp(-(density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2)))
         return conv
 
     def conveniencePuplic(density, pa, kappa, cell):
@@ -656,12 +657,17 @@ def mobilitySetup(earth):
         return conv
     
     def convenienceShared(density, pa, kappa, cell):
-        conv = pa['minConvS'] + \
-        ((pa['maxConvS'] - pa['minConvS']) * (kappa)) * \
-        np.exp(-(density - pa['muConvS'])**2 / (2 * ((1 - kappa) * \
-                   pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2))
-        return conv
+#        conv = pa['minConvS'] + \
+#        ((pa['maxConvS'] - pa['minConvS']) * (kappa)) * \
+#        np.exp(-(density - pa['muConvS'])**2 / (2 * ((1 - kappa) * \
+#                   pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2))
         
+        conv = (kappa/10.) + pa['minConvS'] + (kappa *(pa['maxConvS'] - pa['minConvS'] - (kappa/10.))  +\
+                    ((1-kappa)* (pa['maxConvSInit'] - pa['minConvS'] - (kappa/10.)))) * \
+                    np.exp( - (density - pa['muConvS'])**2 / (2 * ((1-kappa) * \
+                    pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2) )        
+        return conv
+    
 
     
     def convenienceNone(density, pa, kappa, cell):
@@ -674,7 +680,7 @@ def mobilitySetup(earth):
     from collections import OrderedDict
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceBrown']
-    propDict['emission'] = parameters['initEmBrown']
+    propDict['emissions'] = parameters['initEmBrown']
     earth.initBrand('brown',                                #name
                     propDict,   #(emissions, TCO)
                     convenienceBrown,                       # convenience function
@@ -685,7 +691,7 @@ def mobilitySetup(earth):
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceGreen']
-    propDict['emission'] = parameters['initEmGreen']
+    propDict['emissions'] = parameters['initEmGreen']
     earth.initBrand('green',                                                        #name
                     propDict,       #(emissions, TCO)
                     convenienceGreen,
@@ -696,7 +702,7 @@ def mobilitySetup(earth):
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPricePuplic']
-    propDict['emission'] = parameters['initEmPuplic']
+    propDict['emissions'] = parameters['initEmPuplic']
     earth.initBrand('public',  #name
                     propDict,   #(emissions, TCO)
                     conveniencePuplic,
@@ -710,7 +716,7 @@ def mobilitySetup(earth):
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceShared']
-    propDict['emission'] = parameters['initEmShared']
+    propDict['emissions'] = parameters['initEmShared']
     earth.initBrand('shared',  #name
                     propDict,   #(emissions, TCO)
                     convenienceShared,
@@ -723,7 +729,7 @@ def mobilitySetup(earth):
     
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceNone']
-    propDict['emission'] = parameters['initEmNone']
+    propDict['emissions'] = parameters['initEmNone']
     earth.initBrand('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
@@ -1158,7 +1164,7 @@ def initGlobalRecords(earth):
     earth.registerRecord('kappas', 'Technological maturity of mobility types',
                          ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
     earth.registerRecord('mobProp', 'Properties',
-                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
+                         ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
 
 def initAgentOutput(earth):

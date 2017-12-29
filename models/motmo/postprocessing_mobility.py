@@ -1253,12 +1253,12 @@ def plot_conveniencePerCell(data, propDict, parameters, enums, filters):
     res = landLayer*1.0
     step = 1
     test = landLayer*0
-    for iBrand in range(3):
+    for iBrand in range(len(enums['brands'])):
         res = landLayer*1.0
         res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['convenience'][iBrand]]
         test = test + res
         #res[landLayer==False] = np.nan
-        plt.subplot(2,2,iBrand+1)
+        plt.subplot(2,3,iBrand+1)
         plt.pcolormesh(np.flipud(res))
         #plt.clim([0,1])
         plt.colorbar()
@@ -1357,7 +1357,9 @@ if __name__ == "__main__":
     enums['brandTitles'] = dict()
     enums['brandTitles'][0] = 'Combustion engined cars'
     enums['brandTitles'][1] = 'Electric powered cars'
-    enums['brandTitles'][2] = 'Alternative mobility types'
+    enums['brandTitles'][2] = 'Puplic transport'
+    enums['brandTitles'][3] = 'Car sharing'
+    enums['brandTitles'][4] = 'Food / Bike'
     parameters['plotYears'] = plotYears
     parameters['withoutBurnIn'] = withoutBurnIn
     print 'loading done in ' + str(time.time() - tt) + ' s'
