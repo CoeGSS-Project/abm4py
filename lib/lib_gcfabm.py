@@ -112,7 +112,7 @@ class Queue():
             propertiesOfType = self.graph.getPropOfNodeType(nodeType,kind='all')
             #print propertiesOfType
             #print kwProperties.keys()
-            assert all([prop in propertiesOfType for prop in kwProperties.keys()]) # check that all given properties are registered
+            assert all([prop in propertiesOfType for prop in kwProperties.keys()]) # check that all given properties are registered ##OPTPRODUCTION
 
             self.nodeProperties[nodeType] = dict()
             self.nodeTypeList[nodeType]   =list()
@@ -137,7 +137,7 @@ class Queue():
 
         if len(self.nodeList) ==0:
             return
-        assert self.nodeList[0] == self.graph.vcount() # check that the queuing idx is consitent
+        assert self.nodeList[0] == self.graph.vcount() # check that the queuing idx is consitent ##OPTPRODUCTION
         #print self.graph.vcount(), self.nodeList[0]
         #adding all nodes first
         self.graph.add_vertices(len(self.nodeList))
@@ -167,7 +167,7 @@ class Queue():
                 #print 'node index:'  + str(entity.node.index)
                 #entity.register(world)
                 #print 'assert ' + str((entity.nID, entity.node.index))
-                assert entity.nID == entity._node.index
+                assert entity.nID == entity._node.index                        ##OPTPRODUCTION
 
         # reset queue
         self.currNodeID     = None
@@ -189,7 +189,7 @@ class Queue():
             if not isinstance(kwProperties[propKey], list):
                self.edgeProperties[edgeType][propKey].extend ([kwProperties[propKey]]* len(edgeList) )
             else :
-                assert len(kwProperties[propKey]) == len(edgeList)
+                assert len(kwProperties[propKey]) == len(edgeList)             ##OPTPRODUCTION
                 self.edgeProperties[edgeType][propKey].extend(kwProperties[propKey])
 
     def addEdge(self, source, target, **kwProperties):
@@ -758,9 +758,8 @@ class World:
 
 
         def __init__(self, world):
-
-            self.comm = world.mpi.comm
-            #self.dprint = world.dprint
+            self.world = world
+            self.comm  = world.mpi.comm
 
             # simple reductions
             self.reduceDict = dict()
@@ -773,13 +772,13 @@ class World:
             self.operations['max']  = MPI.MAX
 
             #staticical reductions/aggregations
-            self.statsDict      = dict()
-            self.locValues      = dict()
-            self.gloValues      = dict()
-            self.nValues        = dict()
+            self.statsDict       = dict()
+            self.localValues     = dict()
+            self.nValues         = dict()
+            self.updated         = dict()
 
             # self implemented operations
-            statOperations = dict()
+            statOperations         = dict()
             statOperations['mean'] = np.mean
             statOperations['std']  = np.std
             statOperations['var']  = np.std
@@ -788,9 +787,12 @@ class World:
         #%% simple global reductions
         def registerValue(self, globName, value, reduceType):
             self[globName] = value
+            self.localValues[globName] = value
+            self.nValues[globName] = len(value)
             if reduceType not in self.reduceDict.keys():
                 self.reduceDict[reduceType] = list()
             self.reduceDict[reduceType].append(globName)
+            self.updated[globName] = True
 
         def syncReductions(self):
 
@@ -799,16 +801,21 @@ class World:
                 op = self.operations[redType]
                 #print op
                 for globName in self.reduceDict[redType]:
-                    #print globName
-                    lg.debug('local value of ' + globName + ' : ' + str(self[globName]))
-                    self[globName] = self.comm.allreduce(self[globName],op)
-                    lg.debug(str(op) + ' of ' + globName + ' : ' + str(self[globName]))
+
+                    # enforce that data is updated
+                    assert  self.updated[globName] is True    ##OPTPRODUCTION
+                    
+                    # communication between all proceees
+                    self[globName] = self.comm.allreduce(self.localValues[globName],op)
+                    self.updated[globName] = False
+                    lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))
+                    lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))
 
         #%% statistical global reductions/aggregations
         def registerStat(self, globName, values, statType):
             #statfunc = self.statOperations[statType]
 
-            assert statType in ['mean', 'std','var']
+            assert statType in ['mean', 'std','var']    ##OPTPRODUCTION
 
 
             if not isinstance(values, (list, tuple,np.ndarray)):
@@ -816,8 +823,8 @@ class World:
             values = np.asarray(values)
 
 
-            self.values[globName]   = values
-            self.nValues[globName] = len(values)
+            self.localValues[globName]  = values
+            self.nValues[globName]      = len(values)
             if statType == 'mean':
                 self[globName]          = np.mean(values)
             elif statType == 'std':
@@ -828,35 +835,54 @@ class World:
             if statType not in self.statsDict.keys():
                 self.statsDict[statType] = list()
             self.statsDict[statType].append(globName)
+            self.updated[globName] = True
+            
 
-        def updateStatValues(self, globName, values):
-            self.values[globName]   = values
-            self.nValues[globName] = len(values)
+        def updateLocalValues(self, globName, values):
+            self.localValues[globName]     = values
+            self.nValues[globName]         = len(values)
+            self.updated[globName]         = True
 
         def syncStats(self):
             for redType in self.statsDict.keys():
                 if redType == 'mean':
 
                     for globName in self.statsDict[redType]:
-                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        
+                        # enforce that data is updated
+                        assert  self.updated[globName] is True    ##OPTPRODUCTION
+                        
+                        # sending data list  of (local mean, size)
+                        tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
 
+                        # communication between all proceees
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
-                        #self.dprint('var[tmp] after alltoall:' + str( tmp ))
+                        # calculation of global mean
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
-                        globSize = np.sum(tmp[:,1])             # sum(size)
+                        globSize  = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
-
+                        self.updated[globName] = False
+                        
                 elif redType == 'std':
                     for globName in self.statsDict[redType]:
 
-                        locSTD = [np.std(self.values[globName])] * self.comm.size
+                        # enforce that data is updated
+                        assert  self.updated[globName] is True    ##OPTPRODUCTION
+                        
+                        # local calulation
+                        locSTD = [np.std(self.localValues[globName])] * self.comm.size
                         locSTD = np.asarray(self.comm.alltoall(locSTD))
                         lg.debug('loc std: ' + str(locSTD))
 
-                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        # sending data list  of (local mean, size)
+                        tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
+                        
+                        # communication between all proceees
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
+
+                        # calculation of the global std
                         locMean = tmp[:,0]
                         lg.debug('loc mean: ' + str(locMean))
 
@@ -873,15 +899,21 @@ class World:
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = np.sqrt(globVariance)
-
+                        self.updated[globName] = False
+                        
                 elif redType == 'var':
                     for globName in self.statsDict[redType]:
 
-                        locSTD = [np.std(self.values[globName])]* self.comm.size
+                        # enforce that data is updated
+                        assert  self.updated[globName] is True    ##OPTPRODUCTION
+                        
+                        # calculation of local mean
+                        locSTD = [np.std(self.localValues[globName])] * self.comm.size
                         locSTD = np.asarray(self.comm.alltoall(locSTD))
-                        #print 'loc std: ',locSTD
+                        
 
-                        tmp = [(np.mean(self.values[globName]), self.nValues[globName])]* self.comm.size # out data list  of (mean, size)
+                        # out data list  of (local mean, size)
+                        tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
                         locMean = tmp[:,0]
@@ -900,6 +932,7 @@ class World:
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = globVariance
+                        self.updated[globName] = False
 
         def sync(self):
 
@@ -1826,7 +1859,7 @@ class World:
 
         """
         # type is an required property
-        assert 'type' and 'gID' in staticProperies
+        assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
 
         nodeTypeIdx = len(self.graph.nodeTypes)
 
@@ -1852,7 +1885,7 @@ class World:
         - update of enumerations
 
         """
-        assert 'type' in staticProperies # type is an required property
+        assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)
         #self.graph.edgeTypes.append(edgeTypeIdx)
@@ -1876,7 +1909,7 @@ class World:
             - _loc2glob
         """
         #print 'assert' + str((len(self.entList), agent.nID))
-        assert len(self.entList) == agent.nID
+        assert len(self.entList) == agent.nID                                  ##OPTPRODUCTION
         self.entList.append(agent)
         self.entDict[agent.nID] = agent
         self._glob2loc[agent.gID] = agent.nID

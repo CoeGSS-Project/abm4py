@@ -226,20 +226,34 @@ def scenarioTestMedium(parameterInput, dirPath):
 
 
     #spatial
-    setup.reductionFactor   = 5000 # only and estimation in comparison to niedersachsen
     setup.isSpatial         = True
-    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 0],
-                                    [0, 1, 0, 0, 0, 1, 1, 1, 1],
-                                    [1, 0, 1, 0, 0, 1, 0, 0, 1],
-                                    [1, 1, 1, 1, 1, 1, 0, 0, 1],
-                                    [1, 1, 1, 1, 1, 1, 1, 0, 0],
-                                    [0, 0, 1, 1, 0, 0, 0, 0, 0]])
+    
+    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 0, 1 , 1, 1],
+                                    [0, 1, 0, 0, 0, 1, 1, 1, 1, 1 , 1, 0],
+                                    [1, 0, 1, 0, 0, 1, 0, 0, 1, 1 , 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 0, 0, 1, 0 , 0, 0],
+                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1 , 1, 1]])
 
+    a = 60000.
+    b = 45000.
+    c = 30000.
+    d = 25000.
+    e = 20000.
+    f = 15000.
+    g = 10000.
+    h = 5000.
+    i = 1500.
+    setup.population  = np.asarray([[0, 0, 0, 0, e, d, c, c, 0, g, h, i],
+                                    [0, c, 0, 0, 0, c, c, d, e, f, g, 0],
+                                    [b, 0, c, 0, 0, d, 0, 0, e, f, 0, 0],
+                                    [b, c, d, d, d, d, 0, 0, f, 0, 0, 0],
+                                    [a, b, c, c, d, e, f, 0, 0, i, i, i]])
+    del a, b, c, d, e, f, g, h, i
 
-    convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
-    setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
+    #convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
+    #setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
     #setup.population = 30 * setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
-    setup.population = 50 * setup.population 
+    #setup.population = 50 * setup.population 
 
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
@@ -284,7 +298,8 @@ def scenarioTestMedium(parameterInput, dirPath):
                    'sigmaConvPInit','muConvP','sigmaConvP',
                    'sigmaConvSInit','muConvS','sigmaConvS',
                    'sigmaConvNInit','muConvN','sigmaConvN',
-                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone']:
+                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+                   'population']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -414,7 +429,7 @@ def scenarioNBH(parameterInput, dirPath):
     # bad bugfix for 4 cells
     setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
 
-    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
+    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
 
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
@@ -543,7 +558,7 @@ def scenarioGer(parameterInput, dirPath):
         if len(np.unique(reList)) == 1:
             setup.regionIdRaster[x, y] = np.unique(reList)[0]
 
-    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0
+    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
 
 
     setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
@@ -724,7 +739,7 @@ def mobilitySetup(earth):
 def householdSetup(earth, calibration=False):
     parameters = earth.getParameter()
     tt = time.time()
-
+    parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
     overheadAgents = 50 # additional agents that are loaded 
@@ -788,7 +803,7 @@ def householdSetup(earth, calibration=False):
         if nAgentsOnProcess[mpi.rank, i] == 0:
             continue
 
-        assert hhData[i].shape[0] >= nAgentsOnProcess[mpi.rank,i]
+        assert hhData[i].shape[0] >= nAgentsOnProcess[mpi.rank,i] ##OPTPRODUCTION
         
         idx = 0
         # find the correct possition in file
@@ -860,7 +875,7 @@ def householdSetup(earth, calibration=False):
 
             hh.loc.addValue('population',  nPers)
             
-            assert nAdults > 0
+            assert nAdults > 0 ##OPTPRODUCTION
             
             for iPers in range(nPers):
 
@@ -924,7 +939,7 @@ def householdSetup(earth, calibration=False):
     for hh in earth.iterEntRandom(_hh, ghosts = False, random=False):
         # caching all adult node in one hh
         hh.setAdultNodeList(earth)
-        assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')
+        assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
         
     earth.mpi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
@@ -1103,7 +1118,7 @@ def initMobilityTypes(earth):
     for goodKey in earth.market.goods.keys():
         #print earth.market.goods[goodKey].properties.keys()
         #print earth.market.properties
-        assert earth.market.goods[goodKey].properties.keys() == earth.market.properties
+        assert earth.market.goods[goodKey].properties.keys() == earth.market.properties ##OPTPRODUCTION
 
 
 def initGlobalRecords(earth):
@@ -1427,8 +1442,7 @@ def setupHouseholdsWithOptimalChoice():
 ######################################################################################
 
 if __name__ == '__main__':
-    # GLOBAL INIT  MPI
-
+    
 
     debug = True
     showFigures    = 0

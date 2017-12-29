@@ -247,6 +247,8 @@ class Earth(World):
         elif self.timeUnit == 1: # years
             self.date[1] +=1
 
+        
+        
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
 
@@ -257,17 +259,20 @@ class Earth(World):
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
 
-        self.market.updateSales()
+        
 
 
         self.computeTime[self.time] = time.time()-ttComp
 
         ttSync = time.time()
-        self.graph.glob.updateStatValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateStatValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateStatValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.graph.glob.updateStatValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        
+        # local values are used to update the new global values
         self.graph.glob.sync()
+        
         self.syncTime[self.time] = time.time()-ttSync
         lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
 
@@ -327,6 +332,8 @@ class Earth(World):
         if self.queuing:
             self.queue.dequeueEdges(self)
 
+        self.market.updateSales()
+        
         self.computeTime[self.time] += time.time()-ttComp
 
         # waiting for other processes
@@ -391,25 +398,33 @@ class Good():
     Technical progress is models according to the puplication of nagy+al2010
     https://doi.org/10.1371/journal.pone.0052669
     """
-
+    
+    #class variable
+    currLocalSales   = list()
+    lastGlobalSales  = list()
+    
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
 
-        self.label = label
+        self.goodID             = len(self.currLocalSales)
+        self.label              = label
         self.currGrowthRate     = 1
         self.oldStock           = 0
         self.currStock          = 0
         self.replacementRate    = 0.01
+        self.currLocalSales.append(0)
+        self.lastGlobalSales.append(0)
         
         if progressType == 'wright':
 
-            self.experience = experience # cummulative production up to now
+            self.experience        = experience # cummulative production up to now
             self.technicalProgress = initialProgress
             self.initialProperties = propDict.copy()
-            self.properties   = propDict
+            self.properties        = propDict
 
             # setting initial price to match the initial technical progress
             for propKey in self.initialProperties.keys():
                 self.initialProperties[propKey] *= initialProgress
+            
             self.slope        = slope
             self.maturity     = 1 - (1 / self.technicalProgress)
 
@@ -417,6 +432,11 @@ class Good():
             print 'not implemented'
             # TODO add Moore and SKC + ...
 
+
+    @classmethod
+    def updateGlobalSales(cls, sales):
+        cls.lastGlobalSales = sales
+        
     def updateTechnicalProgress(self, production=None):
         """
         Computes the technical progress
@@ -426,9 +446,11 @@ class Good():
         
         # if production is not given, the internal sales is used
         if production is None:
-            production = self.salesModel()
-
-        self.currGrowthRate = 1 + (production) / float(self.experience)
+            self.currLocalSales[self.goodID] = self.salesModel()
+        else:
+            self.currLocalSales[self.goodID] = production
+            
+        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
         self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
         for prop in self.properties.keys():
             self.properties[prop] = self.initialProperties[prop] / self.technicalProgress
@@ -436,7 +458,7 @@ class Good():
         self.maturity       =    1 - (1 / self.technicalProgress)
 
         #update experience
-        self.experience += production
+        self.experience += self.lastGlobalSales[self.goodID]
 
         
 
@@ -516,9 +538,13 @@ class Market():
         self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')
 
     def updateSales(self):
-        for iGood in self.goods.keys():
-            self.glob['sales'][int(iGood)] = self.goods[iGood].salesModel()
+        
+        # push current Sales to globals for sync
+        sales = np.asarray(self.goods[0].currLocalSales)
+        self.glob.updateLocalValues('sales', sales)
             
+        # pull sales from last time step to oldSales for technical chance
+        self.goods[0].updateGlobalSales(self.glob['sales'])
             
     def getNMobTypes(self):
         return self.__nMobTypes__
@@ -603,7 +629,7 @@ class Market():
 
         lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))
         # reset sales
-        self.glob['sales'] = self.glob['sales']*0
+        #self.glob['sales'] = self.glob['sales']*0
 
         self.minPrice = np.min([good.getProperties()[0] for good in self.goods.itervalues()])
 
@@ -693,7 +719,7 @@ class Person(Agent):
 
         prior = np.asarray(edges['weig'])
         prior = prior / np.sum(prior)
-        assert not any(np.isnan(prior))
+        assert not any(np.isnan(prior)) ##OPTPRODUCTION
 
 
         # TODO - re-think how to avoide
@@ -711,11 +737,11 @@ class Person(Agent):
                 edges['weig'] = post
 
                 self._node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
-                #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID
-                #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID
-                if np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0]) < 0.99:
-                    import pdb
-                    pdb.set_trace()
+                #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
+                #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
+                if np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0]) < 0.99: ##OPTPRODUCTION
+                    import pdb      ##OPTPRODUCTION
+                    pdb.set_trace() ##OPTPRODUCTION
             return post, self._node['ESSR']
 
         else:
@@ -869,8 +895,8 @@ class Person(Agent):
 
             nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
 
-        if nContacts < 1:
-            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+        if nContacts < 1:                                                       ##OPTPRODUCTION
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')      ##OPTPRODUCTION
 
         else:
             # adding contacts
@@ -910,14 +936,14 @@ class Person(Agent):
         commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
 
-        if len(self.getValue('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:
-            print 'nID: ' + str(self.nID)
-            print 'error: '
-            print 'communityUtil: ' + str(commUtil)
-            print 'selfUtil: ' + str(self.getValue('selfUtil'))
-            print 'nEdges: ' + str(len(edges))
+        if len(self.getValue('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:       ##OPTPRODUCTION
+            print 'nID: ' + str(self.nID)                                       ##OPTPRODUCTION
+            print 'error: '                                                     ##OPTPRODUCTION
+            print 'communityUtil: ' + str(commUtil)                             ##OPTPRODUCTION
+            print 'selfUtil: ' + str(self.getValue('selfUtil'))                 ##OPTPRODUCTION
+            print 'nEdges: ' + str(len(edges))                                  ##OPTPRODUCTION
 
-            return
+            return                                                              ##OPTPRODUCTION
         
         self.setValue('commUtil', commUtil.tolist())
 
@@ -1006,27 +1032,27 @@ class Household(Agent):
     @staticmethod
     def cobbDouglasUtil(x, alpha):
         utility = 1.
-        factor = 100.
+        
         for i in xrange(len(x)):
-            utility *= (factor*x[i])**alpha[i] 
-        #if np.isnan(utility) or np.isinf(utility):  ##OPTPRODUCTION
-        #    import pdb                              ##OPTPRODUCTION
-        #    pdb.set_trace()                         ##OPTPRODUCTION
+            utility *= (100.*x[i])**alpha[i] 
+        #if np.isnan(utility) or np.isinf(utility):  ##DEEP_DEBUG
+        #    import pdb                              ##DEEP_DEBUG
+        #    pdb.set_trace()                         ##DEEP_DEBUG
 
         # assert the limit of utility
-        assert utility > 0 and utility <= factor
+        #assert utility > 0 and utility <= factor     ##DEEP_DEBUG
 
-        return utility / factor
+        return utility / 100.
     
     @staticmethod
     def cobbDouglasUtilArray(x, alpha):
         utility = 1.
-        factor = 100.
         
-        utility = np.sum((factor * x) ** alpha) / factor
+        
+        utility = np.sum((100. * x) ** alpha) / 100.
         
         # assert the limit of utility
-        assert utility > 0 and utility <= factor
+        #assert utility > 0 and utility <= factor      ##DEEP_DEBUG
 
         return utility
     
@@ -1037,17 +1063,17 @@ class Household(Agent):
         s = 2.    # elasticity of substitution, has to be float!
         factor = 100.
         for i in xrange(len(x)):
-            uti += (alpha[i]*(factor * x[i])**(s-1))**(1/s)
+            uti += (alpha[i]*(100. * x[i])**(s-1))**(1/s)
             #print uti
         utility = uti**(s/(s-1))
-        #if  np.isnan(utility) or np.isinf(utility): ##OPTPRODUCTION
-        #    import pdb                              ##OPTPRODUCTION
-        #    pdb.set_trace()                         ##OPTPRODUCTION
+        #if  np.isnan(utility) or np.isinf(utility): ##DEEP_DEBUG
+        #    import pdb                              ##DEEP_DEBUG
+        #    pdb.set_trace()                         ##DEEP_DEBUG
 
         # assert the limit of utility
-        assert utility > 0 and utility <= factor
+        #assert utility > 0 and utility <= factor ##DEEP_DEBUG
 
-        return utility / factor
+        return utility / 100.
 
 
     #def registerAtLocation(self, world,x,y, nodeType, edgeType):
@@ -1077,7 +1103,7 @@ class Household(Agent):
         for adult in self.adults:
 
             utility = self.utilFunc(adult.getValue('consequences'), adult.getValue('preferences'))
-            assert not( np.isnan(utility) or np.isinf(utility)), utility
+            #assert not( np.isnan(utility) or np.isinf(utility)), utility ##OPTPRODUCTION
 
             #adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
             adult.setValue('util', utility)
@@ -1131,9 +1157,9 @@ class Household(Agent):
         combActions = aux.cartesian(actionIdsList)
         overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1,keepdims=True)
 
-        if len(combActions) != len(overallUtil):
-            import pdb
-            pdb.set_trace()
+        if len(combActions) != len(overallUtil):        ##OPTPRODUCTION
+            import pdb                                  ##OPTPRODUCTION
+            pdb.set_trace()                             ##OPTPRODUCTION
 
         return combActions, overallUtil
 
@@ -1272,7 +1298,7 @@ class Household(Agent):
 
             # assuring that consequences are within 0 and 1
             for consequence in [convenience, ecology, money, innovation]:
-                assert consequence <= 1 and consequence > 0
+                assert consequence <= 1 and consequence > 0 ##OPTPRODUCTION
 
             adult.setValue('consequences', [convenience, ecology, money, innovation])
 
@@ -1355,15 +1381,16 @@ class Household(Agent):
                 self.calculateConsequences(market)
                 util = self.evalUtility(earth)
 
-                if util < 1:
-                    lg.debug('####' + str(self.nID) + '#####')
-                    lg.debug('New Util: ' +str(util) + ' old util: ' + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))
-                    lg.debug('possible utilitties: ' + str(utilities))
-                    lg.debug(self._node)
-                    lg.debug('properties: ' + str([adult.getValue('prop') for adult in self.adults]))
-                    lg.debug('consequence: '+ str([adult.getValue('consequences') for adult in self.adults]))
-                    lg.debug('preferences: '+ str([adult.getValue('preferences') for adult in self.adults]))
-                    lg.debug('utility: ' +    str([adult.getValue('util')  for adult in self.adults]))
+                if util < 1:                                                                                    ##OPTPRODUCTION
+                    lg.debug('####' + str(self.nID) + '#####')                                                  ##OPTPRODUCTION
+                    lg.debug('New Util: ' +str(util) + ' old util: '                                            ##OPTPRODUCTION
+                             + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))                     ##OPTPRODUCTION
+                    lg.debug('possible utilitties: ' + str(utilities))                                          ##OPTPRODUCTION                
+                    lg.debug(self._node)                                                                        ##OPTPRODUCTION
+                    lg.debug('properties: ' + str([adult.getValue('prop') for adult in self.adults]))           ##OPTPRODUCTION
+                    lg.debug('consequence: '+ str([adult.getValue('consequences') for adult in self.adults]))   ##OPTPRODUCTION
+                    lg.debug('preferences: '+ str([adult.getValue('preferences') for adult in self.adults]))    ##OPTPRODUCTION
+                    lg.debug('utility: ' +    str([adult.getValue('util')  for adult in self.adults]))          ##OPTPRODUCTION
         else:
             actionTaken = False
 
@@ -1402,9 +1429,9 @@ class Household(Agent):
         #best action
         bestActionIdx = np.argmax(overallUtil)
 
-        if bestActionIdx > len(combActions):
-            import pdb
-            pdb.set_trace()
+        if bestActionIdx > len(combActions):##OPTPRODUCTION
+            import pdb                      ##OPTPRODUCTION
+            pdb.set_trace()                 ##OPTPRODUCTION
         actions = combActions[bestActionIdx]
         # return persons that buy a new car (action is not -1)
 
@@ -1427,9 +1454,9 @@ class Household(Agent):
 
 
     def householdOptimization(self, earth, actionOptions):
-        if len(actionOptions) == 0:
-            import pdb
-            pdb.set_trace()
+        if len(actionOptions) == 0:             ##OPTPRODUCTION
+            import pdb                          ##OPTPRODUCTION
+            pdb.set_trace()                     ##OPTPRODUCTION
         combinedActionsOptions = aux.cartesian(actionOptions)
         
         #tt2 = time.time()
@@ -1576,10 +1603,7 @@ class Cell(Location):
         self.peList = list()
         self.carsToBuy = 0
         self.deleteQueue =1
-        self.currID = 0
         self.traffic = dict()
-        self.sigmaEps = 1.
-        self.muEps = 1.
         self.cellSize = 1.
         self.convFunctions = list()
 
@@ -1631,10 +1655,10 @@ class Cell(Location):
 
         convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
 
-#        for x in convAll:
-#            if np.isinf(x) or np.isnan(x) or x == 0:
-#                import pdb
-#                pdb.set_trace()
+#        for x in convAll:                             ##OPTPRODUCTION
+#            if np.isinf(x) or np.isnan(x) or x == 0:  ##OPTPRODUCTION
+#                import pdb                            ##OPTPRODUCTION
+#                pdb.set_trace()                       ##OPTPRODUCTION
         self._node['population'] = 0
         return convAll, population
 
@@ -1664,7 +1688,7 @@ class Cell(Location):
         Adds a car to the cell pool of observations
         """
         meme = prop + [util, label, hhID]
-        assert not any(np.isnan(meme))
+        assert not any(np.isnan(meme)) ##OPTPRODUCTION
         obsID = self.obsMemory.addMeme(meme)
         self.currDelList.append(obsID)
 
@@ -1783,28 +1807,10 @@ class Opinion():
         pref = pref ** radicality
         pref = pref / np.sum(pref)
 
-        assert all (pref > 0) and all (pref < 1)
+        assert all (pref > 0) and all (pref < 1) ##OPTPRODUCTION
 
         return tuple(pref)
 
 # %% --- main ---
 if __name__ == "__main__":
-    market = Market(["wei","ran"])
-
-    market.addBrand('g',(2,1))
-    market.addBrand('b',(1,2))
-    market.buyCar('g',1)
-    market.buyCar('b',2)
-    market.buyCar('g',1)
-    market.buyCar('b',1)
-
-    print market.getPropPercentiles((2,2))
-
-    og = OpinionGenerator(indiRatio= 0.2)
-    print 'male young' + str(og.getPref(20,1,0,3001))
-    print 'female young' + str(og.getPref(20,2,0,5001))
-    print 'male family' + str(og.getPref(25,1,2,5001))
-    print 'female family' + str(og.getPref(25,1,4,3501))
-    print 'female singe' + str(og.getPref(25,2,0,3501))
-    print 'male old' + str(og.getPref(64,1,3,2501))
-    print 'female old' + str(og.getPref(64,2,3,2501))
+    pass

@@ -302,7 +302,7 @@ class Record():
 
 
     def updateValues(self, timeStep):
-        self.glob[self.name] = self.rec[timeStep,:]
+        self.glob.updateLocalValues(self.name, self.rec[timeStep,:])
 
     def gatherSyncDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
