@@ -148,6 +148,11 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer   = np.asarray([[1     , 1, 1 , np.nan, np.nan],
                                     [np.nan, 1, 1 , np.nan, 0     ],
                                     [np.nan, 0, 0 , 0     , 0     ]])
+    
+    setup.chargStat   = np.asarray([[0, 2, 2, 0, 0],
+                                    [0, 2, 1, 0, 0],
+                                    [0, 0, 0, 0, 0]])
+    
     setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
     setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *6321
     if mpiSize == 1:
@@ -234,6 +239,13 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0 , 0, 0],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
+    
+    setup.chargStat   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0 , 0, 0],
+                                    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0 , 0, 0],
+                                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
+                                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
+                                    [3, 4, 1, 1, 0, 1, 1, 0, 0, 0, 0 , 0, 0],
+                                    [6, 5, 2, 0, 0, 0, 1, 0, 0, 0, 0 , 0, 0]])    
     a = 60000.
     b = 45000.
     c = 30000.
@@ -312,80 +324,6 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     return setup
 
-
-def scenarioNiedersachsen(parameterInput, dirPath):
-    setup = Bunch()
-
-    #general
-    setup.resourcePath = dirPath + '/resources_nie/'
-    setup.progressBar  = True
-    setup.allTypeObservations = False
-
-    setup.synPopPath = setup['resourcePath'] + 'hh_niedersachsen.csv'
-    #time
-    setup.nSteps           = 340     # number of simulation steps
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01,2005]
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-
-    #spatial
-    setup.isSpatial     = True
-    #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    setup.reductionFactor = 200.
-
-    if hasattr(parameterInput, "reductionFactor"):
-        # overwrite the standart parameter
-        setup.reductionFactor = parameterInput.reductionFactor
-    #print mpiSize
-    if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
-    else:
-        setup.landLayer = setup.landLayer * 0
-
-
-    lg.info('max rank:',np.nanmax(setup.landLayer))
-
-#    setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-#    setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-
-
-    setup.landLayer[np.isnan(setup.population)] = np.nan
-    nAgents    = np.nansum(setup.population)
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters used for automatic calibration
-    setup.update(parameterInput.toDict())
-
-    # calculate dependent parameters
-    maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    minCarConvenience = 1 + setup.kappa
-    setup.convB =  minCarConvenience / (maxDeviation)
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
-
-    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
-    lg.info('Running with ' + str(nAgents) + ' agents')
-
-    return setup
-
 def scenarioNBH(parameterInput, dirPath):
     setup = Bunch()
 
@@ -429,6 +367,9 @@ def scenarioNBH(parameterInput, dirPath):
     setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy')
     # bad bugfix for 4 cells
     setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+
+
+    setup.chargStat      = np.load(setup.resourcePath + 'charge_stations_62x118.npy')
 
     assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
 
@@ -546,6 +487,8 @@ def scenarioGer(parameterInput, dirPath):
     #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
 
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+
+    setup.chargStat      = np.load(setup.resourcePath + 'charge_stations_186x219.npy')
 
     # correction of ID map
     xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
@@ -679,10 +622,11 @@ def mobilitySetup(earth):
 
     from collections import OrderedDict
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceBrown']
-    propDict['emissions'] = parameters['initEmBrown']
+    propDict['costs']    = parameters['initPriceBrown'], parameters['initPriceBrown']/10.
+    propDict['emissions'] = parameters['initEmBrown'],120. # init, lim
+    
     earth.initBrand('brown',                                #name
-                    propDict,   #(emissions, TCO)
+                    propDict,                               #(emissions, TCO)
                     convenienceBrown,                       # convenience function
                     'start',                                # time step of introduction in simulation
                     parameters['techSlopeBrown'],            # initial technical progress
@@ -690,46 +634,47 @@ def mobilitySetup(earth):
                     parameters['techExpBrown'])             # initial experience
 
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceGreen']
-    propDict['emissions'] = parameters['initEmGreen']
+    propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
+    propDict['emissions'] = parameters['initEmGreen'],70. # init, lim
     earth.initBrand('green',                                                        #name
                     propDict,       #(emissions, TCO)
                     convenienceGreen,
                     'start',
-                    parameters['techSlopeGreen'],            # initial technical progress
-                    parameters['techProgGreen'],           # slope of technical progress
+                    parameters['techSlopeGreen'],           # initial technical progress
+                    parameters['techProgGreen'],            # slope of technical progress
+
                     parameters['techExpGreen'])             # initial experience
 
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPricePuplic']
-    propDict['emissions'] = parameters['initEmPuplic']
+    propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
+    propDict['emissions'] = parameters['initEmPuplic'],30. # init, lim
     earth.initBrand('public',  #name
                     propDict,   #(emissions, TCO)
                     conveniencePuplic,
                     'start',
-                    parameters['techSlopePuplic'],            # initial technical progress
-                    parameters['techProgPuplic'],           # slope of technical progress
+                    parameters['techSlopePuplic'],           # initial technical progress
+                    parameters['techProgPuplic'],            # slope of technical progress
                     parameters['techExpPuplic'])             # initial experience
 
     
 
 
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceShared']
-    propDict['emissions'] = parameters['initEmShared']
+    propDict['costs']    = parameters['initPriceShared'],  parameters['initPriceShared']/10.
+    propDict['emissions'] = parameters['initEmShared'],50. # init, lim
     earth.initBrand('shared',  #name
                     propDict,   #(emissions, TCO)
                     convenienceShared,
                     'start',
-                    parameters['techSlopeShared'],            # initial technical progress
-                    parameters['techProgShared'],           # slope of technical progress
+                    parameters['techSlopeShared'],           # initial technical progress
+                    parameters['techProgShared'],            # slope of technical progress
                     parameters['techExpShared'])             # initial experience
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceNone']
-    propDict['emissions'] = parameters['initEmNone']
+    propDict['costs']    = parameters['initPriceNone'],  parameters['initPriceNone']/10.
+    propDict['emissions'] = parameters['initEmNone'], 2.0 # init, lim
     earth.initBrand('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
@@ -737,6 +682,7 @@ def mobilitySetup(earth):
                     parameters['techSlopeNone'],            # initial technical progress
                     parameters['techProgNone'],           # slope of technical progress
                     parameters['techExpNone'])             # initial experience
+    
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     return earth
@@ -1025,7 +971,8 @@ def initTypes(earth):
                                staticProperies  = ['type', 'gID', 'pos', 'regionId'],
                                dynamicProperies = ['population',
                                                    'convenience',
-                                                   'carsInCell',])
+                                                   'carsInCell',
+                                                   'nChargingStat'])
 
 
     _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
@@ -1080,8 +1027,8 @@ def initSpatialLayer(earth):
 
         for cell in earth.iterEntRandom(_cell):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
-
-
+            cell.setValue('nChargingStat', parameters['chargStat'][cell._node['pos']])
+        a = 1
 
 
 def cellTest(earth):
@@ -1143,6 +1090,7 @@ def initGlobalRecords(earth):
 
         timeIdxs = list()
         values   = list()
+
         for column in calDataDfCV.columns[1:]:
             value = [np.nan]*earth.para['nMobTypes']
             year = int(column)
@@ -1248,7 +1196,7 @@ def runModel(earth, parameters):
 
     for household in earth.iterEntRandom(_hh):
         household.calculateConsequences(earth.market)
-        household.util = household.evalUtility(earth)
+        household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
     lg.info('Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
 
@@ -1524,6 +1472,8 @@ if __name__ == '__main__':
             parameters = scenarioNBH(parameters, dirPath)
         else:
             parameters = None
+        
+        # exchange of the parameters between processes
         parameters = comm.bcast(parameters)
 
 

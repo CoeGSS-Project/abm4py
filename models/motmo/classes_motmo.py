@@ -141,39 +141,6 @@ class Earth(World):
         self.enums['brands'][brandID] = label
 
 
-#    def plotTraffic(self,label):
-#        traffic = self.graph.IdArray *0
-#        if label in self.market.mobilityLables.itervalues():
-#            brandID = self.market.mobilityLables.keys()[self.market.mobilityLables.values().index(label)]
-#
-#            for cell in self.iterEntRandom(_cell):
-#                traffic[cell.x,cell.y] += cell.traffic[brandID]
-#
-#        plt.clf()
-#        plt.imshow(traffic, cmap='jet',interpolation=None)
-#        plt.colorbar()
-#        plt.tight_layout()
-#        plt.title('traffic of ' + label)
-#        plt.savefig('output/traffic' + label + str(self.time).zfill(3) + '.png')
-#
-#    def generateHH(self):
-#        hhSize  = int(np.ceil(np.abs(np.random.randn(1)*2)))
-#        while 1:
-#            ageList = np.random.randint(1,60,hhSize)
-#            if np.sum(ageList>17) > 0: #ensure one adult
-#                break
-#        ageList = ageList.tolist()
-#        sexList = np.random.randint(1,3,hhSize).tolist()
-#        income  = int(np.random.randint(5000))
-#        nKids   = np.sum(ageList<19)
-#        #print ageList
-#        idxAdult = [ n for n,i in enumerate(ageList) if i>17 ]
-#        idx = np.random.choice(idxAdult)
-#        prSaf, prEco, prCon, prMon, prImi = self.og.getPref(ageList[idx],sexList[idx],nKids,income, self.radicality)
-#
-#        return hhSize, ageList, sexList, income,  nKids, prSaf, prEco, prCon, prMon, prImi
-
-
     def generateSocialNetwork(self, nodeType, edgeType):
         """
         Function for the generation of a simple network that regards the
@@ -207,16 +174,66 @@ class Earth(World):
                        str(np.mean(np.asarray(populationList))) + ',' +
                        str(self.graph.ecount()) + '\n')
 
-    def step(self):
+    def updateRecords(self):
+        
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].set(self.time,0)
+
+        for cell in self.iterEntRandom(_cell):
+            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell'))))
+
+        # move values to global data class
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].updateValues(self.time)
+
+    def syncGlobals(self):
+        
+        ttSync = time.time()
+        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        
+        # local values are used to update the new global values
+        self.graph.glob.sync()
+        
+        #gather data back to the records
+        for re in self.para['regionIDList']:
+            self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
+
+        tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
+        self.globalRecord['mobProp'].set(self.time,np.asarray(tmp))
+
+
+        self.syncTime[self.time] = time.time()-ttSync        
+        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
+
+    def syncGhosts(self):
+        
+        ttSync = time.time()
+        self.mpi.updateGhostNodes([_pers],['commUtil'])
+        self.syncTime[self.time] += time.time()-ttSync
+        lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
+
+    
+    def updateGraph(self):
+        
+        ttUpd = time.time()
+        if self.queuing:
+            self.queue.dequeueEdges(self)
+            self.queue.dequeueEdgeDeleteList(self)
+        lg.debug('Graph updated in ' + str(time.time()- ttUpd) + ' seconds')
+
+        
+        
+    def progressTime(self):
+        """ 
+        Progressing time and date
         """
-        Method to proceed the next time step
-        """
-        tt = time.time()
+        ttComp = time.time()
         self.time += 1
         self.timeStep = self.time
-#        self.minPrice = 1
 
-        ttComp = time.time()
         # time management
         if self.timeStep == 0:
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
@@ -236,8 +253,7 @@ class Earth(World):
         else:
             lastActions = self.getNodeValues('lastAction',_pers)
             self.setNodeValues('lastAction',lastActions+1, _pers)
-            
-
+        
         # progressing time
         if self.timeUnit == 1: #months
             self.date[0] += 1
@@ -246,63 +262,49 @@ class Earth(World):
                 self.date[1] += 1
         elif self.timeUnit == 1: # years
             self.date[1] +=1
+        self.computeTime[self.time] += time.time()-ttComp
+    
+    
+    def step(self):
+        """
+        Method to proceed the next time step
+        """
+        tt = time.time()
 
+        self.progressTime()
         
+        self.updateRecords()
+    
+        self.syncGlobals()
         
-        for re in self.para['regionIDList']:
-            self.globalRecord['stock_' + str(re)].set(self.time,0)
-
-        for cell in self.iterEntRandom(_cell):
-            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell'))))
-
-        # move values to global data class
-        for re in self.para['regionIDList']:
-            self.globalRecord['stock_' + str(re)].updateValues(self.time)
-
+        self.syncGhosts()
         
-        
-
-        self.computeTime[self.time] = time.time()-ttComp
-
-        ttSync = time.time()
-        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        
-        # local values are used to update the new global values
-        self.graph.glob.sync()
-        
-        self.syncTime[self.time] = time.time()-ttSync
-        
-        
-        
-        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
-
         ttComp = time.time()
-        #gather data back to the records
-
-        for re in self.para['regionIDList']:
-            self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
-
-        tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
-        self.globalRecord['mobProp'].set(self.time,np.asarray(tmp))
 
         # proceed market in time
         self.market.step(self) # Statistics are computed here
 
+        
+        ###### Cell loop ######
         ttCell = time.time()
-        #loop over cells
         for cell in self.iterEntRandom(_cell):
             cell.step(self.para, self.market.getCurrentMaturity())
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')
 
 
+
+        ###### Person loop ######
+        ttComp = time.time()
+        for person in self.iterEntRandom(_pers):
+            person.step(self)
+        lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')
+   
+
+
+        ###### Household loop ######
         tthh = time.time()
-        # Iterate over households with a progress bar
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
             for household in self.iterEntRandom(_hh):
-                #agent = self.agDict[agID]
                 household.stepOmniscient(self)
         else:
             for household in self.iterEntRandom(_hh):
@@ -313,30 +315,9 @@ class Earth(World):
                     household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')
 
-        if self.queuing:
-            self.queue.dequeueEdgeDeleteList(self)
 
 
-        self.computeTime[self.time] += time.time()-ttComp
-
-        ttWait = time.time()
-        self.mpi.comm.Barrier()
-
-        self.waitTime[self.time] = time.time()-ttWait
-
-        ttSync = time.time()
-        self.mpi.updateGhostNodes([_pers],['commUtil'])
-        self.syncTime[self.time] += time.time()-ttSync
-
-        lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
-
-        ttComp = time.time()
-        for person in self.iterEntRandom(_pers):
-            person.step(self)
-        lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')
-
-        if self.queuing:
-            self.queue.dequeueEdges(self)
+        self.updateGraph()        
 
         self.market.updateSales()
         
@@ -417,8 +398,13 @@ class Good():
         self.oldStock           = 0
         self.currStock          = 0
         self.replacementRate    = 0.01
+
+        
         self.currLocalSales.append(0)
-        self.lastGlobalSales.append(0)
+        
+        self.updateGlobalSales(self.lastGlobalSales + [0])
+        
+        
         
         if progressType == 'wright':
 
@@ -426,11 +412,11 @@ class Good():
             self.technicalProgress = initialProgress
             self.initialProperties = propDict.copy()
             self.properties        = propDict
+            for key in self.properties.keys():
+                self.initialProperties[key] = (self.initialProperties[key][0] - self.initialProperties[key][1], self.initialProperties[key][1])
+                self.properties[key] = (self.initialProperties[key][0] / initialProgress) + self.initialProperties[key][1]
 
-            # setting initial price to match the initial technical progress
-            for propKey in self.initialProperties.keys():
-                self.initialProperties[propKey] *= initialProgress
-            
+
             self.slope        = slope
             self.maturity     = 1 - (1 / self.technicalProgress)
 
@@ -459,7 +445,7 @@ class Good():
         self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
         self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
         for prop in self.properties.keys():
-            self.properties[prop] = self.initialProperties[prop] / self.technicalProgress
+            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
 
         self.maturity       =    1 - (1 / self.technicalProgress)
 
@@ -649,6 +635,7 @@ class Market():
         mobType = self.__nMobTypes__
         self.__nMobTypes__ +=1
         self.glob['sales'] = np.asarray([0]*self.__nMobTypes__)
+        self.glob.updateLocalValues('sales', np.asarray([0]*self.__nMobTypes__))
         self.stockByMobType.append(0)
         self.mobilityTypesToInit.append(label)
         self.goods[mobType] = Good(label, 'wright',initialProgress, slope, propertyDict, experience=allTimeProduced)
@@ -758,7 +745,7 @@ class Person(Agent):
             lg.debug('friendUtil values:')
             lg.debug([value for value in friendUtil])
 
-            return prior, self._node['ESSR']
+            return prior, self._node['ESSR'] 
 
 
     def socialize(self, world):
@@ -1679,10 +1666,20 @@ class Cell(Location):
         return convAll
 
 
-
+    def electricConvenience(self):
+        """ 
+        Method for a more detailed estimation of the convenience of 
+        electric intrastructure.
+        Two components are considered: 
+            - Minimal infrastructure
+            - Capacity use
+        Mapping to [0,1]
+        """
+        pass
+        
     def step(self, parameters, currentMaturity):
         """
-        Manages the deletion of observation after a while
+        Step method for cells
         """
 
         convAll = self.calculateConveniences(parameters,currentMaturity)
