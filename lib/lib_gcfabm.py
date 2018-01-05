@@ -74,7 +74,7 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
-
+import tqdm
 import igraph as ig
 import numpy as np
 import time
@@ -284,23 +284,37 @@ class Cache():
 
         # out edges by type
         if edgeType is not None:
-            # re-cache only certain type
+            
+            # check if re-caching is required
+            if self.edgesAll is None:
+                self.edgesAll          = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
+            # re-cache only certain type                
             self.edgesByType[edgeType] = self.edgesAll.select(type=edgeType)
         else:
             # all out edges
-            self.edgesAll    = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
+            self.edgesAll              = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
 
     def __checkEdgeCache__(self, edgeType):
 
-        # check if re-caching is required
-        if self.edgesAll is None:
+        if edgeType is None:
             self.__reCacheEdges__()
-
-        if edgeType is not None:
+        else:
             # check if re-caching is required
             if edgeType not in self.edgesByType.keys():
                 self.__reCacheEdges__(edgeType)
+                
+    def setEdgeCache(self, idList, edgeType):
+        """
+        If you know what you do, you can use this method to set the cache manualy to save time
+        """
+        self.edgesByType[edgeType] = self.graph.es[idList]
 
+    def setPeerCache(self, idList, nodeType):
+        """
+        If you know what you do, you can use this method to set the cache manualy to save time
+        """
+        self.peersByType[nodeType] = self.graph.vs[idList]
+        
     def getEdgeValues(self, prop, edgeType=None):
         """
         privat function to access the values of pre-cached edges
@@ -308,7 +322,6 @@ class Cache():
         """
         # check if re-caching is required
         self.__checkEdgeCache__(edgeType)
-
         if edgeType is None:
 
             edges = self.edgesAll
@@ -316,6 +329,7 @@ class Cache():
         else:
 
             edges = self.edgesByType[edgeType]
+         
             return edges[prop], edges
 
     def setEdgeValues(self, prop, values, edgeType=None):
@@ -341,15 +355,16 @@ class Cache():
         if necessary the edges are re-cached.
         """
         # check if re-caching is required
+        
         self.__checkEdgeCache__(edgeType)
-
+        
         if edgeType is None:
 
             return self.edgesAll
         else:
 
             return self.edgesByType[edgeType]
-
+        
     
     def getPeerValues(self, prop, edgeType=None):
         # check if re-caching is required
@@ -459,10 +474,12 @@ class Entity():
             self.setPeerValues = self._cache.setPeerValues
             self.getPeers      = self._cache.getPeers
             self.getPeerIDs    = self._cache.getPeerIDs
+            self.setPeerCache  = self._cache.setPeerCache
 
             self.getEdgeValues = self._cache.getEdgeValues
             self.setEdgeValues = self._cache.setEdgeValues
             self.getEdges      = self._cache.getEdges
+            self.setEdgeCache  = self._cache.setEdgeCache
 
         else:
             self._cache = None
@@ -1719,6 +1736,7 @@ class World:
 
                     loc = LocClassObject(self, pos= (x, y))
                     IDArray[x,y] = loc.nID
+                    
                     self.registerLocation(loc, x, y)          # only for real cells
                     #self.registerNode(loc,nodeType)     # only for real cells
                     loc.register(self)
@@ -1749,14 +1767,15 @@ class World:
         if self.queuing:
             self.queue.dequeueVertices(self)
 
-        fullConnectionList = list()
-        fullWeightList     = list()
+        fullConnectionList      = list()
+        fullWeightList          = list()
+        #nConnection  = list()
         #print 'rank: ' +  str(self.locDict)
 
         for (x,y), loc in self.locDict.items():
 
             srcID = loc.nID
-
+            
             weigList = list()
             destList = list()
             connectionList = list()
@@ -1780,15 +1799,28 @@ class World:
             #normalize weight to sum up to unity
             sumWeig = sum(weigList)
             weig    = np.asarray(weigList) / sumWeig
-
+            #print loc.nID
+            #print connectionList
             fullConnectionList.extend(connectionList)
+            #nConnection.append(len(connectionList))
             fullWeightList.extend(weig)
 
+
+            
         eStart = self.graph.ecount()
         self.graph.add_edges(fullConnectionList)
         self.graph.es[eStart:]['type'] = 1
         self.graph.es[eStart:]['weig'] = fullWeightList
 
+#        eStart = 0
+#        ii = 0
+#        for _, loc in tqdm.tqdm(self.locDict.items()):
+#        #for cell, cellID in self.iterEntAndIDRandom(1, random=False):
+#            loc.setEdgeCache(range(eStart,eStart + nConnection[ii]), 1)
+#            #assert loc._graph.es[loc._graph.incident(loc.nID,'out')].select(type_ne=0).indices == range(eStart,eStart + nConnection[ii])
+#            eStart += nConnection[ii]
+#            ii +=1
+            
         lg.debug('starting initCommunicationViaLocations')
         self.mpi.initCommunicationViaLocations(ghostLocationList, nodeType)
         lg.debug('finished initCommunicationViaLocations')
