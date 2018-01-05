@@ -1017,7 +1017,7 @@ def initTypes(earth):
 
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
-    connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1)
+    connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.initSpatialLayer(parameters['landLayer'],
                            connList, _cell,
                            LocClassObject=Cell,
@@ -1036,14 +1036,29 @@ def cellTest(earth):
     nLocations = len(earth.getLocationDict())
     convArray = np.zeros([earth.market.getNMobTypes(), nLocations])
     popArray = np.zeros(nLocations)
-    for i, cell in enumerate(earth.iterEntRandom(_cell)):
+    eConvArray = np.zeros(earth.para['landLayer'].shape)
+    import tqdm
+    for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
+        #tt = time.time()
         convAll, population = cell.selfTest(earth)
+        cell.setValue('carsInCell',[0,200.,0,0,0])
+        convAll[1] = convAll[1] * cell.electricConvenience(200.)
         convArray[:, i] = convAll
         popArray[i] = population
-
-
+        eConvArray[cell.getValue('pos')] = convAll[1]
+        #print time.time() - tt
+    
     if earth.para['showFigures']:
-
+        
+        plt.figure('electric infrastructure convenience')
+        plt.clf()
+        plt.subplot(2,1,1)
+        plt.pcolormesh(eConvArray)
+        plt.colorbar()
+        plt.subplot(2,1,2)
+        plt.pcolormesh(earth.para['chargStat'])
+        plt.colorbar()
+        
         plt.figure()
         for i in range(earth.market.getNMobTypes()):
             if earth.market.getNMobTypes() > 4:
@@ -1399,7 +1414,7 @@ if __name__ == '__main__':
     
 
     debug = True
-    showFigures    = 0
+    showFigures    = 1
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)

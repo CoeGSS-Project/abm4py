@@ -56,6 +56,14 @@ _eco  = 1
 _mon  = 2
 _immi = 3
 
+#mobility types
+_brown  = 0
+_green  = 1
+_public = 2
+_share  = 3
+_none   = 4
+
+
 #%% --- Global classes ---
 
 
@@ -1662,20 +1670,61 @@ class Cell(Location):
         popDensity = np.float(self.getValue('population'))/self.cellSize
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
-
+            
+        self.electricConvenience()
         return convAll
 
 
-    def electricConvenience(self):
+    def electricConvenience(self, greenMeanCars = None):
         """ 
         Method for a more detailed estimation of the convenience of 
         electric intrastructure.
         Two components are considered: 
-            - Minimal infrastructure
-            - Capacity use
+            - minimal infrastructure
+            - capacity use
         Mapping to [0,1]
         """
-        pass
+        
+        weights       = self.getEdgeValues('weig',_cll)[0]
+        
+        if greenMeanCars is None:
+            
+            carsInCells   = np.asarray(self.getPeerValues('carsInCell',_cll)[0])
+            greenMeanCars =  sum([x*y for  x,y in zip(carsInCells[:,_green],weights)])    
+        
+        nStation      = self.getPeerValues('nChargingStat',_cll)[0]
+        if np.sum(nStation) == 0:
+            return 0.
+        
+        
+        
+        avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
+        
+        capacityUse = greenMeanCars / (avgStatPerCell * 200.)
+        useConv = 1 /  math.exp(capacityUse)
+        minRequirement = 1
+        if avgStatPerCell < minRequirement:
+            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .1)
+        else:
+            statMinRequ = 1
+        
+        eConv = statMinRequ * useConv
+        #print eConv
+        assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
+        return eConv
+        #%%
+#        xx = range(1,1000)
+#        cap = 200. # cars per load station
+#        nStat = 2.
+#        y = [ 1 /  np.exp(x / (nStat*cap)) for x in xx]
+#        plt.clf()
+#        plt.plot(xx,y)
+#        #%%
+#        x = np.linspace(0.01,1.0,50)
+#        y = 1 / np.exp((1.-x)**2 / .1)
+#        plt.clf()
+#        plt.plot(x,y)
+         #%%
         
     def step(self, parameters, currentMaturity):
         """
