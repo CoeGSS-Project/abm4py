@@ -77,7 +77,7 @@ plotFunc.append('plot_carsPerCell')
 plotFunc.append('plot_greenCarsPerCell')
 plotFunc.append('plot_conveniencePerCell')
 plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+#plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -1051,7 +1051,7 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
     test = landLayer*0
     for iBrand in range(parameters['nMobTypes']):
         res = landLayer*1.0
-        res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] / data.ce[step,:,propDict.ce['population'][0]]
+        res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] / data.ce[step,:,propDict.ce['population'][0]] *1000.
         #cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
         res[np.isinf(res)] = 0
         res[np.isnan(res)] = 0
@@ -1192,7 +1192,7 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
 
     from matplotlib.colors import ListedColormap
     my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
-    years = [2020, 2025, 2030, 2034]
+    years = [2015, 2020, 2025, 2030] + range(2031,2036)
     iBrand = 1
     landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
     
@@ -1211,10 +1211,10 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
         bounds = [0, np.nanmax(cellData)]
     posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
     for i, year in enumerate (years):
-        tt = (year - 2005)*12 + nBurnIn
+        tt = (year - 2005)*12 + nBurnIn -1
 
 
-        plt.subplot(2,2,i+1)
+        plt.subplot(3,3,i+1)
 
         cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
         cellData[np.isinf(cellData)] = 0

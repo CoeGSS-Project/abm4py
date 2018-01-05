@@ -240,12 +240,12 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
     
-    setup.chargStat   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0 , 0, 0],
-                                    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0 , 0, 0],
-                                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
-                                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
-                                    [3, 4, 1, 1, 0, 1, 1, 0, 0, 0, 0 , 0, 0],
-                                    [6, 5, 2, 0, 0, 0, 1, 0, 0, 0, 0 , 0, 0]])    
+    setup.chargStat   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
+                                    [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
+                                    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
+                                    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
+                                    [3, 4, 1, 1, 0, 1, 1, 0, 0, 0, 0 , 0, 1],
+                                    [6, 5, 2, 0, 0, 0, 1, 0, 0, 0, 0 , 1, 0]])    
     a = 60000.
     b = 45000.
     c = 30000.
@@ -972,7 +972,7 @@ def initTypes(earth):
                                dynamicProperies = ['population',
                                                    'convenience',
                                                    'carsInCell',
-                                                   'nChargingStat'])
+                                                   'chargStat'])
 
 
     _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
@@ -1027,22 +1027,25 @@ def initSpatialLayer(earth):
 
         for cell in earth.iterEntRandom(_cell):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
-            cell.setValue('nChargingStat', parameters['chargStat'][cell._node['pos']])
-        a = 1
+            cell.setValue('chargStat', parameters['chargStat'][cell._node['pos']])
+    
+    earth.mpi.updateGhostNodes([_cell],['chargStat'])
 
-
+#%% cell convenience test
 def cellTest(earth):
-    #%% cell convenience test
+    
     nLocations = len(earth.getLocationDict())
     convArray = np.zeros([earth.market.getNMobTypes(), nLocations])
     popArray = np.zeros(nLocations)
-    eConvArray = np.zeros(earth.para['landLayer'].shape)
+    eConvArray = earth.para['landLayer'] * 0
+    
     import tqdm
     for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
+    #for i, cell in enumerate(earth.iterEntRandom(_cell)):        
         #tt = time.time()
         convAll, population = cell.selfTest(earth)
-        cell.setValue('carsInCell',[0,200.,0,0,0])
-        convAll[1] = convAll[1] * cell.electricConvenience(200.)
+        #cell.setValue('carsInCell',[0,200.,0,0,0])
+        convAll[1] = convAll[1] * cell.electricInfrastructure(100.)
         convArray[:, i] = convAll
         popArray[i] = population
         eConvArray[cell.getValue('pos')] = convAll[1]
@@ -1052,11 +1055,13 @@ def cellTest(earth):
         
         plt.figure('electric infrastructure convenience')
         plt.clf()
-        plt.subplot(2,1,1)
-        plt.pcolormesh(eConvArray)
+        plt.subplot(1,2,1)
+        plt.imshow(eConvArray)
+        plt.clim([-.2,np.nanmax(eConvArray)])
         plt.colorbar()
-        plt.subplot(2,1,2)
-        plt.pcolormesh(earth.para['chargStat'])
+        plt.subplot(1,2,2)
+        plt.imshow(earth.para['chargStat'])
+        plt.clim([-2,10])
         plt.colorbar()
         
         plt.figure()
@@ -1069,10 +1074,10 @@ def cellTest(earth):
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
         asd
-
+# %% Generate Network
 def generateNetwork(earth):
     parameters = earth.getParameter()
-    # %% Generate Network
+    
     #tt = time.time()
     earth.generateSocialNetwork(_pers,_cpp)
     #lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
@@ -1414,7 +1419,7 @@ if __name__ == '__main__':
     
 
     debug = True
-    showFigures    = 1
+    showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)

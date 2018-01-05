@@ -220,6 +220,8 @@ class Earth(World):
         
         ttSync = time.time()
         self.mpi.updateGhostNodes([_pers],['commUtil'])
+        self.mpi.updateGhostNodes([_cell],['chargStat'])
+
         self.syncTime[self.time] += time.time()-ttSync
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
 
@@ -1296,10 +1298,12 @@ class Household(Agent):
             experience = market.getCurrentExperience()
 
             innovation = 1 - ( (experience[adult.getValue('mobType')] / np.sum(experience))**.5 )
-
+            
             # assuring that consequences are within 0 and 1
-            for consequence in [convenience, ecology, money, innovation]:
-                assert consequence <= 1 and consequence > 0 ##OPTPRODUCTION
+            for consequence in [convenience, ecology, money, innovation]:     ##OPTPRODUCTION
+                #if (consequence > 1) and (consequence < 0):                   ##DEEPDEBUG
+                #    print convenience                                         ##DEEPDEBUG      
+                assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
             adult.setValue('consequences', [convenience, ecology, money, innovation])
 
@@ -1671,11 +1675,11 @@ class Cell(Location):
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
-        self.electricConvenience()
+        convAll[_green] *= self.electricInfrastructure()
         return convAll
 
 
-    def electricConvenience(self, greenMeanCars = None):
+    def electricInfrastructure(self, greenMeanCars = None):
         """ 
         Method for a more detailed estimation of the convenience of 
         electric intrastructure.
@@ -1692,7 +1696,8 @@ class Cell(Location):
             carsInCells   = np.asarray(self.getPeerValues('carsInCell',_cll)[0])
             greenMeanCars =  sum([x*y for  x,y in zip(carsInCells[:,_green],weights)])    
         
-        nStation      = self.getPeerValues('nChargingStat',_cll)[0]
+        nStation      = self.getPeerValues('chargStat',_cll)[0]
+        #print nStation
         if np.sum(nStation) == 0:
             return 0.
         
@@ -1701,15 +1706,20 @@ class Cell(Location):
         avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
         
         capacityUse = greenMeanCars / (avgStatPerCell * 200.)
-        useConv = 1 /  math.exp(capacityUse)
+        if capacityUse > 100:
+            useConv = 0
+        else:
+            useConv = 1 /  math.exp(capacityUse)
         minRequirement = 1
         if avgStatPerCell < minRequirement:
-            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .1)
+            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .2)
         else:
-            statMinRequ = 1
+            statMinRequ = 1.
         
         eConv = statMinRequ * useConv
-        #print eConv
+#        if self.getValue('chargStat') == 26:
+#            import pdb
+#            pdb.set_trace()
         assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
         return eConv
         #%%
