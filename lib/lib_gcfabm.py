@@ -74,7 +74,7 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
-import tqdm
+#import tqdm
 import igraph as ig
 import numpy as np
 import time
@@ -875,10 +875,13 @@ class World:
                         # communication between all proceees
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
+                        lg.debug('####### Mean of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
                         # calculation of global mean
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize  = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
+                        lg.debug('Global mean: ' + str( self[globName] ))   
                         self.updated[globName] = False
                         
                 elif redType == 'std':
@@ -890,7 +893,8 @@ class World:
                         # local calulation
                         locSTD = [np.std(self.localValues[globName])] * self.comm.size
                         locSTD = np.asarray(self.comm.alltoall(locSTD))
-                        lg.debug('loc std: ' + str(locSTD))
+                        lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
 
                         # sending data list  of (local mean, size)
                         tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
@@ -901,13 +905,14 @@ class World:
 
                         # calculation of the global std
                         locMean = tmp[:,0]
-                        lg.debug('loc mean: ' + str(locMean))
+                        
+                        lg.debug('loc mean: ' + str(locMean))                     ##OPTPRODUCTION
 
                         locNVar = tmp[:,1]
-                        lg.debug('loc number of var: ' + str(locNVar))
+                        lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
 
-                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
-                        lg.debug('global mean: ' + str( globMean ))
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  ##OPTPRODUCTION
+                        lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
 
                         diffSqrMeans = (locMean - globMean)**2
 
@@ -916,6 +921,7 @@ class World:
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = np.sqrt(globVariance)
+                        lg.debug('Global STD: ' + str( self[globName] ))   
                         self.updated[globName] = False
                         
                 elif redType == 'var':
@@ -936,19 +942,23 @@ class World:
                         locMean = tmp[:,0]
                         #print 'loc mean: ', locMean
 
+                        lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(locMean))               
                         locNVar = tmp[:,1]
                         #print 'loc number of var: ',locNVar
 
                         globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
                         #print 'global mean: ', globMean
-
+                        
                         diffSqrMeans = (locMean - globMean)**2
+                        lg.debug('global mean: ' + str( globMean ))
 
                         deviationOfMeans = np.sum(locNVar * diffSqrMeans)
 
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = globVariance
+                        lg.debug('Global variance: ' + str( self[globName] ))  
                         self.updated[globName] = False
 
         def sync(self):

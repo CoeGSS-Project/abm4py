@@ -141,17 +141,34 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.timeUnit         = _month  # unit of time per step
     setup.startDate        = [01,2005]
 
+    a = 60000.
+    b = 45000.
+    c = 30000.
+    d = 25000.
+    e = 20000.
+    f = 15000.
+    g = 10000.
+    h = 5000.
+    i = 1500.
+    
     #spatial
-    setup.reductionFactor = 50000
+    setup.reductionFactor = 5000
     setup.isSpatial       = True
     setup.connRadius      = 2.0     # radíus of cells that get an connection
     setup.landLayer   = np.asarray([[1     , 1, 1 , np.nan, np.nan],
-                                    [np.nan, 1, 1 , np.nan, 0     ],
+                                    [1     , 1, 1 , np.nan, 0     ],
                                     [np.nan, 0, 0 , 0     , 0     ]])
     
     setup.chargStat   = np.asarray([[0, 2, 2, 0, 0],
                                     [0, 2, 1, 0, 0],
                                     [0, 0, 0, 0, 0]])
+
+    setup.population  = np.asarray([[c, a, b, 0, 0],
+                                    [c, b, d, 0, f],
+                                    [0, h, i, g, e]])
+    
+    
+    setup.cellSizeMap  = setup.landLayer * 15.
     
     setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
     setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *6321
@@ -161,7 +178,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
     
     #setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
-    setup.population = (np.isnan(setup.landLayer)==0)* 13
+    #setup.population = (np.isnan(setup.landLayer)==0)* 13
     
     #social
     setup.addYourself   = True     # have the agent herself as a friend (have own observation)
@@ -193,12 +210,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     #del dummy
 
-    for paName in ['sigmaConvB',
-                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
-                   'sigmaConvPInit','muConvP','sigmaConvP',
-                   'sigmaConvSInit','muConvS','sigmaConvS',
-                   'sigmaConvNInit','muConvN','sigmaConvN',
-                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone']:
+    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+                   'population']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -271,12 +284,15 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
 
+    setup.cellSizeMap  = setup.landLayer * 15.
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
     setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
     setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *6321
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+
+    
 
     setup.landLayer[:, :5] = setup.landLayer[:, :5] * 0
     #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
@@ -306,12 +322,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
     # calculate dependent parameters
-    for paName in ['sigmaConvB',
-                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
-                   'sigmaConvPInit','muConvP','sigmaConvP',
-                   'sigmaConvSInit','muConvS','sigmaConvS',
-                   'sigmaConvNInit','muConvN','sigmaConvN',
-                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
@@ -370,6 +381,8 @@ def scenarioNBH(parameterInput, dirPath):
 
 
     setup.chargStat      = np.load(setup.resourcePath + 'charge_stations_62x118.npy')
+
+    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_area_62x118.npy')
 
     assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
 
@@ -488,8 +501,10 @@ def scenarioGer(parameterInput, dirPath):
 
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
-    setup.chargStat      = np.load(setup.resourcePath + 'charge_stations_186x219.npy')
+    setup.chargStat    = np.load(setup.resourcePath + 'charge_stations_186x219.npy')
 
+    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_area_186x219.npy')
+    
     # correction of ID map
     xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
 
@@ -694,7 +709,7 @@ def householdSetup(earth, calibration=False):
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 50 # additional agents that are loaded 
+    overheadAgents = 100 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -776,6 +791,8 @@ def householdSetup(earth, calibration=False):
     opinion     = Opinion(earth)
     nAgentsCell = 0
     locDict = earth.getLocationDict()
+    
+    
     for x, y in locDict.keys():
         #print x,y
         nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
@@ -968,7 +985,11 @@ def initEarth(simNo,
 def initTypes(earth):
     parameters = earth.getParameter()
     _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
-                               staticProperies  = ['type', 'gID', 'pos', 'regionId'],
+                               staticProperies  = ['type',
+                                                   'gID',
+                                                   'pos',
+                                                   'regionId',
+                                                   'popDensity'],
                                dynamicProperies = ['population',
                                                    'convenience',
                                                    'carsInCell',
@@ -1022,47 +1043,73 @@ def initSpatialLayer(earth):
                            connList, _cell,
                            LocClassObject=Cell,
                            GhstLocClassObject=GhostCell)
+    
+    convMat = np.asarray([[0., 1, 0.],[1., 1., 1.],[0., 1., 0.]])
+    tmp = parameters['population']*parameters['reductionFactor']
+    tmp[np.isnan(tmp)] = 0
+    smoothedPopulation = signal.convolve2d(tmp,convMat,boundary='symm',mode='same')
+    tmp = parameters['cellSizeMap']
+    tmp[np.isnan(tmp)] = 0
+    smoothedCellSize   = signal.convolve2d(tmp,convMat,boundary='symm',mode='same')
+
+    popDensity = smoothedPopulation / smoothedCellSize
 
     if 'regionIdRaster' in parameters.keys():
 
         for cell in earth.iterEntRandom(_cell):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', parameters['chargStat'][cell._node['pos']])
-    
+            cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
+            cell.setValue('popDensity', popDensity[cell._node['pos']])
+            
     earth.mpi.updateGhostNodes([_cell],['chargStat'])
 
 #%% cell convenience test
 def cellTest(earth):
     
     nLocations = len(earth.getLocationDict())
-    convArray = np.zeros([earth.market.getNMobTypes(), nLocations])
-    popArray = np.zeros(nLocations)
+    convArray  = np.zeros([earth.market.getNMobTypes(), nLocations])
+    popArray   = np.zeros(nLocations)
     eConvArray = earth.para['landLayer'] * 0
     
-    import tqdm
-    for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
-    #for i, cell in enumerate(earth.iterEntRandom(_cell)):        
-        #tt = time.time()
-        convAll, population = cell.selfTest(earth)
-        #cell.setValue('carsInCell',[0,200.,0,0,0])
-        convAll[1] = convAll[1] * cell.electricInfrastructure(100.)
-        convArray[:, i] = convAll
-        popArray[i] = population
-        eConvArray[cell.getValue('pos')] = convAll[1]
-        #print time.time() - tt
-    
+    #import tqdm
+    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
     if earth.para['showFigures']:
+        for i, cell in enumerate(earth.iterEntRandom(_cell)):        
+            #tt = time.time()
+            convAll, popDensity = cell.selfTest(earth)
+            #cell.setValue('carsInCell',[0,200.,0,0,0])
+            convAll[1] = convAll[1] * cell.electricInfrastructure(100.)
+            convArray[:, i] = convAll
+            popArray[i] = popDensity
+            eConvArray[cell.getValue('pos')] = convAll[1]
+            #print time.time() - tt
         
+        
+            
         plt.figure('electric infrastructure convenience')
         plt.clf()
-        plt.subplot(1,2,1)
+        plt.subplot(2,2,1)
         plt.imshow(eConvArray)
+        plt.title('el. convenience')
         plt.clim([-.2,np.nanmax(eConvArray)])
         plt.colorbar()
-        plt.subplot(1,2,2)
+        plt.subplot(2,2,2)
         plt.imshow(earth.para['chargStat'])
         plt.clim([-2,10])
+        plt.title('number of charging stations')
         plt.colorbar()
+        
+        plt.subplot(2,2,3)
+        plt.imshow(earth.para['landLayer'])
+        #plt.clim([-2,10])
+        plt.title('processes ID')
+        
+        plt.subplot(2,2,4)
+        plt.imshow(earth.para['population'])
+        #plt.clim([-2,10])
+        plt.title('population')
+        
         
         plt.figure()
         for i in range(earth.market.getNMobTypes()):
@@ -1419,7 +1466,7 @@ if __name__ == '__main__':
     
 
     debug = True
-    showFigures    = 0
+    showFigures    = 1
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)

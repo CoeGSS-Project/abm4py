@@ -148,6 +148,9 @@ class Earth(World):
             self.enums['brands'] = dict()
         self.enums['brands'][brandID] = label
 
+        self.registerRecord('prop_' + label, 'properties of ' + label,
+             self.enums['properties'].values(), style='plot')
+
 
     def generateSocialNetwork(self, nodeType, edgeType):
         """
@@ -188,7 +191,7 @@ class Earth(World):
             self.globalRecord['stock_' + str(re)].set(self.time,0)
 
         for cell in self.iterEntRandom(_cell):
-            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell'))))
+            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell')))* self.para['reductionFactor'])
 
         # move values to global data class
         for re in self.para['regionIDList']:
@@ -220,7 +223,7 @@ class Earth(World):
         
         ttSync = time.time()
         self.mpi.updateGhostNodes([_pers],['commUtil'])
-        self.mpi.updateGhostNodes([_cell],['chargStat'])
+        self.mpi.updateGhostNodes([_cell],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
@@ -623,9 +626,12 @@ class Market():
 
         if doTechProgress:
             lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
-
+             
+            
         if self.comm.rank == 0:
             self.globalRecord['growthRate'].set(self.time, [self.goods[iGood].getGrowthRate() for iGood in self.goods.keys()])
+            for iGood in self.goods.keys():
+                self.globalRecord['prop_' + self.goods[iGood].label].set(self.time, self.goods[iGood].getProperties())
             self.globalRecord['allTimeProduced'].set(self.time, self.getCurrentExperience())
             self.globalRecord['kappas'].set(self.time, self.getCurrentMaturity())
 
@@ -1301,8 +1307,10 @@ class Household(Agent):
             
             # assuring that consequences are within 0 and 1
             for consequence in [convenience, ecology, money, innovation]:     ##OPTPRODUCTION
-                #if (consequence > 1) and (consequence < 0):                   ##DEEPDEBUG
-                #    print convenience                                         ##DEEPDEBUG      
+                if not((consequence <= 1) and (consequence >= 0)):            ##DEEPDEBUG
+                    print consequence                                         ##DEEPDEBUG      
+                    import pdb                                                ##DEEPDEBUG
+                    pdb.set_trace()                                           ##DEEPDEBUG  
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
             adult.setValue('consequences', [convenience, ecology, money, innovation])
@@ -1459,9 +1467,16 @@ class Household(Agent):
 
 
     def householdOptimization(self, earth, actionOptions):
+        
         if len(actionOptions) == 0:             ##OPTPRODUCTION
             import pdb                          ##OPTPRODUCTION
             pdb.set_trace()                     ##OPTPRODUCTION
+        
+        if len(actionOptions) > 6:
+            actorIds = np.random.choice(range(len(actionOptions)),6,replace=False)
+            actionOptions = [actionOptions[idx] for idx in actorIds]
+        else:
+            actorIds = None
         combinedActionsOptions = aux.cartesian(actionOptions)
         
         #tt2 = time.time()
@@ -1473,12 +1488,18 @@ class Household(Agent):
         utilities = np.zeros(consMat.shape[0])
         #print 'done'
         prioMat = self.adultNodeList['preferences'] # [nPers x nPriorities]
-        for iAction in range(consMat.shape[0]):
-            for iPers in range(len(self.adults)):
-                utilities[iAction] += self.utilFunc(consMat[iAction,iPers,:], prioMat[iPers])
+        
+        if actorIds is None:
+            for iAction in range(consMat.shape[0]):
+                for iPers in range(len(self.adults)):
+                    utilities[iAction] += self.utilFunc(consMat[iAction,iPers,:], prioMat[iPers])
+        else:
+            for iAction in range(consMat.shape[0]):
+                for ii, iPers in enumerate(actorIds):
+                    utilities[iAction] += self.utilFunc(consMat[iAction,ii,:], prioMat[iPers])
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
-        return bestOpt, np.max(utilities)
+        return bestOpt, np.max(utilities), actorIds
 
     def evolutionaryStep(self, earth):
         """
@@ -1491,13 +1512,17 @@ class Household(Agent):
         
         bestIndividualActionsIds = [adult.imitate() for adult in self.adults]
         #print 'imiate: ' +str(time.time() -tt)
-        tt2 = time.time()
-        bestOpt, bestUtil = self.householdOptimization(earth, bestIndividualActionsIds)
+        #tt2 = time.time()
+        bestOpt, bestUtil, actorIds = self.householdOptimization(earth, bestIndividualActionsIds)
         #print 'opt: ' +str(time.time() -tt2)
-        tt3 = time.time()
-        self.undoActions(earth, self.adults)
-        self.takeActions(earth, self.adults, bestOpt)
-            
+        #tt3 = time.time()
+        if actorIds is None:
+            self.undoActions(earth, self.adults)
+            self.takeActions(earth, self.adults, bestOpt)
+        else:
+            self.undoActions(earth, [self.adults[idx] for idx in actorIds])
+            self.takeActions(earth, [self.adults[idx] for idx in actorIds], bestOpt)
+        
         self.calculateConsequences(earth.market)
         
         self.evalUtility(earth, actionTaken=True)
@@ -1655,8 +1680,8 @@ class Cell(Location):
         return copy.copy(self.xCell[choice,:])
 
     def selfTest(self, world):
-        population = world.getParameter('population')[self._node['pos']]
-        self._node['population'] = population #/ float(world.getParameter('reductionFactor'))
+        
+        #self._node['population'] = population #/ float(world.getParameter('reductionFactor'))
 
         convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
 
@@ -1664,14 +1689,14 @@ class Cell(Location):
 #            if np.isinf(x) or np.isnan(x) or x == 0:  ##OPTPRODUCTION
 #                import pdb                            ##OPTPRODUCTION
 #                pdb.set_trace()                       ##OPTPRODUCTION
-        self._node['population'] = 0
-        return convAll, population
+        #self._node['population'] = 0
+        return convAll, self._node['popDensity']
 
     def calculateConveniences(self, parameters, currentMaturity):
 
         convAll = list()
 
-        popDensity = np.float(self.getValue('population'))/self.cellSize
+        popDensity = np.float(self.getValue('popDensity'))
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             

@@ -344,6 +344,22 @@ class Record():
             for i, brand in enumerate(self.columns):
                plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color =colorPal[i], width=1)
                nCars += self.rec[:,i]
+        
+        elif self.style == 'yyplot':
+            fig, ax1 = plt.subplots()
+            ax1.plot(self.rec[:,0], 'b-')
+            #ax1.set_xlabel('timeSteps (s)')
+            # Make the y-axis label, ticks and tick labels match the line color.
+            ax1.set_ylabel(self.columns[0], color='b')
+            ax1.tick_params('y', colors='b')
+            
+            ax2 = ax1.twinx()
+            ax2.plot(self.rec[:,1], 'r-')
+            ax2.set_ylabel(self.columns[0], color='r')
+            ax2.tick_params('y', colors='r')
+            
+            fig.tight_layout()
+            plt.show()
 
         plt.legend(self.columns)
         plt.title(self.title)

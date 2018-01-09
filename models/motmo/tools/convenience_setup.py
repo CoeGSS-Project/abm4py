@@ -146,7 +146,7 @@ plt.legend(['None'])
 ax1.set_xlim([0, 60000])  
 print 1
 plt.ylim([0,1])
-asd
+
 #%%
 
 #x = np.linspace(0,1,100)
@@ -181,8 +181,8 @@ for i,year in enumerate(range(1950,2016)):
     currProd = prod[idx]
     growthRate.append((currProd) / float(alltimeProduced))
     alltimeProduced +=currProd
-    techProgress.append(techProgress[-1]  * (1+growthRate[-1]))
-    kappaList.append(1- (1 / techProgress[-1]))
+    techProgress.append(techProgress[-1]  * (1.+growthRate[-1]))
+    kappaList.append(1.- (1. / techProgress[-1]))
     alltimeProducedList.append(alltimeProduced)
     if year == 2005:
         print techProgress[-1]
