@@ -440,9 +440,7 @@ def scenarioNBH(parameterInput, dirPath):
     #setup.convB =  minCarConvenience / (maxDeviation)
 
 
-    for paName in ['sigmaConvB', 'sigmaConvGInit', 'sigmaConvG',
-                   'muConvGInit', 'muConvG', 'sigmaConvOInit', 'muConvO',
-                   'sigmaConvO', 'techExpBrown', 'techExpGreen',
+    for paName in ['techExpBrown', 'techExpGreen',
                    'techExpOther', 'population']:
         setup[paName] /= setup['reductionFactor']
 
@@ -555,17 +553,12 @@ def scenarioGer(parameterInput, dirPath):
 
     #setup.population = (setup.population ** .5) * 100
     # Correciton of population depend parameter by the reduction factor
-    for paName in ['sigmaConvB',
-                   'sigmaConvGInit','sigmaConvG', 'muConvGInit', 'muConvG',
-                   'sigmaConvPInit','muConvP','sigmaConvP',
-                   'sigmaConvSInit','muConvS','sigmaConvS',
-                   'sigmaConvNInit','muConvN','sigmaConvN',
-                   'techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
     for p in range(0, 105, 5) :
         print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
-    print 'max population' + str(np.nanmax(setup.population))
+    #print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
 
 
@@ -574,7 +567,6 @@ def scenarioGer(parameterInput, dirPath):
     lg.info( "####################################")
 
     nAgents = np.nansum(setup.population)
-    #assert np.sum(np.isnan(setup.population[setup.landLayer==1])) == 0
     lg.info('Running with ' + str(nAgents) + ' agents')
 
     return setup

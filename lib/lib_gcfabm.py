@@ -1708,7 +1708,8 @@ class World:
         elif nodeType:
             self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
 
-    def getEntity(self,nodeID=None, globID=None):
+  
+    def getEntity(self, nodeID=None, globID=None):
         """
         Methode to retrieve a certain instance of an entity by the nodeID
         """

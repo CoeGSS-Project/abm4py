@@ -1700,6 +1700,7 @@ class Cell(Location):
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
+        
         convAll[_green] *= self.electricInfrastructure()
         return convAll
 
