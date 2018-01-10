@@ -125,7 +125,11 @@ class Earth(World):
 
 
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
-
+        """
+        Creation of of a new record instance. 
+        If mpiReduce is given, the record is connected with a global variable with the
+        same name
+        """
         self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
 
         if mpiReduce is not None:
@@ -134,12 +138,20 @@ class Earth(World):
 
     # init car market
     def initMarket(self, earth, properties, propRelDev=0.01, time = 0, burnIn = 0):
+        """
+        Init of the market instance
+        """
         self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
 
 
-    def initBrand(self, label, propertyTuple, convFunction, initTimeStep, slope, initialProgress, allTimeProduced):
+    def registerBrand(self, label, propertyTuple, convFunction, initTimeStep, slope, initialProgress, allTimeProduced):
+        """
+        Method to register a new Brand in the Earth and therefore in the market.
+        It currently adds the related convenience function in the cells.
+        """
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
 
+        # TODO: move convenience Function from a instance variable to a class variable            
         for cell in self.iterEntRandom(_cell):
             cell.traffic[brandID] = 0
             cell.convFunctions.append(convFunction)
@@ -148,6 +160,7 @@ class Earth(World):
             self.enums['brands'] = dict()
         self.enums['brands'][brandID] = label
 
+        # adding a record about the properties of each goood
         self.registerRecord('prop_' + label, 'properties of ' + label,
              self.enums['properties'].values(), style='plot')
 
@@ -186,7 +199,9 @@ class Earth(World):
                        str(self.graph.ecount()) + '\n')
 
     def updateRecords(self):
-        
+        """
+        Encapsulating method for the update of records
+        """
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
 
@@ -198,7 +213,9 @@ class Earth(World):
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
 
     def syncGlobals(self):
-        
+        """
+        Encapsulating method for the sync of global variables
+        """
         ttSync = time.time()
         self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
         self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
@@ -220,7 +237,9 @@ class Earth(World):
         lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
 
     def syncGhosts(self):
-        
+        """
+        Encapsulating method for the syncronization of selected ghost agents
+        """
         ttSync = time.time()
         self.mpi.updateGhostNodes([_pers],['commUtil'])
         self.mpi.updateGhostNodes([_cell],['chargStat', 'carsInCell'])
@@ -230,7 +249,9 @@ class Earth(World):
 
     
     def updateGraph(self):
-        
+        """
+        Encapsulating method for the update of the graph structure 
+        """
         ttUpd = time.time()
         if self.queuing:
             self.queue.dequeueEdges(self)
@@ -362,7 +383,9 @@ class Earth(World):
             print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
 
     def finalize(self):
-
+        """
+        Method to finalize records, I/O and reporter
+        """
         from class_auxiliary import saveObj
 
         # finishing reporter files
@@ -399,10 +422,17 @@ class Good():
     https://doi.org/10.1371/journal.pone.0052669
     """
     
-    #class variable
-    currLocalSales   = list()
-    lastGlobalSales  = list()
+    #class variables (common for all instances, - only updated by class mehtods)
     
+    lastGlobalSales  = list()
+
+    @classmethod
+    def updateGlobalSales(cls, sales):
+        """
+        Method to update the class variable sales
+        """
+        cls.lastGlobalSales = sales
+        
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
 
         self.goodID             = len(self.currLocalSales)
@@ -411,9 +441,7 @@ class Good():
         self.oldStock           = 0
         self.currStock          = 0
         self.replacementRate    = 0.01
-
-        
-        self.currLocalSales.append(0)
+        self.currLocalSales     = 0
         
         self.updateGlobalSales(self.lastGlobalSales + [0])
         
@@ -438,9 +466,7 @@ class Good():
             # TODO add Moore and SKC + ...
 
 
-    @classmethod
-    def updateGlobalSales(cls, sales):
-        cls.lastGlobalSales = sales
+
         
     def updateTechnicalProgress(self, production=None):
         """
@@ -451,9 +477,9 @@ class Good():
         
         # if production is not given, the internal sales is used
         if production is None:
-            self.currLocalSales[self.goodID] = self.salesModel()
+            self.currLocalSales = self.salesModel()
         else:
-            self.currLocalSales[self.goodID] = production
+            self.currLocalSales = production
             
         self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
         self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
@@ -480,14 +506,24 @@ class Good():
         
 
     def buy(self,quantity=1):
+        """
+        Update of the internal stock
+        """
         self.currStock +=1
         return self.properties.values()
 
     def sell(self, quantity=1):
+        """ 
+        Update of the internal stock
+        """
         self.currStock -=1
     
     
     def salesModel(self):
+        """
+        Surrogate model for sales that can be used if agents sales are not 
+        computed explicitely.
+        """
         sales = np.max([0,self.currStock - self.oldStock])
         sales = sales + self.oldStock * self.replacementRate
         return sales
@@ -509,7 +545,9 @@ class Good():
         return self.currGrowthRate
 
 class Market():
-
+    """
+    Market class that mangages goood, technical progress and stocks.
+    """
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0):
         #import global variables
         self.globalRecord        = earth.returnGlobalRecord()
@@ -545,6 +583,7 @@ class Market():
     def updateSales(self):
         
         # push current Sales to globals for sync
+        #ToDo: check this implementation of class variables
         sales = np.asarray(self.goods[0].currLocalSales)
         self.glob.updateLocalValues('sales', sales)
             
@@ -1639,6 +1678,9 @@ class Cell(Location):
 
 
     def initCellMemory(self, memoryLen, memeLabels):
+        """
+        deprectated
+        """
         from collections import deque
         self.deleteQueue = deque([list()]*(memoryLen+1))
         self.currDelList = list()
@@ -1646,11 +1688,17 @@ class Cell(Location):
 
 
     def getConnCellsPlus(self):
+        """ 
+        ToDo: check if not deprecated 
+        """
         self.weights, edges = self.getEdgeValues('weig',edgeType=_cll)
         self.connNodeDict = [edge.target for edge in edges ]
         return self.weights, edges.indices, self.connNodeDict
 
     def _getConnCellsPlusOld(self):
+        """
+        depreciated
+        """
         self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll)
         self.connnodeDict = [self._graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connnodeDict
@@ -1667,6 +1715,9 @@ class Cell(Location):
 
 
     def addToTraffic(self,mobTypeID):
+        """
+        
+        """
         self.addValue('carsInCell', 1, idx=int(mobTypeID))
 
 
@@ -1680,7 +1731,10 @@ class Cell(Location):
         return copy.copy(self.xCell[choice,:])
 
     def selfTest(self, world):
+        """
+        Not used in the simulations, but for testing purposes.
         
+        """
         #self._node['population'] = population #/ float(world.getParameter('reductionFactor'))
 
         convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
@@ -1693,14 +1747,23 @@ class Cell(Location):
         return convAll, self._node['popDensity']
 
     def calculateConveniences(self, parameters, currentMaturity):
-
+        """
+        Calculation of convenience for all goods + the electric infrastructure.
+        
+        returns list of conveniences Range: [0,1]
+        
+        ToDo:
+            - integration in goods?
+            - seperation of infrastructure and convenience of goods
+        
+        """
         convAll = list()
 
         popDensity = np.float(self.getValue('popDensity'))
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
-        
+        #convenience of electric mobility is additionally dependen on the infrastructure
         convAll[_green] *= self.electricInfrastructure()
         return convAll
 
@@ -1793,11 +1856,19 @@ class GhostCell(GhostLocation, Cell):
         self.peList = list()
 
     def updateHHList(self, graph):
+        """
+        updated method for the household list, which is required since
+        ghost cells are not active on their own
+        """
         nodeType = graph.class2NodeType[Household]
         hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
 
     def updatePeList(self, graph):
+        """
+        updated method for the people list, which is required since
+        ghost cells are not active on their own
+        """
         nodeType = graph.class2NodeType[Person]
         hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
@@ -1805,6 +1876,8 @@ class GhostCell(GhostLocation, Cell):
 class Opinion():
     """
     Creates preferences for households, given their properties
+    ToDO:
+        - Update the method + more sophisticate method maybe using the DLR Data
     """
     def __init__(self, world):
         self.charAge            = world.getParameter('charAge')

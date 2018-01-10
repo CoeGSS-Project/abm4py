@@ -632,7 +632,7 @@ def mobilitySetup(earth):
     propDict['costs']    = parameters['initPriceBrown'], parameters['initPriceBrown']/10.
     propDict['emissions'] = parameters['initEmBrown'],120. # init, lim
     
-    earth.initBrand('brown',                                #name
+    earth.registerBrand('brown',                                #name
                     propDict,                               #(emissions, TCO)
                     convenienceBrown,                       # convenience function
                     'start',                                # time step of introduction in simulation
@@ -643,7 +643,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
     propDict['emissions'] = parameters['initEmGreen'],70. # init, lim
-    earth.initBrand('green',                                                        #name
+    earth.registerBrand('green',                                                        #name
                     propDict,       #(emissions, TCO)
                     convenienceGreen,
                     'start',
@@ -655,7 +655,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
     propDict['emissions'] = parameters['initEmPuplic'],30. # init, lim
-    earth.initBrand('public',  #name
+    earth.registerBrand('public',  #name
                     propDict,   #(emissions, TCO)
                     conveniencePuplic,
                     'start',
@@ -669,7 +669,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceShared'],  parameters['initPriceShared']/10.
     propDict['emissions'] = parameters['initEmShared'],50. # init, lim
-    earth.initBrand('shared',  #name
+    earth.registerBrand('shared',  #name
                     propDict,   #(emissions, TCO)
                     convenienceShared,
                     'start',
@@ -682,7 +682,7 @@ def mobilitySetup(earth):
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceNone'],  parameters['initPriceNone']/10.
     propDict['emissions'] = parameters['initEmNone'], 2.0 # init, lim
-    earth.initBrand('none',  #name
+    earth.registerBrand('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
                     'start',
