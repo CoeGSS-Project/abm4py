@@ -434,8 +434,8 @@ class Good():
         cls.lastGlobalSales = sales
         
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
-
-        self.goodID             = len(self.currLocalSales)
+        #print self.lastGlobalSales
+        self.goodID             = len(self.lastGlobalSales)
         self.label              = label
         self.currGrowthRate     = 1
         self.oldStock           = 0
@@ -584,7 +584,7 @@ class Market():
         
         # push current Sales to globals for sync
         #ToDo: check this implementation of class variables
-        sales = np.asarray(self.goods[0].currLocalSales)
+        sales = np.asarray([good.currLocalSales for good in self.goods.itervalues()])
         self.glob.updateLocalValues('sales', sales)
             
         # pull sales from last time step to oldSales for technical chance

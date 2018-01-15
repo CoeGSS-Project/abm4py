@@ -80,7 +80,7 @@ def writeAdjFile(graph,fileName):
 
 def getEnvironment(comm, getSimNo=True):
 
-    if comm == None or comm.rank == 0 :
+    if comm.rank == 0 :
         # get simulation number from file
         try:
             fid = open("environment","r")
@@ -118,7 +118,9 @@ def getEnvironment(comm, getSimNo=True):
     else:
         if comm is None:
             return baseOutputPath
+        
         baseOutputPath = comm.bcast(baseOutputPath, root=0)
+        
         return baseOutputPath
 
 def createOutputDirectory(comm, baseOutputPath, simNo):
@@ -400,3 +402,33 @@ class Record():
             return None
 
 
+if __name__ == '__main__':
+    import mpi4py
+    mpi4py.rc.threads = False
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    mpiRank = comm.Get_rank()
+    mpiSize = comm.Get_size()
+    debug = True
+    showFigures    = 1
+    
+    simNo, baseOutputPath = getEnvironment(comm, getSimNo=True)
+    outputPath = createOutputDirectory(comm, baseOutputPath, simNo)
+    
+    import logging as lg
+    import time
+    
+    #exit()
+    
+    if debug:
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+                    filemode='w',
+                    format='%(levelname)7s %(asctime)s : %(message)s',
+                    datefmt='%m/%d/%y-%H:%M:%S',
+                    level=lg.DEBUG)
+    else:
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+                        filemode='w',
+                        format='%(levelname)7s %(asctime)s : %(message)s',
+                        datefmt='%m/%d/%y-%H:%M:%S',
+                        level=lg.INFO)

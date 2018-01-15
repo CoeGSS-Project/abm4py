@@ -107,6 +107,7 @@ from bunch import Bunch
 
 from scipy import signal
 
+print 'import done'
 
 overallTime = time.time()
 ###### Enums ################
@@ -630,7 +631,7 @@ def mobilitySetup(earth):
     from collections import OrderedDict
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceBrown'], parameters['initPriceBrown']/10.
-    propDict['emissions'] = parameters['initEmBrown'],120. # init, lim
+    propDict['emissions'] = parameters['initEmBrown'], 120. # init, lim
     
     earth.registerBrand('brown',                                #name
                     propDict,                               #(emissions, TCO)
@@ -642,7 +643,9 @@ def mobilitySetup(earth):
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
-    propDict['emissions'] = parameters['initEmGreen'],70. # init, lim
+    propDict['emissions'] = parameters['initEmGreen'], 70. # init, lim
+    
+    
     earth.registerBrand('green',                                                        #name
                     propDict,       #(emissions, TCO)
                     convenienceGreen,
@@ -654,7 +657,9 @@ def mobilitySetup(earth):
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
-    propDict['emissions'] = parameters['initEmPuplic'],30. # init, lim
+    propDict['emissions'] = parameters['initEmPuplic'], 30. # init, lim
+    
+    
     earth.registerBrand('public',  #name
                     propDict,   #(emissions, TCO)
                     conveniencePuplic,
@@ -663,12 +668,12 @@ def mobilitySetup(earth):
                     parameters['techProgPuplic'],            # slope of technical progress
                     parameters['techExpPuplic'])             # initial experience
 
-    
-
 
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceShared'],  parameters['initPriceShared']/10.
-    propDict['emissions'] = parameters['initEmShared'],50. # init, lim
+    propDict['emissions'] = parameters['initEmShared'], 50. # init, lim
+    
+    
     earth.registerBrand('shared',  #name
                     propDict,   #(emissions, TCO)
                     convenienceShared,
@@ -678,7 +683,6 @@ def mobilitySetup(earth):
                     parameters['techExpShared'])             # initial experience
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
-    
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceNone'],  parameters['initPriceNone']/10.
     propDict['emissions'] = parameters['initEmNone'], 2.0 # init, lim
@@ -1455,16 +1459,19 @@ def setupHouseholdsWithOptimalChoice():
 ######################################################################################
 
 if __name__ == '__main__':
-    
+
 
     debug = True
-    showFigures    = 1
+    showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
-
+    
     import logging as lg
-
+    import time
+    
+    #exit()
+    
     if debug:
         lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                     filemode='w',
@@ -1477,17 +1484,17 @@ if __name__ == '__main__':
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
                         level=lg.INFO)
-
+    
     lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
-
+    
     # wait for all processes - debug only for poznan to debug segmentation fault
     comm.Barrier()
     if comm.rank == 0:
         print 'log files created'
-
+    
     lg.info('on node: ' + socket.gethostname())
     dirPath = os.path.dirname(os.path.realpath(__file__))
-
+    
     # loading of standart parameters
     fileName = sys.argv[1]
     parameters = Bunch()
@@ -1495,38 +1502,38 @@ if __name__ == '__main__':
         if item['name'][0] != '#':
             parameters[item['name']] = aux.convertStr(item['value'])
     lg.info('Setting loaded:')
-
-
+    
+    
     parameters['outPath'] = outputPath
-
-
-
+    
+    
+    
     if parameters.scenario == 0:
-
+    
         if mpiRank == 0:
             parameters = scenarioTestSmall(parameters, dirPath)
         else:
             parameters = None
         parameters = comm.bcast(parameters)
-
+    
     elif parameters.scenario == 1:
-
+    
         if mpiRank == 0:
             parameters = scenarioTestMedium(parameters, dirPath)
         else:
             parameters = None
         parameters = comm.bcast(parameters)
-
+    
     elif parameters.scenario == 2:
-
+    
         if mpiRank == 0:
             parameters = scenarioNiedersachsen(parameters, dirPath)
         else:
             parameters = None
         parameters = comm.bcast(parameters)
-
+    
     elif parameters.scenario == 3:
-
+    
         if mpiRank == 0:
             parameters = scenarioNBH(parameters, dirPath)
         else:
@@ -1534,23 +1541,23 @@ if __name__ == '__main__':
         
         # exchange of the parameters between processes
         parameters = comm.bcast(parameters)
-
-
+    
+    
     if parameters.scenario == 4:
         # test scenario
-
+    
         parameters.resourcePath = dirPath + '/resources_nie/'
         parameters = scenarioTestMedium(parameters, dirPath)
         parameters.showFigures = showFigures
         earth = initEarth(parameters)
         mobilitySetup(earth, parameters)
         earth = setupHouseholdsWithOptimalChoice()
-
-
-#%% Scenario graph NBH
+    
+    
+    #%% Scenario graph NBH
     if parameters.scenario == 5: #graph partition NBH
         parameters = scenarioNBH(parameters, dirPath)
-
+    
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
         earth = initEarth(999, 'output/',parameters, maxNodes=1000000, debug =True)
@@ -1560,9 +1567,9 @@ if __name__ == '__main__':
             cell.setValue('population',parameters.population[cell.node['pos']])
         #earth.view('spatial_graph.png')
         aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
-
+    
         exit()
-#%% Scenario graph ger
+    #%% Scenario graph ger
     if parameters.scenario == 6: #graph partition NBH
         parameters = scenarioGer(parameters, dirPath)
         parameters.landLayer = parameters.landLayer * 0
@@ -1574,17 +1581,17 @@ if __name__ == '__main__':
         for cell in earth.iterEntRandom(_cell):
             cell.setValue('population', parameters.population[cell.getValue('pos')])
         #earth.view('spatial_graph.png')
-
+    
         earth.graph.add_edge(995,2057)
         earth.graph.add_edge(2057,995)
         earth.graph.add_edge(1310,810)
         earth.graph.add_edge(810,1310)
         aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
-
+    
         exit()
-
+    
     if parameters.scenario == 7:
-
+    
         if mpiRank == 0:
             parameters = scenarioGer(parameters, dirPath)
         else:
@@ -1592,10 +1599,10 @@ if __name__ == '__main__':
         parameters = comm.bcast(parameters)
         comm.Barrier()
         lg.info( 'parameters exchang done')
-
+    
     #%% Init
     parameters.showFigures = showFigures
-
+    
     earth = initEarth(simNo,
                       outputPath,
                       parameters,
@@ -1604,31 +1611,31 @@ if __name__ == '__main__':
                       mpiComm=comm,
                       caching=True,
                       queuing=True)
-
+    
     _cell, _hh, _pers = initTypes(earth)
-
+    
     initSpatialLayer(earth)
-
+    
     mobilitySetup(earth)
-
+    
     cellTest(earth)
-
+    
     initGlobalRecords(earth)
-
+    
     householdSetup(earth)
-
+    
     generateNetwork(earth)
-
+    
     initMobilityTypes(earth)
-
+    
     initAgentOutput(earth)
-
+    
     cell = earth.entDict[0]
     #cell.setWorld(earth)
-
+    
     if parameters.scenario == 0:
         earth.view('output/graph.png')
-
+    
     #%% run of the model ################################################
     lg.info('####### Running model with paramertes: #########################')
     import pprint
@@ -1638,24 +1645,24 @@ if __name__ == '__main__':
         pprint.pprint(parameters.toDict(), fidPara)
         fidPara.close()
     lg.info('################################################################')
-
+    
     runModel(earth, parameters)
-
+    
     lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
-
+    
     if earth.isRoot:
         print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-
+    
     if earth.isRoot:
         writeSummary(earth, parameters)
-
+    
     if earth.para['showFigures']:
-
+    
         onlinePostProcessing(earth)
-
+    
     plot_computingTimes(earth)
-
-
+    
+    
 
 
 
