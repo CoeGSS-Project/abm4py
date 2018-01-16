@@ -59,20 +59,28 @@ later:
 
 """
 
-import mpi4py
+import sys, mpi4py
 mpi4py.rc.threads = False
+sys_excepthook = sys.excepthook
+def mpi_excepthook(v, t, tb):
+    sys_excepthook(v, t, tb)
+    mpi4py.MPI.COMM_WORLD.Abort(1)
+sys.excepthook = mpi_excepthook
+
 from mpi4py import MPI
 import h5py
-from os.path import expanduser
-home = expanduser("~")
-import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
+
+#from os.path import expanduser
+#home = expanduser("~")
+#import os
+#dir_path = os.path.dirname(os.path.realpath(__file__))
 import logging as lg
 import sys
-import socket
-if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+#import socket
+
+#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
 #import tqdm
 import igraph as ig
@@ -80,7 +88,6 @@ import numpy as np
 import time
 from bunch import Bunch
 from class_graph import WorldGraph
-import class_auxiliary as aux # Record, Memory, Writer, cartesian
 
 class Queue():
 
@@ -2085,13 +2092,14 @@ if __name__ == '__main__':
 
 
     import sys
-
+    from class_auxiliary import computeConnectionList
 
     mpiRankLayer   = np.asarray([[0, 0, 0, 0, 1],
                               [np.nan, np.nan, np.nan, 1, 1]])
 
+    
     #landLayer = np.load('rankMap.npy')
-    connList = aux.computeConnectionList(1.5)
+    connList = computeConnectionList(1.5)
     #print connList
     _cell    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation,
                                       propertyList = ['type',

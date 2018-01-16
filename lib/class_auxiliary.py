@@ -80,7 +80,7 @@ def writeAdjFile(graph,fileName):
 
 def getEnvironment(comm, getSimNo=True):
 
-    if comm.rank == 0 :
+    if (comm is None) or (comm.rank == 0) :
         # get simulation number from file
         try:
             fid = open("environment","r")

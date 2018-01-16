@@ -1598,7 +1598,10 @@ if __name__ == '__main__':
             parameters = None
         parameters = comm.bcast(parameters)
         comm.Barrier()
-        lg.info( 'parameters exchang done')
+    
+    if mpiRank == 0:
+        print'Parameter exchange done'
+    lg.info( 'Parameter exchange done')
     
     #%% Init
     parameters.showFigures = showFigures

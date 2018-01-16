@@ -25,13 +25,16 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, aux, h5py, MPI
-import pdb
-import igraph as ig
+import class_auxiliary as aux # Record, Memory, Writer, cartesian
+
+
+from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, h5py, MPI
+#import pdb
+#import igraph as ig
 import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+#import pandas as pd
+#import seaborn as sns
+#import matplotlib.pyplot as plt
 import time
 import os
 import math
@@ -756,8 +759,8 @@ class Person(Agent):
         self.hh.addAdult(self)
 
 
-    def weightFriendExperience(self, world):
-        friendUtil = np.asarray(self.getPeerValues('commUtil',_cpp)[0])[:,self._node['mobType']]
+    def weightFriendExperience(self, world, edges, commUtilPeers):
+        friendUtil = commUtilPeers[:,self._node['mobType']]
         ownUtil  = self.getValue('util')
         edges = self.getEdges(_cpp)
         
@@ -961,18 +964,16 @@ class Person(Agent):
         return contactList, connList, weigList
 
 
-    def computeCommunityUtility(self,earth):
+    def computeCommunityUtility(self,earth, weights, edges, commUtilPeers):
         #get weights from friends
-        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
-        weights = np.asarray(weights)
-
+        #weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
         commUtil = self._node['commUtil'] # old value
         
         # compute weighted mean of all friends
         if earth.para['weightConnections']:
-            commUtil += np.dot(weights,np.asarray(self.getPeerValues('commUtil',_cpp)[0]))
+            commUtil += np.dot(weights, commUtilPeers)
         else:
-            commUtil += np.mean(np.asarray(self.getPeerValues('commUtil',_cpp)[0]),axis=0)
+            commUtil += np.mean(commUtilPeers,axis=0)
 
         mobType  = self.getValue('mobType')
         
@@ -1014,15 +1015,20 @@ class Person(Agent):
         
 
     def step(self, earth):
-
-        self.computeCommunityUtility(earth)
+        
+        #load data
+        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+        weights        = np.asarray(weights)
+        commUtilPeers  = np.asarray(self.getPeerValues('commUtil',_cpp)[0])
+        
+        self.computeCommunityUtility(earth, weights, edges, commUtilPeers)
         
         # weight friends
         if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
-            weights, ESSR = self.weightFriendExperience(earth)
+            weights, ESSR = self.weightFriendExperience(earth, edges, commUtilPeers)
 
             # compute similarity
-            weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
+            #weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
             preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0])
 
             average = np.average(preferences, axis= 0, weights=weights)
@@ -1241,7 +1247,7 @@ class Household(Agent):
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.addValue('expenses', -1 * adult.getValue('prop')[0])
+            self.addValue('expenses', max(0.,-1 * adult.getValue('prop')[0]))
             world.market.sellCar(mobType)
 
     def testConsequences(self, earth, actionIds):
