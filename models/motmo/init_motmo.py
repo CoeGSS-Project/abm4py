@@ -112,16 +112,16 @@ print 'import done'
 overallTime = time.time()
 ###### Enums ################
 #connections
-_cll = 1 # loc - loc
-_clh = 2 # loc - household
-_chh = 3 # household, household
-_chp = 4 # household, person
-_cpp = 5 # person, person
+CON_LL = 1 # loc - loc
+CON_LH = 2 # loc - household
+CON_HH = 3 # household, household
+CON_HP = 4 # household, person
+CON_PP = 5 # person, person
 
 #nodes
-_cell   = 1
-_hh     = 2
-_pers   = 3
+CELL   = 1
+HH     = 2
+PERS   = 3
 
 #time spans
 _month = 1
@@ -833,8 +833,8 @@ def householdSetup(earth, calibration=False):
                            expenses=0)
 
             hh.adults = list()
-            hh.register(earth, parentEntity=loc, edgeType=_clh)
-            #hh.registerAtLocation(earth,x,y,_hh,_clh)
+            hh.register(earth, parentEntity=loc, edgeType=CON_LH)
+            #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
             hh.loc.addValue('population',  nPers)
             
@@ -867,7 +867,7 @@ def householdSetup(earth, calibration=False):
                               peerBubbleHeterogeneity = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
-                pers.register(earth, parentEntity=hh, edgeType=_chp)
+                pers.register(earth, parentEntity=hh, edgeType=CON_HP)
                 
                 successFlag = True
             
@@ -895,12 +895,12 @@ def householdSetup(earth, calibration=False):
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
 
-    for ghostCell in earth.iterEntRandom(_cell, ghosts = True, random=False):
+    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
         ghostCell.updatePeList(earth.graph)
         ghostCell.updateHHList(earth.graph)
 
     
-    for hh in earth.iterEntRandom(_hh, ghosts = False, random=False):
+    for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
         hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
@@ -979,7 +979,7 @@ def initEarth(simNo,
 
 def initTypes(earth):
     parameters = earth.getParameter()
-    _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
+    CELL    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
                                staticProperies  = ['type',
                                                    'gID',
                                                    'pos',
@@ -991,7 +991,7 @@ def initTypes(earth):
                                                    'chargStat'])
 
 
-    _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
+    HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
                                staticProperies  = ['type',
                                                    'gID',
                                                    'pos',
@@ -1003,7 +1003,7 @@ def initTypes(earth):
                                                    'expenses'])
 
 
-    _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
+    PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
                                 staticProperies = ['type',
                                                    'gID',
                                                    'hhID',
@@ -1021,21 +1021,21 @@ def initTypes(earth):
                                                   'peerBubbleHeterogeneity'])
 
 
-    earth.registerEdgeType('cell-cell', _cell, _cell, ['type','weig'])
-    earth.registerEdgeType('cell-hh', _cell, _hh)
-    earth.registerEdgeType('hh-hh', _hh,_hh)
-    earth.registerEdgeType('hh-pers', _hh, _pers)
-    earth.registerEdgeType('pers-pers', _pers, _pers, ['type','weig'])
+    earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
+    earth.registerEdgeType('cell-hh', CELL, HH)
+    earth.registerEdgeType('hh-hh', HH,HH)
+    earth.registerEdgeType('hh-pers', HH, PERS)
+    earth.registerEdgeType('pers-pers', PERS, PERS, ['type','weig'])
 
 
 
-    return _cell, _hh, _pers
+    return CELL, HH, PERS
 
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
     connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.initSpatialLayer(parameters['landLayer'],
-                           connList, _cell,
+                           connList, CELL,
                            LocClassObject=Cell,
                            GhstLocClassObject=GhostCell)
     
@@ -1051,13 +1051,13 @@ def initSpatialLayer(earth):
 
     if 'regionIdRaster' in parameters.keys():
 
-        for cell in earth.iterEntRandom(_cell):
+        for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', parameters['chargStat'][cell._node['pos']])
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
             
-    earth.mpi.updateGhostNodes([_cell],['chargStat'])
+    earth.mpi.updateGhostNodes([CELL],['chargStat'])
 
 #%% cell convenience test
 def cellTest(earth):
@@ -1068,9 +1068,9 @@ def cellTest(earth):
     eConvArray = earth.para['landLayer'] * 0
     
     #import tqdm
-    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
+    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(CELL))):
     if earth.para['showFigures']:
-        for i, cell in enumerate(earth.iterEntRandom(_cell)):        
+        for i, cell in enumerate(earth.iterEntRandom(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
             #cell.setValue('carsInCell',[0,200.,0,0,0])
@@ -1121,7 +1121,7 @@ def generateNetwork(earth):
     parameters = earth.getParameter()
     
     #tt = time.time()
-    earth.generateSocialNetwork(_pers,_cpp)
+    earth.generateSocialNetwork(PERS,CON_PP)
     #lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
     if parameters['scenario'] == 0:
         earth.view(str(earth.mpi.rank) + '.png')
@@ -1183,10 +1183,10 @@ def initAgentOutput(earth):
     earth.mpi.comm.Barrier()
     lg.info( 'Waited for Barrier for ' + str( time.time() - tt) + ' s')
     tt = time.time()
-    #earth.initAgentFile(typ = _hh)
-    #earth.initAgentFile(typ = _pers)
-    #earth.initAgentFile(typ = _cell)
-    earth.io.initNodeFile(earth, [_cell, _hh, _pers])
+    #earth.initAgentFile(typ = HH)
+    #earth.initAgentFile(typ = PERS)
+    #earth.initAgentFile(typ = CELL)
+    earth.io.initNodeFile(earth, [CELL, HH, PERS])
 
 
     lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
@@ -1198,11 +1198,11 @@ def initAgentOutput(earth):
 
 def plot_calGreenNeigbourhoodShareDist(earth):
     if parameters.showFigures:
-        nPersons = len(earth.getNodeDict(_pers))
+        nPersons = len(earth.getNodeDict(PERS))
         relarsPerNeigborhood = np.zeros([nPersons,3])
-        for i, persId in enumerate(earth.getNodeDict(_pers)):
+        for i, persId in enumerate(earth.getNodeDict(PERS)):
             person = earth.getEntity(persId)
-            x,__ = person.getConnNodeValues('mobType',_pers)
+            x,__ = person.getConnNodeValues('mobType',PERS)
             for mobType in range(3):
                 relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
 
@@ -1212,10 +1212,10 @@ def plot_calGreenNeigbourhoodShareDist(earth):
 
 def plot_incomePerNetwork(earth):
 
-    incomeList = np.zeros([len(earth.nodeDict[_pers]),1])
-    for i, persId in enumerate(earth.nodeDict[_pers]):
+    incomeList = np.zeros([len(earth.nodeDict[PERS]),1])
+    for i, persId in enumerate(earth.nodeDict[PERS]):
         person = earth.entDict[persId]
-        x, friends = person.getConnNodeValues('mobType',_pers)
+        x, friends = person.getConnNodeValues('mobType',PERS)
         incomes = [earth.entDict[friend].hh.getValue('income') for friend in friends]
         incomeList[i,0] = np.mean(incomes)
 
@@ -1243,7 +1243,7 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
@@ -1251,12 +1251,12 @@ def runModel(earth, parameters):
 
     lg.info('Initial actions done')
 
-    for cell in earth.iterEntRandom(_cell):
+    for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
 
     lg.info('Initial market step done')
 
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
@@ -1315,9 +1315,9 @@ def writeSummary(earth, parameters):
     if parameters.scenario == 2:
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) != 2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) == 1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) == 0))
+        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) != 2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 1))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 0))
 
         lg.info('Number of agents: ' + str(nPeople))
         lg.info('Number of agents: ' + str(nCars))
@@ -1332,9 +1332,9 @@ def writeSummary(earth, parameters):
 
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==1))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==0))
 
         lg.info( 'Number of agents: ' + str(nPeople))
         lg.info( 'Number of agents: ' + str(nCars))
@@ -1343,7 +1343,7 @@ def writeSummary(earth, parameters):
         lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
 
 
-        cellList       = earth.graph.vs[earth.nodeDict[_cell]]
+        cellList       = earth.graph.vs[earth.nodeDict[CELL]]
         cellListBremen = cellList.select(regionId_eq=1518)
         cellListNieder = cellList.select(regionId_eq=6321)
         cellListHamb   = cellList.select(regionId_eq=1520)
@@ -1384,24 +1384,24 @@ def onlinePostProcessing(earth):
 
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
-    for agent in earth.iterEntRandom(_hh):
-        friendList = agent.getPeerIDs(edgeType=_chh)
+    for agent in earth.iterEntRandom(HH):
+        friendList = agent.getPeerIDs(edgeType=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values
     nAgents    = np.nansum(parameters.population)
     lg.info(avgStd / nAgents)
     prfType = np.argmax(df.values,axis=1)
-    #for i, agent in enumerate(earth.iterNode(_hh)):
+    #for i, agent in enumerate(earth.iterNode(HH)):
     #    print agent.prefTyp, prfType[i]
     df['ref'] = prfType
 
     # calculate the correlation between weights and differences in priorities
     if False:
         pref = np.zeros([earth.graph.vcount(), 4])
-        pref[earth.nodeDict[_pers],:] = np.array(earth.graph.vs[earth.nodeDict[_pers]]['preferences'])
+        pref[earth.nodeDict[PERS],:] = np.array(earth.graph.vs[earth.nodeDict[PERS]]['preferences'])
         idx = list()
-        for edge in earth.iterEdges(_cpp):
+        for edge in earth.iterEdges(CON_PP):
             edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
             idx.append(edge.index)
 
@@ -1437,19 +1437,19 @@ def setupHouseholdsWithOptimalChoice():
     householdSetup(earth, parameters)
     initMobilityTypes(earth, parameters)
     #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
 
-    for cell in earth.iterEntRandom(_cell):
+    for cell in earth.iterEntRandom(CELL):
         cell.step(earth.market.kappa)
 
     earth.market.setInitialStatistics([1000.,5.,300.])
 
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
 
-    for hh in iter(earth.nodeDict[_hh]):
+    for hh in iter(earth.nodeDict[HH]):
         oldEarth = copy(earth)
         earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)
     return earth
@@ -1562,9 +1562,9 @@ if __name__ == '__main__':
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures
         earth = initEarth(999, 'output/',parameters, maxNodes=1000000, debug =True)
-        _cell, _hh, _pers = initTypes(earth,parameters)
+        CELL, HH, PERS = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
-        for cell in earth.iterEntRandom(_cell):
+        for cell in earth.iterEntRandom(CELL):
             cell.setValue('population',parameters.population[cell.node['pos']])
         #earth.view('spatial_graph.png')
         aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
@@ -1577,9 +1577,9 @@ if __name__ == '__main__':
         parameters.showFigures = showFigures
         #parameters.addYourself   = False
         earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
-        _cell, _hh, _pers = initTypes(earth,parameters)
+        CELL, HH, PERS = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
-        for cell in earth.iterEntRandom(_cell):
+        for cell in earth.iterEntRandom(CELL):
             cell.setValue('population', parameters.population[cell.getValue('pos')])
         #earth.view('spatial_graph.png')
     
@@ -1616,7 +1616,7 @@ if __name__ == '__main__':
                       caching=True,
                       queuing=True)
     
-    _cell, _hh, _pers = initTypes(earth)
+    CELL, HH, PERS = initTypes(earth)
     
     initSpatialLayer(earth)
     

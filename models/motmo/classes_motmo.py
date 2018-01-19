@@ -43,28 +43,29 @@ import logging as lg
 from bunch import Bunch
 #%% --- ENUMERATIONS ---
 #connections
-_cll = 1 # loc - loc
-_clh = 2 # loc - household
-_chh = 3 # household, household
-_chp = 4 # household, person
-_cpp = 5 # household, person
+CON_LL = 1 # loc - loc
+CON_LH = 2 # loc - household
+CON_HH = 3 # household, household
+CON_HP = 4 # household, person
+CON_PP = 5 # household, person
+
 #nodes
-_cell = 1
-_hh   = 2
-_pers = 3
+CELL = 1
+HH   = 2
+PERS = 3
 
 #consequences
-_conv = 0
-_eco  = 1
-_mon  = 2
-_immi = 3
+CONV = 0
+ECO  = 1
+MON  = 2
+INNO = 3
 
 #mobility types
-_brown  = 0
-_green  = 1
-_public = 2
-_share  = 3
-_none   = 4
+BROWN  = 0
+GREEN  = 1
+PUPLIC = 2
+SHARED  = 3
+NONE   = 4
 
 
 #%% --- Global classes ---
@@ -155,7 +156,7 @@ class Earth(World):
         brandID = self.market.initBrand(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
 
         # TODO: move convenience Function from a instance variable to a class variable            
-        for cell in self.iterEntRandom(_cell):
+        for cell in self.iterEntRandom(CELL):
             cell.traffic[brandID] = 0
             cell.convFunctions.append(convFunction)
 
@@ -208,7 +209,7 @@ class Earth(World):
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
 
-        for cell in self.iterEntRandom(_cell):
+        for cell in self.iterEntRandom(CELL):
             self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell')))* self.para['reductionFactor'])
 
         # move values to global data class
@@ -220,10 +221,10 @@ class Earth(World):
         Encapsulating method for the sync of global variables
         """
         ttSync = time.time()
-        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
-        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[_pers]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,1])
+        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,0])
         
         # local values are used to update the new global values
         self.graph.glob.sync()
@@ -244,8 +245,8 @@ class Earth(World):
         Encapsulating method for the syncronization of selected ghost agents
         """
         ttSync = time.time()
-        self.mpi.updateGhostNodes([_pers],['commUtil'])
-        self.mpi.updateGhostNodes([_cell],['chargStat', 'carsInCell'])
+        self.mpi.updateGhostNodes([PERS],['commUtil'])
+        self.mpi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
@@ -275,21 +276,21 @@ class Earth(World):
         if self.timeStep == 0:
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
-            newValue = np.rint(self.getNodeValues('lastAction',_pers) / self.para['burnInTimeFactor']).astype(int)
-            self.setNodeValues('lastAction', newValue, _pers)
+            newValue = np.rint(self.getNodeValues('lastAction',PERS) / self.para['burnInTimeFactor']).astype(int)
+            self.setNodeValues('lastAction', newValue, PERS)
 
         elif self.timeStep+5 == self.para['burnIn']:
             lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
-            oldValue = self.getNodeValues('lastAction',_pers) * self.para['burnInTimeFactor']
+            oldValue = self.getNodeValues('lastAction',PERS) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
             stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
 
-            self.setNodeValues('lastAction', stochastricRoundValue, _pers)
+            self.setNodeValues('lastAction', stochastricRoundValue, PERS)
             
         else:
-            lastActions = self.getNodeValues('lastAction',_pers)
-            self.setNodeValues('lastAction',lastActions+1, _pers)
+            lastActions = self.getNodeValues('lastAction',PERS)
+            self.setNodeValues('lastAction',lastActions+1, PERS)
         
         # progressing time
         if self.timeUnit == 1: #months
@@ -324,7 +325,7 @@ class Earth(World):
         
         ###### Cell loop ######
         ttCell = time.time()
-        for cell in self.iterEntRandom(_cell):
+        for cell in self.iterEntRandom(CELL):
             cell.step(self.para, self.market.getCurrentMaturity())
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')
 
@@ -332,7 +333,7 @@ class Earth(World):
 
         ###### Person loop ######
         ttComp = time.time()
-        for person in self.iterEntRandom(_pers):
+        for person in self.iterEntRandom(PERS):
             person.step(self)
         lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')
    
@@ -341,10 +342,10 @@ class Earth(World):
         ###### Household loop ######
         tthh = time.time()
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
-            for household in self.iterEntRandom(_hh):
+            for household in self.iterEntRandom(HH):
                 household.stepOmniscient(self)
         else:
-            for household in self.iterEntRandom(_hh):
+            for household in self.iterEntRandom(HH):
 
                 if np.random.rand()<1e-4:
                     household.stepOmniscient(self)
@@ -787,9 +788,9 @@ class Person(Agent):
                 edges['weig'] = post
 
                 self._node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
-                #assert self.edges[_cpp][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
-                #assert self.edges[_cpp][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
-                if np.sum(self.getEdgeValues('weig', edgeType=_cpp)[0]) < 0.99: ##OPTPRODUCTION
+                #assert self.edges[CON_PP][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
+                #assert self.edges[CON_PP][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
+                if np.sum(self.getEdgeValues('weig', edgeType=CON_PP)[0]) < 0.99: ##OPTPRODUCTION
                     import pdb      ##OPTPRODUCTION
                     pdb.set_trace() ##OPTPRODUCTION
             return post, self._node['ESSR']
@@ -810,12 +811,12 @@ class Person(Agent):
 #        drop 10% of old connections
 #        print 'ID:', self.nID,
 #        print "prior",
-#        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+#        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
 #        print 'sum of weights', np.sum(weights)
 #        for weig, idx in zip(weights, edges.indices):
 #            print '(',weig, idx,')',
 #        print ' '
-        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
         nContacts = len(weights)
         nDrops    = int(nContacts/10)
         dropIds = np.asarray(edges.indices)[np.argsort(weights)[:nDrops].tolist()].tolist()
@@ -826,18 +827,18 @@ class Person(Agent):
             world.graph.delete_edges(dropIds)
 
         # add t new connections
-        currContacts = self.getPeerIDs(_cpp)
+        currContacts = self.getPeerIDs(CON_PP)
 
         frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
 
         if len(edgeList) > 0:
         # update edges
             lg.debug('adding contact edges')
-            world.addEdges(edgeList, type=_cpp, weig=1.0/nContacts)
+            world.addEdges(edgeList, type=CON_PP, weig=1.0/nContacts)
 
         if world.caching:
-            self.resetEdgeCache(edgeType=_cpp)
-            self.resetPeerCache(edgeType=_cpp)
+            self.resetEdgeCache(edgeType=CON_PP)
+            self.resetPeerCache(edgeType=CON_PP)
 
     def getRandomNewContacts(self, world, nContacts, currentContacts):
         cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
@@ -941,7 +942,7 @@ class Person(Agent):
 
         if np.sum(weightData[:,0]>0) < nContacts:
             lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
-            lg.info( "population = " + str(self.loc.getValue('population')) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',_cll)[0])))
+            lg.info( "population = " + str(self.loc.getValue('population')) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',CON_LL)[0])))
 
             nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
 
@@ -965,7 +966,7 @@ class Person(Agent):
 
     def computeCommunityUtility(self,earth, weights, edges, commUtilPeers):
         #get weights from friends
-        #weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+        #weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
         commUtil = self._node['commUtil'] # old value
         
         # compute weighted mean of all friends
@@ -1003,9 +1004,9 @@ class Person(Agent):
         if np.random.rand() > .99:
             self.imitation = np.random.choice(len(self.getValue('commUtil')))
         else:
-            #peerUtil     = np.asarray(self.getPeerValues('commUtil',_cpp)[0])
-            #peerMobType  = np.asarray(self.getPeerValues('mobType',_cpp)[0])
-            #weights      = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
+            #peerUtil     = np.asarray(self.getPeerValues('commUtil',CON_PP)[0])
+            #peerMobType  = np.asarray(self.getPeerValues('mobType',CON_PP)[0])
+            #weights      = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
             
             fitness = utilPeers * weights
             fitness = fitness / np.sum(fitness)
@@ -1016,19 +1017,19 @@ class Person(Agent):
     def step(self, earth):
         
         #load data
-        commUtilPeers  = np.asarray(self.getPeerValues('commUtil',_cpp)[0])
-        utilPeers      = np.asarray(self.getPeerValues('util',_cpp)[0])
-        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+        commUtilPeers  = np.asarray(self.getPeerValues('commUtil',CON_PP)[0])
+        utilPeers      = np.asarray(self.getPeerValues('util',CON_PP)[0])
+        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
         weights        = np.asarray(weights)        
-        mobTypePeers   = np.asarray(self.getPeerValues('mobType',_cpp)[0])
+        mobTypePeers   = np.asarray(self.getPeerValues('mobType',CON_PP)[0])
         
         if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
             # weight friends
             weights, ESSR = self.weightFriendExperience(earth, commUtilPeers, edges, weights)
 
             # compute similarity
-            #weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
-            preferences = np.asarray(self.getPeerValues('preferences',_cpp)[0])
+            #weights = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
+            preferences = np.asarray(self.getPeerValues('preferences',CON_PP)[0])
 
             average = np.average(preferences, axis= 0, weights=weights)
             self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
@@ -1064,7 +1065,7 @@ class GhostHousehold(GhostAgent):
 
         GhostAgent.register(self, world, parentEntity, edgeType)
 
-        #self.queueConnection(locID,_clh)
+        #self.queueConnection(locID,CON_LH)
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)
 
@@ -1138,7 +1139,7 @@ class Household(Agent):
         Agent.register(self, world, parentEntity, edgeType)
 
 
-        #self.queueConnection(locID,_clh)
+        #self.queueConnection(locID,CON_LH)
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)
 
@@ -1267,18 +1268,18 @@ class Household(Agent):
         for ix, actions in enumerate(actionIds):
             
             #convenience
-            consMat[ix,:,_conv] = convCell[actions]
+            consMat[ix,:,CONV] = convCell[actions]
             if any(actions < 2):
-                consMat[ix,actions==2,_conv] += hhCarBonus
-                consMat[ix,actions==4,_conv] += hhCarBonus
+                consMat[ix,actions==2,CONV] += hhCarBonus
+                consMat[ix,actions==4,CONV] += hhCarBonus
                 
             #ecology
-            consMat[ix,:,_eco] = earth.market.ecology(mobProperties[actions,1])
+            consMat[ix,:,ECO] = earth.market.ecology(mobProperties[actions,1])
             
-            consMat[ix,:,_mon] = max(1e-5, 1 - np.sum(mobProperties[actions,0]) / income)
+            consMat[ix,:,MON] = max(1e-5, 1 - np.sum(mobProperties[actions,0]) / income)
             
             #immitation
-            consMat[ix,:,_immi] = 1 - ( (experience[actions] / sumExperience) **.5)
+            consMat[ix,:,INNO] = 1 - ( (experience[actions] / sumExperience) **.5)
             
         return consMat
 
@@ -1299,18 +1300,18 @@ class Household(Agent):
         for ix, actions in enumerate(actionIds):
             
             #convenience
-            consMat[ix,:,_conv] = [convCell[action] for action in actions]
+            consMat[ix,:,CONV] = [convCell[action] for action in actions]
             if any(actions < 2):
-                consMat[ix,actions==2,_conv] += hhCarBonus
-                consMat[ix,actions==4,_conv] += hhCarBonus
+                consMat[ix,actions==2,CONV] += hhCarBonus
+                consMat[ix,actions==4,CONV] += hhCarBonus
                 
             #ecology
-            consMat[ix,:,_eco] = [earth.market.ecology(mobProperties[action,1]) for action in actions]
+            consMat[ix,:,ECO] = [earth.market.ecology(mobProperties[action,1]) for action in actions]
             
-            consMat[ix,:,_mon] = max(1e-5, 1 - sum([mobProperties[action,0] for action in actions] / income)) 
+            consMat[ix,:,MON] = max(1e-5, 1 - sum([mobProperties[action,0] for action in actions] / income)) 
             
             #immitation
-            consMat[ix,:,_immi] = [1 - ( (experience[action] / sumExperience) **.5) for action in actions]
+            consMat[ix,:,INNO] = [1 - ( (experience[action] / sumExperience) **.5) for action in actions]
             
         return consMat
         
@@ -1698,7 +1699,7 @@ class Cell(Location):
         """ 
         ToDo: check if not deprecated 
         """
-        self.weights, edges = self.getEdgeValues('weig',edgeType=_cll)
+        self.weights, edges = self.getEdgeValues('weig',edgeType=CON_LL)
         self.connNodeDict = [edge.target for edge in edges ]
         return self.weights, edges.indices, self.connNodeDict
 
@@ -1706,7 +1707,7 @@ class Cell(Location):
         """
         depreciated
         """
-        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_cll)
+        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=CON_LL)
         self.connnodeDict = [self._graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connnodeDict
 
@@ -1771,7 +1772,7 @@ class Cell(Location):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
         #convenience of electric mobility is additionally dependen on the infrastructure
-        convAll[_green] *= self.electricInfrastructure()
+        convAll[GREEN] *= self.electricInfrastructure()
         return convAll
 
 
@@ -1785,14 +1786,14 @@ class Cell(Location):
         Mapping to [0,1]
         """
         
-        weights       = self.getEdgeValues('weig',_cll)[0]
+        weights       = self.getEdgeValues('weig',CON_LL)[0]
         
         if greenMeanCars is None:
             
-            carsInCells   = np.asarray(self.getPeerValues('carsInCell',_cll)[0])
-            greenMeanCars =  sum([x*y for  x,y in zip(carsInCells[:,_green],weights)])    
+            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
+            greenMeanCars =  sum([x*y for  x,y in zip(carsInCells[:,GREEN],weights)])    
         
-        nStation      = self.getPeerValues('chargStat',_cll)[0]
+        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
         #print nStation
         if np.sum(nStation) == 0:
             return 0.
