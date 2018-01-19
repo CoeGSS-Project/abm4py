@@ -1349,17 +1349,17 @@ if __name__ == "__main__":
             traceback.print_exc()
     else:
         data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=0)
-#        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=1)
-#        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=2)
-#        filters = filter_PrefTypes(data, propDict, parameters, enums, filters)
-#        filters = filter_householdIDsPerMobType(data, propDict, parameters, enums, filters)
+        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=1)
+        data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=2)
+        filters = filter_PrefTypes(data, propDict, parameters, enums, filters)
+        filters = filter_householdIDsPerMobType(data, propDict, parameters, enums, filters)
         
     enums['brandTitles'] = dict()
     enums['brandTitles'][0] = 'Combustion engined cars'
     enums['brandTitles'][1] = 'Electric powered cars'
     enums['brandTitles'][2] = 'Puplic transport'
     enums['brandTitles'][3] = 'Car sharing'
-    enums['brandTitles'][4] = 'Food / Bike'
+    enums['brandTitles'][4] = 'Foot / Bike'
     parameters['plotYears'] = plotYears
     parameters['withoutBurnIn'] = withoutBurnIn
     print 'loading done in ' + str(time.time() - tt) + ' s'

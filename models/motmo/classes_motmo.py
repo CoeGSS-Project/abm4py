@@ -743,7 +743,7 @@ class Person(Agent):
     __slots__ = ['gID', 'nID']
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
-
+        
 
     def isAware(self,mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
@@ -759,16 +759,15 @@ class Person(Agent):
         self.hh.addAdult(self)
 
 
-    def weightFriendExperience(self, world, edges, commUtilPeers):
+    def weightFriendExperience(self, world, commUtilPeers, edges, weights):
         friendUtil = commUtilPeers[:,self._node['mobType']]
         ownUtil  = self.getValue('util')
-        edges = self.getEdges(_cpp)
         
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
         prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         prop = prop / np.sum(prop)
 
-        prior = np.asarray(edges['weig'])
+        prior = weights
         prior = prior / np.sum(prior)
         assert not any(np.isnan(prior)) ##OPTPRODUCTION
 
@@ -803,7 +802,7 @@ class Person(Agent):
             lg.debug('friendUtil values:')
             lg.debug([value for value in friendUtil])
 
-            return prior, self._node['ESSR'] 
+            return weights, self._node['ESSR']
 
 
     def socialize(self, world):
@@ -999,33 +998,33 @@ class Person(Agent):
         
         
 
-    def imitate(self):
+    def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
         if np.random.rand() > .99:
-            return np.random.choice(len(self.getValue('commUtil')))
+            self.imitation = np.random.choice(len(self.getValue('commUtil')))
         else:
-            peerUtil     = np.asarray(self.getPeerValues('util',_cpp)[0])
-            peerMobType  = np.asarray(self.getPeerValues('mobType',_cpp)[0])
-            weights      = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
+            #peerUtil     = np.asarray(self.getPeerValues('commUtil',_cpp)[0])
+            #peerMobType  = np.asarray(self.getPeerValues('mobType',_cpp)[0])
+            #weights      = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
             
-            fitness = peerUtil * weights
+            fitness = utilPeers * weights
             fitness = fitness / np.sum(fitness)
         
-            return np.random.choice(peerMobType, 2, p=fitness)
+            self.imitation =  np.random.choice(mobTypePeers, 2, p=fitness)
         
 
     def step(self, earth):
         
         #load data
-        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
-        weights        = np.asarray(weights)
         commUtilPeers  = np.asarray(self.getPeerValues('commUtil',_cpp)[0])
+        utilPeers      = np.asarray(self.getPeerValues('util',_cpp)[0])
+        weights, edges = self.getEdgeValues('weig', edgeType=_cpp)
+        weights        = np.asarray(weights)        
+        mobTypePeers   = np.asarray(self.getPeerValues('mobType',_cpp)[0])
         
-        self.computeCommunityUtility(earth, weights, edges, commUtilPeers)
-        
-        # weight friends
         if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
-            weights, ESSR = self.weightFriendExperience(earth, edges, commUtilPeers)
+            # weight friends
+            weights, ESSR = self.weightFriendExperience(earth, commUtilPeers, edges, weights)
 
             # compute similarity
             #weights = np.asarray(self.getEdgeValues('weig', edgeType=_cpp)[0])
@@ -1033,7 +1032,9 @@ class Person(Agent):
 
             average = np.average(preferences, axis= 0, weights=weights)
             self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
-
+        
+        self.computeCommunityUtility(earth, weights, edges, commUtilPeers) 
+        self.imitate(utilPeers, weights, mobTypePeers)
         # socialize
 #        if ESSR < 0.1 and np.random.rand() >0.99:
 #            self.socialize(world)
@@ -1247,7 +1248,7 @@ class Household(Agent):
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.addValue('expenses', max(0.,-1 * adult.getValue('prop')[0]))
+            self.addValue('expenses', -1 * adult.getValue('prop')[0])
             world.market.sellCar(mobType)
 
     def testConsequences(self, earth, actionIds):
@@ -1323,7 +1324,7 @@ class Household(Agent):
             carInHh = True
 
         # calculate money consequence
-        money = max(1e-5, 1 - self.getValue('expenses') / self.getValue('income'))
+        money = min(1., max(1e-5, 1 - self.getValue('expenses') / self.getValue('income')))
 
 
         for adult in self.adults:
@@ -1555,7 +1556,7 @@ class Household(Agent):
         """
         tt = time.time()
         
-        bestIndividualActionsIds = [adult.imitate() for adult in self.adults]
+        bestIndividualActionsIds = [adult.imitation for adult in self.adults]
         #print 'imiate: ' +str(time.time() -tt)
         #tt2 = time.time()
         bestOpt, bestUtil, actorIds = self.householdOptimization(earth, bestIndividualActionsIds)

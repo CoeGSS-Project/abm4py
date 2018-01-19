@@ -133,8 +133,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup = Bunch()
 
     #general
-    setup.resourcePath  = dirPath + '/resources_ger/'
-    setup.synPopPath    = setup['resourcePath'] + 'hh_niedersachsen.csv'
+    setup.resourcePath  = dirPath + '/resources/'
     setup.progressBar   = True
     setup.allTypeObservations = False
 
@@ -172,7 +171,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.cellSizeMap  = setup.landLayer * 15.
     
     setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
-    setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *6321
+    #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
@@ -233,8 +232,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
 
     #general
-    setup.resourcePath          = dirPath + '/resources_ger/'
-    setup.synPopPath            = setup['resourcePath'] + 'hh_niedersachsen.csv'
+    setup.resourcePath          = dirPath + '/resources/'
     setup.allTypeObservations   = False
 
     setup.progressBar = True
@@ -290,7 +288,7 @@ def scenarioTestMedium(parameterInput, dirPath):
         setup.landLayer = setup.landLayer*0
 
     setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
-    setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *6321
+    #setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *1519
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
     
@@ -867,7 +865,8 @@ def householdSetup(earth, calibration=False):
                               lastAction  = 0,
                               ESSR        = 1,
                               peerBubbleHeterogeneity = 0.)
-
+                
+                pers.imitation = np.random.randint(parameters['nMobTypes'])
                 pers.register(earth, parentEntity=hh, edgeType=_chp)
                 
                 successFlag = True
@@ -1158,9 +1157,9 @@ def initGlobalRecords(earth):
             value = [np.nan]*earth.para['nMobTypes']
             year = int(column)
             timeIdx = 12* (year - parameters['startDate'][1]) + parameters['burnIn']
-            value[0] = (calDataDfCV[column]['re_' + str(re)] ) / parameters['reductionFactor']
+            value[0] = (calDataDfCV[column]['re_' + str(re)] ) #/ parameters['reductionFactor']
             if column in calDataDfEV.columns[1:]:
-                value[1] = (calDataDfEV[column]['re_' + str(re)] ) / parameters['reductionFactor']
+                value[1] = (calDataDfEV[column]['re_' + str(re)] ) #/ parameters['reductionFactor']
 
 
             timeIdxs.append(timeIdx)
@@ -1261,6 +1260,8 @@ def runModel(earth, parameters):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
+        
+        
     lg.info('Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
 
     #plotIncomePerNetwork(earth)
