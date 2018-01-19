@@ -41,7 +41,7 @@ import math
 import copy
 import logging as lg
 from bunch import Bunch
-#%% --- ENUMERATIONS ---
+#%% --- ENUMERATIONS / CONSTANTS---
 #connections
 CON_LL = 1 # loc - loc
 CON_LH = 2 # loc - household
@@ -63,7 +63,7 @@ INNO = 3
 #mobility types
 BROWN  = 0
 GREEN  = 1
-PUPLIC = 2
+PUBLIC = 2
 SHARED  = 3
 NONE   = 4
 
