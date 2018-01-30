@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
 from bunch import Bunch
-x = np.linspace(0,60000,500)
+x = np.linspace(0,4000,500)
 sns.color_palette("Paired")
 sns.set_color_codes("dark")
 
@@ -35,7 +35,7 @@ else:
     pa.muConvB = 0.
 plt.figure(3)
 plt.clf()
-ax1 = plt.subplot(3,2,1)
+ax1 = plt.subplot(2,3,1)
 
 
 
@@ -47,17 +47,17 @@ for kappaB in np.linspace(.9,1,10):
 
     y = pa.minConvB + kappaB * (pa.maxConvB - pa.minConvB) * np.exp( - (x - pa.muConvB)**2 / (2 * pa.sigmaConvB**2) )
     plt.scatter(x,y,s=2)
-ax1.set_xlim([0, 60000])
+ax1.set_xlim([0, 4000])
 plt.legend(['combustion'])
 ax2 = ax1.twiny()
 lim = ax1.get_xlim()
-ax2.set_xlim([0, 60000])
-cityDict = {60000:'Berlin', 30000: 'Hamburg', 33000:'Hanover',  18000:'Karlsruhe', 21000: 'Desden', 7000:'Wolfsburg', 40000:'Stuttgart',58000:'Muenchen'}
+ax2.set_xlim([0, 4000])
+cityDict = {4000:'Berlin', 2000: 'Hamburg', 2200:'Hanover',  1200:'Karlsruhe', 1400: 'Desden', 450:'Wolfsburg', 2700:'Stuttgart',3900:'Muenchen'}
 ax2.set_xticks(cityDict.keys())  
 ax2.set_xticklabels(cityDict.values(),rotation=45)
 
 plt.ylim([0,1])
-ax1 = plt.subplot(3,2,2)
+ax1 = plt.subplot(2,3,2)
 
 if not loadFile:
     pa.minConvG = .1
@@ -74,12 +74,12 @@ for kappaG in np.linspace(0,1,10):
     (pa.maxConvG-pa.minConvG) * kappaG* (np.exp( - (x - pa.muConvG)**2 / (2 * pa.sigmaConvG**2) ))
     
     plt.scatter(x,y,s=2)
-ax1.set_xlim([0, 60000])
+ax1.set_xlim([0, 4000])
 plt.legend(['electric'])    
 ax2 = ax1.twiny()
 lim = ax1.get_xlim()
-ax2.set_xlim([0, 60000])
-cityDict = {60000:'Berlin', 30000: 'Hamburg', 33000:'Hanover',  18000:'Karlsruhe', 21000: 'Desden', 7000:'Wolfsburg', 40000:'Stuttgart',58000:'Muenchen'}
+ax2.set_xlim([0, 4000])
+#cityDict = {60000:'Berlin', 30000: 'Hamburg', 33000:'Hanover',  18000:'Karlsruhe', 21000: 'Desden', 7000:'Wolfsburg', 40000:'Stuttgart',58000:'Muenchen'}
 ax2.set_xticks(cityDict.keys())  
 ax2.set_xticklabels(cityDict.values(),rotation=45)
 plt.ylim([0,1])
@@ -88,7 +88,7 @@ plt.ylim([0,1])
 
 
 
-ax1 = plt.subplot(3,2,3)
+ax1 = plt.subplot(2,3,3)
 if not loadFile:
     pa.sigmaConvPInit = 20000.
     pa.muConvP = 60000.
@@ -102,12 +102,18 @@ for kappaP in np.linspace(0,1,10):
     np.exp( - (x - pa.muConvP)**2 / (2 * ((1-kappaP) * pa.sigmaConvPInit + \
                                      (kappaP * pa.sigmaConvP))**2) )
     plt.scatter(x,y,s=2)
-plt.legend(['Puplic'])    
-ax1.set_xlim([0, 60000])  
+
+plt.legend(['public transport'])    
+ax2 = ax1.twiny()
+ax1.set_xlim([0, 4000])  
 print 1
 plt.ylim([0,1])
 
-ax1 = plt.subplot(3,2,4)
+ax2.set_xticks(cityDict.keys())  
+ax2.set_xticklabels(cityDict.values(),rotation=45)
+
+
+ax1 = plt.subplot(2,3,4)
 if not loadFile:
     pa.sigmaConvSInit = 3000.
     pa.muConvS = 60000.
@@ -123,12 +129,12 @@ for kappaS in np.linspace(0,1,10):
                     np.exp( - (x - pa.muConvS)**2 / (2 * ((1-kappaS) * \
                     pa.sigmaConvSInit + (kappaS * pa.sigmaConvS))**2) )
     plt.scatter(x,y,s=2)
-plt.legend(['Shared'])    
-ax1.set_xlim([0, 60000])  
+plt.legend(['shared mobility'])    
+ax1.set_xlim([0, 4000])  
 print 1
 plt.ylim([0,1])
 
-ax1 = plt.subplot(3,2,5)
+ax1 = plt.subplot(2,3,5)
 
 if not loadFile:
     pa.sigmaConvNInit = 30000.
@@ -142,11 +148,11 @@ for kappaN in np.linspace(0,1,10):
                        (kappaN)) * np.exp( - (x - pa.muConvN)**2 / (2 * ((1-kappaN) * \
                                           pa.sigmaConvNInit + (kappaN * pa.sigmaConvN))**2) )
     plt.scatter(x,y,s=2)
-plt.legend(['None'])    
-ax1.set_xlim([0, 60000])  
+plt.legend(['none motorized'])    
+ax1.set_xlim([0, 4000])  
 print 1
 plt.ylim([0,1])
-
+asd
 #%%
 
 #x = np.linspace(0,1,100)

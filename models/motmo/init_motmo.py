@@ -1463,7 +1463,7 @@ if __name__ == '__main__':
 
 
     debug = True
-    showFigures    = 0
+    showFigures    = 1
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)

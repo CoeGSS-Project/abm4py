@@ -746,7 +746,7 @@ class Person(Agent):
         Agent.__init__(self, world, **kwProperties)
         
 
-    def isAware(self,mobNewPeriod):
+    def isAware(self, mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
         return (self._node['lastAction'] - mobNewPeriod/10.) / (mobNewPeriod)  > np.random.rand()
 
@@ -1002,16 +1002,23 @@ class Person(Agent):
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
         if np.random.rand() > .99:
-            self.imitation = np.random.choice(len(self.getValue('commUtil')))
+            self.imitation = [np.random.choice(len(self.getValue('commUtil')))]
         else:
             #peerUtil     = np.asarray(self.getPeerValues('commUtil',CON_PP)[0])
             #peerMobType  = np.asarray(self.getPeerValues('mobType',CON_PP)[0])
             #weights      = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
             
-            fitness = utilPeers * weights
-            fitness = fitness / np.sum(fitness)
+            # weight of the fitness (quality) of the memes
+            w_fitness = utilPeers / np.sum(utilPeers)
+            
+            # weight of reliability of the information (evolving over time)
+            w_reliability = weights
+
+            # combination of weights for random drawing
+            w_full = w_fitness * w_reliability 
+            w_full = w_full / np.sum(w_full)
         
-            self.imitation =  np.random.choice(mobTypePeers, 2, p=fitness)
+            self.imitation =  np.random.choice(mobTypePeers, 2, p=w_full)
         
 
     def step(self, earth):
@@ -1035,7 +1042,11 @@ class Person(Agent):
             self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
         
         self.computeCommunityUtility(earth, weights, edges, commUtilPeers) 
-        self.imitate(utilPeers, weights, mobTypePeers)
+        if self.isAware(earth.para['mobNewPeriod']):
+            self.imitate(utilPeers, weights, mobTypePeers)
+        else:
+            self.imitation = [-1]
+        
         # socialize
 #        if ESSR < 0.1 and np.random.rand() >0.99:
 #            self.socialize(world)
@@ -1514,16 +1525,23 @@ class Household(Agent):
 
 
     def householdOptimization(self, earth, actionOptions):
-        
-        if len(actionOptions) == 0:             ##OPTPRODUCTION
-            import pdb                          ##OPTPRODUCTION
-            pdb.set_trace()                     ##OPTPRODUCTION
-        
-        if len(actionOptions) > 6:
-            actorIds = np.random.choice(range(len(actionOptions)),6,replace=False)
+ 
+        #removing possible none-actions (encoded as -1)
+        try:
+            actorIds = [idx for idx, option in enumerate(actionOptions) if option[0] != -1 ]
             actionOptions = [actionOptions[idx] for idx in actorIds]
-        else:
-            actorIds = None
+        except:
+            import pdb
+            pdb.set_trace()
+
+        if len(actionOptions) == 0:
+            return None, None, None
+         
+        if len(actorIds) > 6:
+            actorIds = np.random.choice(actorIds,6,replace=False)
+            actionOptions = [actionOptions[idx] for idx in actorIds]
+#        else:
+#            actorIds = None
         combinedActionsOptions = aux.cartesian(actionOptions)
         
         #tt2 = time.time()
@@ -1563,10 +1581,11 @@ class Household(Agent):
         bestOpt, bestUtil, actorIds = self.householdOptimization(earth, bestIndividualActionsIds)
         #print 'opt: ' +str(time.time() -tt2)
         #tt3 = time.time()
-        if actorIds is None:
-            self.undoActions(earth, self.adults)
-            self.takeActions(earth, self.adults, bestOpt)
-        else:
+        
+        if actorIds is not None:
+#            self.undoActions(earth, self.adults)
+#            self.takeActions(earth, self.adults, bestOpt)
+#        else:
             self.undoActions(earth, [self.adults[idx] for idx in actorIds])
             self.takeActions(earth, [self.adults[idx] for idx in actorIds], bestOpt)
         
@@ -1783,7 +1802,7 @@ class Cell(Location):
         Two components are considered: 
             - minimal infrastructure
             - capacity use
-        Mapping to [0,1]
+        Mapping between [0,1]
         """
         
         weights       = self.getEdgeValues('weig',CON_LL)[0]
@@ -1799,26 +1818,33 @@ class Cell(Location):
             return 0.
         
         
-        
+        # part of the convenience that is related to the capacity that is used
         avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
         
         capacityUse = greenMeanCars / (avgStatPerCell * 200.)
+        
         if capacityUse > 100:
             useConv = 0
         else:
             useConv = 1 /  math.exp(capacityUse)
+        
+        # part of the convenience that is related to a minimal value of charging
+        # stations
         minRequirement = 1
+        
         if avgStatPerCell < minRequirement:
             statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .2)
         else:
             statMinRequ = 1.
         
+        # overall convenience is product og both 
         eConv = statMinRequ * useConv
 #        if self.getValue('chargStat') == 26:
 #            import pdb
 #            pdb.set_trace()
         assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
         return eConv
+
         #%%
 #        xx = range(1,1000)
 #        cap = 200. # cars per load station
