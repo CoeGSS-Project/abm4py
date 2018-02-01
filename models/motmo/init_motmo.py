@@ -104,7 +104,6 @@ sns.set_color_codes("dark")
 import pandas as pd
 from bunch import Bunch
 
-
 from scipy import signal
 
 print 'import done'
@@ -570,9 +569,122 @@ def scenarioGer(parameterInput, dirPath):
 
     return setup
 
-def scenarioChina(calibatationInput):
-    pass
+def scenarioLueneburg(parameterInput, dirPath):
+    setup = Bunch()
 
+    #general
+    setup.resourcePath = dirPath + '/resources_luen/'
+    setup.progressBar  = True
+    setup.allTypeObservations = True
+
+    #time
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUnit         = _month  # unit of time per step
+    setup.startDate        = [01, 2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+
+    #spatial
+    setup.isSpatial     = True
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
+    #setup.reductionFactor = parameterInput['reductionFactor']
+
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+
+
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    if mpiSize > 1:
+        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+    else:
+
+        setup.landLayer=  np.load(setup.resourcePath + 'land_layer.npy')
+        setup.landLayer[setup.landLayer==0] = np.nan
+        setup.landLayer = setup.landLayer * 0
+
+    lg.info('max rank:' + str(np.nanmax(setup.landLayer)))
+
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
+    setup.population = np.load(setup.resourcePath + 'population.npy')
+    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster.npy')
+    # bad bugfix for 4 cells
+    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+
+    setup.chargStat    = np.load(setup.resourcePath + 'charge_stations_2005.npy')
+
+    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_size.npy')
+    
+    # correction of ID map
+    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
+
+#    for x, y in zip(xList,yList):
+#        reList = []
+#        for dx in [-1, 0, 1]:
+#            for dy in [-1, 0, 1]:
+#                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
+#                    reList.append(setup.regionIdRaster[x+dx,y+dy])
+#        if len(np.unique(reList)) == 1:
+#            setup.regionIdRaster[x, y] = np.unique(reList)[0]
+#
+#    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
+
+
+    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
+    setup.regionIdRaster = setup.regionIdRaster.astype(int)
+
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    setup.landLayer[np.isnan(setup.population)] = np.nan
+
+
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+
+    #cars and infrastructure
+    setup.properties    = ['costs', 'emissions']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False
+
+    # redefinition of setup parameters from file
+    setup.update(parameterInput.toDict())
+
+    #setup.population = (setup.population ** .5) * 100
+    # Correciton of population depend parameter by the reduction factor
+    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+                   'population']:
+        setup[paName] /= setup['reductionFactor']
+    for p in range(0, 105, 5) :
+        print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
+    #print 'max population' + str(np.nanmax(setup.population))
+    # calculate dependent parameters
+
+
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
+
+    nAgents = np.nansum(setup.population)
+    lg.info('Running with ' + str(nAgents) + ' agents')
+
+    return setup
 
 ###############################################################################
 ###############################################################################
@@ -1463,7 +1575,7 @@ if __name__ == '__main__':
 
 
     debug = True
-    showFigures    = 1
+    showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
     outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
@@ -1595,6 +1707,15 @@ if __name__ == '__main__':
     
         if mpiRank == 0:
             parameters = scenarioGer(parameters, dirPath)
+        else:
+            parameters = None
+        parameters = comm.bcast(parameters)
+        comm.Barrier()
+    
+    if parameters.scenario == 8:
+    
+        if mpiRank == 0:
+            parameters = scenarioLueneburg(parameters, dirPath)
         else:
             parameters = None
         parameters = comm.bcast(parameters)

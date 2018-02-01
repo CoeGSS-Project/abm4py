@@ -739,6 +739,14 @@ class Market():
 
 # %% --- entity classes ---
 
+class Intrastructure():
+    """
+    
+    """
+    
+    def __init__(self):
+        pass
+    
 
 class Person(Agent):
     __slots__ = ['gID', 'nID']
