@@ -46,13 +46,13 @@ ydata = np.array(yData)
 popt, pcov = curve_fit(sigmoid, xdata, ydata,p0=[2020, .5])
 print popt
 
-x = np.linspace(2005, 2035, 31)
-y = sigmoid(x, *popt)
+xProjection = np.linspace(2005, 2035, 31)
+yProjection = sigmoid(xProjection, *popt)
 
 plt.figure('fit')
 plt.clf()
 pylab.plot(xdata, ydata, 'o', label='data')
-pylab.plot(x,y, label='fit')
+pylab.plot(xProjection, yProjection, label='fit')
 pylab.plot(2020,70000, 'x', label='Government goal')
 #pylab.ylim(0, 1.05)
 plt.title('Number electric charging spots')
@@ -82,8 +82,8 @@ plt.clim(0,np.nanpercentile(popMap**2.,99))
 plt.colorbar()
 plt.title('population')
 plt.subplot(1,3,2)
-plt.imshow(infraMap**3)
-plt.clim(0,np.nanpercentile(infraMap**3,99))
+plt.imshow(infraMap)
+plt.clim(0,np.nanpercentile(infraMap,99))
 plt.colorbar()
 plt.title('road km per cell')
 plt.subplot(1,3,3)
@@ -91,30 +91,66 @@ plt.imshow(chargeMap)
 plt.clim(0,np.nanpercentile(chargeMap,99))
 plt.colorbar()
 plt.title('charging stations')
+#%% search for best proxi
+from scipy import signal
+convMat = np.asarray([[0, 1, 0],[1, 2, 1],[0, 1, 0]])
+
+convMat = np.zeros([5,5])
+mid = int(np.floor(convMat.shape[1] / 2))
+for x in range(convMat.shape[0]):
+    for y in range(convMat.shape[0]):
+        if x == mid and y == mid:
+            continue
+        convMat[x,y] = 1./ ((mid-x)**2 + (mid-y)**2)**.5
+convMat[mid,mid] = 2        
+popMap[np.isnan(popMap)] = 0
+proxi = signal.convolve2d(popMap,convMat,boundary='symm',mode='same') / 14 / 1e2
+plt.figure('proxi')
+plt.clf()
+plt.subplot(1,2,1)
+plt.scatter(proxi.flatten(), chargeMap.flatten(),2)
+plt.subplot(1,2,2)
+plt.imshow(proxi)
+plt.clim(0,np.nanpercentile(proxi,100))
+plt.colorbar()
+plt.title('road km per cell')
+idx = ~np.isnan(chargeMap) & ~np.isnan(proxi)
+np.corrcoef(proxi[idx], chargeMap[idx])
+usageMap = proxi
 #%%
 #prop = popMap[~np.isnan(infraMap)] * infraMap[~np.isnan(infraMap)] 
 #prop = prop / np.sum(prop)
 
 
-def StatiomGrowModel(years, newStation, potentialMap, potentialFactor=2.0, hotelingFactor=2.0):
+def statiomGrowModel(years, newStation, potentialMap, usageMap, potentialFactor=2.0, hotelingFactor=2.0):
     
     nSubSteps = 12
-    maxVal = 20
+    maxVal = 10.
     extend = list(potentialMap.shape) + [len(years)]
     
     
     mapStack = np.zeros(extend)
     currMap = mapStack[:,:,0]*0
+    
+    nonNanIdx = ~np.isnan(potentialMap)
     for i, year in enumerate(years):
         
         #currMap = mapStack[:,:,i]
         newStations = newStation[i] / nSubSteps
         for substep in range(nSubSteps):
             
-            propImmi = (currMap[~np.isnan(potentialMap)]+1)
-            propImmi[propImmi> maxVal] = maxVal
+            # imition factor
+            propImmi = currMap[nonNanIdx]
+            #propImmi[propImmi> maxVal] = maxVal
 
-            propMod = (propImmi**hotelingFactor) + (potentialMap[~np.isnan(potentialMap)]**potentialFactor)
+            propMod = ((propImmi**hotelingFactor) + (potentialMap[nonNanIdx]**potentialFactor)) #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
+            
+            #dampening factor
+            factor = (usageMap[nonNanIdx] / (currMap[nonNanIdx]*15.))**4
+            factor[np.isnan(factor)] = 1
+            factor[factor > 1] = 1
+            propMod *= factor
+            
             propMod = propMod / np.sum(propMod)
             
             randIdx = np.random.choice(range(len(prop)), int(newStations), p=propMod)
@@ -122,6 +158,10 @@ def StatiomGrowModel(years, newStation, potentialMap, potentialFactor=2.0, hotel
             uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
             
             currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count   
+        nDump = np.sum(factor < 1)            
+        if nDump > 0:
+            print nDump
+            
         mapStack[:,:,i] = currMap
         
     return mapStack
@@ -139,32 +179,13 @@ errMap = np.zeros([11,15])
 for ii,potFactor in enumerate(np.linspace(.5,2.5,11)):
     for jj, hotFactor in enumerate(np.linspace(.1,4,15)):
         
-        chargMapStack = StatiomGrowModel(years, 
+        chargMapStack = statiomGrowModel(years, 
                          dyData[6:],
-                         infraMap**2,
+                         infraMap,
+                         usageMap,
                          potentialFactor=potFactor, 
                          hotelingFactor=hotFactor)
         newMap = chargMapStack[:,:,-1]
-#    newMap = infraMap *0
-#    for i, year in enumerate(range(2010,2019)):
-#        
-#        
-#        nSubSteps = 2
-#        newStations = dyData[i+6] / nSubSteps
-#        for substep in range(nSubSteps):
-#            
-#            prop1 = (newMap[~np.isnan(newMap)]+1)
-#            maxVal = 5
-#            prop1[prop1> maxVal] = maxVal
-#            propMod = (prop1**factor) * (prop**potFactor)
-#            propMod = propMod / np.sum(propMod)
-#            
-#            randIdx = np.random.choice(range(len(prop)), int(newStations), p=propMod)
-#            
-#            uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
-#            
-#            newMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count
-    
         factors.append((potFactor, hotFactor))
         absErr.append(np.nansum(np.abs(newMap - chargeMap) / float(len(xIdx))) )
         sqrErr.append(np.nansum((newMap - chargeMap)**2) / float(len(xIdx))) 
@@ -192,7 +213,7 @@ plt.colorbar()
 
 factor = factors[np.argmin(relErr)]
 print 'argmin relative error: ' + str(factor) + ' with error: ' + str(np.min(relErr))
-factor = factors[np.argmin(sqrErr)]
+factorSqr = factors[np.argmin(sqrErr)]
 print 'argmin squared error: ' + str(factor) + ' with error: ' + str(np.min(sqrErr))
 factorAbs = factors[np.argmin(absErr)]
 print 'argmin abolute error: ' + str(factorAbs) + ' with error: ' + str(np.min(absErr))
@@ -203,9 +224,10 @@ print 'argmin abolute error: ' + str(factorAbs) + ' with error: ' + str(np.min(a
 plt.figure('generative map')
 plt.clf()
 
-chargMapStack = StatiomGrowModel(years, 
+chargMapStack = statiomGrowModel(years, 
                  dyData[6:],
-                 infraMap**2,
+                 infraMap,
+                 usageMap,
                  potentialFactor=factorAbs[0], 
                  hotelingFactor=factorAbs[1])
 for i, year in enumerate(years):
@@ -221,24 +243,57 @@ for i, year in enumerate(years):
 
  
 assert np.abs(np.nansum(chargeMap) - np.nansum(newMap)) < 100
+
 plt.figure('real stations')    
 plt.clf()
-    
 
 plt.subplot(1,2,1)
 plt.imshow(chargeMap)
 plt.clim(0,np.nanpercentile(chargeMap,99))
 plt.colorbar()
 plt.title('real')
+
 plt.subplot(1,2,2)
 plt.imshow(chargMapStack[:,:,-1])
-plt.clim(0,np.nanpercentile(chargMapStack[:,:,-1],99))
+plt.clim(0,np.nanpercentile(chargeMap,99))
 plt.colorbar()
 plt.title('generated')
 
 plt.figure('scatter')
 plt.clf()
-plt.scatter(chargMapStack[:,:,-1].flatten(), newMap.flatten(), 2)
+plt.scatter(chargMapStack[:,:,-1].flatten(), chargeMap.flatten(), 2)
 plt.xlabel('real')
 plt.ylabel('generated')
     
+
+#%% future projections
+chargMapStack = statiomGrowModel(xProjection[1:], 
+                 np.diff(yProjection),
+                 infraMap**2,
+                 usageMap,
+                 potentialFactor=factorAbs[0], 
+                 hotelingFactor=factorAbs[1])
+
+for i, year in enumerate(xProjection[1:]):
+    
+    iSub = np.mod(i,9)+1
+    if  iSub == 1:
+        plt.figure('from year ' + str(year))
+        plt.clf()
+    plt.subplot(3,3,iSub)
+    plt.imshow(chargMapStack[:,:,i])
+    if np.nanpercentile(chargMapStack[:,:,i],99) > 0:
+        plt.clim(0, np.nanpercentile(chargMapStack[:,:,i],99))
+    else:
+        plt.clim(0, np.nanmax(chargMapStack[:,:,i]))
+    plt.colorbar()
+    plt.xticks([])
+    plt.yticks([])
+    plt.title(str(int(year)))
+
+plt.figure('final 2035')
+plt.clf()
+plt.imshow(chargMapStack[:,:,-1])
+plt.clim(0,np.nanpercentile(chargMapStack[:,:,-1],99))
+plt.colorbar()
+plt.title('generated charging stations 2035')           
