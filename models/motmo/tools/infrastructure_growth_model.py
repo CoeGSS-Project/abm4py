@@ -140,27 +140,30 @@ def statiomGrowModel(years, newStation, potentialMap, usageMap, potentialFactor=
         for substep in range(nSubSteps):
             
             # imition factor
-            propImmi = currMap[nonNanIdx]
-            #propImmi[propImmi> maxVal] = maxVal
-
-            propMod = ((propImmi**hotelingFactor) + (potentialMap[nonNanIdx]**potentialFactor)) #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
+            propImmi = (currMap[nonNanIdx])**hotelingFactor
+            propImmi = propImmi / np.nansum(propImmi)
+            # propImmi[propImmi> maxVal] = maxVal
+            propPot  = potentialMap[nonNanIdx]**potentialFactor
+            propPot  = propPot / np.nansum(propPot)
             
-            #dampening factor
-            factor = (usageMap[nonNanIdx] / (currMap[nonNanIdx]*15.))**4
-            factor[np.isnan(factor)] = 1
-            factor[factor > 1] = 1
-            propMod *= factor
+            # dampening factor
+            dampFac  = (usageMap[nonNanIdx] / (currMap[nonNanIdx]*5.))**4
+            dampFac[np.isnan(dampFac)] = 1
+            dampFac[dampFac > 1] = 1
             
-            propMod = propMod / np.sum(propMod)
             
-            randIdx = np.random.choice(range(len(prop)), int(newStations), p=propMod)
+            propability = (propImmi + propPot) * dampFac #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
+          
+            propability = propability / np.sum(propability)
+            
+            randIdx = np.random.choice(range(len(prop)), int(newStations), p=propability)
             
             uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
             
             currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count   
-        nDump = np.sum(factor < 1)            
-        if nDump > 0:
-            print nDump
+#        nDump = np.sum(dampFac < 1)            
+#        if nDump > 0:
+#            print nDump
             
         mapStack[:,:,i] = currMap
         
@@ -176,7 +179,7 @@ absErr = list()
 sqrErr = list()
 relErr = list()
 errMap = np.zeros([11,15])
-for ii,potFactor in enumerate(np.linspace(.5,2.5,11)):
+for ii,potFactor in enumerate(np.linspace(.1,2.5,11)):
     for jj, hotFactor in enumerate(np.linspace(.1,4,15)):
         
         chargMapStack = statiomGrowModel(years, 
@@ -196,7 +199,7 @@ plt.figure('error')
 plt.clf()
 plt.pcolormesh(errMap)
 plt.xticks(range(15), [str(x)[:4] for x in np.linspace(.1,4,15)], rotation=45)
-plt.yticks(range(11), [str(x)[:4] for x in np.linspace(.5,2.5,11)], rotation=45)
+plt.yticks(range(11), [str(x)[:4] for x in np.linspace(.1,2.5,11)], rotation=45)
 plt.colorbar() 
 #fig, ax1 = plt.subplots(num='error')
 #ax1.plot(factors,absErr, 'b-')
@@ -228,8 +231,8 @@ chargMapStack = statiomGrowModel(years,
                  dyData[6:],
                  infraMap,
                  usageMap,
-                 potentialFactor=factorAbs[0], 
-                 hotelingFactor=factorAbs[1])
+                 potentialFactor=factorSqr[0], 
+                 hotelingFactor=factorSqr[1])
 for i, year in enumerate(years):
     
     plt.subplot(3,3,i+1)
@@ -254,7 +257,9 @@ plt.colorbar()
 plt.title('real')
 
 plt.subplot(1,2,2)
-plt.imshow(chargMapStack[:,:,-1])
+tmp = chargMapStack[:,:,-1]
+tmp[np.isnan(chargeMap)] = np.nan
+plt.imshow(tmp)
 plt.clim(0,np.nanpercentile(chargeMap,99))
 plt.colorbar()
 plt.title('generated')
@@ -266,13 +271,13 @@ plt.xlabel('real')
 plt.ylabel('generated')
     
 
-#%% future projections
+    #%% future projections
 chargMapStack = statiomGrowModel(xProjection[1:], 
                  np.diff(yProjection),
-                 infraMap**2,
+                 infraMap,
                  usageMap,
-                 potentialFactor=factorAbs[0], 
-                 hotelingFactor=factorAbs[1])
+                 potentialFactor=factorSqr[0], 
+                 hotelingFactor=factorSqr[1])
 
 for i, year in enumerate(xProjection[1:]):
     
@@ -296,4 +301,23 @@ plt.clf()
 plt.imshow(chargMapStack[:,:,-1])
 plt.clim(0,np.nanpercentile(chargMapStack[:,:,-1],99))
 plt.colorbar()
-plt.title('generated charging stations 2035')           
+plt.title('generated charging stations 2035')    
+
+
+plt.figure('real stations')    
+plt.clf()
+
+plt.subplot(1,2,1)
+plt.imshow(chargeMap)
+plt.clim(0,np.nanpercentile(chargeMap,99))
+plt.colorbar()
+plt.title('real')
+
+plt.subplot(1,2,2)
+tmp = chargMapStack[:,:,12]
+tmp[np.isnan(chargeMap)] = np.nan
+plt.imshow(tmp)
+plt.clim(0,np.nanpercentile(chargeMap,99))
+plt.colorbar()
+plt.title('generated')
+              
