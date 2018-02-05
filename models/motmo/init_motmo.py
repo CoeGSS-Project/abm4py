@@ -1170,7 +1170,12 @@ def initSpatialLayer(earth):
     tmp[np.isnan(tmp)] = 0
     smoothedCellSize   = signal.convolve2d(tmp,convMat,boundary='symm',mode='same')
 
-    popDensity = smoothedPopulation / smoothedCellSize
+    
+    popDensity = np.divide(smoothedPopulation, 
+                           smoothedCellSize, 
+                           out=np.zeros_like(smoothedPopulation), 
+                           where=smoothedCellSize!=0)
+    
 
     if 'regionIdRaster' in parameters.keys():
 

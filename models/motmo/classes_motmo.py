@@ -751,19 +751,26 @@ class Infrastructure():
     """
     
     def __init__(self, earth, potMap, potFactor, immiFactor, dampFactor):
+        
+        # factor for immitation of existing charging stations
+        self.immitationFactor = immiFactor
+        #factor for dampening over-development of infrastructure
+        self.dampenFactor     = dampFactor 
+        
         self.potentialMap = potMap[earth.cellMapIds] ** potFactor# basic proxi variable for drawing new charging stations
+        # normalizing as probablity
         self.potentialMap = self.potentialMap / np.sum(self.potentialMap)
         
         # share of new stations that are build in the are of this process
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
         lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))
-        self.immitationFactor = immiFactor
-        self.dampenFactor     = dampFactor
+        
         
         self.carsPerStation = 15. # number taken from assumptions of the German government
         
         self.sigPara = 2.56141377e+02, 3.39506037e-2 # calibarted parameters
 
+    # scurve for fitting 
     @staticmethod
     def sigmoid(x, x0, k):
         y = (1. / (1. + np.exp(-k*(x-x0)))) * 1e6
@@ -771,6 +778,8 @@ class Infrastructure():
     
     def step(self, earth, nNewStations = None):
         
+        # if not given exogeneous, a fitted s-curve is used to evalulate the number
+        # of new charging stations
         if nNewStations is None:
             timeStep = earth.timeStep - earth.para['burnIn']
             nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
@@ -785,9 +794,11 @@ class Infrastructure():
         #immition factor (related to hotelings law that new competitiors tent to open at the same location)
         
         if np.sum(currNumStations) == 0:
+            # new stations are only generated based on the potential map
             propability = self.potentialMap
         else:
-            
+            # new stations are generated based on the combination of 
+            # potential, immitation and a dampening factor
             propImmi = (currNumStations)**self.immitationFactor
             propImmi = propImmi / np.nansum(propImmi)
             
@@ -797,14 +808,14 @@ class Infrastructure():
             overSupplyFactor = 3
             demand  = greenCarsPerCell * earth.para['reductionFactor'] / self.carsPerStation * overSupplyFactor
             supply  = currNumStations
-            dampFac  = (demand / supply) ** self.dampenFactor
+            dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
             dampFac[np.isnan(dampFac)] = 1
             dampFac[dampFac > 1] = 1
             
-            lg.debug('Dampening growth rate for ' + str(np.sum(dampFac < 1)) + ' cells with')##OPTPRODUCTION
-            lg.debug(str(currNumStations[dampFac < 1]))##OPTPRODUCTION
-            lg.debug('charging stations per cell - by factor of:')##OPTPRODUCTION
-            lg.debug(str(dampFac[dampFac < 1]))##OPTPRODUCTION
+            lg.debug('Dampening growth rate for ' + str(np.sum(dampFac < 1)) + ' cells with')   ##OPTPRODUCTION
+            lg.debug(str(currNumStations[dampFac < 1]))                                         ##OPTPRODUCTION
+            lg.debug('charging stations per cell - by factor of:')                              ##OPTPRODUCTION
+            lg.debug(str(dampFac[dampFac < 1]))                                                 ##OPTPRODUCTION
             
             propability = (propImmi + self.potentialMap) * dampFac #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
             propability = propability / np.sum(propability)
@@ -1000,14 +1011,12 @@ class Person(Agent):
 
         weightData[:,idxColPr[0]] = np.sum(weightData[:,idxColPr], axis=1)
 
-        nullIds  = weightData== 0
+        #nullIds  = weightData== 0
 
         #weight = inverse of distance
-        np.seterr(divide='ignore')
-        weightData = 1/weightData
-        np.seterr(divide='warn')
+        weightData = np.divide(1.,weightData, out=np.zeros_like(weightData), where=weightData!=0)
 
-        weightData[nullIds] = 0
+        #weightData[nullIds] = 0
 
         # normalization per row
         weightData[:,:3] = weightData[:,:3] / np.sum(weightData[:,:3],axis=0)
@@ -1617,8 +1626,9 @@ class Household(Agent):
             return None, None, None
          
         if len(actorIds) > 6:
-            actorIds = np.random.choice(actorIds,6,replace=False)
-            actionOptions = [actionOptions[idx] for idx in actorIds]
+            ids = np.random.choice(range(len(actorIds)),6,replace=False)
+            actionOptions = [actionOptions[idx] for idx in ids]
+            actorIds      = [actorIds[idx] for idx in ids]
 #        else:
 #            actorIds = None
         combinedActionsOptions = aux.cartesian(actionOptions)
