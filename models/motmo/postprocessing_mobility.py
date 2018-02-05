@@ -51,33 +51,34 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-plotFunc.append('plot_globalRecords')
-plotFunc.append('plot_stockAllRegions')
-plotFunc.append('scatterConVSPref')
-plotFunc.append('plot_averageCarAge')
-plotFunc.append('plot_meanESSR')
-plotFunc.append('plot_peerBubbleSize')
-plotFunc.append('plot_agePerMobType')
-plotFunc.append('plot_womanSharePerMobType')
-plotFunc.append('plot_expectUtil')
-plotFunc.append('plot_selfUtil')
-plotFunc.append('plot_carStockBarPlot')
-plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
-plotFunc.append('plot_salesProperties')
-plotFunc.append('plot_prefPerLabel')
-plotFunc.append('plot_utilPerLabel')
-plotFunc.append('plot_greenPerIncome')
-plotFunc.append('plot_incomePerLabel')
-plotFunc.append('plot_meanPrefPerLabel')
-plotFunc.append('plot_meanConsequencePerLabel')
-plotFunc.append('plot_cellMaps')
-plotFunc.append('plot_cellMovie')
-plotFunc.append('plot_carsPerCell')
-plotFunc.append('plot_greenCarsPerCell')
-plotFunc.append('plot_conveniencePerCell')
-plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+plotFunc.append('plot_ChargingStations')
+#plotFunc.append('plot_globalRecords')
+#plotFunc.append('plot_stockAllRegions')
+#plotFunc.append('scatterConVSPref')
+#plotFunc.append('plot_averageCarAge')
+#plotFunc.append('plot_meanESSR')
+#plotFunc.append('plot_peerBubbleSize')
+#plotFunc.append('plot_agePerMobType')
+#plotFunc.append('plot_womanSharePerMobType')
+#plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_selfUtil')
+#plotFunc.append('plot_carStockBarPlot')
+#plotFunc.append('plot_carSales')
+#plotFunc.append('plot_consequencePerLabel')
+#plotFunc.append('plot_salesProperties')
+#plotFunc.append('plot_prefPerLabel')
+#plotFunc.append('plot_utilPerLabel')
+#plotFunc.append('plot_greenPerIncome')
+#plotFunc.append('plot_incomePerLabel')
+#plotFunc.append('plot_meanPrefPerLabel')
+#plotFunc.append('plot_meanConsequencePerLabel')
+#plotFunc.append('plot_cellMaps')
+#plotFunc.append('plot_cellMovie')
+#plotFunc.append('plot_carsPerCell')
+#plotFunc.append('plot_greenCarsPerCell')
+#plotFunc.append('plot_conveniencePerCell')
+#plotFunc.append('plot_population')
+#plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -1234,6 +1235,53 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     #plt.suptitle('Electric cars per 1000 people')
     plt.savefig(path + 'greenCarPerCell')
 
+def plot_ChargingStations(data, propDict, parameters, enums, filters):
+
+    from matplotlib.colors import ListedColormap
+    my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
+    years = [2015, 2020, 2025, 2030] + range(2031,2036)
+    iBrand = 1
+    landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+    
+    for iCell in range(data.ce.shape[1]):
+        x = data.ceSta[iCell,propDict.ceSta['pos'][0]].astype(int)
+        y = data.ceSta[iCell,propDict.ceSta['pos'][1]].astype(int)
+        landLayer[x,y] = 1
+    
+    #plt.pcolormesh(landLayer)
+    landLayer = landLayer.astype(bool)
+    res = landLayer*1.0
+    res[res==0] = np.nan
+    fig = plt.figure(figsize=(12,8))
+    cellData = data.ce[parameters['nSteps']-1,:,propDict.ce['chargStat']]
+    bounds = [0, np.nanpercentile(cellData,98)]
+    if bounds[0] == bounds[1]:
+        bounds = [0, np.nanmax(cellData)]
+    posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
+    for i, year in enumerate (years):
+        tt = (year - 2005)*12 + nBurnIn -1
+
+
+        plt.subplot(3,3,i+1)
+
+        cellData = data.ce[tt,:,propDict.ce['chargStat']]
+        cellData[np.isinf(cellData)] = 0
+
+        print bounds
+        res[posArray[:,0],posArray[:,1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+
+        #plt.imshow(res, cmap=my_cmap)
+        plt.imshow(res)
+        plt.colorbar()
+        plt.clim(bounds)
+        plt.tight_layout()
+        if year == 2034:
+            plt.title(str(2035))
+        else:
+            plt.title(str(year))
+    #plt.suptitle('Electric cars per 1000 people')
+    plt.savefig(path + 'chargingStations')
+    
 
 def plot_conveniencePerCell(data, propDict, parameters, enums, filters):
     plt.figure()

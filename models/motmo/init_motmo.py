@@ -154,20 +154,24 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.reductionFactor = 5000
     setup.isSpatial       = True
     setup.connRadius      = 2.0     # radíus of cells that get an connection
-    setup.landLayer   = np.asarray([[1     , 1, 1 , np.nan, np.nan],
-                                    [1     , 1, 1 , np.nan, 0     ],
-                                    [np.nan, 0, 0 , 0     , 0     ]])
-    
-    setup.chargStat   = np.asarray([[0, 2, 2, 0, 0],
-                                    [0, 2, 1, 0, 0],
-                                    [0, 0, 0, 0, 0]])
 
+    
     setup.population  = np.asarray([[c, a, b, 0, 0],
                                     [c, b, d, 0, f],
                                     [0, h, i, g, e]])
-    
+
+    setup.landLayer   = (setup.population*0.) +1.
     
     setup.cellSizeMap  = setup.landLayer * 15.
+    
+    setup.roadKmPerCell   = np.asarray([[1, 5, 3, 0, 0],
+                                        [1, 4, 4, 0, 1],
+                                        [0, 1, 1, 1, 1]]) / setup.cellSizeMap
+
+
+    
+    
+    
     
     setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
     #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
@@ -251,12 +255,14 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
     
-    setup.chargStat   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
-                                    [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
-                                    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
-                                    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
-                                    [3, 4, 1, 1, 0, 1, 1, 0, 0, 0, 0 , 0, 1],
-                                    [6, 5, 2, 0, 0, 0, 1, 0, 0, 0, 0 , 1, 0]])    
+    setup.cellSizeMap  = setup.landLayer * 15.
+    
+    setup.roadKmPerCell   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
+                                        [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
+                                        [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
+                                        [2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
+                                        [3, 4, 1, 1, 2, 1, 1, 0, 0, 0, 0 , 0, 1],
+                                        [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]])     / setup.cellSizeMap
     a = 60000.
     b = 45000.
     c = 30000.
@@ -282,7 +288,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
 
-    setup.cellSizeMap  = setup.landLayer * 15.
+    
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
@@ -495,11 +501,13 @@ def scenarioGer(parameterInput, dirPath):
     # bad bugfix for 4 cells
     #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
 
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+    setup.regionIDList  = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
-    setup.chargStat    = np.load(setup.resourcePath + 'charge_stations_186x219.npy')
+    setup.cellSizeMap   = np.load(setup.resourcePath + 'cell_area_186x219.npy')
 
-    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_area_186x219.npy')
+    setup.roadKmPerCell = np.load(setup.resourcePath + 'road_km_all_new_186x219.npy') / setup.cellSizeMap
+
+    
     
     # correction of ID map
     xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
@@ -1052,6 +1060,9 @@ def initEarth(simNo,
 
     earth.market.mean = np.array([400., 300.])
     earth.market.std  = np.array([100., 50.])
+    
+
+    
     #init location memory
     earth.enums = dict()
 
@@ -1165,11 +1176,15 @@ def initSpatialLayer(earth):
 
         for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
-            cell.setValue('chargStat', parameters['chargStat'][cell._node['pos']])
+            cell.setValue('chargStat', 0)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
             
     earth.mpi.updateGhostNodes([CELL],['chargStat'])
+
+def initInfrastructure(earth):
+    # infrastructure
+    earth.initChargInfrastructure()
 
 #%% cell convenience test
 def cellTest(earth):
@@ -1691,6 +1706,8 @@ if __name__ == '__main__':
         earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
         CELL, HH, PERS = initTypes(earth,parameters)
         initSpatialLayer(earth, parameters)
+        
+        
         for cell in earth.iterEntRandom(CELL):
             cell.setValue('population', parameters.population[cell.getValue('pos')])
         #earth.view('spatial_graph.png')
@@ -1740,6 +1757,8 @@ if __name__ == '__main__':
     CELL, HH, PERS = initTypes(earth)
     
     initSpatialLayer(earth)
+    
+    initInfrastructure(earth)
     
     mobilitySetup(earth)
     

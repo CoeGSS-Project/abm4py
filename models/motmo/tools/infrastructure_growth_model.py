@@ -60,6 +60,23 @@ pylab.legend(loc='best')
 pylab.show()
 plt.savefig('nChargingOverTime.png')
 
+#%%new fit for simulation
+xdata = 1+ (np.array(xData)-2005)*12.
+popt, pcov = curve_fit(sigmoid, xdata, ydata,p0=[60., .01])
+print popt
+
+xProjection = np.linspace(0, 360, 361)
+yProjection = sigmoid(xProjection, *popt)
+
+plt.figure('fit')
+plt.clf()
+pylab.plot(xdata, ydata, 'o', label='data')
+pylab.plot(xProjection, yProjection, label='fit')
+pylab.plot(180.,70000., 'x', label='Government goal')
+#pylab.ylim(0, 1.05)
+plt.title('Number electric charging spots')
+pylab.legend(loc='best')
+pylab.show()
 #%%
 infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_all_corrected_186x219.tiff')
 infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_europe_186x219.tiff') / 1000.

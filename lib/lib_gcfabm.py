@@ -1644,20 +1644,7 @@ class World:
     def loc2glob(self, idx):
         return self._loc2glob[idx]
 
-    def getNodeData(self, propName, nodeType=None):
-        """
-        Method to retrieve all properties of all entities of one nodeType
-        """
-        nodeIdList = self.nodeDict[nodeType]
-
-        return np.asarray(self.graph.vs[nodeIdList][propName])
-
-
-    def getEdgeData(self, propName, edgeType=None):
-        """
-        Method to retrieve all properties of all entities of one edgeType
-        """
-        return self.graph.es.select(type=edgeType)[propName]
+    
 
     def getLocationDict(self):
         """
@@ -1715,6 +1702,21 @@ class World:
         elif nodeType:
             self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
 
+#    def getNodeData(self, propName, nodeType=None):
+#        """
+#        Method to retrieve all properties of all entities of one nodeType
+#        """
+#        nodeIdList = self.nodeDict[nodeType]
+#
+#        return np.asarray(self.graph.vs[nodeIdList][propName])
+
+
+    def getEdgeData(self, propName, edgeType=None):
+        """
+        Method to retrieve all properties of all entities of one edgeType
+        """
+        return self.graph.es.select(type=edgeType)[propName]
+    
   
     def getEntity(self, nodeID=None, globID=None):
         """
@@ -1743,7 +1745,9 @@ class World:
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
-        self.cellMapIdxList = list()
+        
+        # tuple of idx array of cells that correspond of the spatial input maps 
+        self.cellMapIds = np.where(rankArray == self.mpi.rank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):

@@ -147,7 +147,9 @@ class Earth(World):
         """
         self.market = Market(earth, properties, propRelDev=propRelDev, time=time, burnIn=burnIn)
 
-
+    def initChargInfrastructure(self):
+        self.chargingInfra = Infrastructure(self, self.para['roadKmPerCell'], 2.0, 4.0, 5.0)
+    
     def registerBrand(self, label, propertyTuple, convFunction, initTimeStep, slope, initialProgress, allTimeProduced):
         """
         Method to register a new Brand in the Earth and therefore in the market.
@@ -318,6 +320,10 @@ class Earth(World):
         self.syncGhosts()
         
         ttComp = time.time()
+
+        # proceed infrastructure in time
+        if self.time > self.para['burnIn']:
+            self.chargingInfra.step(self)
 
         # proceed market in time
         self.market.step(self) # Statistics are computed here
@@ -739,14 +745,79 @@ class Market():
 
 # %% --- entity classes ---
 
-class Intrastructure():
+class Infrastructure():
+    """
+    Model for the development  of the charging infrastructure.
     """
     
-    """
+    def __init__(self, earth, potMap, potFactor, immiFactor, dampFactor):
+        self.potentialMap = potMap[earth.cellMapIds] ** potFactor# basic proxi variable for drawing new charging stations
+        self.potentialMap = self.potentialMap / np.sum(self.potentialMap)
+        
+        # share of new stations that are build in the are of this process
+        self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
+        lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))
+        self.immitationFactor = immiFactor
+        self.dampenFactor     = dampFactor
+        
+        self.carsPerStation = 15. # number taken from assumptions of the German government
+        
+        self.sigPara = 2.56141377e+02, 3.39506037e-2 # calibarted parameters
+
+    @staticmethod
+    def sigmoid(x, x0, k):
+        y = (1. / (1. + np.exp(-k*(x-x0)))) * 1e6
+        return y
     
-    def __init__(self):
-        pass
-    
+    def step(self, earth, nNewStations = None):
+        
+        if nNewStations is None:
+            timeStep = earth.timeStep - earth.para['burnIn']
+            nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
+            nNewStations = int(np.diff(nNewStations) * self.shareStationsOfProcess)
+        
+        lg.debug('Adding ' + str(nNewStations) + ' new stations')##OPTPRODUCTION
+        
+        #get the current number of charging stations
+        currNumStations  = earth.getNodeValues('chargStat', nodeType=CELL)
+        greenCarsPerCell = earth.getNodeValues('carsInCell',CELL)[:,GREEN]+1.
+        
+        #immition factor (related to hotelings law that new competitiors tent to open at the same location)
+        
+        if np.sum(currNumStations) == 0:
+            propability = self.potentialMap
+        else:
+            
+            propImmi = (currNumStations)**self.immitationFactor
+            propImmi = propImmi / np.nansum(propImmi)
+            
+            
+            # dampening factor that applies for infrastructure that is not used and
+            # reduces the potential increase of charging stations
+            overSupplyFactor = 3
+            demand  = greenCarsPerCell * earth.para['reductionFactor'] / self.carsPerStation * overSupplyFactor
+            supply  = currNumStations
+            dampFac  = (demand / supply) ** self.dampenFactor
+            dampFac[np.isnan(dampFac)] = 1
+            dampFac[dampFac > 1] = 1
+            
+            lg.debug('Dampening growth rate for ' + str(np.sum(dampFac < 1)) + ' cells with')##OPTPRODUCTION
+            lg.debug(str(currNumStations[dampFac < 1]))##OPTPRODUCTION
+            lg.debug('charging stations per cell - by factor of:')##OPTPRODUCTION
+            lg.debug(str(dampFac[dampFac < 1]))##OPTPRODUCTION
+            
+            propability = (propImmi + self.potentialMap) * dampFac #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
+            propability = propability / np.sum(propability)
+            
+      
+        
+        
+        randIdx = np.random.choice(range(len(currNumStations)), int(nNewStations), p=propability)
+        
+        uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+        
+        currNumStations[uniqueRandIdx] += count   
+        earth.setNodeValues('chargStat', currNumStations, nodeType=CELL)
 
 class Person(Agent):
     __slots__ = ['gID', 'nID']
