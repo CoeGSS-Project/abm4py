@@ -743,7 +743,7 @@ class Market():
         
 
 
-# %% --- entity classes ---
+
 
 class Infrastructure():
     """
@@ -783,7 +783,8 @@ class Infrastructure():
         if nNewStations is None:
             timeStep = earth.timeStep - earth.para['burnIn']
             nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
-            nNewStations = int(np.diff(nNewStations) * self.shareStationsOfProcess)
+            nNewStations = int(np.diff(nNewStations) * self.shareStationsOfProcess / earth.para['spatialRedFactor'])
+            
         
         lg.debug('Adding ' + str(nNewStations) + ' new stations')##OPTPRODUCTION
         
@@ -808,8 +809,11 @@ class Infrastructure():
             overSupplyFactor = 3
             demand  = greenCarsPerCell * earth.para['reductionFactor'] / self.carsPerStation * overSupplyFactor
             supply  = currNumStations
-            dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
-            dampFac[np.isnan(dampFac)] = 1
+
+            #dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
+            dampFac = np.divide(demand,supply, out=np.zeros_like(demand), where=supply!=0)
+
+            #dampFac[np.isnan(dampFac)] = 1
             dampFac[dampFac > 1] = 1
             
             lg.debug('Dampening growth rate for ' + str(np.sum(dampFac < 1)) + ' cells with')   ##OPTPRODUCTION
@@ -830,6 +834,7 @@ class Infrastructure():
         currNumStations[uniqueRandIdx] += count   
         earth.setNodeValues('chargStat', currNumStations, nodeType=CELL)
 
+# %% --- entity classes ---
 class Person(Agent):
     __slots__ = ['gID', 'nID']
     def __init__(self, world, **kwProperties):
@@ -1015,7 +1020,7 @@ class Person(Agent):
 
         #weight = inverse of distance
         weightData = np.divide(1.,weightData, out=np.zeros_like(weightData), where=weightData!=0)
-
+        #weightData = 1./weightData
         #weightData[nullIds] = 0
 
         # normalization per row

@@ -95,7 +95,7 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-
+import logging as lg
 import matplotlib.pylab as plt
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
@@ -153,6 +153,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #spatial
     setup.reductionFactor = 5000
     setup.isSpatial       = True
+    setup.spatialRedFactor = 280.
+    
     setup.connRadius      = 2.0     # radíus of cells that get an connection
 
     
@@ -247,6 +249,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     #spatial
     setup.isSpatial         = True
+    setup.spatialRedFactor = 80.
     
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1 , 1, 1],
                                     [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 , 1, 0],
@@ -475,6 +478,7 @@ def scenarioGer(parameterInput, dirPath):
 
     #spatial
     setup.isSpatial     = True
+    setup.spatialRedFactor = 1.
     #setup.connRadius    = 3.5      # radíus of cells that get an connection
     #setup.reductionFactor = parameterInput['reductionFactor']
 
@@ -577,7 +581,7 @@ def scenarioGer(parameterInput, dirPath):
 
     return setup
 
-def scenarioLueneburg(parameterInput, dirPath):
+def (parameterInput, dirPath):
     setup = Bunch()
 
     #general
@@ -594,6 +598,7 @@ def scenarioLueneburg(parameterInput, dirPath):
 
     #spatial
     setup.isSpatial     = True
+    setup.spatialRedFactor = 350.
     #setup.connRadius    = 3.5      # radíus of cells that get an connection
     #setup.reductionFactor = parameterInput['reductionFactor']
 
@@ -622,9 +627,11 @@ def scenarioLueneburg(parameterInput, dirPath):
 
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
-    setup.chargStat    = np.load(setup.resourcePath + 'charge_stations_2005.npy')
-
     setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_size.npy')
+
+    setup.roadKmPerCell    = np.load(setup.resourcePath + 'road_km_per_cell.npy') / setup.cellSizeMap
+
+    
     
     # correction of ID map
     xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
@@ -1640,108 +1647,21 @@ if __name__ == '__main__':
     parameters['outPath'] = outputPath
     
     
+    scenarioDict = dict()
     
-    if parameters.scenario == 0:
-    
-        if mpiRank == 0:
-            parameters = scenarioTestSmall(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 1:
-    
-        if mpiRank == 0:
-            parameters = scenarioTestMedium(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 2:
-    
-        if mpiRank == 0:
-            parameters = scenarioNiedersachsen(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 3:
-    
-        if mpiRank == 0:
-            parameters = scenarioNBH(parameters, dirPath)
-        else:
-            parameters = None
-        
-        # exchange of the parameters between processes
-        parameters = comm.bcast(parameters)
+    scenarioDict[0] = scenarioTestSmall
+    scenarioDict[1] = scenarioTestMedium
+    scenarioDict[2] = scenarioLueneburg
+    scenarioDict[3] = scenarioNBH
+    scenarioDict[6] = scenarioGer
     
     
-    if parameters.scenario == 4:
-        # test scenario
-    
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestMedium(parameters, dirPath)
-        parameters.showFigures = showFigures
-        earth = initEarth(parameters)
-        mobilitySetup(earth, parameters)
-        earth = setupHouseholdsWithOptimalChoice()
-    
-    
-    #%% Scenario graph NBH
-    if parameters.scenario == 5: #graph partition NBH
-        parameters = scenarioNBH(parameters, dirPath)
-    
-        parameters.landLayer = parameters.landLayer * 0
-        parameters.showFigures = showFigures
-        earth = initEarth(999, 'output/',parameters, maxNodes=1000000, debug =True)
-        CELL, HH, PERS = initTypes(earth,parameters)
-        initSpatialLayer(earth, parameters)
-        for cell in earth.iterEntRandom(CELL):
-            cell.setValue('population',parameters.population[cell.node['pos']])
-        #earth.view('spatial_graph.png')
-        aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
-    
-        exit()
-    #%% Scenario graph ger
-    if parameters.scenario == 6: #graph partition NBH
-        parameters = scenarioGer(parameters, dirPath)
-        parameters.landLayer = parameters.landLayer * 0
-        parameters.showFigures = showFigures
-        #parameters.addYourself   = False
-        earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
-        CELL, HH, PERS = initTypes(earth,parameters)
-        initSpatialLayer(earth, parameters)
-        
-        
-        for cell in earth.iterEntRandom(CELL):
-            cell.setValue('population', parameters.population[cell.getValue('pos')])
-        #earth.view('spatial_graph.png')
-    
-        earth.graph.add_edge(995,2057)
-        earth.graph.add_edge(2057,995)
-        earth.graph.add_edge(1310,810)
-        earth.graph.add_edge(810,1310)
-        aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
-    
-        exit()
-    
-    if parameters.scenario == 7:
-    
-        if mpiRank == 0:
-            parameters = scenarioGer(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-        comm.Barrier()
-    
-    if parameters.scenario == 8:
-    
-        if mpiRank == 0:
-            parameters = scenarioLueneburg(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-        comm.Barrier()
+    if mpiRank == 0:
+        parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
+    else:
+        parameters = None
+    parameters = comm.bcast(parameters)
+    comm.Barrier()
     
     if mpiRank == 0:
         print'Parameter exchange done'
