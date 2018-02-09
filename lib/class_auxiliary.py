@@ -29,6 +29,7 @@ import itertools
 import pandas as pd
 import seaborn as sns
 import pickle
+from numba import jit
 
 #import sys
 #from numbers import Number
@@ -139,7 +140,15 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         return dirPath
 
-def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
+@jit
+def weightingFunc(x,y):
+    return 1./((x**2. +y**2.)**.5)
+
+@jit
+def distance(x,y):
+    return (x**2. +y**2.)**.5
+
+def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2):
     """
     Method for easy computing a connections list of regular grids
     """
@@ -148,13 +157,14 @@ def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)
     intRad = int(radius)
     for x in range(-intRad,intRad+1):
         for y in range(-intRad,intRad+1):
-            if (x**2 +y**2)**.5 <= radius:
+            if distance(x,y) <= radius:
                 if x**2 +y**2 > 0:
                     weig  = weightingFunc(x,y)
                 else:
                     weig = ownWeight
                 connList.append((x,y,weig))
     return connList
+
 
 def cartesian(arrays, out=None):
     """

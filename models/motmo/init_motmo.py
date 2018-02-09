@@ -1094,17 +1094,17 @@ def householdSetup(earth, calibration=False):
                 
                 
                 pers = Person(earth,
-                              preferences = prefTuple,
+                              preferences = np.asarray(prefTuple),
                               hhID        = hh.gID,
                               gender      = genders[iPers],
                               age         = ages[iPers],
                               nJourneys   = nJourneysPerPerson[iPers],
                               util        = 0.,
-                              commUtil    = [0.5, 0.1, 0.4, 0.3, 0.1], # [0.5]*parameters['nMobTypes'],
-                              selfUtil    = [np.nan]*parameters['nMobTypes'],
+                              commUtil    = np.asarray([0.5, 0.1, 0.4, 0.3, 0.1]), # [0.5]*parameters['nMobTypes'],
+                              selfUtil    = np.asarray([np.nan]*parameters['nMobTypes']),
                               mobType     = 0,
-                              prop        = [0.]*len(parameters['properties']),
-                              consequences= [0.]*len(prefTuple),
+                              prop        = np.asarray([0.]*len(parameters['properties'])),
+                              consequences= np.asarray([0.]*len(prefTuple)),
                               lastAction  = 0)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])

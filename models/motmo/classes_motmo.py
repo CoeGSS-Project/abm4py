@@ -69,8 +69,27 @@ NONE   = 4
 
 
 #%% --- Global classes ---
+from numba import jit
 
+@jit("f8 (f8[:], f8[:])",nopython=True)
+def cobbDouglasUtilNumba(x, alpha):
+    utility = 1.
+    
+    for i in xrange(len(x)):
+        utility = utility * (100.*x[i])**alpha[i] 
+    #if np.isnan(utility) or np.isinf(utility):  ##DEEP_DEBUG
+    #    import pdb                              ##DEEP_DEBUG
+    #    pdb.set_trace()                         ##DEEP_DEBUG
 
+    # assert the limit of utility
+    #assert utility > 0 and utility <= factor     ##DEEP_DEBUG
+
+    return utility / 100.
+
+@jit("f8[:] (f8[:])",nopython=True)
+def normalize(array):
+    return  array / np.sum(array)
+    
 class Earth(World):
 
     def __init__(self,
@@ -760,7 +779,7 @@ class Infrastructure():
         self.potentialMap = potMap[earth.cellMapIds] ** potFactor# basic proxi variable for drawing new charging stations
         # normalizing as probablity
         self.potentialMap = self.potentialMap / np.sum(self.potentialMap)
-        
+        self.potentialMap = normalize(self.potentialMap)
         # share of new stations that are build in the are of this process
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
         lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))
@@ -811,7 +830,7 @@ class Infrastructure():
             supply  = currNumStations
 
             #dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
-            dampFac = np.divide(demand,supply, out=np.zeros_like(demand)+1, where=supply!=0)
+            dampFac = np.divide(demand,supply, out=np.ones_like(demand), where=supply!=0)
 
             #dampFac[np.isnan(dampFac)] = 1
             dampFac[dampFac > 1] = 1
@@ -854,29 +873,34 @@ class Person(Agent):
         self.hh = parentEntity
         self.hh.addAdult(self)
 
-
+    
     def weightFriendExperience(self, world, commUtilPeers, edges, weights):
         friendUtil = commUtilPeers[:,self._node['mobType']]
         ownUtil  = self.getValue('util')
         
         diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
-        prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
-        prop = prop / np.sum(prop)
+        prop = normalize(np.exp(-(diff**2) / (2* world.para['utilObsError']**2)))
+        #prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
+        #prop = prop / np.sum(prop)
 
-        prior = weights
-        prior = prior / np.sum(prior)
+#        prior = weights
+#        prior = prior / np.sum(prior)
+        prior = normalize(weights)
+        
         assert not any(np.isnan(prior)) ##OPTPRODUCTION
 
 
         # TODO - re-think how to avoide
         try:
-            post = prior * prop
+            #post = prior * prop
+            post = normalize(prior * prop)
         except:
             import pdb
             pdb.set_trace()
 
 
-        post = post / np.sum(post)
+        #post = post / np.sum(post)
+        
         
         if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
             if np.sum(post) > 0:
@@ -898,7 +922,7 @@ class Person(Agent):
             lg.debug('friendUtil values:')
             lg.debug([value for value in friendUtil])
 
-            return weights, self._node['ESSR']
+            #return weights, self._node['ESSR']
 
 
     def socialize(self, world):
@@ -1108,9 +1132,9 @@ class Person(Agent):
             w_reliability = weights
 
             # combination of weights for random drawing
-            w_full = w_fitness * w_reliability 
-            w_full = w_full / np.sum(w_full)
-        
+#            w_full = w_fitness * w_reliability 
+#            w_full = w_full / np.sum(w_full)
+            w_full = normalize(w_fitness * w_reliability)    
             self.imitation =  np.random.choice(mobTypePeers, 2, p=w_full)
         
 
@@ -1125,7 +1149,7 @@ class Person(Agent):
         
         if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
             # weight friends
-            weights, ESSR = self.weightFriendExperience(earth, commUtilPeers, edges, weights)
+            self.weightFriendExperience(earth, commUtilPeers, edges, weights)
 
             # compute similarity
             #weights = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
@@ -1184,7 +1208,7 @@ class Household(Agent):
 
 
         if world.para['util'] == 'cobb':
-            self.utilFunc = self.cobbDouglasUtil
+            self.utilFunc = cobbDouglasUtilNumba
         elif world.getParamerter('util') == 'ces':
             self.utilFunc = self.CESUtil
         self.computeTime = 0
@@ -1204,10 +1228,11 @@ class Household(Agent):
         #assert utility > 0 and utility <= factor     ##DEEP_DEBUG
 
         return utility / 100.
+
     
     @staticmethod
     def cobbDouglasUtilArray(x, alpha):
-        utility = 1.
+        #utility = 1.
         
         
         utility = np.sum((100. * x) ** alpha) / 100.
@@ -1224,7 +1249,7 @@ class Household(Agent):
         s = 2.    # elasticity of substitution, has to be float!
         factor = 100.
         for i in xrange(len(x)):
-            uti += (alpha[i]*(100. * x[i])**(s-1))**(1/s)
+            uti += (alpha[i]*(factor * x[i])**(s-1))**(1/s)
             #print uti
         utility = uti**(s/(s-1))
         #if  np.isnan(utility) or np.isinf(utility): ##DEEP_DEBUG
@@ -1234,7 +1259,7 @@ class Household(Agent):
         # assert the limit of utility
         #assert utility > 0 and utility <= factor ##DEEP_DEBUG
 
-        return utility / 100.
+        return utility / factor
 
 
     #def registerAtLocation(self, world,x,y, nodeType, edgeType):
@@ -1465,7 +1490,7 @@ class Household(Agent):
                     pdb.set_trace()                                           ##DEEPDEBUG  
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
-            adult.setValue('consequences', [convenience, ecology, money, innovation])
+            adult.setValue('consequences', np.asarray([convenience, ecology, money, innovation]))
 
 
     def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):
@@ -1606,8 +1631,9 @@ class Household(Agent):
         return actors, actions, overallUtil[bestActionIdx]
 
     def propUtilChoice(self, combActions, overallUtil):
-        weig = np.asarray(overallUtil) - np.min(np.asarray(overallUtil))
-        weig =weig / np.sum(weig)
+#        weig = np.asarray(overallUtil) - np.min(np.asarray(overallUtil))
+#        weig =weig / np.sum(weig)
+        weig = normalize(np.asarray(overallUtil) - np.min(np.asarray(overallUtil)))
         propActionIdx = np.random.choice(range(len(weig)), p=weig)
         actions = combActions[propActionIdx]
         # return persons that buy a new car (action is not -1)
