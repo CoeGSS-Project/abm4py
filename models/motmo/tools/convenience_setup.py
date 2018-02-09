@@ -6,7 +6,7 @@ Created on Thu Nov  9 09:12:38 2017
 @author: gcf
 """
 import sys
-sys.path.append('../../../lib')
+sys.path.append('../../../lib/')
 import class_auxiliary as aux
 import numpy as np
 import matplotlib.pyplot as plt

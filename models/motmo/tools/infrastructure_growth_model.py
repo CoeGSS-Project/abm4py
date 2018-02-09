@@ -78,8 +78,8 @@ plt.title('Number electric charging spots')
 pylab.legend(loc='best')
 pylab.show()
 #%%
-infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_all_corrected_186x219.tiff')
-infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_europe_186x219.tiff') / 1000.
+infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_per_cell_186x219.tiff')
+#infraMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/road_km_europe_186x219.tiff') / 1000.
 popMap = gt.load_array_from_tiff('/home/gcf/model_box/cars/resources_ger/pop_counts_ww_2005_186x219.tiff')
 newMap = infraMap *0
 infraMap[np.isnan(chargeMap)] = np.nan
@@ -139,9 +139,9 @@ usageMap = proxi
 #prop = prop / np.sum(prop)
 
 
-def statiomGrowModel(years, newStation, potentialMap, usageMap, potentialFactor=2.0, hotelingFactor=2.0):
+def statiomGrowModel(years, newStation, potentialMap, usageMap, nSubSteps=12, potentialFactor=2.0, hotelingFactor=2.0):
     
-    nSubSteps = 12
+    #nSubSteps = 12
     maxVal = 10.
     extend = list(potentialMap.shape) + [len(years)]
     
@@ -168,16 +168,40 @@ def statiomGrowModel(years, newStation, potentialMap, usageMap, potentialFactor=
             dampFac[np.isnan(dampFac)] = 1
             dampFac[dampFac > 1] = 1
             
+            #old
+#            propability = (propImmi + propPot) * dampFac #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
+#          
+#            propability = propability / np.sum(propability)
+#            
+#            randIdx = np.random.choice(range(len(prop)), int(newStations), p=propability)
+#            
+#            uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+#            
+#            currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count   
+            #new
+            dampFac  = (usageMap[nonNanIdx] / (currMap[nonNanIdx]*5.))**4
+            dampFac[np.isnan(dampFac)] = 1
+            dampFac[dampFac > 1] = 1
             
-            propability = (propImmi + propPot) * dampFac #* (usageMap[nonNanIdx] / currMap[nonNanIdx]*14.)**2
-          
-            propability = propability / np.sum(propability)
+            if np.sum(currMap[nonNanIdx]) > 0:
+                propability = propImmi * dampFac
+                propability = propability / np.sum(propability)
+                randIdx = np.random.choice(range(len(prop)), int(newStations/2), p=propability)
+                uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+                currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count   
             
-            randIdx = np.random.choice(range(len(prop)), int(newStations), p=propability)
+                propability = propPot * dampFac
+                propability = propability / np.sum(propability)
+                randIdx = np.random.choice(range(len(prop)), int(newStations/2), p=propability)
+                uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+                currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count
+            else:
+                propability = propPot 
+                propability = propability / np.sum(propability)
+                randIdx = np.random.choice(range(len(prop)), int(newStations), p=propability)
+                uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+                currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count
             
-            uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
-            
-            currMap[xIdx[uniqueRandIdx], yIdx[uniqueRandIdx]] += count   
 #        nDump = np.sum(dampFac < 1)            
 #        if nDump > 0:
 #            print nDump
@@ -197,7 +221,7 @@ sqrErr = list()
 relErr = list()
 errMap = np.zeros([11,15])
 for ii,potFactor in enumerate(np.linspace(.1,2.5,11)):
-    for jj, hotFactor in enumerate(np.linspace(.1,4,15)):
+    for jj, hotFactor in enumerate(np.linspace(.1,2.,15)):
         
         chargMapStack = statiomGrowModel(years, 
                          dyData[6:],
@@ -215,7 +239,7 @@ for ii,potFactor in enumerate(np.linspace(.1,2.5,11)):
 plt.figure('error')   
 plt.clf()
 plt.pcolormesh(errMap)
-plt.xticks(range(15), [str(x)[:4] for x in np.linspace(.1,4,15)], rotation=45)
+plt.xticks(range(15), [str(x)[:4] for x in np.linspace(.1,2,15)], rotation=45)
 plt.yticks(range(11), [str(x)[:4] for x in np.linspace(.1,2.5,11)], rotation=45)
 plt.colorbar() 
 #fig, ax1 = plt.subplots(num='error')
@@ -234,7 +258,7 @@ plt.colorbar()
 factor = factors[np.argmin(relErr)]
 print 'argmin relative error: ' + str(factor) + ' with error: ' + str(np.min(relErr))
 factorSqr = factors[np.argmin(sqrErr)]
-print 'argmin squared error: ' + str(factor) + ' with error: ' + str(np.min(sqrErr))
+print 'argmin squared error: ' + str(factorSqr) + ' with error: ' + str(np.min(sqrErr))
 factorAbs = factors[np.argmin(absErr)]
 print 'argmin abolute error: ' + str(factorAbs) + ' with error: ' + str(np.min(absErr))
 #%%
@@ -288,7 +312,7 @@ plt.xlabel('real')
 plt.ylabel('generated')
     
 
-    #%% future projections
+#%% future projections
 chargMapStack = statiomGrowModel(xProjection[1:], 
                  np.diff(yProjection),
                  infraMap,

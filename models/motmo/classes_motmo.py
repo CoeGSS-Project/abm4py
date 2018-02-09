@@ -811,7 +811,7 @@ class Infrastructure():
             supply  = currNumStations
 
             #dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
-            dampFac = np.divide(demand,supply, out=np.zeros_like(demand), where=supply!=0)
+            dampFac = np.divide(demand,supply, out=np.zeros_like(demand)+1, where=supply!=0)
 
             #dampFac[np.isnan(dampFac)] = 1
             dampFac[dampFac > 1] = 1
@@ -1094,15 +1094,15 @@ class Person(Agent):
 
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
-        if np.random.rand() > .99:
+        if np.random.rand() > .98:
             self.imitation = [np.random.choice(len(self.getValue('commUtil')))]
         else:
-            #peerUtil     = np.asarray(self.getPeerValues('commUtil',CON_PP)[0])
-            #peerMobType  = np.asarray(self.getPeerValues('mobType',CON_PP)[0])
-            #weights      = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
-            
+
             # weight of the fitness (quality) of the memes
-            w_fitness = utilPeers / np.sum(utilPeers)
+            if np.sum(utilPeers) > 0:
+                w_fitness = utilPeers / np.sum(utilPeers)
+            else:
+                w_fitness = np.zeros_like(utilPeers) / len(utilPeers)
             
             # weight of reliability of the information (evolving over time)
             w_reliability = weights
@@ -1129,12 +1129,13 @@ class Person(Agent):
 
             # compute similarity
             #weights = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
-            preferences = np.asarray(self.getPeerValues('preferences',CON_PP)[0])
+            #preferences = np.asarray(self.getPeerValues('preferences',CON_PP)[0])
 
-            average = np.average(preferences, axis= 0, weights=weights)
-            self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
+            #average = np.average(preferences, axis= 0, weights=weights)
+            #self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
         
         self.computeCommunityUtility(earth, weights, edges, commUtilPeers) 
+        
         if self.isAware(earth.para['mobNewPeriod']):
             self.imitate(utilPeers, weights, mobTypePeers)
         else:
@@ -1885,9 +1886,61 @@ class Cell(Location):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
         #convenience of electric mobility is additionally dependen on the infrastructure
-        convAll[GREEN] *= self.electricInfrastructure()
+        convAll[GREEN] *= self.electricInfrastructure2()
         return convAll
 
+    def electricInfrastructure2(self, greenMeanCars = None):
+        """ 
+        Method for a more detailed estimation of the convenience of 
+        electric intrastructure.
+        Two components are considered: 
+            - minimal infrastructure
+            - capacity use
+        Mapping between [0,1]
+        """
+        
+        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
+        #print nStation
+        if np.sum(nStation) == 0:
+            return 0.
+        
+        weights       = np.asarray(self.getEdgeValues('weig',CON_LL)[0])
+        
+        if greenMeanCars is None:
+            
+            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
+            greenMeanCars = np.sum(carsInCells[:,GREEN]*weights)    
+        
+
+        
+        
+        # part of the convenience that is related to the capacity that is used
+        avgStatPerCell = np.sum(nStation *  weights)
+        
+        capacityUse = greenMeanCars / (avgStatPerCell * 200.)
+        
+        if capacityUse > 100:
+            useConv = 0.
+        else:
+            useConv = 1. /  math.exp(capacityUse)
+        
+        # part of the convenience that is related to a minimal value of charging
+        # stations
+        minRequirement = 1.
+        
+        if avgStatPerCell < minRequirement:
+            statMinRequ = 1. / math.exp((1.-avgStatPerCell)**2 / .2)
+        else:
+            statMinRequ = 1.
+        
+        # overall convenience is product og both 
+        eConv = statMinRequ * useConv
+#        if self.getValue('chargStat') == 26:
+#            import pdb
+#            pdb.set_trace()
+        assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
+        return eConv
+    
 
     def electricInfrastructure(self, greenMeanCars = None):
         """ 
