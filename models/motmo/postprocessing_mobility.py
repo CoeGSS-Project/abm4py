@@ -51,35 +51,36 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-plotFunc.append('plot_ChargingStations')
-plotFunc.append('plot_GreenConvenienceOverTime')
-plotFunc.append('plot_globalRecords')
-plotFunc.append('plot_stockAllRegions')
-plotFunc.append('scatterConVSPref')
-plotFunc.append('plot_averageCarAge')
-plotFunc.append('plot_meanESSR')
-plotFunc.append('plot_peerBubbleSize')
-plotFunc.append('plot_agePerMobType')
-plotFunc.append('plot_womanSharePerMobType')
-plotFunc.append('plot_expectUtil')
-plotFunc.append('plot_selfUtil')
-plotFunc.append('plot_carStockBarPlot')
-plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
-plotFunc.append('plot_salesProperties')
-plotFunc.append('plot_prefPerLabel')
-plotFunc.append('plot_utilPerLabel')
-plotFunc.append('plot_greenPerIncome')
-plotFunc.append('plot_incomePerLabel')
-plotFunc.append('plot_meanPrefPerLabel')
-plotFunc.append('plot_meanConsequencePerLabel')
-plotFunc.append('plot_cellMaps')
-plotFunc.append('plot_cellMovie')
-plotFunc.append('plot_carsPerCell')
-plotFunc.append('plot_greenCarsPerCell')
-plotFunc.append('plot_conveniencePerCell')
-plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+#plotFunc.append('plot_ChargingStations')
+#plotFunc.append('plot_GreenConvenienceOverTime')
+#plotFunc.append('plot_globalRecords')
+#plotFunc.append('plot_stockAllRegions')
+#plotFunc.append('scatterConVSPref')
+#plotFunc.append('plot_averageCarAge')
+#plotFunc.append('plot_meanESSR')
+#plotFunc.append('plot_peerBubbleSize')
+#plotFunc.append('plot_agePerMobType')
+#plotFunc.append('plot_womanSharePerMobType')
+#plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_selfUtil')
+#plotFunc.append('plot_carStockBarPlot')
+#plotFunc.append('plot_carSales')
+#plotFunc.append('plot_consequencePerLabel')
+#plotFunc.append('plot_salesProperties')
+#plotFunc.append('plot_prefPerLabel')
+#plotFunc.append('plot_utilPerLabel')
+#plotFunc.append('plot_greenPerIncome')
+plotFunc.append('plot_averageIncomePerCell')
+#plotFunc.append('plot_incomePerLabel')
+#plotFunc.append('plot_meanPrefPerLabel')
+#plotFunc.append('plot_meanConsequencePerLabel')
+#plotFunc.append('plot_cellMaps')
+#plotFunc.append('plot_cellMovie')
+#plotFunc.append('plot_carsPerCell')
+#plotFunc.append('plot_greenCarsPerCell')
+#plotFunc.append('plot_conveniencePerCell')
+#plotFunc.append('plot_population')
+#plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -150,9 +151,12 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
         dataPath = '/' + str(nodeType)
         
         staPropDict = dict()
-        for prop in h5file.get_node_attr(dataPath, 'staticProps'):
-            try: staPropDict[prop] = h5file.get_node_attr(dataPath, prop); 
-            except: pass
+        properties = h5file.get_node_attr(dataPath, 'staticProps')
+        for prop in properties:
+            try: 
+                staPropDict[prop] = h5file.get_node_attr(dataPath, prop); 
+            except: 
+                print "error loading: " + prop
 
         dynPropDict = dict()
         for prop in h5file.get_node_attr(dataPath, 'dynamicProps'):
@@ -804,8 +808,27 @@ def plot_greenPerIncome(data, propDict, parameters, enums, filters):
     plt.tight_layout()
     plt.savefig(path + 'greenPerIncomeClass')
 
-def plot_incomePerLabel(data, propDict, parameters, enums, filters):
 
+def plot_averageIncomePerCell(data, propDict, parameters, enums, filters):
+    step = 0
+    income = data.hh[step,:,propDict.hh['income'][0]]
+    positions = data.hhSta[:,propDict.hhSta['pos']].astype(int)
+    incomeMap  = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+    
+    #uniquePos, test = np.unique(positions,axis=0, return_inverse=1)
+    for i, pos in enumerate(positions):
+        incomeMap[pos[0], pos[1]] += income[i]
+    #print 1
+    plt.figure()
+    plt.imshow(incomeMap)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(path + 'averageIncome')
+    
+def plot_incomePerLabel(data, propDict, parameters, enums, filters):
+    
+    
+    
 
     res = np.zeros([parameters['nSteps'],4])
     std = np.zeros([parameters['nSteps'],4])
@@ -970,7 +993,7 @@ def plot_cellMaps(data, propDict, parameters, enums, filters):
     plt.plot(meanCon)
     plt.legend(enums['brandTitles'].values())
     plt.title('convenience, mean over cells')
-    plt.savefig(path + 'conveniencePerCell')
+    plt.savefig(path + 'convenienceOverTime')
 
 def plot_cellMovie(data, propDict, parameters, enums, filters):
     from matplotlib.colors import ListedColormap
@@ -1268,9 +1291,11 @@ def plot_ChargingStations(data, propDict, parameters, enums, filters):
         cellData = data.ce[tt,:,propDict.ce['chargStat']]
         cellData[np.isinf(cellData)] = 0
 
-        print bounds
+        bounds = [0, np.nanpercentile(cellData,100)]
+        if bounds[0] == bounds[1]:
+            bounds = [0, np.nanmax(cellData)]
         res[posArray[:,0],posArray[:,1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
-
+        
         #plt.imshow(res, cmap=my_cmap)
         plt.imshow(res)
         plt.colorbar()

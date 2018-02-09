@@ -69,25 +69,15 @@ sys.excepthook = mpi_excepthook
 
 from mpi4py import MPI
 import h5py
-
-#from os.path import expanduser
-#home = expanduser("~")
-#import os
-#dir_path = os.path.dirname(os.path.realpath(__file__))
 import logging as lg
 import sys
-#import socket
-
-#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-
-#import tqdm
 import igraph as ig
 import numpy as np
 import time
 from bunch import Bunch
 from class_graph import WorldGraph
+
+ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 class Queue():
 
@@ -842,7 +832,7 @@ class World:
             assert statType in ['mean', 'std','var']    ##OPTPRODUCTION
 
 
-            if not isinstance(values, (list, tuple,np.ndarray)):
+            if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
                 values = [values]
             values = np.asarray(values)
 
@@ -1099,8 +1089,8 @@ class World:
                     entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
                     if not isinstance(entProp,str):
 
-
-                        if isinstance(entProp,(list,tuple)):
+                        #todo - check why not np.array allowed
+                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[staticRec.ag2FileIdx[0]][attr])
                         else:
@@ -1131,7 +1121,7 @@ class World:
                     if not isinstance(entProp,str):
 
 
-                        if isinstance(entProp,(list,tuple)):
+                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
                         else:

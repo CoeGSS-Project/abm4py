@@ -540,6 +540,8 @@ def scenarioGer(parameterInput, dirPath):
             plt.colorbar()
         except:
             pass
+    print setup.landLayer.shape
+    print setup.population.shape    
     setup.landLayer[np.isnan(setup.population)] = np.nan
 
 
@@ -926,6 +928,16 @@ def mobilitySetup(earth):
     ##############################################################################
 
 def householdSetup(earth, calibration=False):
+    
+    #enumerations for h5File - second dimension
+    H5NPERS  = 0
+    H5AGE = 1
+    H5GENDER = 2
+    H5INCOME = 3
+    H5HHTYPE = 4
+    H5MOBDEM = [6,7,8,9]
+    
+    
     parameters = earth.getParameter()
     tt = time.time()
     parameters['population'] = np.ceil(parameters['population'])
@@ -964,7 +976,7 @@ def householdSetup(earth, calibration=False):
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
         # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
-        h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + '.hdf5', 'r')
+        h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + 'new.hdf5', 'r')
     mpi.Barrier()
 
     for i, region in enumerate(regionIdxList):
@@ -997,10 +1009,10 @@ def householdSetup(earth, calibration=False):
         idx = 0
         # find the correct possition in file
         nPers = int(hhData[i][idx, 0])
-        if np.sum(np.diff(hhData[i][idx:idx+nPers, 0])) !=0:
+        if np.sum(np.diff(hhData[i][idx:idx+nPers, H5NPERS])) !=0:
 
             #new index for start of a complete household
-            idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers, 0]) != 0)[0][0]
+            idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers, H5NPERS]) != 0)[0][0]
         currIdx[i] = int(idx)
 
 
@@ -1024,10 +1036,10 @@ def householdSetup(earth, calibration=False):
 
         while 1:
             successFlag = False
-            nPers   = int(hhData[regionIdx][currIdx[regionIdx], 0])
+            nPers   = int(hhData[regionIdx][currIdx[regionIdx], H5NPERS])
             #print nPers,'-',nAgents
-            ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 1])
-            genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 2])
+            ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5AGE])
+            genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5GENDER])
             
             nAdults = np.sum(np.asarray(ages)>= 18)
             nKids = np.sum(np.asarray(ages) < 18)
@@ -1042,13 +1054,15 @@ def householdSetup(earth, calibration=False):
                 print 'asked size: ' + str(currIdx[regionIdx] + nPers)
                 print 'hhDate shape: ' + str(hhData[regionIdx].shape)
 
-            income = hhData[regionIdx][currIdx[regionIdx], 3]
+            income = hhData[regionIdx][currIdx[regionIdx], H5INCOME]
 
             # set minimal income
             income = max(400., income)
             income *= parameters['mobIncomeShare']
 
-            
+
+            nJourneysPerPerson = hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5MOBDEM]
+
 
             # creating houshold
             hh = Household(earth,
@@ -1084,14 +1098,14 @@ def householdSetup(earth, calibration=False):
                               hhID        = hh.gID,
                               gender      = genders[iPers],
                               age         = ages[iPers],
+                              nJourneys   = nJourneysPerPerson[iPers],
                               util        = 0.,
                               commUtil    = [0.5, 0.1, 0.4, 0.3, 0.1], # [0.5]*parameters['nMobTypes'],
                               selfUtil    = [np.nan]*parameters['nMobTypes'],
                               mobType     = 0,
-                              prop        = [0]*len(parameters['properties']),
-                              consequences= [0]*len(prefTuple),
-                              lastAction  = 0,
-                              ESSR        = 1)
+                              prop        = [0.]*len(parameters['properties']),
+                              consequences= [0.]*len(prefTuple),
+                              lastAction  = 0)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
                 pers.register(earth, parentEntity=hh, edgeType=CON_HP)
@@ -1243,16 +1257,16 @@ def initTypes(earth):
                                                    'gID',
                                                    'hhID',
                                                    'preferences',
-                                                   'gender'],
+                                                   'gender',
+                                                   'nJourneys'],
                                 dynamicProperies = ['age',
-                                                  'util',     # current utility
-                                                  'commUtil', # comunity utility
-                                                  'selfUtil', # own utility at time of action
-                                                  'mobType',
-                                                  'prop',
-                                                  'consequences',
-                                                  'lastAction',
-                                                  'ESSR'])
+                                                   'util',     # current utility
+                                                   'commUtil', # comunity utility
+                                                   'selfUtil', # own utility at time of action
+                                                   'mobType',
+                                                   'prop',
+                                                   'consequences',
+                                                   'lastAction'])
 
 
     earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
