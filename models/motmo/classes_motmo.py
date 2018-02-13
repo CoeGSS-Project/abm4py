@@ -69,9 +69,9 @@ NONE   = 4
 
 
 #%% --- Global classes ---
-from numba import jit
+from numba import njit
 
-@jit("f8 (f8[:], f8[:])",nopython=True)
+@njit("f8 (f8[:], f8[:])",cache=True)
 def cobbDouglasUtilNumba(x, alpha):
     utility = 1.
     
@@ -86,10 +86,28 @@ def cobbDouglasUtilNumba(x, alpha):
 
     return utility / 100.
 
-@jit("f8[:] (f8[:])",nopython=True)
+@njit("f8[:] (f8[:])",cache=True)
 def normalize(array):
     return  array / np.sum(array)
-    
+
+@njit(cache=True)
+def sum1D(array):
+    return np.sum(array)
+
+@njit(cache=True)
+def sumSquared1D(array):
+    return np.sum(array**2)
+
+@njit(cache=True)
+def prod1D(array1, array2):
+    return np.multiply(array1,array2)
+
+@njit(cache=True)
+def normalizedGaussian(array, center, errStd):
+    diff = (array - center) +  np.random.randn(array.shape[0])*errStd
+    normDiff = np.exp(-(diff**2.) / (2.* errStd**2.))  
+    return normDiff / np.sum(normDiff)
+
 class Earth(World):
 
     def __init__(self,
@@ -692,6 +710,9 @@ class Market():
         for iGood in self.goods.keys():
             self.goods[iGood].step(doTechProgress)
 
+        self.compInnovation()
+        self.currMobProps = self.getMobProps()
+
         if doTechProgress:
             lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
              
@@ -714,6 +735,9 @@ class Market():
 
         self.time +=1
 
+    def compInnovation(self):
+        self.innovation = normalize(np.asarray(self.getCurrentExperience()))
+        
 
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
         mobType = self.__nMobTypes__
@@ -729,6 +753,9 @@ class Market():
         else:
             self.mobilityInitDict[initTimeStep].append([label, propertyDict, initTimeStep, mobType, allTimeProduced])
 
+        self.compInnovation()
+        self.currMobProps = self.getMobProps()
+        
         return mobType
 
     def addBrand2Market(self, label, propertyDict, mobType):
@@ -874,12 +901,14 @@ class Person(Agent):
         self.hh.addAdult(self)
 
     
-    def weightFriendExperience(self, world, commUtilPeers, edges, weights):
+    def weightFriendExperience(self, world, commUtilPeers, edges, weights):        
         friendUtil = commUtilPeers[:,self._node['mobType']]
+        nFriends = friendUtil.shape[0]
         ownUtil  = self.getValue('util')
         
-        diff = friendUtil - ownUtil +  np.random.randn(len(friendUtil))*world.para['utilObsError']
-        prop = normalize(np.exp(-(diff**2) / (2* world.para['utilObsError']**2)))
+        prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
+        #diff = friendUtil - ownUtil +  np.random.randn(nFriends)*world.para['utilObsError']
+        #prop = normalize(np.exp(-(diff**2) / (2* world.para['utilObsError']**2)))
         #prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
         #prop = prop / np.sum(prop)
 
@@ -901,15 +930,15 @@ class Person(Agent):
 
         #post = post / np.sum(post)
         
-        
-        if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
-            if np.sum(post) > 0:
+        sumWeights = sum1D(post)
+        if not(np.isnan(sumWeights) or np.isinf(sumWeights)):
+            if sumWeights > 0:
                 edges['weig'] = post
 
-                self._node['ESSR'] =  (1 / np.sum(post**2)) / float(len(post))
+                self._node['ESSR'] =  (1. / sumSquared1D(post)) / nFriends
                 #assert self.edges[CON_PP][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
                 #assert self.edges[CON_PP][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
-                if np.sum(self.getEdgeValues('weig', edgeType=CON_PP)[0]) < 0.99: ##OPTPRODUCTION
+                if sumWeights < 0.99: ##OPTPRODUCTION
                     import pdb      ##OPTPRODUCTION
                     pdb.set_trace() ##OPTPRODUCTION
             return post, self._node['ESSR']
@@ -917,8 +946,8 @@ class Person(Agent):
         else:
             lg.debug( 'post values:')
             lg.debug([ value for value in post])
-            lg.debug('diff values:')
-            lg.debug([value for value in diff])
+            #lg.debug('diff values:')
+            #lg.debug([value for value in diff])
             lg.debug('friendUtil values:')
             lg.debug([value for value in friendUtil])
 
@@ -1111,7 +1140,7 @@ class Person(Agent):
 
             return                                                              ##OPTPRODUCTION
         
-        self.setValue('commUtil', commUtil.tolist())
+        self.setValue('commUtil', commUtil)
 
         
         
@@ -1119,22 +1148,23 @@ class Person(Agent):
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
         if np.random.rand() > .98:
-            self.imitation = [np.random.choice(len(self.getValue('commUtil')))]
+            self.imitation = [np.random.choice(self.getValue('commUtil').shape[0])]
         else:
 
             # weight of the fitness (quality) of the memes
-            if np.sum(utilPeers) > 0:
-                w_fitness = utilPeers / np.sum(utilPeers)
+            sumUtilPeers = sum1D(utilPeers)
+            if sumUtilPeers > 0:
+                w_fitness = utilPeers / sumUtilPeers
             else:
-                w_fitness = np.zeros_like(utilPeers) / len(utilPeers)
+                w_fitness = np.zeros_like(utilPeers) / utilPeers.shape[0]
             
             # weight of reliability of the information (evolving over time)
-            w_reliability = weights
+            #w_reliability = weights
 
             # combination of weights for random drawing
 #            w_full = w_fitness * w_reliability 
 #            w_full = w_full / np.sum(w_full)
-            w_full = normalize(w_fitness * w_reliability)    
+            w_full = normalize(prod1D(w_fitness,weights))  
             self.imitation =  np.random.choice(mobTypePeers, 2, p=w_full)
         
 
@@ -1389,9 +1419,7 @@ class Household(Agent):
 
         
         hhCarBonus = 0.2
-        mobProperties = earth.market.getMobProps()
-        experience    = np.asarray(earth.market.getCurrentExperience())
-        sumExperience = sum(experience)
+        mobProperties = earth.market.currMobProps
         convCell      = np.asarray(self.loc.getValue('convenience'))
         income        = self.getValue('income')
         
@@ -1406,10 +1434,11 @@ class Household(Agent):
             #ecology
             consMat[ix,:,ECO] = earth.market.ecology(mobProperties[actions,1])
             
-            consMat[ix,:,MON] = max(1e-5, 1 - np.sum(mobProperties[actions,0]) / income)
+            consMat[ix,:,MON] = max(1e-5, 1 - sum1D(mobProperties[actions,0]) / income)
             
             #immitation
-            consMat[ix,:,INNO] = 1 - ( (experience[actions] / sumExperience) **.5)
+            consMat[ix,:,INNO] = earth.market.innovation[actions]
+            
             
         return consMat
 
@@ -1475,12 +1504,12 @@ class Household(Agent):
             convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
 
             # calculate ecology:
-            emissions = mobProps[1]
-            ecology   = market.ecology(emissions)
+            ecology   = market.ecology(mobProps[1])
 
-            experience = market.getCurrentExperience()
+            #experience = market.getCurrentExperience()
 
-            innovation = 1 - ( (experience[adult.getValue('mobType')] / np.sum(experience))**.5 )
+            #innovation = 1 - ( (experience[adult.getValue('mobType')] / np.sum(experience))**.5 )
+            innovation = market.innovation[actionIdx]
             
             # assuring that consequences are within 0 and 1
             for consequence in [convenience, ecology, money, innovation]:     ##OPTPRODUCTION
@@ -1490,7 +1519,7 @@ class Household(Agent):
                     pdb.set_trace()                                           ##DEEPDEBUG  
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
-            adult.setValue('consequences', np.asarray([convenience, ecology, money, innovation]))
+            adult._node['consequences'][:] = [convenience, ecology, money, innovation]
 
 
     def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):
@@ -1935,13 +1964,13 @@ class Cell(Location):
         if greenMeanCars is None:
             
             carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
-            greenMeanCars = np.sum(carsInCells[:,GREEN]*weights)    
+            greenMeanCars = sum1D(carsInCells[:,GREEN]*weights)    
         
 
         
         
         # part of the convenience that is related to the capacity that is used
-        avgStatPerCell = np.sum(nStation *  weights)
+        avgStatPerCell = sum1D(nStation *  weights)
         
         capacityUse = greenMeanCars / (avgStatPerCell * 200.)
         

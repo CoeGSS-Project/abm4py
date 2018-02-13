@@ -943,7 +943,7 @@ def householdSetup(earth, calibration=False):
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 100 # additional agents that are loaded 
+    overheadAgents = 500 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -992,9 +992,10 @@ def householdSetup(earth, calibration=False):
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
         lg.debug('Vertex count: ' + str(earth.graph.vcount()))
+        
         if earth.debug:
-
-            earth.view(str(earth.mpi.rank) + '.png')
+            pass
+            #earth.view(str(earth.mpi.rank) + '.png')
 
 
         dset = h5Files[i].get('people')
@@ -1394,7 +1395,7 @@ def generateNetwork(earth):
     earth.generateSocialNetwork(PERS,CON_PP)
     
     lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
-    if parameters['scenario'] == 0:
+    if parameters['scenario'] == 0 and earth.para['showFigures']:
         earth.view(str(earth.mpi.rank) + '.png')
     if mpiRank == 0:
         print'Social network setup done'

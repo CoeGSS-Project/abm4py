@@ -27,9 +27,9 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import itertools
 import pandas as pd
-import seaborn as sns
+#import seaborn as sns
 import pickle
-from numba import jit
+from numba import njit
 
 #import sys
 #from numbers import Number
@@ -140,11 +140,11 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         return dirPath
 
-@jit
+@njit
 def weightingFunc(x,y):
     return 1./((x**2. +y**2.)**.5)
 
-@jit
+@njit
 def distance(x,y):
     return (x**2. +y**2.)**.5
 
@@ -165,11 +165,25 @@ def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2)
                 connList.append((x,y,weig))
     return connList
 
+def cartesian2(arrays):
+    arrays = [np.asarray(a) for a in arrays]
+    shape = (len(x) for x in arrays)
 
-def cartesian(arrays, out=None):
+    ix = np.indices(shape, dtype=int)
+    ix = ix.reshape(len(arrays), -1).T
+
+    for n, arr in enumerate(arrays):
+        ix[:, n] = arrays[n][ix[:, n]]
+
+    return ix
+
+from sklearn.utils.extmath import cartesian
+cartesian = cartesian
+
+def cartesian_old(arrays, out=None):
     """
     Generate a cartesian product of input arrays.
-
+    
     Parameters
     ----------
     arrays : list of array-like
@@ -352,7 +366,7 @@ class Record():
 
         elif self.style == 'stackedBar':
             nCars = np.zeros(self.nSteps)
-            colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
+            #colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
             for i, brand in enumerate(self.columns):
                plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color =colorPal[i], width=1)
                nCars += self.rec[:,i]
