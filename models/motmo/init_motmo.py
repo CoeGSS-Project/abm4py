@@ -984,7 +984,7 @@ def householdSetup(earth, calibration=False):
 #            offset= 398700
 #        else:
 
-        offset =0
+        offset = 0
 
 
         agentStart = int(np.sum(nAgentsOnProcess[:mpi.rank,i]))
@@ -1404,8 +1404,8 @@ def generateNetwork(earth):
 def initMobilityTypes(earth):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,350., 100.,50.])
-    for goodKey in earth.market.goods.keys():
-        #print earth.market.goods[goodKey].properties.keys()
+    for goodKey in earth.market.goods.keys():##OPTPRODUCTION
+        #print earth.market.goods[goodKey].properties.keys() 
         #print earth.market.properties
         assert earth.market.goods[goodKey].properties.keys() == earth.market.properties ##OPTPRODUCTION
     
@@ -1473,6 +1473,16 @@ def initAgentOutput(earth):
     if mpiRank == 0:
         print'Setup of agent output done'
 
+
+def initCachArrays(earth):
+    maxFriends = earth.para['maxFriends']
+    persZero = earth.entDict[earth.nodeDict[PERS][0]]
+    
+    nUtil = persZero.getValue('commUtil').shape[0]
+    Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
+    Person.cacheUtil     = np.zeros(maxFriends+1)
+    Person.cacheMobType  = np.zeros(maxFriends+1, dtype=np.int32)
+    Person.cacheWeights  = np.zeros(maxFriends+1)
 
 # %% Online processing functions
 
@@ -1544,6 +1554,8 @@ def runModel(earth, parameters):
         
     lg.info('Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
 
+    initCachArrays(earth)
+    
     #plotIncomePerNetwork(earth)
 
 

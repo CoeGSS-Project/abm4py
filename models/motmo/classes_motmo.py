@@ -39,6 +39,7 @@ import time
 import os
 import math
 import copy
+import random
 import logging as lg
 from bunch import Bunch
 #%% --- ENUMERATIONS / CONSTANTS---
@@ -219,7 +220,7 @@ class Earth(World):
         populationList = list()
         for agent, x in self.iterEntAndIDRandom(nodeType):
 
-            nContacts = np.random.randint(self.para['minFriends'],self.para['maxFriends'])
+            nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
 
             edgeList += edges
@@ -233,12 +234,12 @@ class Earth(World):
             self.queue.dequeueEdges(self)
 
         lg.info( 'Social network created in -- ' + str( time.time() - tt) + ' s')
-        lg.info( 'Average population: ' + str(np.mean(np.asarray(populationList))) + ' - Ecount: ' + str(self.graph.ecount()))
+        lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.ecount()))
 
         fid = open(self.para['outPath']+ '/initTimes.out', 'a')
         fid.writelines('r' + str(self.mpi.comm.rank) + ', ' +
                        str( time.time() - tt) + ',' +
-                       str(np.mean(np.asarray(populationList))) + ',' +
+                       str(np.mean(populationList)) + ',' +
                        str(self.graph.ecount()) + '\n')
 
     def updateRecords(self):
@@ -277,7 +278,7 @@ class Earth(World):
 
 
         self.syncTime[self.time] = time.time()-ttSync        
-        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')
+        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
 
     def syncGhosts(self):
         """
@@ -288,7 +289,7 @@ class Earth(World):
         self.mpi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
-        lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')
+        lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
 
     
     def updateGraph(self):
@@ -299,7 +300,7 @@ class Earth(World):
         if self.queuing:
             self.queue.dequeueEdges(self)
             self.queue.dequeueEdgeDeleteList(self)
-        lg.debug('Graph updated in ' + str(time.time()- ttUpd) + ' seconds')
+        lg.debug('Graph updated in ' + str(time.time()- ttUpd) + ' seconds')##OPTPRODUCTION
 
         
         
@@ -370,7 +371,7 @@ class Earth(World):
         ttCell = time.time()
         for cell in self.iterEntRandom(CELL):
             cell.step(self.para, self.market.getCurrentMaturity())
-        lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')
+        lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')##OPTPRODUCTION
 
 
 
@@ -378,7 +379,7 @@ class Earth(World):
         ttComp = time.time()
         for person in self.iterEntRandom(PERS):
             person.step(self)
-        lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')
+        lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')##OPTPRODUCTION
    
 
 
@@ -390,11 +391,11 @@ class Earth(World):
         else:
             for household in self.iterEntRandom(HH):
 
-                if np.random.rand()<1e-4:
+                if random.random()<1e-4:
                     household.stepOmniscient(self)
                 else:
                     household.evolutionaryStep(self)
-        lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')
+        lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')##OPTPRODUCTION
 
 
 
@@ -571,7 +572,7 @@ class Good():
         Surrogate model for sales that can be used if agents sales are not 
         computed explicitely.
         """
-        sales = np.max([0,self.currStock - self.oldStock])
+        sales = max([0,self.currStock - self.oldStock])
         sales = sales + self.oldStock * self.replacementRate
         return sales
     
@@ -662,8 +663,10 @@ class Market():
         self.std['emissions']  = self.glob['stdEmm']
         self.std['costs']  = self.glob['stdPrc']
 
+        if self.std['emissions'] == 0.:
+            self.std['emissions'] = 1.
 
-        lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
+        lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))##OPTPRODUCTION
 
     def setInitialStatistics(self, typeQuantities):
         total = sum(typeQuantities[mobIdx] for mobIdx in range(self.__nMobTypes__))
@@ -685,13 +688,15 @@ class Market():
 
     def ecology(self, emissions):
 
-        if self.std['emissions'] == 0:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/1))
-        else:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+        ecology = 1. / (1.+math.exp((emissions-self.mean['emissions'])/self.std['emissions']))
 
         return ecology
 
+    def ecologyVectorized(self, emissions):
+
+        ecology = 1. / (1.+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+
+        return ecology
 
     def step(self, world):
 
@@ -714,7 +719,7 @@ class Market():
         self.currMobProps = self.getMobProps()
 
         if doTechProgress:
-            lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))
+            lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))##OPTPRODUCTION
              
             
         if self.comm.rank == 0:
@@ -724,11 +729,11 @@ class Market():
             self.globalRecord['allTimeProduced'].set(self.time, self.getCurrentExperience())
             self.globalRecord['kappas'].set(self.time, self.getCurrentMaturity())
 
-        lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))
+        lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))##OPTPRODUCTION
         # reset sales
         #self.glob['sales'] = self.glob['sales']*0
 
-        self.minPrice = np.min([good.getProperties()[0] for good in self.goods.itervalues()])
+        self.minPrice = min([good.getProperties()[0] for good in self.goods.itervalues()])
 
         #compute new statistics
         self.computeStatistics()
@@ -809,7 +814,7 @@ class Infrastructure():
         self.potentialMap = normalize(self.potentialMap)
         # share of new stations that are build in the are of this process
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
-        lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))
+        lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))##OPTPRODUCTION
         
         
         self.carsPerStation = 15. # number taken from assumptions of the German government
@@ -883,13 +888,14 @@ class Infrastructure():
 # %% --- entity classes ---
 class Person(Agent):
     __slots__ = ['gID', 'nID']
+    
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
         
 
     def isAware(self, mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
-        return (self._node['lastAction'] - mobNewPeriod/10.) / (mobNewPeriod)  > np.random.rand()
+        return ((self._node['lastAction'] - mobNewPeriod/10.) / mobNewPeriod)  > random.random()
 
 
     def register(self, world, parentEntity=None, edgeType=None):
@@ -903,8 +909,8 @@ class Person(Agent):
     
     def weightFriendExperience(self, world, commUtilPeers, edges, weights):        
         friendUtil = commUtilPeers[:,self._node['mobType']]
-        nFriends = friendUtil.shape[0]
-        ownUtil  = self.getValue('util')
+        nFriends   = friendUtil.shape[0]
+        ownUtil    = self.getValue('util')
         
         prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
         #diff = friendUtil - ownUtil +  np.random.randn(nFriends)*world.para['utilObsError']
@@ -920,12 +926,12 @@ class Person(Agent):
 
 
         # TODO - re-think how to avoide
-        try:
-            #post = prior * prop
-            post = normalize(prior * prop)
-        except:
-            import pdb
-            pdb.set_trace()
+        #try:
+        #    #post = prior * prop
+        post = normalize(prior * prop)
+        #except:
+        #    import pdb
+        #    pdb.set_trace()
 
 
         #post = post / np.sum(post)
@@ -939,8 +945,8 @@ class Person(Agent):
                 #assert self.edges[CON_PP][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
                 #assert self.edges[CON_PP][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
                 if sumWeights < 0.99: ##OPTPRODUCTION
-                    import pdb      ##OPTPRODUCTION
-                    pdb.set_trace() ##OPTPRODUCTION
+                    import pdb        ##OPTPRODUCTION
+                    pdb.set_trace()   ##OPTPRODUCTION
             return post, self._node['ESSR']
 
         else:
@@ -1060,7 +1066,7 @@ class Person(Agent):
         del idx
 
         hhIDs = [world.glob2loc(x) for x in world.getNodeValues('hhID', idxList=personIdsAll)]
-        weightData[:,idxColIn] = np.abs(world.getNodeValues('income', idxList=hhIDs) - ownIncome)
+        weightData[:,idxColIn] = abs(world.getNodeValues('income', idxList=hhIDs) - ownIncome)
         weightData[:,idxColPr] = world.getNodeValues('preferences',   idxList=personIdsAll)
 
 
@@ -1147,7 +1153,7 @@ class Person(Agent):
 
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
-        if np.random.rand() > .98:
+        if random.random() > .98:
             self.imitation = [np.random.choice(self.getValue('commUtil').shape[0])]
         else:
 
@@ -1171,13 +1177,27 @@ class Person(Agent):
     def step(self, earth):
         
         #load data
-        commUtilPeers  = np.asarray(self.getPeerValues('commUtil',CON_PP)[0])
-        utilPeers      = np.asarray(self.getPeerValues('util',CON_PP)[0])
-        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
-        weights        = np.asarray(weights)        
-        mobTypePeers   = np.asarray(self.getPeerValues('mobType',CON_PP)[0])
+        peers           = self.getPeers(CON_PP)
+        edges           = self.getEdges(edgeType=CON_PP)
         
-        if earth.para['weightConnections'] and np.random.rand() > self.getValue('util'): 
+        nPeers          = len(peers)
+        commUtilPeers   = Person.cacheCommUtil[:nPeers,:]
+        commUtilPeers[:]= peers['commUtil']
+        utilPeers       = Person.cacheUtil[:nPeers]
+        utilPeers[:]    = peers['util']
+        mobTypePeers    = Person.cacheMobType[:nPeers]
+        mobTypePeers[:] = peers['mobType']
+        weights         = Person.cacheWeights[:nPeers]
+        weights[:]      = edges['weig']
+
+#        commUtilPeers  = np.asarray(peers['commUtil'])
+#        utilPeers       = np.asarray(peers['util'])
+#        mobTypePeers    = np.asarray(peers['mobType'])
+#        weights         = np.asarray(edges['weig'])
+        
+        
+        
+        if earth.para['weightConnections'] and random.random() > self.getValue('util'): 
             # weight friends
             self.weightFriendExperience(earth, commUtilPeers, edges, weights)
 
@@ -1393,7 +1413,7 @@ class Household(Agent):
 
             person.setValue('prop', properties)
             if earth.time <  earth.para['omniscientBurnIn']:
-                person.setValue('lastAction', np.random.randint(0, int(1.5*earth.para['mobNewPeriod'])))
+                person.setValue('lastAction', random.randint(0, int(1.5*earth.para['mobNewPeriod'])))
             else:
                 person.setValue('lastAction', 0)
             # add cost of mobility to the expenses
@@ -1420,7 +1440,7 @@ class Household(Agent):
         
         hhCarBonus = 0.2
         mobProperties = earth.market.currMobProps
-        convCell      = np.asarray(self.loc.getValue('convenience'))
+        convCell      = self.loc.getValue('convenience')
         income        = self.getValue('income')
         
         for ix, actions in enumerate(actionIds):
@@ -1432,7 +1452,7 @@ class Household(Agent):
                 consMat[ix,actions==4,CONV] += hhCarBonus
                 
             #ecology
-            consMat[ix,:,ECO] = earth.market.ecology(mobProperties[actions,1])
+            consMat[ix,:,ECO] = earth.market.ecologyVectorized(mobProperties[actions,1])
             
             consMat[ix,:,MON] = max(1e-5, 1 - sum1D(mobProperties[actions,0]) / income)
             
@@ -1443,36 +1463,36 @@ class Household(Agent):
         return consMat
 
 
-    def testConsequences2(self, earth, actionIds):
-        
-        consMat = np.zeros([actionIds.shape[0], actionIds.shape[1], earth.nPriorities()])
-        
-
-        
-        hhCarBonus = 0.2
-        mobProperties = earth.market.getMobProps()
-        experience    = earth.market.getCurrentExperience()
-        sumExperience = sum(experience)
-        convCell      = self.loc.getValue('convenience')
-        income        = self.getValue('income')
-        
-        for ix, actions in enumerate(actionIds):
-            
-            #convenience
-            consMat[ix,:,CONV] = [convCell[action] for action in actions]
-            if any(actions < 2):
-                consMat[ix,actions==2,CONV] += hhCarBonus
-                consMat[ix,actions==4,CONV] += hhCarBonus
-                
-            #ecology
-            consMat[ix,:,ECO] = [earth.market.ecology(mobProperties[action,1]) for action in actions]
-            
-            consMat[ix,:,MON] = max(1e-5, 1 - sum([mobProperties[action,0] for action in actions] / income)) 
-            
-            #immitation
-            consMat[ix,:,INNO] = [1 - ( (experience[action] / sumExperience) **.5) for action in actions]
-            
-        return consMat
+#    def testConsequences2(self, earth, actionIds):
+#        
+#        consMat = np.zeros([actionIds.shape[0], actionIds.shape[1], earth.nPriorities()])
+#        
+#
+#        
+#        hhCarBonus = 0.2
+#        mobProperties = earth.market.getMobProps()
+#        experience    = earth.market.getCurrentExperience()
+#        sumExperience = sum(experience)
+#        convCell      = self.loc.getValue('convenience')
+#        income        = self.getValue('income')
+#        
+#        for ix, actions in enumerate(actionIds):
+#            
+#            #convenience
+#            consMat[ix,:,CONV] = [convCell[action] for action in actions]
+#            if any(actions < 2):
+#                consMat[ix,actions==2,CONV] += hhCarBonus
+#                consMat[ix,actions==4,CONV] += hhCarBonus
+#                
+#            #ecology
+#            consMat[ix,:,ECO] = [earth.market.ecology(mobProperties[action,1]) for action in actions]
+#            
+#            consMat[ix,:,MON] = max(1e-5, 1 - sum([mobProperties[action,0] for action in actions] / income)) 
+#            
+#            #immitation
+#            consMat[ix,:,INNO] = [1 - ( (experience[action] / sumExperience) **.5) for action in actions]
+#            
+#        return consMat
         
         
 
@@ -1513,10 +1533,10 @@ class Household(Agent):
             
             # assuring that consequences are within 0 and 1
             for consequence in [convenience, ecology, money, innovation]:     ##OPTPRODUCTION
-                if not((consequence <= 1) and (consequence >= 0)):            ##DEEPDEBUG
-                    print consequence                                         ##DEEPDEBUG      
-                    import pdb                                                ##DEEPDEBUG
-                    pdb.set_trace()                                           ##DEEPDEBUG  
+                if not((consequence <= 1) and (consequence >= 0)):            ##OPTPRODUCTION
+                    print consequence                                         ##OPTPRODUCTION      
+                    import pdb                                                ##OPTPRODUCTION
+                    pdb.set_trace()                                           ##OPTPRODUCTION  
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
             adult._node['consequences'][:] = [convenience, ecology, money, innovation]
@@ -1556,7 +1576,7 @@ class Household(Agent):
                         adult.setValue('mobType', combinedActions[combinationIdx][adultIdx])
                         adult.setValue('prop', market.goods[adult.getValue('mobType')].getProperties())
                         if earth.time <  earth.para['burnIn']:
-                            adult.setValue('lastAction', np.random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
+                            adult.setValue('lastAction', random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
                         else:
                             adult.setValue('lastAction', 0)
                     self.setValue('expenses', adult.getValue('prop')[0])
@@ -1620,7 +1640,7 @@ class Household(Agent):
         if oldUtil == 0:
             return True
         else:
-            return  expNewUtil / oldUtil > 1.05 and (expNewUtil / oldUtil ) - 1 > np.random.rand()
+            return  expNewUtil / oldUtil > 1.05 and (expNewUtil / oldUtil ) - 1 > random.random()
 
     def possibleActions(self, earth, persGetInfoList , forcedTryAll = False):
         actionsList = list()
@@ -1843,7 +1863,7 @@ class Reporter(Household):
 class Cell(Location):
 
     def __init__(self, earth,  **kwProperties):
-        kwProperties.update({'population': 0, 'convenience': [0,0,0,0,0], 'carsInCell':[0,0,0,0,0], 'regionId':0})
+        kwProperties.update({'population': 0, 'convenience': np.asarray([0,0,0,0,0]), 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()
@@ -1941,10 +1961,10 @@ class Cell(Location):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
         #convenience of electric mobility is additionally dependen on the infrastructure
-        convAll[GREEN] *= self.electricInfrastructure2()
+        convAll[GREEN] *= self.electricInfrastructure()
         return convAll
 
-    def electricInfrastructure2(self, greenMeanCars = None):
+    def electricInfrastructure(self, greenMeanCars = None):
         """ 
         Method for a more detailed estimation of the convenience of 
         electric intrastructure.
@@ -1956,7 +1976,7 @@ class Cell(Location):
         
         nStation      = self.getPeerValues('chargStat',CON_LL)[0]
         #print nStation
-        if np.sum(nStation) == 0:
+        if sum(nStation) == 0:
             return 0.
         
         weights       = np.asarray(self.getEdgeValues('weig',CON_LL)[0])
@@ -1997,55 +2017,55 @@ class Cell(Location):
         return eConv
     
 
-    def electricInfrastructure(self, greenMeanCars = None):
-        """ 
-        Method for a more detailed estimation of the convenience of 
-        electric intrastructure.
-        Two components are considered: 
-            - minimal infrastructure
-            - capacity use
-        Mapping between [0,1]
-        """
-        
-        weights       = self.getEdgeValues('weig',CON_LL)[0]
-        
-        if greenMeanCars is None:
-            
-            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
-            greenMeanCars =  sum([x*y for  x,y in zip(carsInCells[:,GREEN],weights)])    
-        
-        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
-        #print nStation
-        if np.sum(nStation) == 0:
-            return 0.
-        
-        
-        # part of the convenience that is related to the capacity that is used
-        avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
-        
-        capacityUse = greenMeanCars / (avgStatPerCell * 200.)
-        
-        if capacityUse > 100:
-            useConv = 0
-        else:
-            useConv = 1 /  math.exp(capacityUse)
-        
-        # part of the convenience that is related to a minimal value of charging
-        # stations
-        minRequirement = 1
-        
-        if avgStatPerCell < minRequirement:
-            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .2)
-        else:
-            statMinRequ = 1.
-        
-        # overall convenience is product og both 
-        eConv = statMinRequ * useConv
-#        if self.getValue('chargStat') == 26:
-#            import pdb
-#            pdb.set_trace()
-        assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
-        return eConv
+#    def electricInfrastructure(self, greenMeanCars = None):
+#        """ 
+#        Method for a more detailed estimation of the convenience of 
+#        electric intrastructure.
+#        Two components are considered: 
+#            - minimal infrastructure
+#            - capacity use
+#        Mapping between [0,1]
+#        """
+#        
+#        weights       = self.getEdgeValues('weig',CON_LL)[0]
+#        
+#        if greenMeanCars is None:
+#            
+#            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
+#            greenMeanCars = sum([x*y for  x,y in zip(carsInCells[:,GREEN],weights)])    
+#        
+#        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
+#        #print nStation
+#        if sum(nStation) == 0:
+#            return 0.
+#        
+#        
+#        # part of the convenience that is related to the capacity that is used
+#        avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
+#        
+#        capacityUse = greenMeanCars / (avgStatPerCell * 200.)
+#        
+#        if capacityUse > 100:
+#            useConv = 0
+#        else:
+#            useConv = 1 /  math.exp(capacityUse)
+#        
+#        # part of the convenience that is related to a minimal value of charging
+#        # stations
+#        minRequirement = 1
+#        
+#        if avgStatPerCell < minRequirement:
+#            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .2)
+#        else:
+#            statMinRequ = 1.
+#        
+#        # overall convenience is product og both 
+#        eConv = statMinRequ * useConv
+##        if self.getValue('chargStat') == 26:
+##            import pdb
+##            pdb.set_trace()
+#        assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
+#        return eConv
 
         #%%
 #        xx = range(1,1000)
@@ -2067,7 +2087,7 @@ class Cell(Location):
         """
 
         convAll = self.calculateConveniences(parameters,currentMaturity)
-        self.setValue('convenience', convAll)
+        self._node['convenience'][:] =  convAll
 
 
     def registerObs(self, hhID, prop, util, label):
@@ -2129,13 +2149,13 @@ class Opinion():
         if sex == 2:
             ce +=1.5
         if income > self.minIncomeEco:
-            rn = np.random.rand(1)
-            if rn > 0.9:
+            rn = random.random()
+            if random.random() > 0.9:
                 ce += 2
             elif rn > 0.6:
                 ce += 1
         elif income > 2 * self.minIncomeEco:
-            if np.random.rand(1) > 0.8:
+            if random.random() > 0.8:
                 ce+=2.5
 
 
@@ -2167,14 +2187,14 @@ class Opinion():
         # priority of innovation
         if sex == 1:
             if income>self.minIncomeEco:
-                ci = np.random.rand()*5
+                ci = random.random()*5
             else:
-                ci = np.random.rand()*2
+                ci = random.random()*2
         else:
             if income>self.minIncomeEco:
-                ci = np.random.rand()*3
+                ci = random.random()*3
             else:
-                ci = np.random.rand()*1
+                ci = random.random()*1
         ci = float(ci)**2
 
         # normalization

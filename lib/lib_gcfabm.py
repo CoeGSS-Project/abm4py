@@ -74,8 +74,10 @@ import sys
 import igraph as ig
 import numpy as np
 import time
+import random as rd
 from bunch import Bunch
 from class_graph import WorldGraph
+
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
@@ -508,7 +510,7 @@ class Entity():
 
         return [edge.target for edge in edges]
 
-    def getPeerSeq(self, edgeType=None):
+    def getPeers(self, edgeType=None):
         return self._graph.vs[self.getPeerIDs(edgeType)]
 
     def getPeerValues(self, prop, edgeType=None):
@@ -822,8 +824,8 @@ class World:
                     # communication between all proceees
                     self[globName] = self.comm.allreduce(self.localValues[globName],op)
                     self.updated[globName] = False
-                    lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))
-                    lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))
+                    lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))##OPTPRODUCTION
+                    lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))##OPTPRODUCTION
 
         #%% statistical global reductions/aggregations
         def registerStat(self, globName, values, statType):
@@ -872,13 +874,13 @@ class World:
                         # communication between all proceees
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
-                        lg.debug('####### Mean of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
                         lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
                         # calculation of global mean
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize  = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
-                        lg.debug('Global mean: ' + str( self[globName] ))   
+                        lg.debug('Global mean: ' + str( self[globName] ))   ##OPTPRODUCTION
                         self.updated[globName] = False
                         
                 elif redType == 'std':
@@ -908,7 +910,7 @@ class World:
                         locNVar = tmp[:,1]
                         lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
 
-                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  ##OPTPRODUCTION
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  
                         lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
 
                         diffSqrMeans = (locMean - globMean)**2
@@ -918,7 +920,7 @@ class World:
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = np.sqrt(globVariance)
-                        lg.debug('Global STD: ' + str( self[globName] ))   
+                        lg.debug('Global STD: ' + str( self[globName] ))   ##OPTPRODUCTION
                         self.updated[globName] = False
                         
                 elif redType == 'var':
@@ -940,7 +942,7 @@ class World:
                         #print 'loc mean: ', locMean
 
                         lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
-                        lg.debug('loc mean: ' + str(locMean))               
+                        lg.debug('loc mean: ' + str(locMean))               ##OPTPRODUCTION
                         locNVar = tmp[:,1]
                         #print 'loc number of var: ',locNVar
 
@@ -948,14 +950,14 @@ class World:
                         #print 'global mean: ', globMean
                         
                         diffSqrMeans = (locMean - globMean)**2
-                        lg.debug('global mean: ' + str( globMean ))
+                        lg.debug('global mean: ' + str( globMean )) ##OPTPRODUCTION
 
                         deviationOfMeans = np.sum(locNVar * diffSqrMeans)
 
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = globVariance
-                        lg.debug('Global variance: ' + str( self[globName] ))  
+                        lg.debug('Global variance: ' + str( self[globName] ))  ##OPTPRODUCTION
                         self.updated[globName] = False
 
         def sync(self):
@@ -1333,7 +1335,7 @@ class World:
             # acquire the global IDs for the ghostNodes
             mpiRequest = dict()
             mpiReqIDList = dict()
-            lg.debug('ID Array: ' + str(self.world.graph.IDArray))
+            lg.debug('ID Array: ' + str(self.world.graph.IDArray))##OPTPRODUCTION
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
                 #print owner
@@ -1344,7 +1346,7 @@ class World:
 
                 mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
                 mpiReqIDList[owner].append(ghLoc.nID)
-            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))
+            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))##OPTPRODUCTION
 
             for mpiDest in mpiRequest.keys():
 
@@ -1352,13 +1354,13 @@ class World:
                     self.peers.append(mpiDest)
 
                     # send request of global IDs
-                    lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))
+                    lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))##OPTPRODUCTION
                     #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
                     self._add2Buffer(mpiDest, mpiRequest[mpiDest])
 
-            lg.debug( 'requestOut:' + str(self.a2aBuff))
+            lg.debug( 'requestOut:' + str(self.a2aBuff))##OPTPRODUCTION
             requestIn = self._all2allSync()
-            lg.debug( 'requestIn:' +  str(requestIn))
+            lg.debug( 'requestIn:' +  str(requestIn))##OPTPRODUCTION
 
 
             for mpiDest in mpiRequest.keys():
@@ -1366,21 +1368,21 @@ class World:
                 self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
 
                 # receive request of global IDs
-                lg.debug('receive request of global IDs from:  ' + str(mpiDest))
+                lg.debug('receive request of global IDs from:  ' + str(mpiDest))##OPTPRODUCTION
                 #incRequest = self.comm.recv(source=mpiDest)
                 incRequest = requestIn[mpiDest][0]
                 #pprint(incRequest)
                 iDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))
+                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))##OPTPRODUCTION
                 self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[iDList]
                 #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
-                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))
+                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))##OPTPRODUCTION
 
                 for entity in [self.world.entList[i] for i in iDList]:
                     entity.mpiPeers.append(mpiDest)
 
                 # send requested global IDs
-                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))
+                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))##OPTPRODUCTION
 
                 self._add2Buffer(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
 
@@ -1392,8 +1394,8 @@ class World:
                 globIDList = requestRecv[mpiDest][0]
 
                 self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
-                lg.debug( 'receiving globIDList:' + str(globIDList))
-                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))
+                lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
+                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))##OPTPRODUCTION
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
                     self.world._glob2loc[gID] = nID
@@ -1493,10 +1495,10 @@ class World:
                 lg.info('Ghost update (of approx size ' +
                      str(messageSize * 24. / 1000. ) + ' KB)' +
                      ' required: ' + str(time.time()-tt) + ' seconds')
-            else:
-                lg.debug('Ghost update (of approx size ' +
-                         str(messageSize * 24. / 1000. ) + ' KB)' +
-                         ' required: ' + str(time.time()-tt) + ' seconds')
+            else:                                                           ##OPTPRODUCTION
+                lg.debug('Ghost update (of approx size ' +                  ##OPTPRODUCTION
+                         str(messageSize * 24. / 1000. ) + ' KB)' +         ##OPTPRODUCTION
+                         ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
 
         def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
@@ -1586,7 +1588,7 @@ class World:
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
-        lg.debug('Init MPI done')
+        lg.debug('Init MPI done')##OPTPRODUCTION
         if self.mpi.comm.rank == 0:
             self.isRoot = True
         else:
@@ -1594,10 +1596,10 @@ class World:
 
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
-        lg.debug('Init IO done')
+        lg.debug('Init IO done')##OPTPRODUCTION
         # Globally synced variables
         self.graph.glob     = self.Globals(self)
-        lg.debug('Init Globals done')
+        lg.debug('Init Globals done')##OPTPRODUCTION
 
         # enumerations
         self.enums = dict()
@@ -1833,9 +1835,9 @@ class World:
 #            eStart += nConnection[ii]
 #            ii +=1
             
-        lg.debug('starting initCommunicationViaLocations')
+        lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
         self.mpi.initCommunicationViaLocations(ghostLocationList, nodeType)
-        lg.debug('finished initCommunicationViaLocations')
+        lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
 
     def iterEdges(self, edgeType):
         """
@@ -1862,7 +1864,7 @@ class World:
         if random:
             #print 'nodeDict' + str(nodeDict)
             #print self.entList
-            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
             return [self.entList[i] for i in shuffled_list]
         else:
             return  [self.entList[i] for i in nodeDict]
@@ -1881,7 +1883,7 @@ class World:
             nodeDict = self.nodeDict[nodeType]
 
         if random:
-            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
             return  [(self.entList[i], i) for i in shuffled_list]
         else:
             return  [(self.entList[i], i) for i in nodeDict]
