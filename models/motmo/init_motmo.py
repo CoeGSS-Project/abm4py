@@ -935,7 +935,7 @@ def householdSetup(earth, calibration=False):
     H5GENDER = 2
     H5INCOME = 3
     H5HHTYPE = 4
-    H5MOBDEM = [6,7,8,9]
+    H5MOBDEM = [5, 6, 7, 8, 9]
     
     
     parameters = earth.getParameter()
@@ -1093,7 +1093,7 @@ def householdSetup(earth, calibration=False):
                 prefTuple = opinion.getPref(ages[iPers], genders[iPers], nKids, nPers, income, parameters['radicality'])
 
                 
-                
+                assert len(nJourneysPerPerson[iPers]) == 5##OPTPRODUCTION
                 pers = Person(earth,
                               preferences = np.asarray(prefTuple),
                               hhID        = hh.gID,
@@ -1238,7 +1238,8 @@ def initTypes(earth):
                                dynamicProperies = ['population',
                                                    'convenience',
                                                    'carsInCell',
-                                                   'chargStat'])
+                                                   'chargStat',
+                                                   'emissions'])
 
 
     HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
@@ -1314,6 +1315,7 @@ def initSpatialLayer(earth):
         for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', 0)
+            cell.setValue('emissions', 0.)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
             

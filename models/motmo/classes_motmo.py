@@ -50,6 +50,10 @@ CON_HH = 3 # household, household
 CON_HP = 4 # household, person
 CON_PP = 5 # household, person
 
+#properties
+PRICE     = 0
+EMISSIONS = 1
+
 #nodes
 CELL = 1
 HH   = 2
@@ -67,6 +71,8 @@ GREEN  = 1
 PUBLIC = 2
 SHARED  = 3
 NONE   = 4
+
+MEAN_KM_PER_TRIP = [.25, 3., 7.5, 30., 75. ]
 
 
 #%% --- Global classes ---
@@ -308,6 +314,7 @@ class Earth(World):
         """ 
         Progressing time and date
         """
+        
         ttComp = time.time()
         self.time += 1
         self.timeStep = self.time
@@ -1518,17 +1525,27 @@ class Household(Agent):
 #                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
 #            else:
 #                decay = 1.
+            
+            #calculate emissions per cell
+            nJourneys = adult.getValue('nJourneys')
+            emissionsPerKm = mobProps[EMISSIONS] /1000. * market.para['reductionFactor']# in kg/km
+            emissions      = 0
+            
+            #TODO optimize code
+            for nTrips, avgKm in zip(nJourneys.tolist(), MEAN_KM_PER_TRIP): 
+                emissions += nTrips * avgKm * emissionsPerKm
+            adult.loc.addValue('emissions', emissions) #in kg
+            
+            
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
             convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
 
             # calculate ecology:
-            ecology   = market.ecology(mobProps[1])
+            ecology   = market.ecology(mobProps[EMISSIONS])
 
-            #experience = market.getCurrentExperience()
-
-            #innovation = 1 - ( (experience[adult.getValue('mobType')] / np.sum(experience))**.5 )
+            
             innovation = market.innovation[actionIdx]
             
             # assuring that consequences are within 0 and 1
@@ -2085,7 +2102,7 @@ class Cell(Location):
         """
         Step method for cells
         """
-
+        self.setValue('emissions', 0.)
         convAll = self.calculateConveniences(parameters,currentMaturity)
         self._node['convenience'][:] =  convAll
 
