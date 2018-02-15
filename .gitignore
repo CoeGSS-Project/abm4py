@@ -20,7 +20,6 @@ resources_nie/
 resources_NBH/
 resources_ger/
 poznan_out/
-tests/
 tmpOut*
 *.gml
 *.hdf5
@@ -31,5 +30,7 @@ tmpOut*
 *.pkl
 *.txt.part.*
 environment
+__pycache__
+*_prod.py
 get
 
