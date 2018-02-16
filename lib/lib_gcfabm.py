@@ -69,25 +69,15 @@ sys.excepthook = mpi_excepthook
 
 from mpi4py import MPI
 import h5py
-
-#from os.path import expanduser
-#home = expanduser("~")
-#import os
-#dir_path = os.path.dirname(os.path.realpath(__file__))
 import logging as lg
 import sys
-#import socket
-
-#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-
-#import tqdm
 import igraph as ig
 import numpy as np
 import time
 from bunch import Bunch
 from class_graph import WorldGraph
+
+ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 class Queue():
 
@@ -842,7 +832,7 @@ class World:
             assert statType in ['mean', 'std','var']    ##OPTPRODUCTION
 
 
-            if not isinstance(values, (list, tuple,np.ndarray)):
+            if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
                 values = [values]
             values = np.asarray(values)
 
@@ -1099,8 +1089,8 @@ class World:
                     entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
                     if not isinstance(entProp,str):
 
-
-                        if isinstance(entProp,(list,tuple)):
+                        #todo - check why not np.array allowed
+                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[staticRec.ag2FileIdx[0]][attr])
                         else:
@@ -1131,7 +1121,7 @@ class World:
                     if not isinstance(entProp,str):
 
 
-                        if isinstance(entProp,(list,tuple)):
+                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
                         else:
@@ -1644,20 +1634,7 @@ class World:
     def loc2glob(self, idx):
         return self._loc2glob[idx]
 
-    def getNodeData(self, propName, nodeType=None):
-        """
-        Method to retrieve all properties of all entities of one nodeType
-        """
-        nodeIdList = self.nodeDict[nodeType]
-
-        return np.asarray(self.graph.vs[nodeIdList][propName])
-
-
-    def getEdgeData(self, propName, edgeType=None):
-        """
-        Method to retrieve all properties of all entities of one edgeType
-        """
-        return self.graph.es.select(type=edgeType)[propName]
+    
 
     def getLocationDict(self):
         """
@@ -1715,6 +1692,21 @@ class World:
         elif nodeType:
             self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
 
+#    def getNodeData(self, propName, nodeType=None):
+#        """
+#        Method to retrieve all properties of all entities of one nodeType
+#        """
+#        nodeIdList = self.nodeDict[nodeType]
+#
+#        return np.asarray(self.graph.vs[nodeIdList][propName])
+
+
+    def getEdgeData(self, propName, edgeType=None):
+        """
+        Method to retrieve all properties of all entities of one edgeType
+        """
+        return self.graph.es.select(type=edgeType)[propName]
+    
   
     def getEntity(self, nodeID=None, globID=None):
         """
@@ -1743,7 +1735,9 @@ class World:
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
-        self.cellMapIdxList = list()
+        
+        # tuple of idx array of cells that correspond of the spatial input maps 
+        self.cellMapIds = np.where(rankArray == self.mpi.rank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):
