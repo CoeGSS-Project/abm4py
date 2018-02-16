@@ -55,22 +55,11 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-import mpi4py
-mpi4py.rc.threads = False
 import sys, os
 import socket
-import csv
-import time
-#import guppy
-from copy import copy
-from os.path import expanduser
-import pdb
-home = expanduser("~")
 
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
-
-
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
@@ -80,6 +69,18 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
 else:
     import matplotlib
     matplotlib.use('Agg')
+    
+import mpi4py
+mpi4py.rc.threads = False
+
+
+import csv
+import time
+#import guppy
+from copy import copy
+from os.path import expanduser
+import pdb
+home = expanduser("~")
 
 #from deco_util import timing_function
 import numpy as np
@@ -1115,7 +1116,7 @@ def cellTest(earth):
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        asd
+        
 # %% Generate Network
 def generateNetwork(earth):
     parameters = earth.getParameter()
@@ -1253,7 +1254,10 @@ def runModel(earth, parameters):
 
     for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
-
+    
+    inputFromGlobal = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')    
+    earth.market.initExperience(parameters['scenario'], inputFromGlobal)
+    
     lg.info('Initial market step done')
 
     for household in earth.iterEntRandom(HH):
@@ -1571,7 +1575,7 @@ if __name__ == '__main__':
     
         exit()
     #%% Scenario graph ger
-    if parameters.scenario == 6: #graph partition NBH
+    if parameters.scenario == 6: #graph partition Germany
         parameters = scenarioGer(parameters, dirPath)
         parameters.landLayer = parameters.landLayer * 0
         parameters.showFigures = showFigures

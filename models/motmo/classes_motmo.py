@@ -153,7 +153,7 @@ class Earth(World):
         Method to register a new Brand in the Earth and therefore in the market.
         It currently adds the related convenience function in the cells.
         """
-        brandID = self.market.initBrand(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
+        brandID = self.market.initGood(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
 
         # TODO: move convenience Function from a instance variable to a class variable            
         for cell in self.iterEntRandom(CELL):
@@ -419,10 +419,10 @@ class Earth(World):
 # ToDo
 class Good():
     """
-    Definition of an economic good in an sence. The class is used to compute
+    Definition of an economic good in a sence. The class is used to compute
     technical progress in production and related unit costs.
 
-    Technical progress is models according to the puplication of nagy+al2010
+    Technical progress is models according to the publication of nagy+al2010
     https://doi.org/10.1371/journal.pone.0052669
     """
     
@@ -439,13 +439,15 @@ class Good():
         
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
         #print self.lastGlobalSales
-        self.goodID             = len(self.lastGlobalSales)
-        self.label              = label
-        self.currGrowthRate     = 1
-        self.oldStock           = 0
-        self.currStock          = 0
-        self.replacementRate    = 0.01
-        self.currLocalSales     = 0
+        self.goodID          = len(self.lastGlobalSales)
+        self.label           = label
+        self.currGrowthRate  = 1
+        self.oldStock        = 0
+        self.currStock       = 0
+        self.replacementRate = 0.01
+        self.currLocalSales  = 0
+        self.emissions       = 0.
+        self.price           = 0.
         
         self.updateGlobalSales(self.lastGlobalSales + [0])
         
@@ -548,6 +550,7 @@ class Good():
     def getGrowthRate(self):
         return self.currGrowthRate
 
+
 class Market():
     """
     Market class that mangages goood, technical progress and stocks.
@@ -574,8 +577,14 @@ class Market():
         self.mobilityInitDict    = dict()                     # list of (list of) initial values for each mobility type
         self.mobilityTypesToInit = list()                     # list of (mobility type) labels
         self.burnIn              = burnIn
-        self.goods               = dict()
-        self.sales               = list()
+        self.goods               = dict()                     # keys: goodIDs, values: goods
+       # self.sales               = list()
+        
+        self.experienceBrownExo = list()
+        self.experienceGreenExo = list()
+        self.experienceBrownEndo = 0.
+        self.experienceGreenEndo = 0.
+        self.germany = False
 
         #adding market globals
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
@@ -603,7 +612,7 @@ class Market():
     def initialCarInit(self):
         # actually puts the car on the market
         for label, propertyTuple, _, brandID, allTimeProduced in self.mobilityInitDict['start']:
-            self.addBrand2Market(label, propertyTuple, brandID)
+            self.addGood2Market(label, propertyTuple, brandID)
 
     def getCurrentMaturity(self):
         return [self.goods[iGood].getMaturity() for iGood in self.goods.keys()]
@@ -617,7 +626,7 @@ class Market():
         self.mean['costs']     = self.glob['meanPrc']
 
         self.std['emissions']  = self.glob['stdEmm']
-        self.std['costs']  = self.glob['stdPrc']
+        self.std['costs']      = self.glob['stdPrc']
 
 
         lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))
@@ -640,12 +649,110 @@ class Market():
             self.std[prop] = propStd
 
 
+    def initExperience(self, scenario, inputFromGlobal):
+        experienceWorld      = inputFromGlobal['expWorld'].values
+        experienceWorldGreen = inputFromGlobal['expWorldGreen'].value
+        experienceWorldBrown = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]                
+        if scenario == 6:
+            self.germany = True 
+            experienceGer      = inputFromGlobal['expGer'].values
+            experienceGerGreen = inputFromGlobal['expGerGreen'].value
+            experienceGerBrown = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
+            self.experienceBrownExo = [experienceWorldBrown[i]-experienceGerBrown[i] for i in range(len(experienceWorld))]
+            self.experienceGreenExo = [experienceWorldGreen[i]-experienceGerGreen[i] for i in range(len(experienceWorld))]                               
+        else:
+            self.experienceBrownExo = experienceWorldBrown
+            self.experienceGreenExo = experienceWorldGreen
+    
+    def initPrices(self):
+        
+
+
+    def updateExperience(self):
+        time = int(self.time/12)      
+        exoBrown = self.experienceBrownExo[time]
+        exoGreen = self.experienceGreenExo[time]        
+        if self.germany:
+            self.experienceBrownEndo += self.glob['sales'][0]   # self.sales?
+            self.experienceGreenEndo += self.glob['sales'][1]   # self.sales?
+            
+        self.experienceBrown = self.experienceBrownEndo + exoBrown
+        self.experienceGreen = self.experienceGreenEndo + exoGreen        
+
+    
+    def updatePrices(self):
+        
+        for good in self.goods.values():
+            if good.label == 'brown':                
+                stockIn10Mio = self.experienceBrown/10000000.       
+                good.price = emissionsPerKg * weight
+                
+            elif good.label == 'green':                 
+                electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
+                stock = self.experienceGreen        
+                good.price = emissionsPerKg * weight * electrProdFactor
+                
+            elif good.label == 'public':
+                pt2030  = self.para['pt2030']  
+                ptLimit = self.para['ptLimit']
+                rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
+                years = self.time/12.
+                factor = (1-ptLimit)*0.73 * math.exp(7*rate)
+                good.price = factor*math.exp(-rate*years) + ptLimit*0.73
+                 
+            elif good.label == 'shared':
+                stockShare = self.stockByMobType[1]/(self.stockByMobType[0]+self.stockByMobType[1])
+                electricShare = 0.1 + 0.9*stockShare                     
+                weight = self.para['weightS']
+                emissionsPerKg = (1-electricShare)*self.goods[0].emissions + electricShare*self.goods[1].emissions
+                good.price = emissionsPerKg * weight
+                
+            else:
+                good.price = 0.001
+                
+
+    def updateEmissions(self):
+        
+        for good in self.goods.values():
+            if good.label == 'brown':                
+                weight = self.para['weightB']
+                stockIn10Mio = self.experienceBrown/10000000.
+                emissionsPerKg = 9.20569967051 * stockIn10Mio**(-0.894311327388) + 0.058279616211            
+                good.emissions = emissionsPerKg * weight
+                
+            elif good.label == 'green':                 
+                weight = self.para['weightG']
+                electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
+                stock = self.experienceGreen 
+                emissionsPerKg = 0.31052309 * stock**(-0.20919615) + 0.04178411          
+                good.emissions = emissionsPerKg * weight * electrProdFactor
+                
+            elif good.label == 'public':
+                pt2030  = self.para['pt2030']  
+                ptLimit = self.para['ptLimit']
+                rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
+                years = self.time/12.
+                factor = (1-ptLimit)*0.73 * math.exp(7*rate)
+                good.emissions = factor*math.exp(-rate*years) + ptLimit*0.73
+                 
+            elif good.label == 'shared':
+                stockShare = self.stockByMobType[1]/(self.stockByMobType[0]+self.stockByMobType[1])
+                electricShare = 0.1 + 0.9*stockShare                     
+                weight = self.para['weightS']
+                emissionsPerKg = (1-electricShare)*self.goods[0].emissions + electricShare*self.goods[1].emissions
+                good.emissions = emissionsPerKg * weight
+                
+            else:
+                good.emissions = 0.001
+        
+        
+
     def ecology(self, emissions):
 
         if self.std['emissions'] == 0:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/1))
+            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/1.))
         else:
-            ecology = 1 / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
 
         return ecology
 
@@ -657,11 +764,12 @@ class Market():
 
             for mobTuple in self.mobilityInitDict[self.time]:
                 for label, propertyDict, _, mobTypeID in  mobTuple:
-                    self.addBrand2Market(label, propertyDict, mobTypeID)
+                    self.addGood2Market(label, propertyDict, mobTypeID)
 
         # only do technical change after the burn in phase
         doTechProgress = self.time > self.burnIn
         if doTechProgress:
+            self.updateEmissions
             lg.info( 'sales in market: ' + str(self.glob['sales']))
             
         for iGood in self.goods.keys():
@@ -690,7 +798,7 @@ class Market():
         self.time +=1
 
 
-    def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
+    def initGood(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
         mobType = self.__nMobTypes__
         self.__nMobTypes__ +=1
         self.glob['sales'] = np.asarray([0]*self.__nMobTypes__)
@@ -706,14 +814,14 @@ class Market():
 
         return mobType
 
-    def addBrand2Market(self, label, propertyDict, mobType):
+    def addGood2Market(self, label, propertyDict, mobType):
         #add brand to the market
         self.stockByMobType[mobType]     = 0
         self.mobilityProp[mobType]       = propertyDict
         self.mobilityLables[mobType]     = label
         self.obsDict[self.time][mobType] = list()
 
-    def remBrand(self,label):
+    def remGood(self,label):
         #remove brand from the market
         del self.mobilityProp[label]
 
