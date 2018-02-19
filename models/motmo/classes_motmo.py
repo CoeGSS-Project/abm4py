@@ -725,7 +725,7 @@ class Market():
         self.compInnovation()
         self.currMobProps = self.getMobProps()
 
-        if doTechProgress:
+        if doTechProgress:                             ##OPTPRODUCTION
             lg.debug('techProgress: ' + str([self.glob['sales'][iGood] for iGood in self.goods.keys()]))##OPTPRODUCTION
              
             

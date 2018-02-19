@@ -490,7 +490,7 @@ def scenarioGer(parameterInput, dirPath):
 
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
     if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+        setup.landLayer = np.load(setup.resourcePath + 'partition_map_' + str(mpiSize) + '.npy')
     else:
 
         setup.landLayer=  np.load(setup.resourcePath + 'land_layer_186x219.npy')
@@ -681,6 +681,8 @@ def scenarioLueneburg(parameterInput, dirPath):
     #agents
     setup.randomAgents     = False
     setup.omniscientAgents = False
+    
+    publicTranportSetup(setup)
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
@@ -809,6 +811,49 @@ def scenarioTest(parameterInput, dirPath):
 
 # %% Setup functions
 
+def convolutionMatrix(radius, centerWeight):
+    convMat = np.zeros([radius*2+1,radius*2+1])
+    for dx in np.arange(-radius, radius+1):
+        for dy in np.arange(-radius, radius+1):
+            if dx == 0 and dy == 0:
+                convMat[radius+dx,radius+dy] = centerWeight
+            else:
+                convMat[radius+dx,radius+dy] = 1./np.sqrt(dx**2 + dy**2) 
+                
+    return convMat
+
+def publicTranportSetup(setup):
+    """
+    computation of the convenience of puplic transport for the Luenburg case
+    """
+    
+
+
+    
+        
+    busMap = np.load(setup.resourcePath + 'nBusStations.npy')
+    trainMap = np.load(setup.resourcePath + 'nTrainStations.npy')
+    
+    #density proxi
+    convMat = convolutionMatrix(5,2)
+    bus_station_density = signal.convolve2d(busMap,convMat,boundary='symm',mode='same')  #/ sumConv
+    bus_station_density[busMap==0] = 0
+    
+    convMat = convolutionMatrix(20,2)
+    train_station_density = signal.convolve2d(trainMap,convMat,boundary='symm',mode='same')
+    train_station_density[trainMap==0] = 0
+    
+    # convolution of the station influence
+    convMat = convolutionMatrix(1,2) / 2.
+    
+    tmp1 = .5 * signal.convolve2d(bus_station_density,convMat,boundary='symm',mode='same')
+    tmp2 = 5 *signal.convolve2d(train_station_density,convMat,boundary='symm',mode='same')   
+    
+    convPup = np.log(1 + tmp1 + tmp2) # one is is used so that log(1) = 0
+
+        
+    setup['conveniencePublic'] = convPup / np.max(convPup) * .6
+
 # Mobility setup setup
 def mobilitySetup(earth):
     parameters = earth.getParameter()
@@ -821,11 +866,19 @@ def mobilitySetup(earth):
         return conv
 
     def convenienceGreen(density, pa, kappa, cell):
+        
         conv = pa['minConvG'] + \
         (pa['maxConvGInit']-pa['minConvG']) * \
         (1 - kappa)  * np.exp( - (density - pa['muConvGInit'])**2 / (2 * pa['sigmaConvGInit']**2)) +  \
         (pa['maxConvG'] - pa['minConvG']) * kappa * (np.exp(-(density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2)))
+        
+        
         return conv
+
+    def conveniencePublicLeuphana(density, pa, kappa, cell):
+        
+        currKappa   = (1 - kappa) * pa['maxConvGInit'] + kappa * pa['maxConvG']
+        return pa['conveniencePublic'][cell._node['pos']] * currKappa
 
     def conveniencePuplic(density, pa, kappa, cell):
         conv = pa['minConvP'] + \
@@ -873,6 +926,7 @@ def mobilitySetup(earth):
     propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
     propDict['emissions'] = parameters['initEmGreen'], 70. # init, lim
     
+
     
     earth.registerBrand('green',                                                        #name
                     propDict,       #(emissions, TCO)
@@ -887,10 +941,13 @@ def mobilitySetup(earth):
     propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
     propDict['emissions'] = parameters['initEmPuplic'], 30. # init, lim
     
-    
+    if parameters['scenario'] == 2:
+        convFuncPublic = conveniencePublicLeuphana
+    else:
+        convFuncPublic = conveniencePuplic
     earth.registerBrand('public',  #name
                     propDict,   #(emissions, TCO)
-                    conveniencePuplic,
+                    convFuncPublic,
                     'start',
                     parameters['techSlopePuplic'],           # initial technical progress
                     parameters['techProgPuplic'],            # slope of technical progress
