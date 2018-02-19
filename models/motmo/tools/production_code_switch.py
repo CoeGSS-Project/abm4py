@@ -12,12 +12,14 @@ if len(sys.argv) > 1:
 else:
     flag = 1
 
+useNumba = False
 
 fileNames = list()
 
 fileNames.append('../init_motmo.py')
 fileNames.append('../classes_motmo.py')
 fileNames.append('../../../lib/lib_gcfabm.py')
+fileNames.append('../../../lib/class_auxiliary.py')
 
 for fileName in fileNames:
     outLineList = []
@@ -31,6 +33,12 @@ for fileName in fileNames:
             cnt += 1
             line = line.replace('lib_gcfabm', 'lib_gcfabm_prod')
             line = line.replace('classes_motmo', 'classes_motmo_prod')
+            line = line.replace('class_auxiliary', 'class_auxiliary_prod')
+            if not useNumba:
+                line = line.replace('@jit', '#ljit')
+                line = line.replace('@njit', '#njit')
+                line = line.replace('from numba', '#from numba')
+                                    
             if '##OPTPRODUCTION' in line:
                 
                 outLineList.append('#' + line)
