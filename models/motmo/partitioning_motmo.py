@@ -30,6 +30,7 @@ home = expanduser("~")
 dirPath = os.path.dirname(os.path.realpath(__file__))
 
 fileName = sys.argv[1]
+nParts   = int(sys.argv[2])
 parameters = Bunch()
 for item in csv.DictReader(open(fileName)):
     if item['name'][0] != '#':
@@ -44,11 +45,12 @@ scenarioDict[3] = init.scenarioNBH
 scenarioDict[6] = init.scenarioGer
 #%%
 parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
-parameters['connRadius'] = 1.1
+parameters['connRadius'] = 1.5
 
 earth = init.initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
 CELL, HH, PERS = init.initTypes(earth)
 init.initSpatialLayer(earth)
+parameters.population.clip(min=2.1)
 for cell in earth.iterEntRandom(CELL):
     cell.setValue('population', parameters.population[cell.getValue('pos')])
     
@@ -67,8 +69,8 @@ if parameters.scenario == 6:
 aux.writeAdjFile(earth.graph, parameters['resourcePath'] + 'outGraph.txt')
 
 metisPath = home + '/software/metis-5.1.0/build/Linux-x86_64/programs/gpmetis'
-nParts = 10
-os.system(metisPath + ' ' + parameters['resourcePath'] + 'outGraph.txt ' + str(nParts) + ' -niter=50 -ncuts=50 -ufactor=2 -conti -no2hop -ctype=rm -objtype=vol -seed=2')
+
+os.system(metisPath + ' ' + parameters['resourcePath'] + 'outGraph.txt ' + str(nParts) + ' -niter=500 -ncuts=500 -ufactor=2 -conti -no2hop -ctype=rm -objtype=vol')
 
 clusterMap = parameters['population'] *0
 fid = open(parameters['resourcePath'] +"outGraph.txt.part." + str(nParts),'r')
@@ -78,10 +80,38 @@ nonNan = np.isnan(parameters['population'])==False
 clusterMap[nonNan] = yy
 plt.figure()
 plt.imshow(clusterMap)
+
+
 #%%
+nAgents = np.zeros(nParts)
 for iClust in range(nParts):
-    print str(iClust) + ': ' + str(np.sum(parameters['population'][clusterMap==iClust]))
+    #print str(iClust) + ': ' + str()
+    nAgents[iClust] = np.sum(parameters['population'][clusterMap==iClust])
+print 'min: ' + str(nAgents.min())
+print 'max: ' + str(nAgents.max())
+print 'mean: ' + str(nAgents.mean())
+print 'std: ' + str(nAgents.std())
+print 'rel std: ' + str(nAgents.std() / nAgents.mean())  
+#%%
+#clusterMap = clusterMap.astype(int)
+#iMax = np.argmax(nAgents)
+#xMax, yMax = np.where(clusterMap==iMax)
+#idxMinMax =  np.argmin(parameters['population'][xMax,yMax])
+#minValue = parameters['population'][xMax[idxMinMax],yMax[idxMinMax]]
+#xNeig = []
+#yNeig = []
+#for x,y in zip(xMax,yMax):
+#    for dx in [-1,1]:
+#        for dy in [-1,1]:
+#            xNeig.append(x+dx)
+#            yNeig.append(y+dy)
+#xNeig = np.asarray(xNeig)
+#yNeig = np.asarray(yNeig)
+#neigClustRank = np.unique(clusterMap[xNeig,yNeig])
+#
+#exchangeClust = neigClustRank[nAgents[neigClustRank] + minValue < nAgents[iMax]][0]
+#clusterMap[xMax[idxMinMax],yMax[idxMinMax]] = exchangeClust
 
 #%%
 
-np.save(parameters['resourcePath'] +'rankMap_nClust' + str(nParts) + 'new.npy',clusterMap) 
+np.save(parameters['resourcePath'] +'partition_map_' + str(nParts) + '.npy',clusterMap) 
