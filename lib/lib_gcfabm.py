@@ -1034,9 +1034,9 @@ class World:
             self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                          'w',
                                          driver='mpio',
-                                         comm=world.mpi.comm,
-                                         libver='latest',
-                                         info = world.mpi.info)
+                                         comm=world.mpi.comm)
+                                         #libver='latest',
+                                         #info = world.mpi.info)
             self.comm        = world.mpi.comm
             self.dynamicData = dict()
             self.staticData  = dict() # only saved once at timestep == 0
