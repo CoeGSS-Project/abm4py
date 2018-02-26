@@ -771,9 +771,6 @@ class Market():
             for j in range(12):
                 self.experienceBrownExo.append(experienceBrownExo[i-1]+diffBrown*float(j)/12.)
                 self.experienceGreenExo.append(experienceGreenExo[i-1]+diffGreen*float(j)/12.)
-        
-#        self.experienceBrownExo.append(experienceBrownExo[len(experienceBrownExo)])
-#        self.experienceGreenExo.append(experienceGreenExo[len(experienceBrownExo)])
 
     
     def initPrices(self):
