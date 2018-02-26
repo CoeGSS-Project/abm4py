@@ -509,7 +509,7 @@ class Good():
         if self.label == 'brown':
             def emissionFn(self, market):                
                 weight = self.paras['weight']
-                yearIdx = int((market.time - market.burnIn)/12.)
+                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)
                 if market.germany:
                     exp = market.experienceBrownExo[yearIdx] + self.experience
                 else:
@@ -524,7 +524,7 @@ class Good():
             def emissionFn(self, market):                  
                 weight = self.paras['weight']
                 electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
-                yearIdx = int((market.time - market.burnIn)/12.)                
+                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)                
                 if market.germany:
                     exp = market.experienceGreenExo[yearIdx] + self.experience
                 else:
@@ -539,7 +539,7 @@ class Good():
                 pt2030  = self.paras['pt2030']  
                 ptLimit = self.paras['ptLimit']
                 rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
-                year = market.time/12.
+                year = (market.time-market.burnIn)/12.
                 factor = (1-ptLimit)*73 * math.exp(7*rate)
                 maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
                 emissions = factor*math.exp(-rate*year) + ptLimit*73
@@ -752,24 +752,29 @@ class Market():
             self.std[prop] = propStd
 
 
-    def initExogenousExperience(self, scenario, inputFromGlobal):
-        experienceWorld      = inputFromGlobal['expWorld'].values
-        experienceWorldGreen = inputFromGlobal['expWorldGreen'].values
-        experienceWorldBrown = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]
-        self.experienceBrownStart = experienceWorldBrown[0]
-        self.experienceGreenStart = experienceWorldGreen[0]       
-                
+    def initExogenousExperience(self, scenario):
+        
+        self.experienceBrownStart = self.para['experienceWorldBrown'][0]
+        self.experienceGreenStart = self.para['experienceWorldGreen'][0]
+                                                   
         if scenario == 6:
             self.germany = True 
-            experienceGer      = inputFromGlobal['expGer'].values
-            experienceGerGreen = inputFromGlobal['expGerGreen'].values
-            experienceGerBrown = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
-            self.experienceBrownExo = [experienceWorldBrown[i]-experienceGerBrown[i] for i in range(len(experienceWorld))]
-            self.experienceGreenExo = [experienceWorldGreen[i]-experienceGerGreen[i] for i in range(len(experienceWorld))]                               
+            experienceBrownExo = [self.para['experienceWorldBrown'][i]-self.para['experienceGerBrown'][i] for i in range(len(self.para['experienceWorldBrown']))]
+            experienceGreenExo = [self.para['experienceWorldGreen'][i]-self.para['experienceGerGreen'][i] for i in range(len(self.para['experienceWorldGreen']))]                               
         else:
-            self.experienceBrownExo = experienceWorldBrown
-            self.experienceGreenExo = experienceWorldGreen
+            experienceBrownExo = self.para['experienceWorldBrown']
+            experienceGreenExo = self.para['experienceWorldGreen']
         
+        for i in range(1,len(experienceBrownExo)):
+            diffBrown = experienceBrownExo[i]-experienceBrownExo[i-1]
+            diffGreen = experienceGreenExo[i]-experienceGreenExo[i-1]
+            for j in range(12):
+                self.experienceBrownExo.append(experienceBrownExo[i-1]+diffBrown*float(j)/12.)
+                self.experienceGreenExo.append(experienceGreenExo[i-1]+diffGreen*float(j)/12.)
+        
+#        self.experienceBrownExo.append(experienceBrownExo[len(experienceBrownExo)])
+#        self.experienceGreenExo.append(experienceGreenExo[len(experienceBrownExo)])
+
     
     def initPrices(self):
         for good in self.goods.values():
@@ -796,7 +801,7 @@ class Market():
   
     
     def updatePrices(self):
-        yearIdx = int((self.time-self.burnIn)/12.)        
+        yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
                 exponent = self.para['priceReductionB']

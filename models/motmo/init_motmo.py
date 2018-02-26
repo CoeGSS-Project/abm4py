@@ -1544,9 +1544,8 @@ def runModel(earth, parameters):
 
     for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
-    
-    inputFromGlobal = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')    
-    earth.market.initExogenousExperience(parameters['scenario'], inputFromGlobal)
+     
+    earth.market.initExogenousExperience(parameters['scenario'])
     earth.market.initPrices()
     for good in earth.market.goods.values():
         good.initEmissionFunction(earth.market)
@@ -1818,12 +1817,21 @@ if __name__ == '__main__':
         
         if mpiRank == 0:
             parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
+            inputFromGlobal = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
+            experienceWorld      = inputFromGlobal['expWorld'].values
+            experienceWorldGreen = inputFromGlobal['expWorldGreen'].values
+            parameters['experienceWorldGreen'] = experienceWorldGreen
+            parameters['experienceWorldBrown'] = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]
+            experienceGer      = inputFromGlobal['expGer'].values
+            experienceGerGreen = inputFromGlobal['expGerGreen'].values
+            parameters['experienceGerGreen'] = experienceGerGreen
+            parameters['experienceGerBrown'] = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
         else:
             parameters = None
         
 
             
-        parameters = comm.bcast(parameters)    
+        parameters = comm.bcast(parameters,root=0)    
             
         if mpiRank == 0:
             print'Parameter exchange done'
