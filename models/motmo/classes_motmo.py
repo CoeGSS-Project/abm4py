@@ -724,7 +724,7 @@ class Market():
         self.time +=1
 
     def computeInnovation(self):
-        self.innovation = 1- (normalize(np.asarray(self.getCurrentExperience())))**2
+        self.innovation = 1 - (normalize(np.asarray(self.getCurrentExperience()))**.5)
         
 
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
