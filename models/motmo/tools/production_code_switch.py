@@ -16,10 +16,10 @@ useNumba = False
 
 fileNames = list()
 
-fileNames.append('../init_motmo.py')
-fileNames.append('../classes_motmo.py')
-fileNames.append('../../../lib/lib_gcfabm.py')
-fileNames.append('../../../lib/class_auxiliary.py')
+fileNames.append('init_motmo.py')
+fileNames.append('classes_motmo.py')
+fileNames.append('../../lib/lib_gcfabm.py')
+fileNames.append('../../lib/class_auxiliary.py')
 
 for fileName in fileNames:
     outLineList = []

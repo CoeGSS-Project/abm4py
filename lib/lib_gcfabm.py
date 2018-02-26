@@ -848,14 +848,14 @@ class GhostLocation(Entity):
         world.addEdge(entity.nID,self.nID, type=edgeType)
         entity.loc = self
 
-    def updatePeList(self, graph, edgeType):  # toDo nodeType is not correct anymore
-        """
-        updated method for the people list, which is required since
-        ghost cells are not active on their own
-        """
-        
-        hhIDList = self.getPeerIDs(edgeType)
-        self.hhList = graph.vs[hhIDList]
+#    def updateAgentList(self, graph, edgeType):  # toDo nodeType is not correct anymore
+#        """
+#        updated method for the agents list, which is required since
+#        ghost cells are not active on their own
+#        """
+#        
+#        hhIDList = self.getPeerIDs(edgeType)
+#        return graph.vs[hhIDList]
 ################ WORLD CLASS #########################################
 
 class World:

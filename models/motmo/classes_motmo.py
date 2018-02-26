@@ -1140,12 +1140,15 @@ class Person(Agent):
             self.imitation = [np.random.choice(self.getValue('commUtil').shape[0])]
         else:
 
+            if np.sum(~np.isfinite(utilPeers)) > 0:
+                lg.info('Warning for utilPeers:')
+                lg.info(str(utilPeers))
             # weight of the fitness (quality) of the memes
             sumUtilPeers = sum1D(utilPeers)
             if sumUtilPeers > 0:
                 w_fitness = utilPeers / sumUtilPeers
             else:
-                w_fitness = np.zeros_like(utilPeers) / utilPeers.shape[0]
+                w_fitness = np.ones_like(utilPeers) / utilPeers.shape[0]
             
             # weight of reliability of the information (evolving over time)
             #w_reliability = weights
@@ -1512,6 +1515,11 @@ class Household(Agent):
                 emissions += nTrips * avgKm * emissionsPerKm
             self.loc.addValue('emissions', emissions) #in kg
             
+            if actionIdx == GREEN:
+                # elecric car is used -> compute estimate of power consumption
+                # for the current model 0.6 kg / kWh
+                electricConsumption = emissions / 0.6
+                self.loc.addValue('electricConsumption', electricConsumption)
             
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
@@ -2108,23 +2116,23 @@ class GhostCell(GhostLocation, Cell):
         self.hhList = list()
         self.peList = list()
 
-    def updateHHList_old(self, graph):  # toDo nodeType is not correct anymore
-        """
-        updated method for the household list, which is required since
-        ghost cells are not active on their own
-        """
-        nodeType = graph.class2NodeType[Household]
-        hhIDList = self.getPeerIDs(nodeType)
-        self.hhList = graph.vs[hhIDList]
+#    def updateHHList_old(self, graph):  # toDo nodeType is not correct anymore
+#        """
+#        updated method for the household list, which is required since
+#        ghost cells are not active on their own
+#        """
+#        nodeType = graph.class2NodeType[Household]
+#        hhIDList = self.getPeerIDs(nodeType)
+#        self.hhList = graph.vs[hhIDList]
 
-    def updatePeList_old(self, graph):  # toDo nodeType is not correct anymore
-        """
-        updated method for the people list, which is required since
-        ghost cells are not active on their own
-        """
-        nodeType = graph.class2NodeType[Person] 
-        hhIDList = self.getPeerIDs(nodeType)
-        self.hhList = graph.vs[hhIDList]
+#    def updatePeList_old(self, graph):  # toDo nodeType is not correct anymore
+#        """
+#        updated method for the people list, which is required since
+#        ghost cells are not active on their own
+#        """
+#        nodeType = graph.class2NodeType[Person] 
+#        hhIDList = self.getPeerIDs(nodeType)
+#        self.hhList = graph.vs[hhIDList]
 
 class Opinion():
     """

@@ -1118,6 +1118,7 @@ def householdSetup(earth, calibration=False):
                 print 'hhDate shape: ' + str(hhData[regionIdx].shape)
 
             income = hhData[regionIdx][currIdx[regionIdx], H5INCOME]
+            hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
 
             # set minimal income
             income = max(400., income)
@@ -1135,7 +1136,8 @@ def householdSetup(earth, calibration=False):
                            income=income,
                            expUtil=0,
                            util=0,
-                           expenses=0)
+                           expenses=0,
+                           hhType=hhType)
 
             hh.adults = list()
             hh.register(earth, parentEntity=loc, edgeType=CON_LH)
@@ -1199,11 +1201,17 @@ def householdSetup(earth, calibration=False):
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
 
-    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
-        ghostCell.updatePeList(earth.graph)
-        ghostCell.updateHHList(earth.graph)
-
-    
+#    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
+#        if mpiRank == 0:
+#            print ghostCell.peList
+#        ghostCell.hhList = ghostCell.updateAgentList(earth.graph, CON_LH)
+#        if mpiRank == 0:
+#            print ghostCell.peList
+#        asd
+#        #ghostCell.peList = ghostCell.updatePeList(earth.graph, CON_)
+#        #ghostCell.peList = None
+#        print ghostCell.peList
+        
     for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
         hh.setAdultNodeList(earth)
@@ -1301,7 +1309,8 @@ def initTypes(earth):
                                                    'convenience',
                                                    'carsInCell',
                                                    'chargStat',
-                                                   'emissions'])
+                                                   'emissions',
+                                                   'electricConsumption'])
 
 
     HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
@@ -1309,7 +1318,8 @@ def initTypes(earth):
                                                    'gID',
                                                    'pos',
                                                    'hhSize',
-                                                   'nKids'],
+                                                   'nKids',
+                                                   'hhType'],
                                dynamicProperies =  ['income',
                                                    'expUtil',
                                                    'util',
@@ -1378,6 +1388,7 @@ def initSpatialLayer(earth):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', 0)
             cell.setValue('emissions', 0.)
+            cell.setValue('electricConsumption', 0.)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
             
