@@ -1170,7 +1170,8 @@ def householdSetup(earth, calibration=False):
                               mobType     = 0,
                               prop        = np.asarray([0.]*len(parameters['properties'])),
                               consequences= np.asarray([0.]*len(prefTuple)),
-                              lastAction  = 0)
+                              lastAction  = 0,
+                              hhType      = hhType)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
                 pers.register(earth, parentEntity=hh, edgeType=CON_HP)
@@ -1332,7 +1333,8 @@ def initTypes(earth):
                                                    'hhID',
                                                    'preferences',
                                                    'gender',
-                                                   'nJourneys'],
+                                                   'nJourneys',
+                                                   'hhType'],
                                 dynamicProperies = ['age',
                                                    'util',     # current utility
                                                    'commUtil', # comunity utility

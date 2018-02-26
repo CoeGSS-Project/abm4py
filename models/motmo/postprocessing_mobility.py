@@ -51,36 +51,37 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-plotFunc.append('plot_ChargingStations')
-plotFunc.append('plot_GreenConvenienceOverTime')
-plotFunc.append('plot_globalRecords')
-plotFunc.append('plot_stockAllRegions')
-plotFunc.append('scatterConVSPref')
-plotFunc.append('plot_averageCarAge')
-plotFunc.append('plot_meanESSR')
-plotFunc.append('plot_peerBubbleSize')
-plotFunc.append('plot_agePerMobType')
-plotFunc.append('plot_womanSharePerMobType')
-plotFunc.append('plot_expectUtil')
-plotFunc.append('plot_selfUtil')
-plotFunc.append('plot_carStockBarPlot')
-plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
-plotFunc.append('plot_salesProperties')
-plotFunc.append('plot_prefPerLabel')
-plotFunc.append('plot_utilPerLabel')
-plotFunc.append('plot_greenPerIncome')
-plotFunc.append('plot_averageIncomePerCell')
-plotFunc.append('plot_incomePerLabel')
-plotFunc.append('plot_meanPrefPerLabel')
-plotFunc.append('plot_meanConsequencePerLabel')
-plotFunc.append('plot_cellMaps')
-plotFunc.append('plot_cellMovie')
-plotFunc.append('plot_carsPerCell')
-plotFunc.append('plot_greenCarsPerCell')
-plotFunc.append('plot_conveniencePerCell')
-plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+plotFunc.append('plot_carSharePerHHType')
+#plotFunc.append('plot_ChargingStations')
+#plotFunc.append('plot_GreenConvenienceOverTime')
+#plotFunc.append('plot_globalRecords')
+#plotFunc.append('plot_stockAllRegions')
+#plotFunc.append('scatterConVSPref')
+#plotFunc.append('plot_averageCarAge')
+#plotFunc.append('plot_meanESSR')
+#plotFunc.append('plot_peerBubbleSize')
+#plotFunc.append('plot_agePerMobType')
+#plotFunc.append('plot_womanSharePerMobType')
+#plotFunc.append('plot_expectUtil')
+#plotFunc.append('plot_selfUtil')
+#plotFunc.append('plot_carStockBarPlot')
+#plotFunc.append('plot_carSales')
+#plotFunc.append('plot_consequencePerLabel')
+#plotFunc.append('plot_salesProperties')
+#plotFunc.append('plot_prefPerLabel')
+#plotFunc.append('plot_utilPerLabel')
+#plotFunc.append('plot_greenPerIncome')
+#plotFunc.append('plot_averageIncomePerCell')
+#plotFunc.append('plot_incomePerLabel')
+#plotFunc.append('plot_meanPrefPerLabel')
+#plotFunc.append('plot_meanConsequencePerLabel')
+#plotFunc.append('plot_cellMaps')
+#plotFunc.append('plot_cellMovie')
+#plotFunc.append('plot_carsPerCell')
+#plotFunc.append('plot_greenCarsPerCell')
+#plotFunc.append('plot_conveniencePerCell')
+#plotFunc.append('plot_population')
+#plotFunc.append('plot_doFolium')
 
 simNo = sys.argv[1]
 
@@ -207,6 +208,8 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
 
 
 #%% FILTERS
+
+        
 def filter_PrefTypes(data, propDict, parameters, enums, filters):
 
     nSteps, nPers, nPersProp = data.pe.shape
@@ -226,28 +229,27 @@ def filter_householdIDsPerMobType(data, propDict, parameters, enums, filters):
     hhglob2datIdx = dict()
     for idx in range(data.hh.shape[1]):
         hhglob2datIdx[data.hhSta[idx,propDict.hhSta['gID'][0]]] = idx
-
+    filters.hh.hhglob2datIdx = hhglob2datIdx
 
     filters.hh.byMobType = dict()
-    filters.hh.byMobType[0] = list()
-    filters.hh.byMobType[1] = list()
-    filters.hh.byMobType[2] = list()
+    for mobKey in enums['brands'].keys():
+        filters.hh.byMobType[mobKey] = list()
+  
     for ti in range(parameters['nSteps']):
         #print time,
-        gIDsofHH = data.peSta[data.pe[ti,:,propDict.pe['mobType'][0]]==0,propDict.peSta['hhID'][0]].astype(int)
-        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
-        filters.hh.byMobType[0].append(np.asarray(hhIDs))
+        for mobKey in enums['brands'].keys():
+            gIDsofHH = data.peSta[data.pe[ti,:,propDict.pe['mobType'][0]]==mobKey,propDict.peSta['hhID'][0]].astype(int)
+            hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
+            filters.hh.byMobType[mobKey].append(np.asarray(hhIDs))
 
-        gIDsofHH = data.peSta[data.pe[ti,:,propDict.pe['mobType'][0]]==1,propDict.peSta['hhID'][0]].astype(int)
-        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
-        filters.hh.byMobType[1].append(np.asarray(hhIDs))
-
-        gIDsofHH = data.peSta[data.pe[ti,:,propDict.pe['mobType'][0]]==2,propDict.peSta['hhID'][0]].astype(int)
-        hhIDs = [hhglob2datIdx[gID] for gID in gIDsofHH]
-        filters.hh.byMobType[2].append(np.asarray(hhIDs))
 
     return filters
 
+
+#%% Plot auxiliary
+def labelYears(factor):
+    years = (parameters['nSteps'] - nBurnIn) / 12 / factor
+    plt.xticks(np.linspace(nBurnIn,parameters['nSteps'],years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)
 
 #%% PLOT FUNCTIONS
 
@@ -562,6 +564,43 @@ def plot_selfUtil(data, propDict, parameters, enums, filters):
     plt.legend(newLegStr,loc=0)
     plt.tight_layout()
     plt.savefig(path + 'selfUtility')
+
+def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
+    #  plot car stock as bar plot dependent on hhType
+    print 1
+    plt.figure()
+    mobMin = parameters['nMobTypes']
+    
+    for hhType in range(1,12):
+        plt.subplot(3,4,hhType)
+        carMat = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
+        filterIdx = data.peSta[:,propDict.peSta['hhType'][0]] == hhType
+        for ti in range(parameters['nSteps']):
+            carMat[ti,:] = np.bincount(data.pe[ti,filterIdx,propDict.pe['mobType'][0]].astype(int),minlength=mobMin).astype(float)
+        nCars = np.zeros(parameters['nSteps'])
+        colorPal =  sns.color_palette("Set3", n_colors=len(enums['brands'].values()), desat=.8)
+        tmp = colorPal[0]
+        colorPal[0] = colorPal[1]
+        colorPal[1] = tmp
+    
+        for i, brand in enumerate(enums['brands'].values()):
+            plt.bar(np.arange(parameters['nSteps']), carMat[:,i],bottom=nCars, color =colorPal[i], width=1)
+            nCars += carMat[:,i]
+            
+        if withoutBurnIn:
+            plt.xlim([nBurnIn,parameters['nSteps']])
+        else:
+            plt.xlim([0,parameters['nSteps']])
+        plt.ylim([0, np.sum(carMat[ti,:])])
+        
+        if parameters['plotYears']:
+            labelYears(5)
+    #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    plt.subplot(3,4,hhType+1)
+    plt.legend(enums['brands'].values(),loc=0)
+    plt.tight_layout()
+    
+    plt.savefig(path + 'carSharePerHHType') 
 
 def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     #  plot car stock as bar plot
@@ -1484,6 +1523,8 @@ if __name__ == "__main__":
             print e
             import traceback
             traceback.print_exc()
+            
+
     else:
         data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=0)
         data, propDict, filters = loadData(path, parameters, data, propDict, filters, nodeType=1)

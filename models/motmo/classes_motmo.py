@@ -721,7 +721,7 @@ class Market():
         #compute new statistics
         self.computeStatistics()
 
-        self.time +=1
+        self.time += 1
 
     def computeInnovation(self):
         self.innovation = 1 - (normalize(np.asarray(self.getCurrentExperience()))**.5)
