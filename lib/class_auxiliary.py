@@ -29,7 +29,7 @@ import itertools
 import pandas as pd
 #import seaborn as sns
 import pickle
-from numba import njit
+#from numba import njit
 
 #import sys
 #from numbers import Number
@@ -140,11 +140,11 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         return dirPath
 
-@njit
+#@njit
 def weightingFunc(x,y):
     return 1./((x**2. +y**2.)**.5)
 
-@njit
+#@njit
 def distance(x,y):
     return (x**2. +y**2.)**.5
 

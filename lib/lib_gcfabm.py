@@ -77,7 +77,7 @@ import time
 import random as rd
 from bunch import Bunch
 from class_graph import WorldGraph
-
+import class_auxiliary as aux
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
@@ -679,6 +679,93 @@ class Agent(Entity):
         """ not yet implemented"""
         pass
 
+    def getNClosePeers(self, 
+                       world, 
+                       nContacts,
+                       edgeType, 
+                       currentContacts = None, 
+                       addYourself = True):
+        """
+        Method to generate a preliminary friend network that accounts for
+        proximity in space
+        #ToDO add to easyUI
+        """
+
+
+        if currentContacts is None:
+            isInit=True
+        else:
+            isInit=False
+
+        if currentContacts is None:
+            currentContacts = [self.nID]
+        else:
+            currentContacts.append(self.nID)
+
+        contactList = list()
+        connList   = list()
+        #ownPref    = self._node['preferences']
+        #ownIncome  = self.hh._node['income']
+
+
+        #get spatial weights to all connected cells
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnectedLocation()
+        personIdsAll = list()
+        nPers = list()
+        cellWeigList = list()
+        
+        
+        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
+
+            cellWeigList.append(cellWeight)
+            
+            personIds = world.getEntity(cellIdx).peList #doto do more general
+            
+            #personIds = world.getEntity(cellIdx).getPersons()
+
+            personIdsAll.extend(personIds)
+            nPers.append(len(personIds))
+
+        # return nothing if too few candidates
+        if not isInit and nPers > nContacts:
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+            return [],[],[]
+
+        #setup of spatial weights
+        weightData = np.zeros(np.sum(nPers))
+
+        idx = 0
+        for nP, we in zip(nPers, cellWeigList):
+            weightData[idx:idx+nP] = we
+            idx = idx+ nP
+        del idx
+
+        #normalizing final row
+        weightData /= np.sum(weightData,axis=0)
+
+        if np.sum(weightData>0) < nContacts:
+            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
+            nContacts = min(np.sum(weightData>0)-1,nContacts)
+
+        if nContacts < 1:                                                       ##OPTPRODUCTION
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')      ##OPTPRODUCTION
+
+        else:
+            # adding contacts
+            ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
+            contactList = [ personIdsAll[idx] for idx in ids ]
+            connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
+
+        if isInit and addYourself:
+            #add yourself as a friend
+            contactList.append(self.nID)
+            connList.append((self.nID,self.nID))
+
+        weigList   = [1./len(connList)]*len(connList)
+        return contactList, connList, weigList
+
+
+
 
 class GhostAgent(Entity):
 
@@ -733,6 +820,14 @@ class Location(Entity):
                 world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
+    
+    def getConnectedLocation(self, edgeType=1):
+        """ 
+        ToDo: check if not deprecated 
+        """
+        self.weights, edges = self.getEdgeValues('weig',edgeType=edgeType)
+        self.connNodeDict = [edge.target for edge in edges ]
+        return self.weights, edges.indices, self.connNodeDict
 
 class GhostLocation(Entity):
 
@@ -753,6 +848,14 @@ class GhostLocation(Entity):
         world.addEdge(entity.nID,self.nID, type=edgeType)
         entity.loc = self
 
+    def updatePeList(self, graph, edgeType):  # toDo nodeType is not correct anymore
+        """
+        updated method for the people list, which is required since
+        ghost cells are not active on their own
+        """
+        
+        hhIDList = self.getPeerIDs(edgeType)
+        self.hhList = graph.vs[hhIDList]
 ################ WORLD CLASS #########################################
 
 class World:
@@ -1084,11 +1187,18 @@ class World:
                 staticRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 attributes = world.graph.nodeTypes[nodeType].staProp
                 attributes.remove('type')
+                
+                
                 lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
                 for attr in attributes:
+                    #print attr
                     #check if first property of first entity is string
-                    entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
+                    try:
+                        entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
+                    except:
+                        print attr
+                        raise(str(attr) + ' not found')
                     if not isinstance(entProp,str):
 
                         #todo - check why not np.array allowed
@@ -1137,28 +1247,33 @@ class World:
                 dynamicRec.initStorage()
                 self.dynamicData[nodeType] = dynamicRec
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+                
+            tt = time.time()
+            self.gatherNodeData(0,static=True)
+            self.writeDataToFile(0,static=True)
+            lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-        def gatherNodeData(self, timeStep):
+        def gatherNodeData(self, timeStep, static=False):
             """
             Transfers data from the graph to record for the I/O
             """
-            if timeStep == 0:
+            if static:
                 for typ in self.staticData.keys():
                     self.staticData[typ].addData(timeStep, self._graph)
+            else:
+                for typ in self.dynamicData.keys():
+                    self.dynamicData[typ].addData(timeStep, self._graph)
 
-            for typ in self.dynamicData.keys():
-                self.dynamicData[typ].addData(timeStep, self._graph)
-
-        def writeDataToFile(self, timeStep):
+        def writeDataToFile(self, timeStep, static=False):
             """
             Writing data to hdf5 file
             """
-            if timeStep == 0:
+            if static:
                 for typ in self.staticData.keys():
                     self.staticData[typ].writeData(self.h5File, folderName='static')
-
-            for typ in self.dynamicData.keys():
-                self.dynamicData[typ].writeData(self.h5File)
+            else:
+                for typ in self.dynamicData.keys():
+                    self.dynamicData[typ].writeData(self.h5File)
 
         def initEdgeFile(self, edfeTypes):
             """
@@ -1268,11 +1383,11 @@ class World:
             dataPackage.append((nNodes,nodeType))
             for prop in propList:
                 dataPackage.append(nodeSeq[prop])
-                dataSize += len(nodeSeq)
+                dataSize += len(nodeSeq[prop])
             if connList is not None:
                 dataPackage.append(connList)
                 dataSize += len(connList)
-            #lg.info('package size: ' + str(dataSize))
+            lg.debug('package size: ' + str(dataSize))
             return dataPackage, dataSize
 
 
@@ -1488,10 +1603,13 @@ class World:
             """
             Method to update ghost node data on all processes
             """
+            
+            if self.comm.size == 1:
+                return None
             tt = time.time()
             messageSize = self._updateGhostNodeData(nodeTypeList, propertyList)
 
-            if self.world.time == 0:
+            if self.world.timeStep == 0:
                 lg.info('Ghost update (of approx size ' +
                      str(messageSize * 24. / 1000. ) + ' KB)' +
                      ' required: ' + str(time.time()-tt) + ' seconds')
@@ -1571,8 +1689,8 @@ class World:
         self.graph    = WorldGraph(self, directed=True)
         self.para['outPath'] = outPath
 
-
-
+        
+        self.globalRecord = dict() # storage of global data
 
         # queues
         if self.queuing:
@@ -1619,7 +1737,6 @@ class World:
         # inactive is used to virtually remove nodes
         self.registerNodeType('inactiv', None, None)
         self.registerEdgeType('inactiv', None, None)
-
 
 
     def _globIDGen(self):
@@ -1737,7 +1854,7 @@ class World:
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
-        
+        lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
         self.cellMapIds = np.where(rankArray == self.mpi.rank)
 
@@ -1981,6 +2098,20 @@ class World:
         del self._glob2loc[agent.gID]
         del self._loc2glob[agent.gID]
 
+
+
+    def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
+        """
+        Creation of of a new record instance. 
+        If mpiReduce is given, the record is connected with a global variable with the
+        same name
+        """
+        self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
+
+        if mpiReduce is not None:
+            self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
+            self.globalRecord[name].glob = self.graph.glob
+            
     def registerLocation(self, location, x, y):
 
         self.locDict[x,y] = location
@@ -2002,7 +2133,37 @@ class World:
 
     def returnGlobals(self):
         return self.graph.glob
+    
+    def finalize(self):
+        """
+        Method to finalize records, I/O and reporter
+        """
+        from class_auxiliary import saveObj
 
+        # finishing reporter files
+#        for writer in self.reporter:
+#            writer.close()
+
+        if self.isRoot:
+            # writing global records to file
+            h5File = h5py.File(self.para['outPath'] + '/globals.hdf5', 'w')
+            for key in self.globalRecord:
+                self.globalRecord[key].saveCSV(self.para['outPath'])
+                self.globalRecord[key].save2Hdf5(h5File)
+
+            h5File.close()
+            # saving enumerations
+            saveObj(self.enums, self.para['outPath'] + '/enumerations')
+
+
+            # saving enumerations
+            saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
+
+            if self.para['showFigures']:
+                # plotting and saving figures
+                for key in self.globalRecord:
+                    self.globalRecord[key].plot(self.para['outPath'])
+                    
     def view(self,filename = 'none', vertexProp='none', dispProp='gID', layout=None):
         try:
             import matplotlib.cm as cm
@@ -2067,6 +2228,16 @@ class World:
                     ig.plot(self.graph, filename, layout=layout, **visual_style )
         except:
             pass
+        
+class easyUI():
+    """ 
+    Easy-to-use user interace that provides high-level methods or functions to improve 
+    user friendliness of the library
+    """
+    def __init__(earth):
+        pass
+
+        
 if __name__ == '__main__':
 
     earth = World(maxNodes = 1e2, nSteps = 10)
