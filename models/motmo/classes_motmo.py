@@ -195,21 +195,21 @@ class Earth(World):
     def initChargInfrastructure(self):
         self.chargingInfra = Infrastructure(self, self.para['roadKmPerCell'], 2.0, 4.0, 5.0)
     
-    def registerBrand(self, label, propertyTuple, convFunction, initTimeStep, slope, initialProgress, allTimeProduced):
+    def registerGood(self, label, propDict, convFunction, initTimeStep, **kwProperties):
         """
-        Method to register a new Brand in the Earth and therefore in the market.
+        Method to register a new good (i.e. mobility type) in the Earth and therefore in the market.
         It currently adds the related convenience function in the cells.
         """
-        brandID = self.market.initBrand(label, propertyTuple, initTimeStep, slope, initialProgress, allTimeProduced)
+        goodID = self.market.initGood(initTimeStep, label, propDict, **kwProperties)
 
         # TODO: move convenience Function from a instance variable to a class variable            
         for cell in self.iterEntRandom(CELL):
-            cell.traffic[brandID] = 0
+            cell.traffic[goodID] = 0
             cell.convFunctions.append(convFunction)
 
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
-        self.enums['brands'][brandID] = label
+        self.enums['brands'][goodID] = label
 
         # adding a record about the properties of each goood
         self.registerRecord('prop_' + label, 'properties of ' + label,
@@ -443,10 +443,10 @@ class Earth(World):
 # ToDo
 class Good():
     """
-    Definition of an economic good in an sence. The class is used to compute
+    Definition of an economic good in a sence. The class is used to compute
     technical progress in production and related unit costs.
 
-    Technical progress is models according to the puplication of nagy+al2010
+    Technical progress is models according to the publication of nagy+al2010
     https://doi.org/10.1371/journal.pone.0052669
     """
     
@@ -461,76 +461,160 @@ class Good():
         """
         cls.lastGlobalSales = sales
         
-    def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
+#    def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
+    def __init__(self, label, propDict, initExperience, **parameters):
         #print self.lastGlobalSales
-        self.goodID             = len(self.lastGlobalSales)
-        self.label              = label
-        self.currGrowthRate     = 1
-        self.oldStock           = 0
-        self.currStock          = 0
-        self.replacementRate    = 0.01
-        self.currLocalSales     = 0
+        self.goodID           = len(self.lastGlobalSales)
+        self.label            = label
+        self.replacementRate  = 0.01
+        self.properties       = propDict
+        self.paras            = parameters
+#       self.emissionFunction 
+        
+        self.currGrowthRate  = 1
+        self.currStock       = 0
+        self.experience      = 0.
+        self.initExperience  = initExperience
+        self.maturity        = 0.0001         
+        
+        self.oldStock        = 0
+        self.currLocalSales  = 0
+        #self.technicalProgress = 1.
+        #self.slope = 0.1
         
         self.updateGlobalSales(self.lastGlobalSales + [0])
+
+              
+#        if progressType == 'wright':
+#
+#            self.experience        = experience # cummulative production up to now
+#            self.technicalProgress = initialProgress
+#            self.initialProperties = propDict.copy()
+#            self.properties        = propDict
+#            for key in self.properties.keys():
+#                self.initialProperties[key] = (self.initialProperties[key][0] - self.initialProperties[key][1], self.initialProperties[key][1])
+#                self.properties[key] = (self.initialProperties[key][0] / initialProgress) + self.initialProperties[key][1]
+#
+#
+#            self.slope        = slope
+#            self.maturity     = 1 - (1 / self.technicalProgress)
+#
+#        else:
+#            print 'not implemented'
+#            # TODO add Moore and SKC + ...
+
         
-        
-        
-        if progressType == 'wright':
+    def initEmissionFunction(self, market):
 
-            self.experience        = experience # cummulative production up to now
-            self.technicalProgress = initialProgress
-            self.initialProperties = propDict.copy()
-            self.properties        = propDict
-            for key in self.properties.keys():
-                self.initialProperties[key] = (self.initialProperties[key][0] - self.initialProperties[key][1], self.initialProperties[key][1])
-                self.properties[key] = (self.initialProperties[key][0] / initialProgress) + self.initialProperties[key][1]
-
-
-            self.slope        = slope
-            self.maturity     = 1 - (1 / self.technicalProgress)
-
+        if self.label == 'brown':
+            def emissionFn(self, market):                
+                weight = self.paras['weight']
+                
+                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)
+                if market.germany:
+                    exp = market.experienceBrownExo[yearIdx] + self.experience
+                else:
+                    exp = market.experienceBrownExo[yearIdx]
+                expIn10Mio = exp/10000000.
+                emissionsPerKg = self.paras['emFactor'] * expIn10Mio**(self.paras['emRed']) + self.paras['emLimit']
+                maturity = self.paras['emLimit']/emissionsPerKg
+                emissions = emissionsPerKg * weight
+                return  emissions, maturity
+                
+        elif self.label == 'green':
+            def emissionFn(self, market):                  
+                weight = self.paras['weight']
+                electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
+                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)                
+                if market.germany:
+                    exp = market.experienceGreenExo[yearIdx] + self.experience
+                else:
+                    exp = market.experienceGreenExo[yearIdx]                
+                emissionsPerKg = self.paras['emFactor'] * exp**(self.paras['emRed']) + self.paras['emLimit']
+                maturity = self.paras['emLimit']/emissionsPerKg
+                emissions = emissionsPerKg * weight * electrProdFactor
+                return emissions, maturity
+                    
+        elif self.label == 'public':
+            def emissionFn(self, market):
+                emissions2012 = market.para['initEmPublic'] - 8. # corrected to match value of 2012
+                pt2030  = self.paras['pt2030']  
+                ptLimit = self.paras['ptLimit']
+                rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
+                year = (market.time-market.burnIn)/12.
+                factor = (1-ptLimit)*emissions2012 * math.exp(7*rate)
+                maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
+                emissions = factor*math.exp(-rate*year) + ptLimit*emissions2012
+                return emissions, maturity
+                                 
+        elif self.label == 'shared':
+            def emissionFn(self, market):
+                stockElShare = min(1.,market.goods[1].currStock/max(0.1,market.goods[0].currStock+market.goods[1].currStock))
+                electricShare = 0.1 + 0.9*stockElShare                     
+                weight = self.paras['weight']
+                emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
+                emissions = emissionsPerKg * weight
+                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
+                return emissions, maturity
+                
         else:
-            print 'not implemented'
-            # TODO add Moore and SKC + ...
-
-
-
+            def emissionFn(self, market):
+                emissions = self.properties['emissions']
+                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
+                return emissions, maturity
         
-    def updateTechnicalProgress(self, production=None):
+        self.emissionFunction = emissionFn
+
+
+                
+    def updateEmissionsAndMaturity(self, market):
+
+        emissions, maturity = self.emissionFunction(self, market)        
+
+        self.properties['emissions'] = emissions
+        self.maturity = maturity
+
+
+    def updateExperience(self):
+        # only endogeneous experience, there may also be exogenous experience, from market
+        self.experience += self.lastGlobalSales[self.goodID]  
+              
+        
+    def updateSales(self, production=None):
         """
-        Computes the technical progress
-        If the production is not given, internally the stock and the replacement
-        rate is used calcualte sales
-        """ 
-        
+#        Computes the technical progress
+#        If the production is not given, internally the stock and the replacement
+#        rate is used calcualte sales
+#        """ 
+#        
         # if production is not given, the internal sales is used
         if production is None:
             self.currLocalSales = self.salesModel()
         else:
             self.currLocalSales = production
             
-        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
-        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
-        for prop in self.properties.keys():
-            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
-
-        self.maturity       =    1 - (1 / self.technicalProgress)
-
-        #update experience
-        self.experience += self.lastGlobalSales[self.goodID]
+#        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+#        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
+#        for prop in self.properties.keys():
+#            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
+#
+#        self.maturity       =    1 - (1 / self.technicalProgress)
+#
+#        #update experience
+#        self.experience += self.lastGlobalSales[self.goodID]
 
         
-
     def step(self, doTechProgress=True):
         """ replaces the old stock by the current Stock and computes the 
         technical progress
         """
         if doTechProgress:
-            self.updateTechnicalProgress()
+            self.updateSales()
+            self.updateExperience()
         
         self.oldStock = self.currStock
         
-        return self.properties, self.technicalProgress, self.maturity
+       
         
 
     def buy(self,quantity=1):
@@ -555,8 +639,7 @@ class Good():
         sales = max([0,self.currStock - self.oldStock])
         sales = sales + self.oldStock * self.replacementRate
         return sales
-    
-    
+        
     def getProperties(self):
         return self.properties.values()
 
@@ -567,10 +650,11 @@ class Good():
         return self.maturity
 
     def getExperience(self):
-        return self.experience
+        return self.experience + self.initExperience
 
     def getGrowthRate(self):
         return self.currGrowthRate
+
 
 class Market():
     """
@@ -598,8 +682,14 @@ class Market():
         self.mobilityInitDict    = dict()                     # list of (list of) initial values for each mobility type
         self.mobilityTypesToInit = list()                     # list of (mobility type) labels
         self.burnIn              = burnIn
-        self.goods               = dict()
-        self.sales               = list()
+        self.goods               = dict()                     # keys: goodIDs, values: goods
+       # self.sales               = list()
+        
+        self.experienceBrownExo = list()
+        self.experienceGreenExo = list()
+        self.experienceBrownStart = 0.
+        self.experienceGreenStart = 0.
+        self.germany = False
 
         #adding market globals
         self.glob.registerValue('sales' , np.asarray([0]),'sum')
@@ -626,8 +716,8 @@ class Market():
 
     def initialCarInit(self):
         # actually puts the car on the market
-        for label, propertyTuple, _, brandID, allTimeProduced in self.mobilityInitDict['start']:
-            self.addBrand2Market(label, propertyTuple, brandID)
+        for label, propertyTuple, _, goodID in self.mobilityInitDict['start']:
+            self.addGood2Market(label, propertyTuple, goodID)
 
     def getCurrentMaturity(self):
         return [self.goods[iGood].getMaturity() for iGood in self.goods.keys()]
@@ -641,7 +731,7 @@ class Market():
         self.mean['costs']     = self.glob['meanPrc']
 
         self.std['emissions']  = self.glob['stdEmm']
-        self.std['costs']  = self.glob['stdPrc']
+        self.std['costs']      = self.glob['stdPrc']
 
         if self.std['emissions'] == 0.:
             self.std['emissions'] = 1.
@@ -649,29 +739,112 @@ class Market():
         lg.debug('Mean properties- mean: ' + str(self.mean) + ' std: ' + str(self.std))##OPTPRODUCTION
 
     def setInitialStatistics(self, typeQuantities):
-        total = sum(typeQuantities[mobIdx] for mobIdx in range(self.__nMobTypes__))
+        total = sum(typeQuantities[goodID] for goodID in range(self.__nMobTypes__))
         shares = np.zeros(self.__nMobTypes__)
 
         self.mean = dict()
         self.std  = dict()
 
-        for mobIdx in range(self.__nMobTypes__):
-            shares[mobIdx] = typeQuantities[mobIdx]/total
+        for goodID in range(self.__nMobTypes__):
+            shares[goodID] = typeQuantities[goodID]/total
 
         for prop in self.properties:
-            propMean = sum(shares[mobIdx]*self.mobilityProp[mobIdx][prop] for mobIdx in range(self.__nMobTypes__))
-            propVar = sum(shares[mobIdx]*(self.mobilityProp[mobIdx][prop])**2 for mobIdx in range(self.__nMobTypes__))-propMean**2
+            propMean = sum(shares[goodID]*self.mobilityProp[goodID][prop] for goodID in range(self.__nMobTypes__))
+            propVar = sum(shares[goodID]*(self.mobilityProp[goodID][prop])**2 for goodID in range(self.__nMobTypes__))-propMean**2
             propStd = math.sqrt(propVar)
             self.mean[prop] = propMean
             self.std[prop] = propStd
 
 
+    def initExogenousExperience(self, scenario):
+        
+        self.experienceBrownStart = self.para['experienceWorldBrown'][0]
+        self.experienceGreenStart = self.para['experienceWorldGreen'][0]
+                                                   
+        if scenario == 6:
+            self.germany = True 
+            experienceBrownExo = [self.para['experienceWorldBrown'][i]-self.para['experienceGerBrown'][i] for i in range(len(self.para['experienceWorldBrown']))]
+            experienceGreenExo = [self.para['experienceWorldGreen'][i]-self.para['experienceGerGreen'][i] for i in range(len(self.para['experienceWorldGreen']))]                               
+        else:
+            experienceBrownExo = self.para['experienceWorldBrown']
+            experienceGreenExo = self.para['experienceWorldGreen']
+        
+        for i in range(1,len(experienceBrownExo)):
+            diffBrown = experienceBrownExo[i]-experienceBrownExo[i-1]
+            diffGreen = experienceGreenExo[i]-experienceGreenExo[i-1]
+            for j in range(12):
+                self.experienceBrownExo.append(experienceBrownExo[i-1]+diffBrown*float(j)/12.)
+                self.experienceGreenExo.append(experienceGreenExo[i-1]+diffGreen*float(j)/12.)
+
+    
+    def initPrices(self):
+        for good in self.goods.values():
+            if good.label == 'brown': 
+                exponent = self.para['priceReductionB']                   
+                good.properties['costs'] = self.para['initPriceBrown']
+                expInMio = self.experienceBrownStart/1000000.       
+                good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
+                
+            elif good.label == 'green':                 
+                exponent = self.para['priceReductionG']                   
+                good.properties['costs'] = self.para['initPriceGreen']
+                expInMio = self.experienceGreenStart/1000000.       
+                good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
+                
+            elif good.label == 'public':
+                good.properties['costs'] = self.para['initPricePublic']
+                 
+            elif good.label == 'shared':
+                good.properties['costs'] = self.para['initPriceShared']
+                
+            else:
+                good.properties['costs'] = self.para['initPriceNone']            
+  
+    
+    def updatePrices(self):
+        yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
+        for good in self.goods.values():
+            if good.label == 'brown': 
+                exponent = self.para['priceReductionB']
+                factor = good.priceFactor
+                if self.germany:
+                    exp = self.experienceBrownExo[yearIdx] + good.experience
+                else:
+                    exp = self.experienceBrownExo[yearIdx]
+                expInMio = exp/1000000.       
+                good.properties['costs'] = factor * expInMio**exponent 
+                
+            elif good.label == 'green':                 
+                exponent = self.para['priceReductionG']
+                factor = good.priceFactor
+                if self.germany:
+                    exp = self.experienceGreenExo[yearIdx] + good.experience
+                else:
+                    exp = self.experienceGreenExo[yearIdx]
+                expInMio = exp/1000000.       
+                good.properties['costs'] = factor * expInMio**exponent 
+                
+#            elif good.label == 'public':
+#                
+#            elif good.label == 'shared':
+#                               
+#            else:
+        
+
     def ecology(self, emissions):
+#<<<<<<< HEAD
         
         try:
             ecology = 1. / (1.+math.exp((emissions-self.mean['emissions'])/self.std['emissions']))
         except:
             ecology = 0.
+#=======
+#
+#        if self.std['emissions'] == 0:
+#            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/1.))
+#        else:
+#            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+#>>>>>>> 5696c0c2d78cc7870cbd1d3908704cf34ac0e9e2
 
         return ecology
 
@@ -682,21 +855,30 @@ class Market():
         return ecology
 
     def step(self, world):
-
+      
         # check if a new car is entering the market
         if self.time in self.mobilityInitDict.keys():
 
             for mobTuple in self.mobilityInitDict[self.time]:
-                for label, propertyDict, _, mobTypeID in  mobTuple:
-                    self.addBrand2Market(label, propertyDict, mobTypeID)
+                for label, propertyDict, _, goodID in  mobTuple:
+                    self.addGood2Market(label, propertyDict, goodID)
 
+        self.updateSales()
+        
         # only do technical change after the burn in phase
         doTechProgress = self.time > self.burnIn
-        if doTechProgress:
-            lg.info( 'sales in market: ' + str(self.glob['sales']))
             
-        for iGood in self.goods.keys():
-            self.goods[iGood].step(doTechProgress)
+        for good in self.goods.values():
+           good.step(doTechProgress)
+        
+        if doTechProgress: 
+            for good in self.goods.values():
+                good.updateEmissionsAndMaturity(self)                
+            
+            self.updatePrices()
+            
+            lg.info( 'sales in market: ' + str(self.glob['sales']))
+
 
         self.computeInnovation()
         self.currMobProps = self.getMobProps()
@@ -727,33 +909,36 @@ class Market():
         self.innovation = 1 - (normalize(np.asarray(self.getCurrentExperience()))**.5)
         
 
-    def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
-        mobType = self.__nMobTypes__
+#    def initGood(self, label, propDict, initTimeStep, slope, initialProgress, allTimeProduced):
+    def initGood(self, initTimeStep, label, propDict, **kwProperties):
+        goodID = self.__nMobTypes__
         self.__nMobTypes__ +=1
         self.glob['sales'] = np.asarray([0]*self.__nMobTypes__)
         self.glob.updateLocalValues('sales', np.asarray([0]*self.__nMobTypes__))
         self.stockByMobType.append(0)
         self.mobilityTypesToInit.append(label)
-        self.goods[mobType] = Good(label, 'wright',initialProgress, slope, propertyDict, experience=allTimeProduced)
+        self.goods[goodID] = Good(label, propDict, **kwProperties)
 
         if initTimeStep not in self.mobilityInitDict.keys():
-            self.mobilityInitDict[initTimeStep] = [[label, propertyDict, initTimeStep , mobType, allTimeProduced]]
+            self.mobilityInitDict[initTimeStep] = [[label, propDict, initTimeStep, goodID]] #, allTimeProduced]]
         else:
-            self.mobilityInitDict[initTimeStep].append([label, propertyDict, initTimeStep, mobType, allTimeProduced])
+            self.mobilityInitDict[initTimeStep].append([label, propDict, initTimeStep, goodID]) #, allTimeProduced])
+
 
         self.computeInnovation()
         self.currMobProps = self.getMobProps()
         
-        return mobType
+        return goodID
 
-    def addBrand2Market(self, label, propertyDict, mobType):
+
+    def addGood2Market(self, label, propertyDict, goodID):
         #add brand to the market
-        self.stockByMobType[mobType]     = 0
-        self.mobilityProp[mobType]       = propertyDict
-        self.mobilityLables[mobType]     = label
-        self.obsDict[self.time][mobType] = list()
+        self.stockByMobType[goodID]     = 0
+        self.mobilityProp[goodID]       = propertyDict
+        self.mobilityLables[goodID]     = label
+        self.obsDict[self.time][goodID] = list()
 
-    def remBrand(self,label):
+    def remGood(self,label):
         #remove brand from the market
         del self.mobilityProp[label]
 

@@ -51,37 +51,39 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
+
 plotFunc.append('plot_carSharePerHHType')
-#plotFunc.append('plot_ChargingStations')
-#plotFunc.append('plot_GreenConvenienceOverTime')
-#plotFunc.append('plot_globalRecords')
-#plotFunc.append('plot_stockAllRegions')
-#plotFunc.append('scatterConVSPref')
-#plotFunc.append('plot_averageCarAge')
-#plotFunc.append('plot_meanESSR')
-#plotFunc.append('plot_peerBubbleSize')
-#plotFunc.append('plot_agePerMobType')
-#plotFunc.append('plot_womanSharePerMobType')
-#plotFunc.append('plot_expectUtil')
-#plotFunc.append('plot_selfUtil')
-#plotFunc.append('plot_carStockBarPlot')
-#plotFunc.append('plot_carSales')
-#plotFunc.append('plot_consequencePerLabel')
-#plotFunc.append('plot_salesProperties')
-#plotFunc.append('plot_prefPerLabel')
-#plotFunc.append('plot_utilPerLabel')
-#plotFunc.append('plot_greenPerIncome')
-#plotFunc.append('plot_averageIncomePerCell')
-#plotFunc.append('plot_incomePerLabel')
-#plotFunc.append('plot_meanPrefPerLabel')
-#plotFunc.append('plot_meanConsequencePerLabel')
-#plotFunc.append('plot_cellMaps')
-#plotFunc.append('plot_cellMovie')
-#plotFunc.append('plot_carsPerCell')
-#plotFunc.append('plot_greenCarsPerCell')
-#plotFunc.append('plot_conveniencePerCell')
-#plotFunc.append('plot_population')
-#plotFunc.append('plot_doFolium')
+plotFunc.append('plot_ChargingStations')
+plotFunc.append('plot_GreenConvenienceOverTime')
+plotFunc.append('plot_globalRecords')
+plotFunc.append('plot_stockAllRegions')
+plotFunc.append('scatterConVSPref')
+plotFunc.append('plot_averageCarAge')
+plotFunc.append('plot_meanESSR')
+plotFunc.append('plot_peerBubbleSize')
+plotFunc.append('plot_agePerMobType')
+plotFunc.append('plot_womanSharePerMobType')
+plotFunc.append('plot_expectUtil')
+plotFunc.append('plot_selfUtil')
+plotFunc.append('plot_carStockBarPlot')
+plotFunc.append('plot_carSales')
+plotFunc.append('plot_consequencePerLabel')
+plotFunc.append('plot_salesProperties')
+plotFunc.append('plot_prefPerLabel')
+plotFunc.append('plot_utilPerLabel')
+plotFunc.append('plot_greenPerIncome')
+plotFunc.append('plot_averageIncomePerCell')
+plotFunc.append('plot_incomePerLabel')
+plotFunc.append('plot_meanPrefPerLabel')
+plotFunc.append('plot_meanConsequencePerLabel')
+plotFunc.append('plot_cellMaps')
+plotFunc.append('plot_cellMovie')
+plotFunc.append('plot_carsPerCell')
+plotFunc.append('plot_greenCarsPerCell')
+plotFunc.append('plot_conveniencePerCell')
+plotFunc.append('plot_population')
+plotFunc.append('plot_doFolium')
+
 
 simNo = sys.argv[1]
 
@@ -568,7 +570,7 @@ def plot_selfUtil(data, propDict, parameters, enums, filters):
 def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
     #  plot car stock as bar plot dependent on hhType
     print 1
-    plt.figure()
+    plt.figure(figsize=[15,10])
     mobMin = parameters['nMobTypes']
     
     for hhType in range(1,12):

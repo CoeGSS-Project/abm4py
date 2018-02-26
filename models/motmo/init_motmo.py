@@ -55,22 +55,11 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-import mpi4py
-mpi4py.rc.threads = False
 import sys, os
 import socket
-import csv
-import time
-#import guppy
-from copy import copy
-from os.path import expanduser
-import pdb
-home = expanduser("~")
 
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
-
-
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
@@ -81,6 +70,18 @@ else:
     
     import matplotlib
     matplotlib.use('Agg')
+    
+import mpi4py
+mpi4py.rc.threads = False
+
+
+import csv
+import time
+#import guppy
+from copy import copy
+from os.path import expanduser
+import pdb
+home = expanduser("~")
 
 #from deco_util import timing_function
 import numpy as np
@@ -221,8 +222,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     #del dummy
 
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
-                   'population']:
+    for paName in ['population']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -335,7 +335,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
     # calculate dependent parameters
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
@@ -444,7 +444,7 @@ def scenarioNBH(parameterInput, dirPath):
     #setup['population']     /= setup['reductionFactor']
     #setup['urbanThreshold'] /= setup['reductionFactor']
     #setup['urbanCritical']  /= setup['reductionFactor']
-    #setup['puplicTransBonus']  /= setup['reductionFactor']
+    #setup['publicTransBonus']  /= setup['reductionFactor']
     #setup.convD /= setup['reductionFactor']
 
     # calculate dependent parameters
@@ -571,7 +571,7 @@ def scenarioGer(parameterInput, dirPath):
 
     #setup.population = (setup.population ** .5) * 100
     # Correciton of population depend parameter by the reduction factor
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
     for p in range(0, 105, 5) :
@@ -696,7 +696,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     # Correciton of population depend parameter by the reduction factor
     for paName in ['techExpBrown', 
                    'techExpGreen',
-                   'techExpPuplic', 
+                   'techExpPublic', 
                    'techExpShared',
                    'techExpNone']:
         setup[paName] /= setup['reductionFactor'] *  setup.spatialRedFactor
@@ -863,6 +863,7 @@ def publicTranportSetup(setup):
 def mobilitySetup(earth):
     parameters = earth.getParameter()
 
+    # define convenience functions
     def convenienceBrown(density, pa, kappa, cell):
 
         conv = pa['minConvB'] +\
@@ -880,12 +881,14 @@ def mobilitySetup(earth):
         
         return conv
 
+
     def conveniencePublicLeuphana(density, pa, kappa, cell):
         
         currKappa   = (1 - kappa) * pa['maxConvGInit'] + kappa * pa['maxConvG']
         return pa['conveniencePublic'][cell._node['pos']] * currKappa
 
-    def conveniencePuplic(density, pa, kappa, cell):
+
+    def conveniencePublic(density, pa, kappa, cell):
         conv = pa['minConvP'] + \
         ((pa['maxConvP'] - pa['minConvP']) * (kappa)) * \
         np.exp(-(density - pa['muConvP'])**2 / (2 * ((1 - kappa) * \
@@ -904,9 +907,7 @@ def mobilitySetup(earth):
                     np.exp( - (density - pa['muConvS'])**2 / (2 * ((1-kappa) * \
                     pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2) )        
         return conv
-    
-
-    
+        
     def convenienceNone(density, pa, kappa, cell):
         conv = pa['minConvN'] + \
         ((pa['maxConvN'] - pa['minConvN']) * (kappa)) * \
@@ -914,75 +915,90 @@ def mobilitySetup(earth):
                    pa['sigmaConvNInit'] + (kappa * pa['sigmaConvN']))**2))        
         return conv
 
+
     from collections import OrderedDict
+    
+    # register brown:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceBrown'], parameters['initPriceBrown']/10.
-    propDict['emissions'] = parameters['initEmBrown'], 120. # init, lim
+    propDict['costs']     = parameters['initPriceBrown'] #, parameters['initPriceBrown']/10.
+    propDict['emissions'] = parameters['initEmBrown'] #, 120. # init, lim
     
-    earth.registerBrand('brown',                                #name
-                    propDict,                               #(emissions, TCO)
-                    convenienceBrown,                       # convenience function
-                    'start',                                # time step of introduction in simulation
-                    parameters['techSlopeBrown'],            # initial technical progress
-                    parameters['techProgBrown'],           # slope of technical progress
-                    parameters['techExpBrown'])             # initial experience
+    earth.registerGood('brown',                                # name
+                    propDict,                                  # (emissions, TCO)
+                    convenienceBrown,                          # convenience function
+                    'start',                                   # time step of introduction in simulation
+                    #parameters['techSlopeBrown'],              # initial technical progress
+                    #parameters['techProgBrown'],               # slope of technical progress
+                    initExperience = parameters['techExpBrown'], # initial experience
+                    priceRed = parameters['priceReductionB'],  # exponent for price reduction through learning by doing
+                    emRed    = parameters['emReductionB'],     # exponent for emission reduction through learning by doing
+                    emFactor = parameters['emFactorB'],        # factor for emission reduction through learning by doing
+                    emLimit  = parameters['emLimitB'],         # emission limit
+                    weight   = parameters['weightB'])          # average weight
 
+    # register green:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
-    propDict['emissions'] = parameters['initEmGreen'], 70. # init, lim
-    
-
-    
-    earth.registerBrand('green',                                                        #name
-                    propDict,       #(emissions, TCO)
-                    convenienceGreen,
+    propDict['costs']     = parameters['initPriceGreen']#, parameters['initPriceGreen']/10.
+    propDict['emissions'] = parameters['initEmGreen']#, 70. # init, lim    
+    earth.registerGood('green',                                #name
+                    propDict,                                  # (emissions, TCO)
+                    convenienceGreen,                          # convenience function
                     'start',
-                    parameters['techSlopeGreen'],           # initial technical progress
-                    parameters['techProgGreen'],            # slope of technical progress
+                    #parameters['techSlopeGreen'],              # initial technical progress
+                    #parameters['techProgGreen'],               # slope of technical progress
+                    initExperience = parameters['techExpGreen'],                # initial experience
+                    priceRed = parameters['priceReductionG'],  # exponent for price reduction through learning by doing
+                    emRed    = parameters['emReductionG'],     # exponent for emission reduction through learning by doing
+                    emFactor = parameters['emFactorG'],        # factor for emission reduction through learning by doing
+                    emLimit  = parameters['emLimitG'],         # emission limit
+                    weight   = parameters['weightG'])          # average weight
 
-                    parameters['techExpGreen'])             # initial experience
-
+    # register public:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
-    propDict['emissions'] = parameters['initEmPuplic'], 30. # init, lim
-    
     if parameters['scenario'] == 2:
         convFuncPublic = conveniencePublicLeuphana
     else:
-        convFuncPublic = conveniencePuplic
-    earth.registerBrand('public',  #name
+        convFuncPublic = conveniencePublic
+    propDict['costs']     = parameters['initPricePublic']#, parameters['initPricePublic']/10.
+    propDict['emissions'] = parameters['initEmPublic']#, 30. # init, lim   
+    earth.registerGood('public',  #name
                     propDict,   #(emissions, TCO)
                     convFuncPublic,
                     'start',
-                    parameters['techSlopePuplic'],           # initial technical progress
-                    parameters['techProgPuplic'],            # slope of technical progress
-                    parameters['techExpPuplic'])             # initial experience
+                    initExperience = parameters['techExpPublic'],
+                    pt2030  = parameters['pt2030'],          # emissions 2030 (compared to 2012)
+                    ptLimit = parameters['ptLimit'])         # emissions limit (compared to 2012)
 
-
+                    #parameters['techSlopePublic'],           # initial technical progress
+                    #parameters['techProgPublic'],            # slope of technical progress
+                    #parameters['techExpPublic'])             # initial experience
+                    
+    # register shared:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceShared'],  parameters['initPriceShared']/10.
-    propDict['emissions'] = parameters['initEmShared'], 50. # init, lim
-    
-    
-    earth.registerBrand('shared',  #name
-                    propDict,   #(emissions, TCO)
+    propDict['costs']     = parameters['initPriceShared']#,  parameters['initPriceShared']/10.
+    propDict['emissions'] = parameters['initEmShared']#, 50. # init, lim    
+    earth.registerGood('shared', # name
+                    propDict,    # (emissions, TCO)
                     convenienceShared,
                     'start',
-                    parameters['techSlopeShared'],           # initial technical progress
-                    parameters['techProgShared'],            # slope of technical progress
-                    parameters['techExpShared'])             # initial experience
+                    initExperience = parameters['techExpShared'],
+                    #parameters['techSlopeShared'],           # initial technical progress
+                    #parameters['techProgShared'],            # slope of technical progress
+                    #parameters['techExpShared'])             # initial experience
+                    weight = parameters['weightS'])          # average weight
 
-    earth.para['nMobTypes'] = len(earth.enums['brands'])
+    # register none:    
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceNone'],  parameters['initPriceNone']/10.
-    propDict['emissions'] = parameters['initEmNone'], 1.0 # init, lim
-    earth.registerBrand('none',  #name
+    propDict['costs']    = parameters['initPriceNone']#,  parameters['initPriceNone']/10.
+    propDict['emissions'] = parameters['initEmNone']#, 1.0 # init, lim
+    earth.registerGood('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
                     'start',
-                    parameters['techSlopeNone'],            # initial technical progress
-                    parameters['techProgNone'],           # slope of technical progress
-                    parameters['techExpNone'])             # initial experience
+                    initExperience = parameters['techExpNone'])
+                    #parameters['techSlopeNone'],            # initial technical progress
+                    #parameters['techProgNone'],           # slope of technical progress
+                    #parameters['techExpNone'])             # initial experience
     
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
@@ -1425,7 +1441,7 @@ def cellTest(earth):
             convArray[:, i] = convAll
             popArray[i] = popDensity
             eConvArray[cell.getValue('pos')] = convAll[1]
-            #print time.time() - tt
+            #print time.time() - ttclass
         
         
             
@@ -1462,7 +1478,7 @@ def cellTest(earth):
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        asd
+        
 # %% Generate Network
 def generateNetwork(earth):
     parameters = earth.getParameter()
@@ -1561,6 +1577,23 @@ def initCacheArrays(earth):
     Person.cacheMobType  = np.zeros(maxFriends+1, dtype=np.int32)
     Person.cacheWeights  = np.zeros(maxFriends+1)
 
+def initExogeneousExperience(parameters):
+    inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
+    experienceWorld         = inputFromGlobal['expWorld'].values
+    experienceWorldGreen    = inputFromGlobal['expWorldGreen'].values
+    parameters['experienceWorldGreen']  = experienceWorldGreen
+    parameters['experienceWorldBrown']  = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]
+    experienceGer                       = inputFromGlobal['expGer'].values
+    experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
+    parameters['experienceGerGreen']    = experienceGerGreen
+    parameters['experienceGerBrown']    = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
+    return parameters
+
+def readParameterFile(parameters, fileName):
+    for item in csv.DictReader(open(fileName)):
+        if item['name'][0] != '#':
+            parameters[item['name']] = aux.convertStr(item['value'])
+    return parameters
 # %% Online processing functions
 
 def plot_calGreenNeigbourhoodShareDist(earth):
@@ -1620,7 +1653,12 @@ def runModel(earth, parameters):
 
     for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
-
+     
+    earth.market.initExogenousExperience(parameters['scenario'])
+    earth.market.initPrices()
+    for good in earth.market.goods.values():
+        good.initEmissionFunction(earth.market)
+    
     lg.info('Initial market step done')
 
     for household in earth.iterEntRandom(HH):
@@ -1870,9 +1908,11 @@ if __name__ == '__main__':
     
         fileName = sys.argv[1]
         parameters = Bunch()
-        for item in csv.DictReader(open(fileName)):
-            if item['name'][0] != '#':
-                parameters[item['name']] = aux.convertStr(item['value'])
+        # reading of gerneral parameters
+        parameters = readParameterFile(parameters, 'parameters_all.csv')
+        # reading of scenario-specific parameters
+        parameters = readParameterFile(parameters,fileName)
+        
         lg.info('Setting loaded:')
         
         
@@ -1890,17 +1930,22 @@ if __name__ == '__main__':
         
         if mpiRank == 0:
             parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
+            
+            parameters = initExogeneousExperience(parameters)
+            
+            
         else:
             parameters = None
         
 
             
-        parameters = comm.bcast(parameters)    
+        parameters = comm.bcast(parameters,root=0)    
             
         if mpiRank == 0:
             print'Parameter exchange done'
         lg.info( 'Parameter exchange done')
         
+
         #%% Init
         parameters.showFigures = showFigures
         
