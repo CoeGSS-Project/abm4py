@@ -509,7 +509,7 @@ class Good():
         if self.label == 'brown':
             def emissionFn(self, market):                
                 weight = self.paras['weight']
-                yearIdx = int(market.time/12.)
+                yearIdx = int((market.time - market.burnIn)/12.)
                 if market.germany:
                     exp = market.experienceBrownExo[yearIdx] + self.experience
                 else:
@@ -524,7 +524,7 @@ class Good():
             def emissionFn(self, market):                  
                 weight = self.paras['weight']
                 electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
-                yearIdx = int(market.time/12.)                
+                yearIdx = int((market.time - market.burnIn)/12.)                
                 if market.germany:
                     exp = market.experienceGreenExo[yearIdx] + self.experience
                 else:
@@ -547,18 +547,18 @@ class Good():
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
-                stockElShare = min(1.,market.stockByMobType[1]/max(0.1,market.stockByMobType[0]+market.stockByMobType[1]))
+                stockElShare = min(1.,market.goods[1].currStock/max(0.1,market.goods[0].currStock+market.goods[1].currStock))
                 electricShare = 0.1 + 0.9*stockElShare                     
                 weight = self.paras['weight']
                 emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
-                maturity = market.stockByMobType[3]/max(0.1,sum(market.stockByMobType[i] for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
+                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
                 return emissions, maturity
                 
         else:
             def emissionFn(self, market):
                 emissions = 0.01
-                maturity = market.stockByMobType[4]/max(0.1,sum(market.stockByMobType[i] for i in range(market.__nMobTypes__)))   # maturity is market share of none
+                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
                 return emissions, maturity
         
         self.emissionFunction = emissionFn
@@ -796,7 +796,7 @@ class Market():
   
     
     def updatePrices(self):
-        yearIdx = int(self.time/12.)        
+        yearIdx = int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
                 exponent = self.para['priceReductionB']
