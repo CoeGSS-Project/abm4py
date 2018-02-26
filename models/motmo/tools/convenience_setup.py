@@ -22,7 +22,7 @@ loadFile = True
 
 
 if loadFile:
-    fileName = '../parameters_med.csv'
+    fileName = '../parameters_ger.csv'
     pa = Bunch()
     for item in csv.DictReader(open(fileName)):
         if item['name'][0] != '#':
@@ -91,8 +91,9 @@ plt.ylim([0,1])
 ax1 = plt.subplot(2,3,3)
 if not loadFile:
     pa.sigmaConvPInit = 20000.
-    pa.muConvP = 60000.
     pa.sigmaConvP = 60000
+    pa.muConvP = 4000.
+    
     pa.maxConvP = 0.3
     pa.minConvP = 0.1
 

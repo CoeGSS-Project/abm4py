@@ -814,13 +814,25 @@ def plot_averageIncomePerCell(data, propDict, parameters, enums, filters):
     income = data.hh[step,:,propDict.hh['income'][0]]
     positions = data.hhSta[:,propDict.hhSta['pos']].astype(int)
     incomeMap  = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+    posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
     
+    population = np.zeros_like(incomeMap)
+    population[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['population']]
+    
+    #population.shape = incomeMap.shape
     #uniquePos, test = np.unique(positions,axis=0, return_inverse=1)
     for i, pos in enumerate(positions):
         incomeMap[pos[0], pos[1]] += income[i]
     #print 1
+    incomeMap /= population
+    
+    incomeMap[population == 0]  = 0
     plt.figure()
     plt.imshow(incomeMap)
+    bounds = [np.nanpercentile(incomeMap,2), np.nanpercentile(incomeMap,98)]
+    if bounds[0] == bounds[1]:
+        bounds = [0, np.nanmax(incomeMap)]
+    print bounds
     plt.colorbar()
     plt.tight_layout()
     plt.savefig(path + 'averageIncome')

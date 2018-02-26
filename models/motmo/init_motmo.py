@@ -162,8 +162,13 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.population  = np.asarray([[c, a, b, 0, 0],
                                     [c, b, d, 0, f],
                                     [0, h, i, g, e]])
-
-    setup.landLayer   = (setup.population*0.) +1.
+    
+    setup.landLayer  = setup.population.copy().astype(float)
+    setup.landLayer[setup.landLayer== 0.] = np.nan
+    
+    setup.landLayer  = (setup.landLayer*0.) +1.
+    
+    
     
     setup.cellSizeMap  = setup.landLayer * 15.
     
@@ -1533,7 +1538,7 @@ def initAgentOutput(earth):
         print'Setup of agent output done'
 
 
-def initCachArrays(earth):
+def initCacheArrays(earth):
     maxFriends = earth.para['maxFriends']
     persZero = earth.entDict[earth.nodeDict[PERS][0]]
     
@@ -1613,7 +1618,7 @@ def runModel(earth, parameters):
         
     lg.info('Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
 
-    initCachArrays(earth)
+    initCacheArrays(earth)
     
     #plotIncomePerNetwork(earth)
 

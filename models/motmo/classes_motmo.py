@@ -89,8 +89,9 @@ def cobbDouglasUtilNumba(x, alpha):
     #    pdb.set_trace()                         ##DEEP_DEBUG
 
     # assert the limit of utility
-    #assert utility > 0 and utility <= factor     ##DEEP_DEBUG
-
+    #assert utility > 0 and utility <=  100.     ##DEEP_DEBUG
+    
+    
     return utility / 100.
 
 @njit("f8[:] (f8[:])",cache=True)
@@ -154,7 +155,7 @@ class Earth(World):
         self.brandDict  = dict()
         self.brands     = list()
 
-        self.globalRecord = dict() # storage of global data
+        
 
 
         # transfer all parameters to earth
@@ -437,35 +438,7 @@ class Earth(World):
         if self.isRoot:
             print 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s'
 
-    def finalize(self):
-        """
-        Method to finalize records, I/O and reporter
-        """
-        from class_auxiliary import saveObj
 
-        # finishing reporter files
-        for writer in self.reporter:
-            writer.close()
-
-        if self.isRoot:
-            # writing global records to file
-            h5File = h5py.File(self.para['outPath'] + '/globals.hdf5', 'w')
-            for key in self.globalRecord:
-                self.globalRecord[key].saveCSV(self.para['outPath'])
-                self.globalRecord[key].save2Hdf5(h5File)
-
-            h5File.close()
-            # saving enumerations
-            saveObj(self.enums, self.para['outPath'] + '/enumerations')
-
-
-            # saving enumerations
-            saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
-
-            if self.para['showFigures']:
-                # plotting and saving figures
-                for key in self.globalRecord:
-                    self.globalRecord[key].plot(self.para['outPath'])
 
 # ToDo
 class Good():
@@ -694,8 +667,11 @@ class Market():
 
 
     def ecology(self, emissions):
-
-        ecology = 1. / (1.+math.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+        
+        try:
+            ecology = 1. / (1.+math.exp((emissions-self.mean['emissions'])/self.std['emissions']))
+        except:
+            ecology = 0.
 
         return ecology
 
@@ -722,7 +698,7 @@ class Market():
         for iGood in self.goods.keys():
             self.goods[iGood].step(doTechProgress)
 
-        self.compInnovation()
+        self.computeInnovation()
         self.currMobProps = self.getMobProps()
 
         if doTechProgress:                             ##OPTPRODUCTION
@@ -747,8 +723,8 @@ class Market():
 
         self.time +=1
 
-    def compInnovation(self):
-        self.innovation = normalize(np.asarray(self.getCurrentExperience()))
+    def computeInnovation(self):
+        self.innovation = 1- (normalize(np.asarray(self.getCurrentExperience())))**2
         
 
     def initBrand(self, label, propertyDict, initTimeStep, slope, initialProgress, allTimeProduced):
@@ -765,7 +741,7 @@ class Market():
         else:
             self.mobilityInitDict[initTimeStep].append([label, propertyDict, initTimeStep, mobType, allTimeProduced])
 
-        self.compInnovation()
+        self.computeInnovation()
         self.currMobProps = self.getMobProps()
         
         return mobType
@@ -1292,7 +1268,7 @@ class Household(Agent):
         #utility = 1.
         
         
-        utility = np.sum((100. * x) ** alpha) / 100.
+        utility = np.prod((100. * x) ** alpha) / 100.
         
         # assert the limit of utility
         #assert utility > 0 and utility <= factor      ##DEEP_DEBUG
@@ -1513,7 +1489,7 @@ class Household(Agent):
         # calculate money consequence
         money = min(1., max(1e-5, 1 - self.getValue('expenses') / self.getValue('income')))
 
-
+        
         for adult in self.adults:
             hhCarBonus = 0.
             #get action of the person
@@ -1534,13 +1510,17 @@ class Household(Agent):
             #TODO optimize code
             for nTrips, avgKm in zip(nJourneys.tolist(), MEAN_KM_PER_TRIP): 
                 emissions += nTrips * avgKm * emissionsPerKm
-            adult.loc.addValue('emissions', emissions) #in kg
+            self.loc.addValue('emissions', emissions) #in kg
             
             
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
             convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
+
+            if convenience > 1.:##OPTPRODUCTION
+                convenience = 1. ##OPTPRODUCTION
+                lg.info('Warning: Conveniences exeeded 1.0')##OPTPRODUCTION
 
             # calculate ecology:
             ecology   = market.ecology(mobProps[EMISSIONS])
@@ -1880,7 +1860,7 @@ class Reporter(Household):
 class Cell(Location):
 
     def __init__(self, earth,  **kwProperties):
-        kwProperties.update({'population': 0, 'convenience': np.asarray([0,0,0,0,0]), 'carsInCell':[0,0,0,0,0], 'regionId':0})
+        kwProperties.update({'population': 0, 'convenience': np.asarray([0.,0.,0.,0.,0.]), 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()
@@ -2128,7 +2108,7 @@ class GhostCell(GhostLocation, Cell):
         self.hhList = list()
         self.peList = list()
 
-    def updateHHList(self, graph):
+    def updateHHList_old(self, graph):  # toDo nodeType is not correct anymore
         """
         updated method for the household list, which is required since
         ghost cells are not active on their own
@@ -2137,12 +2117,12 @@ class GhostCell(GhostLocation, Cell):
         hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
 
-    def updatePeList(self, graph):
+    def updatePeList_old(self, graph):  # toDo nodeType is not correct anymore
         """
         updated method for the people list, which is required since
         ghost cells are not active on their own
         """
-        nodeType = graph.class2NodeType[Person]
+        nodeType = graph.class2NodeType[Person] 
         hhIDList = self.getPeerIDs(nodeType)
         self.hhList = graph.vs[hhIDList]
 
@@ -2168,29 +2148,29 @@ class Opinion():
         if income > self.minIncomeEco:
             rn = random.random()
             if random.random() > 0.9:
-                ce += 2
+                ce += 3.
             elif rn > 0.6:
-                ce += 1
+                ce += 2.
         elif income > 2 * self.minIncomeEco:
             if random.random() > 0.8:
-                ce+=2.5
+                ce+=4.
 
 
         ce = float(ce)**2
 
         # priority of convinience
-        cc = 2.5
+        cc = 0
         cc += nKids
         cc += income/self.convIncomeFraction/2
         if sex == 1:
             cc +=1
 
-        cc += float(age)/self.charAge
+        cc += 2* float(age)/self.charAge
         cc = float(cc)**2
 
         # priority of money
         cm = 0
-        cm += self.convIncomeFraction/income
+        cm += 2* self.convIncomeFraction/income * nPers
         cm += nPers
         cm = float(cm)**2
 
@@ -2212,6 +2192,8 @@ class Opinion():
                 ci = random.random()*3
             else:
                 ci = random.random()*1
+        
+        ci += (50. /age)**2                
         ci = float(ci)**2
 
         # normalization
@@ -2242,7 +2224,15 @@ class Opinion():
         pref = pref / np.sum(pref)
 
         assert all (pref > 0) and all (pref < 1) ##OPTPRODUCTION
-
+        
+#        print 'age: ' + str(age)    
+#        print 'income: ' + str(income)
+#        print 'sex: ' + str(sex)
+#        print 'nKids: ' + str(nKids)
+#        print 'nPers: ' + str(nPers)
+#        print 'preferences:  convenience, ecology, money, innovation'
+#        print 'preferences: ' + str(pref)
+#        print '##################################'
         return tuple(pref)
 
 # %% --- main ---

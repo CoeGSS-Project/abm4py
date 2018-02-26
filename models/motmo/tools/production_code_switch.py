@@ -8,9 +8,9 @@ This file switches between production code and development code
 """
 import sys
 if len(sys.argv) > 1:
-    flag = sys.argv[1]
+    flagOpt = bool(int(sys.argv[1]))
 else:
-    flag = 1
+    flagOpt = bool(1)
 
 useNumba = False
 
@@ -39,7 +39,7 @@ for fileName in fileNames:
                 line = line.replace('@njit', '#njit')
                 line = line.replace('from numba', '#from numba')
                                     
-            if '##OPTPRODUCTION' in line:
+            if flagOpt and '##OPTPRODUCTION' in line:
                 
                 outLineList.append('#' + line)
                                  
