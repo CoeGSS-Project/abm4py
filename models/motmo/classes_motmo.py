@@ -453,13 +453,22 @@ class Good():
     #class variables (common for all instances, - only updated by class mehtods)
     
     lastGlobalSales  = list()
+    overallExperience = 0.
+
 
     @classmethod
     def updateGlobalSales(cls, sales):
         """
-        Method to update the class variable sales
+        Method to update the class variable lastGlobalSales
         """
         cls.lastGlobalSales = sales
+
+    @classmethod
+    def addToOverallExperience(cls, exp):
+        """
+        Method to update the class variable overallExperience
+        """
+        cls.overallExperience += exp
         
 #    def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
     def __init__(self, label, propDict, initExperience, **parameters):
@@ -475,6 +484,7 @@ class Good():
         self.currStock       = 0
         self.experience      = 0.
         self.initExperience  = initExperience
+        self.addToOverallExperience(initExperience)
         self.maturity        = 0.0001         
         
         self.oldStock        = 0
@@ -483,7 +493,7 @@ class Good():
         #self.slope = 0.1
         
         self.updateGlobalSales(self.lastGlobalSales + [0])
-
+        self.initEmissionFunction()
               
 #        if progressType == 'wright':
 #
@@ -504,36 +514,36 @@ class Good():
 #            # TODO add Moore and SKC + ...
 
         
-    def initEmissionFunction(self, market):
+    def initEmissionFunction(self):
 
         if self.label == 'brown':
             def emissionFn(self, market):                
                 weight = self.paras['weight']
                 
-                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)
+                yearIdx = max(0, market.time-market.burnIn) #int((market.time - market.burnIn)/12.)
                 if market.germany:
                     exp = market.experienceBrownExo[yearIdx] + self.experience
                 else:
                     exp = market.experienceBrownExo[yearIdx]
                 expIn10Mio = exp/10000000.
                 emissionsPerKg = self.paras['emFactor'] * expIn10Mio**(self.paras['emRed']) + self.paras['emLimit']
-                maturity = self.paras['emLimit']/emissionsPerKg
+                self.maturity = self.paras['emLimit']/emissionsPerKg
                 emissions = emissionsPerKg * weight
-                return  emissions, maturity
+                return  emissions, self.maturity
                 
         elif self.label == 'green':
             def emissionFn(self, market):                  
                 weight = self.paras['weight']
                 electrProdFactor = 1.                   # CO2 per KWh compared to 2007, 2Do?
-                yearIdx = market.time-market.burnIn #int((market.time - market.burnIn)/12.)                
+                yearIdx = max(0, market.time-market.burnIn) #int((market.time - market.burnIn)/12.)                
                 if market.germany:
                     exp = market.experienceGreenExo[yearIdx] + self.experience
                 else:
                     exp = market.experienceGreenExo[yearIdx]                
                 emissionsPerKg = self.paras['emFactor'] * exp**(self.paras['emRed']) + self.paras['emLimit']
-                maturity = self.paras['emLimit']/emissionsPerKg
+                self.maturity = self.paras['emLimit']/emissionsPerKg
                 emissions = emissionsPerKg * weight * electrProdFactor
-                return emissions, maturity
+                return emissions, self.maturity
                     
         elif self.label == 'public':
             def emissionFn(self, market):
@@ -541,11 +551,11 @@ class Good():
                 pt2030  = self.paras['pt2030']  
                 ptLimit = self.paras['ptLimit']
                 rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
-                year = (market.time-market.burnIn)/12.
+                year = max(0., (market.time-market.burnIn)/12.)
                 factor = (1-ptLimit)*emissions2012 * math.exp(7*rate)
-                maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
+                self.maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
                 emissions = factor*math.exp(-rate*year) + ptLimit*emissions2012
-                return emissions, maturity
+                return emissions, self.maturity
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
@@ -554,14 +564,15 @@ class Good():
                 weight = self.paras['weight']
                 emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
-                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
-                return emissions, maturity
+                self.maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
+                return emissions, self.maturity
                 
         else:
             def emissionFn(self, market):
                 emissions = self.properties['emissions']
-                maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
-                return emissions, maturity
+                self.maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
+                
+                return emissions, self.maturity
         
         self.emissionFunction = emissionFn
 
@@ -574,11 +585,13 @@ class Good():
         self.properties['emissions'] = emissions
         self.maturity = maturity
 
-
+    def updateMaturity(self):
+        self.maturity = self.getExperience() / self.overallExperience
+        
     def updateExperience(self):
         # only endogeneous experience, there may also be exogenous experience, from market
         self.experience += self.lastGlobalSales[self.goodID]  
-              
+        self.addToOverallExperience(self.lastGlobalSales[self.goodID])      
         
     def updateSales(self, production=None):
         """
@@ -874,7 +887,7 @@ class Market():
         if doTechProgress: 
             for good in self.goods.values():
                 good.updateEmissionsAndMaturity(self)                
-            
+                good.updateMaturity()
             self.updatePrices()
             
             lg.info( 'sales in market: ' + str(self.glob['sales']))

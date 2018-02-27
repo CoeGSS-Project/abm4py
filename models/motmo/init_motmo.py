@@ -222,7 +222,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     #del dummy
 
-    for paName in ['population']:
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
+                    'population']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -1305,9 +1306,9 @@ def initEarth(simNo,
     earth.enums['mobilityTypes']    = dict()
     earth.enums['mobilityTypes'][1] = 'green'
     earth.enums['mobilityTypes'][0] = 'brown'
-    earth.enums['mobilityTypes'][2] = 'Pupic'
-    earth.enums['mobilityTypes'][3] = 'Shared'
-    earth.enums['mobilityTypes'][4] = 'None'
+    earth.enums['mobilityTypes'][2] = 'public transport'
+    earth.enums['mobilityTypes'][3] = 'shared mobility'
+    earth.enums['mobilityTypes'][4] = 'None motorized'
 
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
@@ -1424,7 +1425,12 @@ def initInfrastructure(earth):
 
 #%% cell convenience test
 def cellTest(earth):
-    
+
+    for good in earth.market.goods.values():
+        
+        #good.emissionFunction(good, earth.market)
+        good.updateMaturity()  
+        
     nLocations = len(earth.getLocationDict())
     convArray  = np.zeros([earth.market.getNMobTypes(), nLocations])
     popArray   = np.zeros(nLocations)
@@ -1478,6 +1484,7 @@ def cellTest(earth):
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
+        adsf
         
 # %% Generate Network
 def generateNetwork(earth):
@@ -1657,7 +1664,9 @@ def runModel(earth, parameters):
     earth.market.initExogenousExperience(parameters['scenario'])
     earth.market.initPrices()
     for good in earth.market.goods.values():
-        good.initEmissionFunction(earth.market)
+        
+        good.emissionFunction(good, earth.market)
+        good.updateMaturity()
     
     lg.info('Initial market step done')
 
