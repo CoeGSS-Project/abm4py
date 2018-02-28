@@ -517,7 +517,8 @@ class Good():
     def initEmissionFunction(self):
 
         if self.label == 'brown':
-            def emissionFn(self, market):                
+            def emissionFn(self, market):    
+                correctionFactor = .3
                 weight = self.paras['weight']
                 
                 yearIdx = max(0, market.time-market.burnIn) #int((market.time - market.burnIn)/12.)
@@ -527,9 +528,9 @@ class Good():
                     exp = market.experienceBrownExo[yearIdx]
                 expIn10Mio = exp/10000000.
                 emissionsPerKg = self.paras['emFactor'] * expIn10Mio**(self.paras['emRed']) + self.paras['emLimit']
-                self.maturity = self.paras['emLimit']/emissionsPerKg
+                maturity = self.paras['emLimit'] / emissionsPerKg + correctionFactor
                 emissions = emissionsPerKg * weight
-                return  emissions, self.maturity
+                return  emissions, maturity
                 
         elif self.label == 'green':
             def emissionFn(self, market):                  
@@ -541,9 +542,9 @@ class Good():
                 else:
                     exp = market.experienceGreenExo[yearIdx]                
                 emissionsPerKg = self.paras['emFactor'] * exp**(self.paras['emRed']) + self.paras['emLimit']
-                self.maturity = self.paras['emLimit']/emissionsPerKg
+                maturity = self.paras['emLimit']/emissionsPerKg
                 emissions = emissionsPerKg * weight * electrProdFactor
-                return emissions, self.maturity
+                return emissions, maturity
                     
         elif self.label == 'public':
             def emissionFn(self, market):
@@ -553,9 +554,9 @@ class Good():
                 rate = math.log((1-ptLimit)/(pt2030-ptLimit))/18.
                 year = max(0., (market.time-market.burnIn)/12.)
                 factor = (1-ptLimit)*emissions2012 * math.exp(7*rate)
-                self.maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
+                maturity = ptLimit / ((1-ptLimit)* math.exp(rate*(7-year)) + ptLimit)
                 emissions = factor*math.exp(-rate*year) + ptLimit*emissions2012
-                return emissions, self.maturity
+                return emissions, maturity
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
@@ -564,15 +565,16 @@ class Good():
                 weight = self.paras['weight']
                 emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
-                self.maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
-                return emissions, self.maturity
+                maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
+                maturity = .1
+                return emissions, maturity
                 
         else:
             def emissionFn(self, market):
                 emissions = self.properties['emissions']
-                self.maturity = self.currStock/max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
-                
-                return emissions, self.maturity
+                maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
+                maturity = .02
+                return emissions, maturity
         
         self.emissionFunction = emissionFn
 
@@ -585,8 +587,8 @@ class Good():
         self.properties['emissions'] = emissions
         self.maturity = maturity
 
-    def updateMaturity(self):
-        self.maturity = self.getExperience() / self.overallExperience
+#    def updateMaturity(self):
+#        self.maturity = self.getExperience() / self.overallExperience
         
     def updateExperience(self):
         # only endogeneous experience, there may also be exogenous experience, from market
@@ -606,7 +608,7 @@ class Good():
         else:
             self.currLocalSales = production
             
-#        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
 #        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
 #        for prop in self.properties.keys():
 #            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
@@ -617,17 +619,18 @@ class Good():
 #        self.experience += self.lastGlobalSales[self.goodID]
 
         
-    def step(self, doTechProgress=True):
+    def step(self, market, doTechProgress=True):
         """ replaces the old stock by the current Stock and computes the 
         technical progress
         """
         if doTechProgress:
             self.updateSales()
             self.updateExperience()
-        
+                
         self.oldStock = self.currStock
-        
-       
+        self.updateEmissionsAndMaturity(market)                
+                
+            
         
 
     def buy(self,quantity=1):
@@ -793,7 +796,7 @@ class Market():
     def initPrices(self):
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB']                   
+                exponent = self.para['priceReductionB'] * .3
                 good.properties['costs'] = self.para['initPriceBrown']
                 expInMio = self.experienceBrownStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
@@ -818,14 +821,18 @@ class Market():
         yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB']
+                exponent = self.para['priceReductionB'] * .3
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceBrownExo[yearIdx] + good.experience
                 else:
                     exp = self.experienceBrownExo[yearIdx]
-                expInMio = exp/1000000.       
+                expInMio = exp/1000000.  
+#                print expInMio
+#                print factor
+#                print exponent
                 good.properties['costs'] = factor * expInMio**exponent 
+#                print good.properties['costs'] 
                 
             elif good.label == 'green':                 
                 exponent = self.para['priceReductionG']
@@ -882,15 +889,12 @@ class Market():
         doTechProgress = self.time > self.burnIn
             
         for good in self.goods.values():
-           good.step(doTechProgress)
+            good.step(self, doTechProgress)
         
-        if doTechProgress: 
-            for good in self.goods.values():
-                good.updateEmissionsAndMaturity(self)                
-                good.updateMaturity()
-            self.updatePrices()
+        if doTechProgress:
+            self.updatePrices()   
             
-            lg.info( 'sales in market: ' + str(self.glob['sales']))
+        lg.info( 'sales in market: ' + str(self.glob['sales']))
 
 
         self.computeInnovation()
@@ -905,7 +909,7 @@ class Market():
             for iGood in self.goods.keys():
                 self.globalRecord['prop_' + self.goods[iGood].label].set(self.time, self.goods[iGood].getProperties())
             self.globalRecord['allTimeProduced'].set(self.time, self.getCurrentExperience())
-            self.globalRecord['kappas'].set(self.time, self.getCurrentMaturity())
+            self.globalRecord['maturities'].set(self.time, self.getCurrentMaturity())
 
         lg.debug('new value of allTimeProduced: ' + str(self.getCurrentExperience()))##OPTPRODUCTION
         # reset sales
@@ -1022,7 +1026,7 @@ class Infrastructure():
         
         #get the current number of charging stations
         currNumStations  = earth.getNodeValues('chargStat', nodeType=CELL)
-        greenCarsPerCell = earth.getNodeValues('carsInCell',CELL)[:,GREEN]+1.
+        greenCarsPerCell = earth.getNodeValues('carsInCell',CELL)[:,GREEN]+1. 
         
         #immition factor (related to hotelings law that new competitiors tent to open at the same location)
         
@@ -2073,8 +2077,9 @@ class Cell(Location):
         self.carsToBuy = 0
         self.deleteQueue =1
         self.traffic = dict()
-        self.cellSize = 1.
+        self.cellSize      = 1.
         self.convFunctions = list()
+        self.redFactor     = earth.para['reductionFactor']
 
 
     def initCellMemory(self, memoryLen, memeLabels):
@@ -2186,7 +2191,7 @@ class Cell(Location):
         
         if greenMeanCars is None:
             
-            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
+            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0]) * self.redFactor
             greenMeanCars = sum1D(carsInCells[:,GREEN]*weights)    
         
 

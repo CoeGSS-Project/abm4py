@@ -23,12 +23,14 @@ import socket
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
 
-
+dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path.append('/media/sf_shared/python/modules/biokit')
     sys.path.append('/home/geiges/database/modules/folium/')
+    memmap = False
 else:
     sys.path.append(home + '/python/modules/folium/')
+    memmap = True
 
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
@@ -36,12 +38,14 @@ import seaborn as sns; sns.set()
 from class_auxiliary import loadObj, getEnvironment
 
 #sns.set_color_codes("dark")
-sns.color_palette("Paired")
+#sns.color_palette("Paired")
 
 percentile = 0.1
 
 plotFunc = list()
 
+
+#memmap = True
 
 doTry = True
 
@@ -51,11 +55,11 @@ _hh  = 1
 _pe  = 2
 
 #%% INIT
-
-plotFunc.append('plot_carSharePerHHType')
+plotFunc.append('plot_globalRecords')
+plotFunc.append('plot_emissions')
+plotFunc.append('plot_electricConsumption')
 plotFunc.append('plot_ChargingStations')
 plotFunc.append('plot_GreenConvenienceOverTime')
-plotFunc.append('plot_globalRecords')
 plotFunc.append('plot_stockAllRegions')
 plotFunc.append('scatterConVSPref')
 plotFunc.append('plot_averageCarAge')
@@ -67,7 +71,7 @@ plotFunc.append('plot_expectUtil')
 plotFunc.append('plot_selfUtil')
 plotFunc.append('plot_carStockBarPlot')
 plotFunc.append('plot_carSales')
-plotFunc.append('plot_consequencePerLabel')
+plotFunc.append('plot_properiesPerMobType')
 plotFunc.append('plot_salesProperties')
 plotFunc.append('plot_prefPerLabel')
 plotFunc.append('plot_utilPerLabel')
@@ -83,12 +87,16 @@ plotFunc.append('plot_greenCarsPerCell')
 plotFunc.append('plot_conveniencePerCell')
 plotFunc.append('plot_population')
 plotFunc.append('plot_doFolium')
-
+plotFunc.append('plot_carSharePerHHType')
 
 simNo = sys.argv[1]
 
 path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 
+try:
+    os.remove(path + 'mapData.hdf5')
+except:
+    pass    
 #path = 'poznan_out/sim0795/'
 
 simParas   = loadObj(path + 'simulation_parameters')
@@ -122,7 +130,6 @@ def cellDataAsMap(landLayer, posArray, cellData):
     cellArray[posArray[:,0],posArray[:,1]] = cellData
 
     return cellArray
-
 
 
 
@@ -174,8 +181,15 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
         
         propDict.ceSta, propDict.ce    = getAttributes(parameters, 1)
         
+#        from tempfile import mkdtemp
+#        import os.path as path
+        filename = path + 'test_ce.dat'
+        
         ceStep          = getData(parameters,1,0)
-        data.ce         = np.zeros([parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]])
+        if memmap:
+            data.ce     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]))
+        else:
+            data.ce     = np.zeros([parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]])
         for step in range(parameters['nSteps']):
             data.ce[step,:,:] = getData(parameters,1,step)
         data.ceSta = getStaticData(parameters,1)
@@ -186,9 +200,27 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
         #propDict.hh     = loadObj(path + 'attributeList_type2')
         propDict.hhSta, propDict.hh    = getAttributes(parameters, 2)
         hhStep          = getData(parameters,2,0)
-        data.hh         = np.zeros([parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]])
-        for step in range(parameters['nSteps']):
-            data.hh[step,:,:] = getData(parameters,2,step)
+#        from tempfile import mkdtemp
+#        import os.path as path
+        
+        
+        
+        if memmap:
+            filename = path + 'test_hh.dat'
+            writeMemMapData = not os.path.isfile(filename)
+            if writeMemMapData:
+                data.hh     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]))
+                for step in range(parameters['nSteps']):
+                    data.hh[step,:,:] = getData(parameters,2,step)
+            else:
+                data.hh     = np.memmap(filename, dtype='float32', mode='r+', shape=(parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]))
+        # no memmap file
+        else:
+            data.hh     = np.zeros([parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]])
+            for step in range(parameters['nSteps']):
+                data.hh[step,:,:] = getData(parameters,2,step)
+
+
         data.hhSta = getStaticData(parameters,2)
         
     if nodeType ==2:
@@ -196,11 +228,23 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
         #propDict.pe     = loadObj(path + 'attributeList_type3')
         propDict.peSta, propDict.pe    = getAttributes(parameters, 3)
         peStep          = getData(parameters,3,0)
-        data.pe         = np.zeros([parameters['nSteps'], peStep.shape[0],peStep.shape[1]])
-        for step in range(parameters['nSteps']):
-            data.pe[step,:,:] = getData(parameters,3,step)
+
+
+        if memmap:
+            filename = path + 'test_pe.dat'
+            writeMemMapData = not os.path.isfile(filename)
+            if writeMemMapData:
+                data.pe     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], peStep.shape[0], peStep.shape[1]))
+                for step in range(parameters['nSteps']):
+                    data.pe[step,:,:] = getData(parameters,3,step)
+            else:
+                data.pe     = np.memmap(filename, dtype='float32', mode='r+', shape=(parameters['nSteps'], peStep.shape[0], peStep.shape[1]))
+        # no memmap file
+        else:
+            data.pe     = np.zeros([parameters['nSteps'], peStep.shape[0], peStep.shape[1]])
+            for step in range(parameters['nSteps']):
+                data.pe[step,:,:] = getData(parameters,3,step)
         data.peSta = getStaticData(parameters,3)
-        
 #    nSteps, nHhs,  nceProp   = data.ce.shape
 #    nSteps, nPers, nPersProp = data.pe.shape
 #    nSteps, nHhs,  nHHProp   = data.hh.shape
@@ -253,8 +297,43 @@ def labelYears(factor):
     years = (parameters['nSteps'] - nBurnIn) / 12 / factor
     plt.xticks(np.linspace(nBurnIn,parameters['nSteps'],years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)
 
-#%% PLOT FUNCTIONS
 
+def cellData2Map(cellData, data):
+    
+    posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
+    landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+    
+    outMap = np.zeros_like(landLayer) * np.nan
+    outMap[posArray[:,0],posArray[:,1]] = cellData
+    return outMap
+
+#%% DATA TRANSFER
+    
+class H5Writer():
+    
+    def __init__(self, fileName, groupName):
+        
+        self.h5File  = ta.File(path + '/' + fileName, 'a')
+        try:
+            self.h5File.create_group('/',groupName)
+        except:
+            pass
+        self.node    = self.h5File.get_node('/' + groupName)
+        
+        
+    def addData(self, step, data):
+        #self.shape   = data.shape
+        self.data    = self.h5File.create_array(self.node,'step' + str(step), data)
+        #self.data[step] = data
+        
+        
+    def close(self):
+        #self.h5File.flush()
+        self.h5File.close()
+
+
+
+#%% PLOT FUNCTIONS
 def plot_globalRecords(data, propDict, parameters, enums, filters):
 
     reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)
@@ -465,10 +544,10 @@ def plot_peerBubbleSize(data, propDict, parameters, enums, filters):
 
 
 def plot_agePerMobType(data, propDict, parameters, enums, filters):
-    res = np.zeros([parameters['nSteps'],3])
+    res = np.zeros([parameters['nSteps'],len(enums['mobilityTypes'])])
     #std = np.zeros([parameters['nSteps'],3])
     for time in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             res[time,mobType] = np.mean(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['age'][0]])
             #std[time,mobType] = np.std(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['age'][0]])
     fig = plt.figure()
@@ -480,16 +559,16 @@ def plot_agePerMobType(data, propDict, parameters, enums, filters):
     if parameters['plotYears']:
         years = (parameters['nSteps'] - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
-    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.title('Average age of mobility actors')
     plt.tight_layout()
     plt.savefig(path + 'agePerMobType')
 
 
 def plot_womanSharePerMobType(data, propDict, parameters, enums, filters):
-    res = np.zeros([parameters['nSteps'],3])
+    res = np.zeros([parameters['nSteps'],len(enums['mobilityTypes'])])
     for ti in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             res[ti,mobType] = np.mean(data.peSta[data.pe[ti,:,propDict.pe['mobType'][0]]==mobType,propDict.peSta['gender'][0]])-1
 
     fig = plt.figure()
@@ -500,7 +579,7 @@ def plot_womanSharePerMobType(data, propDict, parameters, enums, filters):
     if parameters['plotYears']:
         years = (parameters['nSteps'] - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
-    plt.legend(['Combution engine', 'Electric engine', 'other mobility types'],loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.title('Share of women')
     plt.tight_layout()
     plt.savefig(path + 'womanShareGreen')
@@ -570,9 +649,20 @@ def plot_selfUtil(data, propDict, parameters, enums, filters):
 def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
     #  plot car stock as bar plot dependent on hhType
     print 1
-    plt.figure(figsize=[15,10])
+    plt.figure(figsize=[15,15])
     mobMin = parameters['nMobTypes']
-    
+    titles = list()
+    titles.append('1P_18-30')
+    titles.append('1P_31-60')
+    titles.append('1P_>60')
+    titles.append('2P_j18-30')
+    titles.append('2P_j31-60')
+    titles.append('2P_>j60')
+    titles.append('3+P')
+    titles.append('child<6J')
+    titles.append('child<14J')
+    titles.append('child<18J')
+    titles.append('singelParent')
     for hhType in range(1,12):
         plt.subplot(3,4,hhType)
         carMat = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
@@ -594,11 +684,12 @@ def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
         else:
             plt.xlim([0,parameters['nSteps']])
         plt.ylim([0, np.sum(carMat[ti,:])])
-        
+        plt.title(titles[hhType-1])
         if parameters['plotYears']:
             labelYears(5)
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     plt.subplot(3,4,hhType+1)
+    
     plt.legend(enums['brands'].values(),loc=0)
     plt.tight_layout()
     
@@ -667,7 +758,7 @@ def plot_carSales(data, propDict, parameters, enums, filters):
 
 
 
-def plot_consequencePerLabel(data, propDict, parameters, enums, filters):
+def plot_properiesPerMobType(data, propDict, parameters, enums, filters):
     """
     consequences per mobility type
     """
@@ -696,7 +787,7 @@ def plot_consequencePerLabel(data, propDict, parameters, enums, filters):
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
     plt.legend(legStr,loc=0)
     plt.tight_layout()
-    plt.savefig(path + 'meanConsequencesPerMobType')
+    plt.savefig(path + 'propertiesPerMobType')
 #plt.show()
 
 
@@ -1113,6 +1204,14 @@ def plot_cellMovie(data, propDict, parameters, enums, filters):
 
 def plot_carsPerCell(data, propDict, parameters, enums, filters):
     #%%
+    h5writer = H5Writer('mapData.hdf5', 'greenCars')
+    for step in range(parameters['nSteps']):
+        
+        cellData = data.ce[step,:,propDict.ce['carsInCell'][1]]
+        mapData = cellData2Map(cellData, data)
+        h5writer.addData(step,mapData)
+    h5writer.close()    
+    
     import copy
     fig = plt.figure(figsize=(12,8))
     plt.clf()
@@ -1312,6 +1411,77 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     #plt.suptitle('Electric cars per 1000 people')
     plt.savefig(path + 'greenCarPerCell')
 
+def plot_electricConsumption(data, propDict, parameters, enums, filters):
+
+    
+    h5writer = H5Writer('mapData.hdf5', 'elDemand')
+    for step in range(parameters['nSteps']):
+        
+        cellData = data.ce[step,:,propDict.ce['electricConsumption']] / 1000 #in GWh
+        mapData = cellData2Map(cellData, data)
+        h5writer.addData(step,mapData)
+    h5writer.close()
+        
+    
+    from matplotlib.colors import ListedColormap
+    my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
+    years = [2015, 2020, 2025, 2030] + range(2031,2036)
+
+    for i, year in enumerate (years):
+        tt = (year - 2005)*12 + nBurnIn -1
+
+
+        plt.subplot(3,3,i+1)
+        cellData = data.ce[tt,:,propDict.ce['electricConsumption']] / 1000 #in GWh
+        
+        mapData = cellData2Map(cellData, data)
+        plt.imshow(mapData)
+        plt.colorbar()
+        bounds = [0, np.nanpercentile(mapData,98)]
+        plt.clim(bounds)
+        
+        if year == 2034:
+            plt.title(str(2035))
+        else:
+            plt.title(str(year))
+    plt.tight_layout()
+    plt.savefig(path + 'electricConsumption')
+    
+def plot_emissions(data, propDict, parameters, enums, filters):
+    from matplotlib.colors import ListedColormap
+    my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
+    years = [2015, 2020, 2025, 2030] + range(2031,2036)
+    
+    #landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+    
+    h5writer = H5Writer('mapData.hdf5', 'emissions')
+    for step in range(parameters['nSteps']):
+        
+        cellData = data.ce[step,:,propDict.ce['emissions']]
+        mapData = cellData2Map(cellData, data)
+        h5writer.addData(step,mapData)
+    h5writer.close()
+        
+    for i, year in enumerate (years):
+        tt = (year - 2005)*12 + nBurnIn -1
+
+
+        plt.subplot(3,3,i+1)
+        cellData = data.ce[tt,:,propDict.ce['emissions']]
+        
+        
+        plt.imshow(mapData)
+        plt.colorbar()
+        bounds = [0, np.nanpercentile(mapData,98)]
+        plt.clim(bounds)
+        
+        if year == 2034:
+            plt.title(str(2035))
+        else:
+            plt.title(str(year))
+    plt.tight_layout()
+    plt.savefig(path + 'emissions')
+    h5writer.close()
 def plot_ChargingStations(data, propDict, parameters, enums, filters):
 
     from matplotlib.colors import ListedColormap
@@ -1319,11 +1489,20 @@ def plot_ChargingStations(data, propDict, parameters, enums, filters):
     years = [2015, 2020, 2025, 2030] + range(2031,2036)
     iBrand = 1
     landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
+
+    h5writer = H5Writer('mapData.hdf5', 'chargStations')
+    for step in range(parameters['nSteps']):
+        
+        cellData = data.ce[step,:,propDict.ce['chargStat']]
+        mapData = cellData2Map(cellData, data)
+        h5writer.addData(step,mapData)
+    h5writer.close()
     
     for iCell in range(data.ce.shape[1]):
         x = data.ceSta[iCell,propDict.ceSta['pos'][0]].astype(int)
         y = data.ceSta[iCell,propDict.ceSta['pos'][1]].astype(int)
         landLayer[x,y] = 1
+    
     
     #plt.pcolormesh(landLayer)
     landLayer = landLayer.astype(bool)
@@ -1342,9 +1521,9 @@ def plot_ChargingStations(data, propDict, parameters, enums, filters):
         plt.subplot(3,3,i+1)
 
         cellData = data.ce[tt,:,propDict.ce['chargStat']]
-        cellData[np.isinf(cellData)] = 0
+        cellData[np.isinf(cellData)] = np.nan
 
-        bounds = [0, np.nanpercentile(cellData,100)]
+        bounds = [0, np.nanpercentile(cellData,98)]
         if bounds[0] == bounds[1]:
             bounds = [0, np.nanmax(cellData)]
         res[posArray[:,0],posArray[:,1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
@@ -1459,7 +1638,7 @@ def plot_population(data, propDict, parameters, enums, filters):
 
     plt.title('population')
     plt.savefig(path + 'population')
-plt.show()
+    plt.show()
 
 
 #sys.path.append('/media/sf_shared/python/database')
@@ -1549,9 +1728,11 @@ if __name__ == "__main__":
         if doTry:
             
             try:
+                plt.close('all')
+                plt.clf()
                 print 'Executing: ' + funcCall + '...',
                 locals()[funcCall](data, propDict, parameters, enums, filters)
-                plt.close('all')
+                
                 
             except Exception as e:
     
@@ -1560,7 +1741,8 @@ if __name__ == "__main__":
                 import traceback
                 traceback.print_exc()
         else:
-            
+            plt.close('all')
+            plt.clf()
             print 'Executing: ' + funcCall + '...',
             locals()[funcCall](data, propDict, parameters, enums, filters)
         print ' done in ' + str(time.time() - tt) + ' s'
@@ -1571,25 +1753,27 @@ selfUtil = np.asarray(data.pe[:,:,propDict.pe['selfUtil']])
 commUtil  = np.asarray(data.pe[:,:,propDict.pe['selfUtil']])
 mobType  = np.asarray(data.pe[:,:,propDict.pe['mobType']]) 
 consequences  = np.asarray(data.pe[:,:,propDict.pe['consequences']]) 
-#%%
-iPers= 20
-plt.clf()
-plt.subplot(2,2,1)
-plt.plot(mobType[:,iPers,0],'o')
-plt.yticks(range(5),enums['brands'].values())
-#plt.ylabel()
-plt.title('mobType')
-plt.subplot(2,2,2)
-plt.plot(selfUtil[:,iPers,:])
-plt.legend(enums['brands'].values())
-plt.title('selfUtil')
-plt.subplot(2,2,3)
-plt.plot(commUtil[:,iPers,:])
-plt.title('commUtil')
-plt.subplot(2,2,4)
-plt.plot(consequences[:,iPers,:])
-plt.title('consequences')
-#box = ax.get_position()
-#ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-#plt.legend(loc = "center left", bbox_to_anchor = (1, 0.5))
-plt.legend(enums['consequences'].values(),bbox_to_anchor=(1.00, 1.05))
+if False:
+    #%%
+    
+    iPers= 20
+    plt.clf()
+    plt.subplot(2,2,1)
+    plt.plot(mobType[:,iPers,0],'o')
+    plt.yticks(range(5),enums['brands'].values())
+    #plt.ylabel()
+    plt.title('mobType')
+    plt.subplot(2,2,2)
+    plt.plot(selfUtil[:,iPers,:])
+    plt.legend(enums['brands'].values())
+    plt.title('selfUtil')
+    plt.subplot(2,2,3)
+    plt.plot(commUtil[:,iPers,:])
+    plt.title('commUtil')
+    plt.subplot(2,2,4)
+    plt.plot(consequences[:,iPers,:])
+    plt.title('consequences')
+    #box = ax.get_position()
+    #ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    #plt.legend(loc = "center left", bbox_to_anchor = (1, 0.5))
+    plt.legend(enums['consequences'].values(),bbox_to_anchor=(1.00, 1.05))

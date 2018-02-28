@@ -866,7 +866,7 @@ def mobilitySetup(earth):
 
     # define convenience functions
     def convenienceBrown(density, pa, kappa, cell):
-
+        
         conv = pa['minConvB'] +\
         kappa * (pa['maxConvB'] - pa['minConvB']) * \
         np.exp( - (density - pa['muConvB'])**2 / (2 * pa['sigmaConvB']**2))
@@ -1138,8 +1138,9 @@ def householdSetup(earth, calibration=False):
             hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
 
             # set minimal income
+            income *= (1.- (0.1 * max(3, nKids))) # reduction fo effective income by kids
             income = max(400., income)
-            income *= parameters['mobIncomeShare']
+            income *= parameters['mobIncomeShare'] 
 
 
             nJourneysPerPerson = hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5MOBDEM]
@@ -1275,6 +1276,7 @@ def initEarth(simNo,
     earth.market.mean = np.array([400., 300.])
     earth.market.std  = np.array([100., 50.])
     
+    earth.market.initExogenousExperience(parameters['scenario'])
 
     
     #init location memory
@@ -1428,8 +1430,8 @@ def cellTest(earth):
 
     for good in earth.market.goods.values():
         
-        #good.emissionFunction(good, earth.market)
-        good.updateMaturity()  
+        good.emissionFunction(good, earth.market)
+        #good.updateMaturity()  
         
     nLocations = len(earth.getLocationDict())
     convArray  = np.zeros([earth.market.getNMobTypes(), nLocations])
@@ -1548,8 +1550,8 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(), style='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
                          earth.enums['mobilityTypes'].values(), style='plot')
-    earth.registerRecord('kappas', 'Technological maturity of mobility types',
-                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
+    earth.registerRecord('maturities', 'Technological maturity of mobility types',
+                         ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
     earth.registerRecord('mobProp', 'Properties',
                          ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
@@ -1586,14 +1588,33 @@ def initCacheArrays(earth):
 
 def initExogeneousExperience(parameters):
     inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
-    experienceWorld         = inputFromGlobal['expWorld'].values
-    experienceWorldGreen    = inputFromGlobal['expWorldGreen'].values
-    parameters['experienceWorldGreen']  = experienceWorldGreen
-    parameters['experienceWorldBrown']  = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]
+    parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10.
+    parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values
     experienceGer                       = inputFromGlobal['expGer'].values
     experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
     parameters['experienceGerGreen']    = experienceGerGreen
     parameters['experienceGerBrown']    = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
+    
+    #fake model
+#    def func(year):
+#        a = -654.47792283470665
+#        b = 0.33129306614034293
+#        stockGlE = np.exp(b * year+a)
+#        return stockGlE
+#    
+#    years = range(2005, 2036)
+#    
+#    correctedData = [func(year) for year in years]
+#    
+#    fig = plt.figure()
+#    plt.clf()
+#    ax = fig.add_subplot(1, 1, 1)
+#    plt.plot(years, parameters['experienceWorldGreen'])
+#    plt.plot(years, parameters['experienceWorldGreen']/10)
+#    plt.plot(years, correctedData)
+#    plt.legend(['old', 'old/10', 'corrected'])
+#    ax.set_yscale('log')
+    
     return parameters
 
 def readParameterFile(parameters, fileName):
@@ -1661,12 +1682,12 @@ def runModel(earth, parameters):
     for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
      
-    earth.market.initExogenousExperience(parameters['scenario'])
+    
     earth.market.initPrices()
     for good in earth.market.goods.values():
         
-        good.emissionFunction(good, earth.market)
-        good.updateMaturity()
+        good.updateEmissionsAndMaturity(earth.market)
+        #good.updateMaturity()
     
     lg.info('Initial market step done')
 
