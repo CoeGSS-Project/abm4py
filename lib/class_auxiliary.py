@@ -332,6 +332,7 @@ class Record():
 
     def gatherSyncDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
+        return self.glob[self.name]
 
     def set(self, timeStep, data):
         self.rec[timeStep,:] = data

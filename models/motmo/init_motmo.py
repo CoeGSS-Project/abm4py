@@ -1138,7 +1138,7 @@ def householdSetup(earth, calibration=False):
             hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
 
             # set minimal income
-            income *= (1.- (0.1 * max(3, nKids))) # reduction fo effective income by kids
+            #income *= (1.- (0.1 * max(3, nKids))) # reduction fo effective income by kids
             income = max(400., income)
             income *= parameters['mobIncomeShare'] 
 
@@ -1552,7 +1552,7 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(), style='plot')
     earth.registerRecord('maturities', 'Technological maturity of mobility types',
                          ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
-    earth.registerRecord('mobProp', 'Properties',
+    earth.registerRecord('globEmmAndPrice', 'Properties',
                          ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
     if mpiRank == 0:
@@ -1899,7 +1899,7 @@ def setupHouseholdsWithOptimalChoice():
 if __name__ == '__main__':
 
 
-    debug = 0
+    debug = 1
     showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)

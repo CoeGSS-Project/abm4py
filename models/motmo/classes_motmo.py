@@ -277,11 +277,14 @@ class Earth(World):
         self.graph.glob.sync()
         
         #gather data back to the records
+        globalStock = np.zeros(self.para['nMobTypes'])
         for re in self.para['regionIDList']:
-            self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
+            reStock = self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
+            globalStock += reStock
+        
 
         tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
-        self.globalRecord['mobProp'].set(self.time,np.asarray(tmp))
+        self.globalRecord['globEmmAndPrice'].set(self.time,np.asarray(tmp))
 
 
         self.syncTime[self.time] = time.time()-ttSync        
@@ -454,7 +457,7 @@ class Good():
     
     lastGlobalSales  = list()
     overallExperience = 0.
-
+    globalStock      = list()
 
     @classmethod
     def updateGlobalSales(cls, sales):
@@ -462,6 +465,15 @@ class Good():
         Method to update the class variable lastGlobalSales
         """
         cls.lastGlobalSales = sales
+
+    @classmethod
+    def updateGlobalStock(cls, newStock, mpiRank=1):
+        """
+        Method to update the class variable lastGlobalSales
+        """
+        if mpiRank == 0:
+            print('new global stock is : ' + str(newStock))
+        cls.globalStock = newStock
 
     @classmethod
     def addToOverallExperience(cls, exp):
@@ -492,7 +504,8 @@ class Good():
         #self.technicalProgress = 1.
         #self.slope = 0.1
         
-        self.updateGlobalSales(self.lastGlobalSales + [0])
+        self.updateGlobalSales(self.lastGlobalSales + [0.])
+        self.updateGlobalStock(self.globalStock + [1.])
         self.initEmissionFunction()
               
 #        if progressType == 'wright':
@@ -560,11 +573,12 @@ class Good():
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
-                stockElShare = min(1.,market.goods[1].currStock/max(0.1,market.goods[0].currStock+market.goods[1].currStock))
+                stockElShare = min(1.,market.goods[1].getGlobalStock()/max(0.1,market.goods[0].getGlobalStock()+market.goods[1].getGlobalStock()))
                 electricShare = 0.1 + 0.9*stockElShare                     
                 weight = self.paras['weight']
                 emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
+                
                 maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
                 maturity = .1
                 return emissions, maturity
@@ -671,7 +685,9 @@ class Good():
     def getGrowthRate(self):
         return self.currGrowthRate
 
-
+    def getGlobalStock(self):
+        return self.globalStock[self.goodID]
+        
 class Market():
     """
     Market class that mangages goood, technical progress and stocks.
@@ -714,6 +730,13 @@ class Market():
         self.glob.registerStat('meanPrc' , np.asarray([0]*len(properties)),'mean')
         self.glob.registerStat('stdPrc' , np.asarray([0]*len(properties)),'std')
 
+    def updateGlobalStock(self):
+        globalStock = np.zeros(self.para['nMobTypes'])
+        for re in self.para['regionIDList']:
+            reStock = self.glob['stock_' + str(re)]
+            globalStock += reStock
+        self.goods[0].updateGlobalStock(globalStock, self.comm.rank)
+        
     def updateSales(self):
         
         # push current Sales to globals for sync
@@ -796,13 +819,13 @@ class Market():
     def initPrices(self):
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .3
+                exponent = self.para['priceReductionB'] * .2
                 good.properties['costs'] = self.para['initPriceBrown']
                 expInMio = self.experienceBrownStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG']                   
+                exponent = self.para['priceReductionG'] * .9           
                 good.properties['costs'] = self.para['initPriceGreen']
                 expInMio = self.experienceGreenStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
@@ -821,7 +844,7 @@ class Market():
         yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .3
+                exponent = self.para['priceReductionB'] * .2
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceBrownExo[yearIdx] + good.experience
@@ -835,7 +858,7 @@ class Market():
 #                print good.properties['costs'] 
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG']
+                exponent = self.para['priceReductionG'] * .9
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceGreenExo[yearIdx] + good.experience
@@ -882,7 +905,7 @@ class Market():
             for mobTuple in self.mobilityInitDict[self.time]:
                 for label, propertyDict, _, goodID in  mobTuple:
                     self.addGood2Market(label, propertyDict, goodID)
-
+        self.updateGlobalStock()
         self.updateSales()
         
         # only do technical change after the burn in phase
@@ -1941,7 +1964,11 @@ class Household(Agent):
                     utilities[iAction] += self.utilFunc(consMat[iAction,ii,:], prioMat[iPers])
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
-        return bestOpt, np.max(utilities), actorIds
+        
+        if np.max(utilities) > self.getValue('util'):
+            return bestOpt, np.max(utilities), actorIds
+        else:
+            return None, None, None
 
     def evolutionaryStep(self, earth):
         """
@@ -2294,6 +2321,7 @@ class Cell(Location):
         Step method for cells
         """
         self.setValue('emissions', 0.)
+        self.setValue('electricConsumption', 0.)
         convAll = self.calculateConveniences(parameters,currentMaturity)
         self._node['convenience'][:] =  convAll
 
