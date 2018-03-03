@@ -52,9 +52,15 @@ yProjection = sigmoid(xProjection, *popt)
 plt.figure('fit')
 plt.clf()
 pylab.plot(xdata, ydata, 'o', label='data')
-pylab.plot(xProjection, yProjection, label='fit')
-pylab.plot(2020,70000, 'd', label='Government goal')
-#pylab.ylim(0, 1.05)
+pylab.plot(2020,70000, 'd', label='Government goal Germany')
+
+
+ydata2 = [x for x in yProjection]
+
+for i in np.arange(2020,2036)-2005:
+    ydata2[i] = ydata2[15] + (i-15)*24000
+pylab.plot(xProjection, ydata2, '--', label='BAU')
+pylab.plot(xProjection, yProjection, '--', label='Alternative scenario')
 plt.title('Number of electric charging stations')
 pylab.legend(loc='best')
 pylab.show()

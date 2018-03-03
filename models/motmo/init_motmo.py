@@ -1022,7 +1022,7 @@ def householdSetup(earth, calibration=False):
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 500 # additional agents that are loaded 
+    overheadAgents = 1000 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -1408,7 +1408,7 @@ def initSpatialLayer(earth):
         for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', 0)
-            cell.setValue('emissions', 0.)
+            cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
             cell.setValue('electricConsumption', 0.)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
@@ -1527,7 +1527,24 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(),
                          style='plot',
                          mpiReduce='sum')
+    
+        earth.registerRecord('elDemand_' + str(re),
+                         'electric Demand -' + str(re),
+                         ['electric_demand'],
+                         style='plot',
+                         mpiReduce='sum')
+        
+        earth.registerRecord('nChargStations' + str(re),
+                         'Number of charging stations -' + str(re),
+                         ['nChargStations'],
+                         style='plot',
+                         mpiReduce='sum')
 
+        earth.registerRecord('emissions_' + str(re),
+                         'co2Emissions -' + str(re),
+                         earth.enums['mobilityTypes'].values(),
+                         style='plot',
+                         mpiReduce='sum')
 
         timeIdxs = list()
         values   = list()
@@ -1588,8 +1605,10 @@ def initCacheArrays(earth):
 
 def initExogeneousExperience(parameters):
     inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
-    parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10.
-    parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values
+    randomFactor = (3*np.random.randn() + 100.)/100
+    parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10. * randomFactor
+    randomFactor = (3*np.random.randn() + 100.)/100
+    parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values * randomFactor
     experienceGer                       = inputFromGlobal['expGer'].values
     experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
     parameters['experienceGerGreen']    = experienceGerGreen
@@ -1621,6 +1640,18 @@ def readParameterFile(parameters, fileName):
     for item in csv.DictReader(open(fileName)):
         if item['name'][0] != '#':
             parameters[item['name']] = aux.convertStr(item['value'])
+    return parameters
+
+def randomizeParameters(parameters):
+    #%%
+    def randDeviation(percent,size = 1):
+        return (100. + (np.random.randn(size) *percent)) / 100.
+    parameters['maxFriends'] = int( parameters['maxFriends'] * randDeviation(20))
+    parameters['inFriends'] = int( parameters['minFriends'] * randDeviation(5))
+    parameters['mobIncomeShare'] * randDeviation(5)
+    parameters['charIncome'] * randDeviation(5)
+    parameters['innoPriority'] * randDeviation(5)
+    parameters['individualPrio'] * randDeviation(10)
     return parameters
 # %% Online processing functions
 
@@ -1942,6 +1973,7 @@ if __name__ == '__main__':
         parameters = readParameterFile(parameters, 'parameters_all.csv')
         # reading of scenario-specific parameters
         parameters = readParameterFile(parameters,fileName)
+        parameters = randomizeParameters(parameters)
         
         lg.info('Setting loaded:')
         

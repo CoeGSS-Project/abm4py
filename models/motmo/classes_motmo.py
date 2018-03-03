@@ -253,16 +253,28 @@ class Earth(World):
         """
         Encapsulating method for the update of records
         """
+        #emissions = np.zeros(len(self.enums['mobilityTypes'])+1)
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
-
+            self.globalRecord['elDemand_' + str(re)].set(self.time,0)
+            self.globalRecord['emissions_' + str(re)].set(self.time,0)
+            self.globalRecord['nChargStations' + str(re)].set(self.time,0)
+            
+            
         for cell in self.iterEntRandom(CELL):
-            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue(('carsInCell')))* self.para['reductionFactor'])
-
+            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue('carsInCell'))* self.para['reductionFactor'])
+            self.globalRecord['elDemand_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue('electricConsumption')))
+            self.globalRecord['emissions_' + str(int(cell.getValue('regionId')))].add(self.time,cell.getValue('emissions'))
+            self.globalRecord['nChargStations' + str(int(cell.getValue('regionId')))].add(self.time,cell.getValue('chargStat'))
+            
         # move values to global data class
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
-
+            self.globalRecord['elDemand_' + str(re)].updateValues(self.time)
+            self.globalRecord['emissions_' + str(re)].updateValues(self.time)
+            self.globalRecord['nChargStations' + str(re)].updateValues(self.time)
+            
+            
     def syncGlobals(self):
         """
         Encapsulating method for the sync of global variables
@@ -281,7 +293,8 @@ class Earth(World):
         for re in self.para['regionIDList']:
             reStock = self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
             globalStock += reStock
-        
+            self.globalRecord['elDemand_' + str(re)].gatherSyncDataToRec(self.time)
+            self.globalRecord['emissions_' + str(re)].gatherSyncDataToRec(self.time)
 
         tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
         self.globalRecord['globEmmAndPrice'].set(self.time,np.asarray(tmp))
@@ -344,13 +357,14 @@ class Earth(World):
             self.setNodeValues('lastAction',lastActions+1, PERS)
         
         # progressing time
-        if self.timeUnit == 1: #months
-            self.date[0] += 1
-            if self.date[0] == 13:
-                self.date[0] = 1
-                self.date[1] += 1
-        elif self.timeUnit == 1: # years
-            self.date[1] +=1
+        if self.timeStep > self.para['burnIn']:
+            if self.timeUnit == 1: #months
+                self.date[0] += 1
+                if self.date[0] == 13:
+                    self.date[0] = 1
+                    self.date[1] += 1
+            elif self.timeUnit == 1: # years
+                self.date[1] +=1
         self.computeTime[self.time] += time.time()-ttComp
     
     
@@ -819,13 +833,13 @@ class Market():
     def initPrices(self):
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .2
+                exponent = self.para['priceReductionB'] * .15
                 good.properties['costs'] = self.para['initPriceBrown']
                 expInMio = self.experienceBrownStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG'] * .9           
+                exponent = self.para['priceReductionG'] * .8          
                 good.properties['costs'] = self.para['initPriceGreen']
                 expInMio = self.experienceGreenStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
@@ -844,7 +858,7 @@ class Market():
         yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .2
+                exponent = self.para['priceReductionB'] * .15
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceBrownExo[yearIdx] + good.experience
@@ -858,7 +872,7 @@ class Market():
 #                print good.properties['costs'] 
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG'] * .9
+                exponent = self.para['priceReductionG'] * .8
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceGreenExo[yearIdx] + good.experience
@@ -1034,7 +1048,8 @@ class Infrastructure():
     def sigmoid(x, x0, k):
         y = (1. / (1. + np.exp(-k*(x-x0)))) * 1e6
         return y
-    
+
+
     def step(self, earth, nNewStations = None):
         
         # if not given exogeneous, a fitted s-curve is used to evalulate the number
@@ -1042,9 +1057,13 @@ class Infrastructure():
         if nNewStations is None:
             timeStep = earth.timeStep - earth.para['burnIn']
             nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
-            nNewStations = int(np.diff(nNewStations) * self.shareStationsOfProcess / earth.para['spatialRedFactor'])
+            nNewStations = np.diff(nNewStations) * self.shareStationsOfProcess / earth.para['spatialRedFactor']
             
+        if earth.date[1] > 2020 and earth.para['linearCharging'] == 1:
+            nNewStations = 2000. * self.shareStationsOfProcess / earth.para['spatialRedFactor']
         
+        deviationFactor = (100. + (np.random.randn() *3)) / 100.
+        nNewStations = int(nNewStations * deviationFactor)
         lg.debug('Adding ' + str(nNewStations) + ' new stations')##OPTPRODUCTION
         
         #get the current number of charging stations
@@ -1738,7 +1757,7 @@ class Household(Agent):
             #TODO optimize code
             for nTrips, avgKm in zip(nJourneys.tolist(), MEAN_KM_PER_TRIP): 
                 emissions += nTrips * avgKm * emissionsPerKm
-            self.loc.addValue('emissions', emissions) #in kg
+            self.loc.addValue('emissions', emissions, actionIdx) #in kg
             
             if actionIdx == GREEN:
                 # elecric car is used -> compute estimate of power consumption
@@ -2320,7 +2339,8 @@ class Cell(Location):
         """
         Step method for cells
         """
-        self.setValue('emissions', 0.)
+        self._node['convenience'] *= 0.
+        self._node['emissions'] *= 0.
         self.setValue('electricConsumption', 0.)
         convAll = self.calculateConveniences(parameters,currentMaturity)
         self._node['convenience'][:] =  convAll

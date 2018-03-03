@@ -91,10 +91,11 @@ plotFunc.append('plot_doFolium')
 plotFunc.append('plot_carSharePerHHType')
 
 simNo = sys.argv[1]
-if len(sys.argv) > 2:
-    relID = '#' + sys.argv[2]
-else:
-    relID = ''
+#if len(sys.argv) > 2:
+#    relID = '#' + sys.argv[2]
+#    print 'realization: ' + relID
+#else:
+relID = ''
 
 path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 
@@ -428,7 +429,7 @@ def plot_stockAllRegions(data, propDict, parameters, enums, filters):
             plt.xticks(np.linspace(nBurnIn,parameters['nSteps'],years+1), [str(2005 + year*factor) for year in range(years+1)], rotation=30)
         plt.title(' stock ' + reDf.ix[re]['alpha'])
 
-    plt.figlegend(hh,['Combustion engine', 'Electric engine', 'other mobility types'], loc = 'lower center', ncol=3, labelspacing=0. )
+    plt.figlegend(hh,enums['brandTitles'].values(), loc = 'lower center', ncol=3, labelspacing=0. )
     plt.tight_layout()
     plt.subplots_adjust(bottom=.15)
     plt.savefig(path + 'stockAll')
@@ -457,7 +458,7 @@ def plot_averageCarAge(data, propDict, parameters, enums, filters):
     res = np.zeros([parameters['nSteps'],3])
     std = np.zeros([parameters['nSteps'],3])
     for time in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             res[time,mobType] = np.mean(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['lastAction'][0]])/12
             std[time,mobType] = np.std(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['lastAction'][0]]/12)
 
@@ -481,7 +482,7 @@ def plot_averageCarAge(data, propDict, parameters, enums, filters):
 def plot_meanESSR(data, propDict, parameters, enums, filters):
     res = np.zeros([parameters['nSteps'],3])
     for time in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             res[time,mobType] = np.mean(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['ESSR'][0]])
 
     fig = plt.figure()
@@ -522,7 +523,7 @@ def plot_peerBubbleSize(data, propDict, parameters, enums, filters):
     res = np.zeros([parameters['nSteps'],3])
     #std = np.zeros([parameters['nSteps'],3])
     for time in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             res[time,mobType] = np.mean(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['peerBubbleHeterogeneity'][0]])
             #std[time,mobType] = np.std(data.pe[time,data.pe[time,:,propDict.pe['mobType'][0]]==mobType,propDict.pe['age'][0]])
     fig = plt.figure()
@@ -542,7 +543,7 @@ def plot_peerBubbleSize(data, propDict, parameters, enums, filters):
     res = np.zeros([parameters['nSteps'],3])
     #std = np.zeros([parameters['nSteps'],3])
     for time in range(parameters['nSteps']):
-        for mobType in range(3):
+        for mobType in enums['mobilityTypes'].keys():
             boolMask = np.full(data.pe.shape[1], False, dtype=bool)
             boolMask[filters.pe['prefTypeIDs'][mobType]] = True
             res[time,mobType] = np.mean(data.pe[time,boolMask,propDict.pe['peerBubbleHeterogeneity'][0]])
@@ -717,7 +718,7 @@ def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     plt.subplot(3,4,hhType+1)
     
-    plt.legend(enums['brands'].values(),loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.tight_layout()
     
     plt.savefig(path + 'carSharePerHHType') 
@@ -762,7 +763,7 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    plt.legend(enums['brands'].values(),loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.tight_layout()
     plt.xlim([0,parameters['nSteps']])
     plt.ylim([0, np.sum(carMat[ti,:])])
@@ -785,7 +786,7 @@ def plot_carSales(data, propDict, parameters, enums, filters):
     if parameters['plotYears']:
         years = (parameters['nSteps'] - nBurnIn) / 12
         plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
-    plt.legend(enums['brands'].values(),loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
 
     plt.title('sales per mobility Type')
     plt.tight_layout()
@@ -820,7 +821,7 @@ def plot_properiesPerMobType(data, propDict, parameters, enums, filters):
             years = (parameters['nSteps'] - nBurnIn) / 12
             plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.04,right=0.96,hspace=0.45,wspace=0.1)
-    plt.legend(legStr,loc=0)
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.tight_layout()
     plt.savefig(path + 'propertiesPerMobType')
 #plt.show()
@@ -846,7 +847,7 @@ def plot_salesProperties(data, propDict, parameters, enums, filters):
                     res[ti,brand] = np.mean(data.pe[np.ix_([ti],boolMask & boolMask2,propDict.pe[prop]) ],axis=1)
 
         plt.plot(res)
-        plt.legend(enums['brands'].values(),loc=0)
+        plt.legend(enums['mobilityTypes'].values(),loc=0)
         plt.title(prop)
         if withoutBurnIn:
             plt.xlim([nBurnIn,parameters['nSteps']])
@@ -1016,7 +1017,8 @@ def plot_averageIncomePerCell(data, propDict, parameters, enums, filters):
     plt.imshow(incomeMap)
     bounds = [np.nanpercentile(incomeMap,2), np.nanpercentile(incomeMap,98)]
     if bounds[0] == bounds[1]:
-        bounds = [0, np.nanmax(incomeMap)]
+        print 'equal bounds: ' + str(bounds)
+        bounds = [500., np.nanmax(incomeMap)]
     print bounds
     plt.colorbar()
     plt.tight_layout()
@@ -1235,7 +1237,7 @@ def plot_cellMovie(data, propDict, parameters, enums, filters):
     def make_frame(t):
         #print t
         tt = int(t*15) + nBurnIn
-        for iBrand in range(3):
+        for iBrand in enums['mobilityTypes'].keys():
 
             res = landLayer*1.
             #print(type(tt))
@@ -1508,7 +1510,7 @@ def plot_emissions(data, propDict, parameters, enums, filters):
     from matplotlib.colors import ListedColormap
     my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
     years = [2015, 2020, 2025, 2030] + range(2031,2036)
-    
+    fig = plt.figure(figsize=(15,15))
     #landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
     
     h5writer = H5Writer('mapData', 'emissions')
@@ -1542,6 +1544,7 @@ def plot_emissions(data, propDict, parameters, enums, filters):
 def plot_ChargingStations(data, propDict, parameters, enums, filters):
 
     from matplotlib.colors import ListedColormap
+    fig = plt.figure(figsize=(15,15))
     my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
     years = [2015, 2020, 2025, 2030] + range(2031,2036)
     iBrand = 1
@@ -1829,7 +1832,7 @@ if False:
     plt.title('mobType')
     plt.subplot(2,2,2)
     plt.plot(selfUtil[:,iPers,:])
-    plt.legend(enums['brands'].values())
+    plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.title('selfUtil')
     plt.subplot(2,2,3)
     plt.plot(commUtil[:,iPers,:])
