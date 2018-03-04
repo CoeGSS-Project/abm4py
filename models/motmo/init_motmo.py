@@ -182,7 +182,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     
     
     
-    setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster            = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
@@ -302,7 +302,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
-    setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster    = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *1519
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
@@ -1189,7 +1189,8 @@ def householdSetup(earth, calibration=False):
                               prop        = np.asarray([0.]*len(parameters['properties'])),
                               consequences= np.asarray([0.]*len(prefTuple)),
                               lastAction  = 0,
-                              hhType      = hhType)
+                              hhType      = hhType,
+                              emissions   = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
                 pers.register(earth, parentEntity=hh, edgeType=CON_HP)
@@ -1361,7 +1362,8 @@ def initTypes(earth):
                                                    'mobType',
                                                    'prop',
                                                    'consequences',
-                                                   'lastAction'])
+                                                   'lastAction',
+                                                   'emissions'])
 
 
     earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
@@ -1534,7 +1536,7 @@ def initGlobalRecords(earth):
                          style='plot',
                          mpiReduce='sum')
         
-        earth.registerRecord('nChargStations' + str(re),
+        earth.registerRecord('nChargStations_' + str(re),
                          'Number of charging stations -' + str(re),
                          ['nChargStations'],
                          style='plot',
@@ -1644,14 +1646,27 @@ def readParameterFile(parameters, fileName):
 
 def randomizeParameters(parameters):
     #%%
-    def randDeviation(percent,size = 1):
-        return (100. + (np.random.randn(size) *percent)) / 100.
-    parameters['maxFriends'] = int( parameters['maxFriends'] * randDeviation(20))
-    parameters['inFriends'] = int( parameters['minFriends'] * randDeviation(5))
+    def randDeviation(percent, minDev=-np.inf, maxDev=np.inf):
+        while True:
+            dev = np.random.randn() *percent
+            if dev < maxDev and dev > minDev:
+                break
+        return (100. + dev) / 100.
+    
+    maxFriendsRand  = int( parameters['maxFriends'] * randDeviation(20)) 
+    if maxFriendsRand > parameters['minFriends']+1:
+        parameters['maxFriends'] = maxFriendsRand
+    minFriendsRand  = int( parameters['minFriends'] * randDeviation(5)) 
+    if minFriendsRand < parameters['maxFriends']-1:
+        parameters['minFriends'] = minFriendsRand
     parameters['mobIncomeShare'] * randDeviation(5)
     parameters['charIncome'] * randDeviation(5)
     parameters['innoPriority'] * randDeviation(5)
     parameters['individualPrio'] * randDeviation(10)
+    parameters['priceRedBCorrection'] * randDeviation(3, -3, 3)
+    parameters['priceRedGCorrection'] * randDeviation(3, -3, 3)
+    
+    parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*3 / 100) #correct later
     return parameters
 # %% Online processing functions
 
@@ -1973,7 +1988,7 @@ if __name__ == '__main__':
         parameters = readParameterFile(parameters, 'parameters_all.csv')
         # reading of scenario-specific parameters
         parameters = readParameterFile(parameters,fileName)
-        parameters = randomizeParameters(parameters)
+        
         
         lg.info('Setting loaded:')
         
@@ -1994,13 +2009,13 @@ if __name__ == '__main__':
             parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
             
             parameters = initExogeneousExperience(parameters)
-            
+            parameters = randomizeParameters(parameters)   
             
         else:
             parameters = None
         
 
-            
+         
         parameters = comm.bcast(parameters,root=0)    
             
         if mpiRank == 0:

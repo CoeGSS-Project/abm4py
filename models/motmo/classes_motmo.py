@@ -258,22 +258,26 @@ class Earth(World):
             self.globalRecord['stock_' + str(re)].set(self.time,0)
             self.globalRecord['elDemand_' + str(re)].set(self.time,0)
             self.globalRecord['emissions_' + str(re)].set(self.time,0)
-            self.globalRecord['nChargStations' + str(re)].set(self.time,0)
+            self.globalRecord['nChargStations_' + str(re)].set(self.time,0)
             
             
-        for cell in self.iterEntRandom(CELL):
-            self.globalRecord['stock_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue('carsInCell'))* self.para['reductionFactor'])
-            self.globalRecord['elDemand_' + str(int(cell.getValue('regionId')))].add(self.time,np.asarray(cell.getValue('electricConsumption')))
-            self.globalRecord['emissions_' + str(int(cell.getValue('regionId')))].add(self.time,cell.getValue('emissions'))
-            self.globalRecord['nChargStations' + str(int(cell.getValue('regionId')))].add(self.time,cell.getValue('chargStat'))
-            
+        for cell in self.iterEntRandom(CELL, random=False):
+            regionID = str(int(cell.getValue('regionId')))
+            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.getValue('carsInCell'))* self.para['reductionFactor'])
+            self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.getValue('electricConsumption')))
+            self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell.getValue('emissions')))
+            self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell.getValue('chargStat')))
+                
         # move values to global data class
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].updateValues(self.time)
             self.globalRecord['elDemand_' + str(re)].updateValues(self.time)
             self.globalRecord['emissions_' + str(re)].updateValues(self.time)
-            self.globalRecord['nChargStations' + str(re)].updateValues(self.time)
+            self.globalRecord['nChargStations_' + str(re)].updateValues(self.time)
             
+#            if self.graph.glob['emissions_99'][0] > 1e6:
+#                import pdb
+#                pdb.set_trace()
             
     def syncGlobals(self):
         """
@@ -545,7 +549,7 @@ class Good():
 
         if self.label == 'brown':
             def emissionFn(self, market):    
-                correctionFactor = .3
+                correctionFactor = .3  # for maturity
                 weight = self.paras['weight']
                 
                 yearIdx = max(0, market.time-market.burnIn) #int((market.time - market.burnIn)/12.)
@@ -833,13 +837,13 @@ class Market():
     def initPrices(self):
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .15
+                exponent = self.para['priceReductionB'] * self.para['priceRedBCorrection']
                 good.properties['costs'] = self.para['initPriceBrown']
                 expInMio = self.experienceBrownStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG'] * .8          
+                exponent = self.para['priceReductionG'] * self.para['priceRedGCorrection']          
                 good.properties['costs'] = self.para['initPriceGreen']
                 expInMio = self.experienceGreenStart/1000000.       
                 good.priceFactor   = good.properties['costs'] / (expInMio**exponent)
@@ -858,7 +862,7 @@ class Market():
         yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
         for good in self.goods.values():
             if good.label == 'brown': 
-                exponent = self.para['priceReductionB'] * .15
+                exponent = self.para['priceReductionB'] * self.para['priceRedBCorrection']
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceBrownExo[yearIdx] + good.experience
@@ -872,7 +876,7 @@ class Market():
 #                print good.properties['costs'] 
                 
             elif good.label == 'green':                 
-                exponent = self.para['priceReductionG'] * .8
+                exponent = self.para['priceReductionG'] * self.para['priceRedGCorrection']
                 factor = good.priceFactor
                 if self.germany:
                     exp = self.experienceGreenExo[yearIdx] + good.experience
@@ -1049,15 +1053,47 @@ class Infrastructure():
         y = (1. / (1. + np.exp(-k*(x-x0)))) * 1e6
         return y
 
-
-    def step(self, earth, nNewStations = None):
+    def loadData(self, earth):
+            
+        if earth.para['scenario'] == 6:
+            fileName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '_186x219.npy'
+        else:
+            fileName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '.npy'
         
+        if os.path.isfile(fileName):
+            currStations = np.load(fileName)
+            currStations = currStations / 12. * earth.date[0]
+            
+            return currStations
+        else:
+            return None
+
+    def step(self, earth):
+#        if earth.mpi.comm.rank == 0:
+#            currStations = self.loadData(earth)
+#        else:
+#            currStations = None
+        #currStations = earth.mpi.comm.bcast(currStations,root=0) 
+        
+        # if currStations is not None:
+        if False:
+            lg.info('New station loaded for: ' + str(earth.date))
+            self.setStations(earth, currStations)
+        else:
+            lg.info('New station generated for: ' + str(earth.date))
+            self.growthModel(earth)
+    
+    def setStations(self, earth, newStationsMap):
+        newValues = newStationsMap[earth.cellMapIds]
+        earth.setNodeValues('chargStat', newValues, CELL)
+        
+    def growthModel(self, earth):
         # if not given exogeneous, a fitted s-curve is used to evalulate the number
         # of new charging stations
-        if nNewStations is None:
-            timeStep = earth.timeStep - earth.para['burnIn']
-            nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
-            nNewStations = np.diff(nNewStations) * self.shareStationsOfProcess / earth.para['spatialRedFactor']
+        
+        timeStep = earth.timeStep - earth.para['burnIn']
+        nNewStations = self.sigmoid(np.asarray([timeStep-1, timeStep]), *self.sigPara) 
+        nNewStations = np.diff(nNewStations) * self.shareStationsOfProcess / earth.para['spatialRedFactor']
             
         if earth.date[1] > 2020 and earth.para['linearCharging'] == 1:
             nNewStations = 2000. * self.shareStationsOfProcess / earth.para['spatialRedFactor']
@@ -1111,6 +1147,8 @@ class Infrastructure():
         
         currNumStations[uniqueRandIdx] += count   
         earth.setNodeValues('chargStat', currNumStations, nodeType=CELL)
+
+    
 
 # %% --- entity classes ---
 class Person(Agent):
@@ -1492,6 +1530,7 @@ class Household(Agent):
         elif world.getParamerter('util') == 'ces':
             self.utilFunc = self.CESUtil
         self.computeTime = 0
+        
 
 
     @staticmethod
@@ -1736,7 +1775,7 @@ class Household(Agent):
         # calculate money consequence
         money = min(1., max(1e-5, 1 - self.getValue('expenses') / self.getValue('income')))
 
-        
+        emissions      = np.zeros(market.__nMobTypes__)
         for adult in self.adults:
             hhCarBonus = 0.
             #get action of the person
@@ -1751,20 +1790,24 @@ class Household(Agent):
             
             #calculate emissions per cell
             nJourneys = adult.getValue('nJourneys')
-            emissionsPerKm = mobProps[EMISSIONS] /1000. * market.para['reductionFactor']# in kg/km
-            emissions      = 0
+            emissionsPerKm = mobProps[EMISSIONS] * market.para['reductionFactor']# in kg/km
+            
             
             #TODO optimize code
+            personalEmissions = 0.
             for nTrips, avgKm in zip(nJourneys.tolist(), MEAN_KM_PER_TRIP): 
-                emissions += nTrips * avgKm * emissionsPerKm
-            self.loc.addValue('emissions', emissions, actionIdx) #in kg
+                personalEmissions += float(nTrips) * avgKm * emissionsPerKm  # in g Co2
+                
+            # add personal emissions to household sum
+            emissions[actionIdx] += personalEmissions / 1000. # in kg Co2
+            adult._node['emissions'] = personalEmissions / 1000. # in kg Co2
             
             if actionIdx == GREEN:
                 # elecric car is used -> compute estimate of power consumption
                 # for the current model 0.6 kg / kWh
-                electricConsumption = emissions / 0.6
+                electricConsumption = personalEmissions / 0.6
                 self.loc.addValue('electricConsumption', electricConsumption)
-            
+
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
@@ -1789,7 +1832,9 @@ class Household(Agent):
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
             adult._node['consequences'][:] = [convenience, ecology, money, innovation]
-
+        
+        # write household emissions to cell
+        self.loc.addValue('emissions', emissions / 1000.) #in T Co2
 
     def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):
         """
@@ -1984,7 +2029,7 @@ class Household(Agent):
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
         
-        if np.max(utilities) > self.getValue('util'):
+        if np.max(utilities) > self.getValue('util') * earth.para['hhAcceptFactor']:
             return bestOpt, np.max(utilities), actorIds
         else:
             return None, None, None
@@ -2069,8 +2114,8 @@ class Household(Agent):
                 self.undoActions(earth, personsToTakeAction)
                 self.takeActions(earth, personsToTakeAction, actions)
 
-            self.calculateConsequences(earth.market)
-            self.evalUtility(earth, actionTaken)
+        self.calculateConsequences(earth.market)
+        self.evalUtility(earth, actionTaken)
 
 #            if actionTaken:
 #                self.shareExperience(earth)
