@@ -256,14 +256,14 @@ class Earth(World):
         #emissions = np.zeros(len(self.enums['mobilityTypes'])+1)
         for re in self.para['regionIDList']:
             self.globalRecord['stock_' + str(re)].set(self.time,0)
-            self.globalRecord['elDemand_' + str(re)].set(self.time,0)
-            self.globalRecord['emissions_' + str(re)].set(self.time,0)
+            self.globalRecord['elDemand_' + str(re)].set(self.time,0.)
+            self.globalRecord['emissions_' + str(re)].set(self.time,0.)
             self.globalRecord['nChargStations_' + str(re)].set(self.time,0)
             
             
         for cell in self.iterEntRandom(CELL, random=False):
             regionID = str(int(cell.getValue('regionId')))
-            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.getValue('carsInCell'))* self.para['reductionFactor'])
+            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.getValue('carsInCell')) * self.para['reductionFactor'])
             self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.getValue('electricConsumption')))
             self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell.getValue('emissions')))
             self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell.getValue('chargStat')))
@@ -299,7 +299,8 @@ class Earth(World):
             globalStock += reStock
             self.globalRecord['elDemand_' + str(re)].gatherSyncDataToRec(self.time)
             self.globalRecord['emissions_' + str(re)].gatherSyncDataToRec(self.time)
-
+            self.globalRecord['nChargStations_' + str(re)].gatherSyncDataToRec(self.time)
+            
         tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
         self.globalRecord['globEmmAndPrice'].set(self.time,np.asarray(tmp))
 
@@ -426,7 +427,8 @@ class Earth(World):
                     household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')##OPTPRODUCTION
 
-
+        for cell in self.iterEntRandom(CELL, random=False):
+            cell.aggregateEmission(self)
 
         self.updateGraph()        
 
@@ -1418,7 +1420,7 @@ class Person(Agent):
 
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
-        if random.random() > .98:
+        if self.getValue('preferences')[INNO] > .15 and random.random() > .98:
             self.imitation = [np.random.choice(self.getValue('commUtil').shape[0])]
         else:
 
@@ -1775,7 +1777,9 @@ class Household(Agent):
         # calculate money consequence
         money = min(1., max(1e-5, 1 - self.getValue('expenses') / self.getValue('income')))
 
-        emissions      = np.zeros(market.__nMobTypes__)
+        emissions  = np.zeros(market.__nMobTypes__)
+        hhLocation = self.loc
+        
         for adult in self.adults:
             hhCarBonus = 0.
             #get action of the person
@@ -1802,16 +1806,12 @@ class Household(Agent):
             emissions[actionIdx] += personalEmissions / 1000. # in kg Co2
             adult._node['emissions'] = personalEmissions / 1000. # in kg Co2
             
-            if actionIdx == GREEN:
-                # elecric car is used -> compute estimate of power consumption
-                # for the current model 0.6 kg / kWh
-                electricConsumption = personalEmissions / 0.6
-                self.loc.addValue('electricConsumption', electricConsumption)
+            
 
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
-            convenience = self.loc.getValue('convenience')[actionIdx] + hhCarBonus
+            convenience = hhLocation.getValue('convenience')[actionIdx] + hhCarBonus
 
             if convenience > 1.:##OPTPRODUCTION
                 convenience = 1. ##OPTPRODUCTION
@@ -1834,12 +1834,14 @@ class Household(Agent):
             adult._node['consequences'][:] = [convenience, ecology, money, innovation]
         
         # write household emissions to cell
-        self.loc.addValue('emissions', emissions / 1000.) #in T Co2
+
+#        hhLocation._node['emissions'] += emissions / 1000. #in T Co2
 
     def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):
         """
         (It's the best choice. It's true. It's huge)
         """
+        
         market = earth.market
         actionTaken = True
         if len(self.adults) > 0 :
@@ -2379,6 +2381,22 @@ class Cell(Location):
 #        plt.clf()
 #        plt.plot(x,y)
          #%%
+    
+    def aggregateEmission(self, earth):
+        mobTypesPers = earth.getNodeValues('mobType', PERS, self.peList)
+        emissionsCell = np.zeros(5)
+        emissionsPers = earth.getNodeValues('emissions', PERS, self.peList)
+        for mobType in range(5):
+            idx = mobTypesPers == mobType
+            emissionsCell[mobType] = emissionsPers[idx].sum()
+        
+            if mobType == GREEN:
+                # elecric car is used -> compute estimate of power consumption
+                # for the current model 0.6 kg / kWh
+                electricConsumption = emissionsPers[idx].sum() / 0.6
+                self.setValue('electricConsumption', electricConsumption)
+        
+        self.setValue('emissions', emissionsCell) 
         
     def step(self, parameters, currentMaturity):
         """

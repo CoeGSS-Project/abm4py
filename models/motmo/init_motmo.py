@@ -1536,15 +1536,15 @@ def initGlobalRecords(earth):
                          style='plot',
                          mpiReduce='sum')
         
-        earth.registerRecord('nChargStations_' + str(re),
-                         'Number of charging stations -' + str(re),
-                         ['nChargStations'],
-                         style='plot',
-                         mpiReduce='sum')
-
         earth.registerRecord('emissions_' + str(re),
                          'co2Emissions -' + str(re),
                          earth.enums['mobilityTypes'].values(),
+                         style='plot',
+                         mpiReduce='sum')
+
+        earth.registerRecord('nChargStations_' + str(re),
+                         'Number of charging stations -' + str(re),
+                         ['nChargStations'],
                          style='plot',
                          mpiReduce='sum')
 
@@ -1607,9 +1607,9 @@ def initCacheArrays(earth):
 
 def initExogeneousExperience(parameters):
     inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
-    randomFactor = (3*np.random.randn() + 100.)/100
+    randomFactor = (5*np.random.randn() + 100.)/100
     parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10. * randomFactor
-    randomFactor = (3*np.random.randn() + 100.)/100
+    randomFactor = (5*np.random.randn() + 100.)/100
     parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values * randomFactor
     experienceGer                       = inputFromGlobal['expGer'].values
     experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
@@ -1666,7 +1666,7 @@ def randomizeParameters(parameters):
     parameters['priceRedBCorrection'] * randDeviation(3, -3, 3)
     parameters['priceRedGCorrection'] * randDeviation(3, -3, 3)
     
-    parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*3 / 100) #correct later
+    parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
     return parameters
 # %% Online processing functions
 

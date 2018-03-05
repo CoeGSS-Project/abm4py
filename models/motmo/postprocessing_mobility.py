@@ -55,6 +55,8 @@ _hh  = 1
 _pe  = 2
 
 ##%% INIT
+plotFunc.append('plotEmissionOverTime')
+plotFunc.append('plotElectricDemandOverTime')
 plotFunc.append('plot_globalID')
 plotFunc.append('plot_globalRecords')
 plotFunc.append('plot_emissions')
@@ -87,7 +89,7 @@ plotFunc.append('plot_carsPerCell')
 plotFunc.append('plot_greenCarsPerCell')
 plotFunc.append('plot_conveniencePerCell')
 plotFunc.append('plot_population')
-plotFunc.append('plot_doFolium')
+#plotFunc.append('plot_doFolium')
 plotFunc.append('plot_carSharePerHHType')
 
 simNo = sys.argv[1]
@@ -398,6 +400,73 @@ def plot_globalRecords(data, propDict, parameters, enums, filters):
         plt.savefig(path + data.name)
 
 
+def plotEmissionOverTime(data, propDict, parameters, enums, filters):
+    #h5File  = ta.File(path + '/globals.hdf5', 'r')
+    #reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)
+    
+#    emData = data.ce[:,:,propDict.ce['emissions']]
+#    for i,re in enumerate(parameters['regionIDList']):
+#        reIdx = data.ceSta[:,propDict.ceSta['regionId'][0]] == re
+#        cellData = np.sum(emData[:,reIdx],axis=1)
+#        
+#        writer = CSVWriter('emission_' + str(re), enums['brands'].values())
+#    
+#        for ti in range(parameters['nSteps']):
+#            stepData = cellData[ti]
+#            writer.addData(ti, stepData)
+#        writer.close()     
+#
+#    emData = data.ce[:,:,propDict.ce['emissions']]
+##    for i,re in enumerate(parameters['regionIDList']):
+#        reIdx = data.ceSta[:,propDict.ceSta['regionId'][0]] == re
+#        cellData = np.sum(emData[:,reIdx],axis=1)
+        
+    writer = CSVWriter('emissions_all', enums['brands'].values())
+
+    for ti in range(parameters['nSteps']):
+        stepData = np.zeros(len(enums['brands']))
+        for brand in range(0,len(enums['brands'])):
+            boolMask = data.pe[ti,:,propDict.pe['mobType'][0]]== brand
+        
+            emData = data.pe[np.ix_([ti],boolMask,propDict.pe['emissions'])]
+            stepData[brand] = np.sum(emData,axis=1)
+        writer.addData(ti, stepData)
+    writer.close()        
+
+def plotElectricDemandOverTime(data, propDict, parameters, enums, filters):
+    #h5File  = ta.File(path + '/globals.hdf5', 'r')
+    #reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)
+    
+#    emData = data.ce[:,:,propDict.ce['emissions']]
+#    for i,re in enumerate(parameters['regionIDList']):
+#        reIdx = data.ceSta[:,propDict.ceSta['regionId'][0]] == re
+#        cellData = np.sum(emData[:,reIdx],axis=1)
+#        
+#        writer = CSVWriter('emission_' + str(re), enums['brands'].values())
+#    
+#        for ti in range(parameters['nSteps']):
+#            stepData = cellData[ti]
+#            writer.addData(ti, stepData)
+#        writer.close()     
+#
+#    emData = data.ce[:,:,propDict.ce['emissions']]
+##    for i,re in enumerate(parameters['regionIDList']):
+#        reIdx = data.ceSta[:,propDict.ceSta['regionId'][0]] == re
+#        cellData = np.sum(emData[:,reIdx],axis=1)
+        
+    writer = CSVWriter('electricDemand_all', ['electric Demand'])
+
+    for ti in range(parameters['nSteps']):
+        #stepData = np.zeros(1)
+        brand = 1
+
+        boolMask = data.pe[ti,:,propDict.pe['mobType'][0]]== brand
+        
+        emData = data.pe[np.ix_([ti],boolMask,propDict.pe['emissions'])]
+        stepData = np.sum(emData) * .6 / 1000  #in /GWh
+        writer.addData(ti, [stepData])
+    writer.close() 
+    
 def plot_stockAllRegions(data, propDict, parameters, enums, filters):
 
 
@@ -1429,6 +1498,7 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     from matplotlib.colors import ListedColormap
     my_cmap = ListedColormap(sns.color_palette('BuGn_d').as_hex())
     years = [2015, 2020, 2025, 2030] + range(2031,2036)
+    years = np.arange(2011,2036,3).tolist()
     iBrand = 1
     landLayer = np.zeros(np.max(data.ceSta[:,propDict.ceSta['pos']]+1,axis=0).astype(int).tolist())
     
@@ -1441,32 +1511,44 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     res = landLayer*1.0
     res[res==0] = np.nan
     fig = plt.figure(figsize=(12,8))
-    cellData = data.ce[parameters['nSteps']-1,:,propDict.ce['carsInCell'][iBrand]] / data.ce[parameters['nSteps']-1,:,propDict.ce['population'][0]] * 1000
+    cellData = data.ce[parameters['nSteps']-1,:,propDict.ce['carsInCell'][iBrand]]# / data.ce[parameters['nSteps']-1,:,propDict.ce['population'][0]] * 1000
     bounds = [0, np.nanpercentile(cellData,98)]
     if bounds[0] == bounds[1]:
         bounds = [0, np.nanmax(cellData)]
     posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
+    
+    h5writer = H5Writer('mapData', 'greenCarsPerCell')
+    
+    for step in range(parameters['nSteps']):
+        
+        cellData = data.ce[step,:,propDict.ce['carsInCell'][iBrand]]
+        mapData = cellData2Map(cellData, data)
+        h5writer.addData(step,mapData)
+    h5writer.close()
+
+   
     for i, year in enumerate (years):
         tt = (year - 2005)*12 + nBurnIn -1
 
 
         plt.subplot(3,3,i+1)
 
-        cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+        cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] #/ data.ce[tt,:,propDict.ce['population'][0]] * 1000
         cellData[np.isinf(cellData)] = 0
 
         print bounds
         res[posArray[:,0],posArray[:,1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
+
 
         #plt.imshow(res, cmap=my_cmap)
         plt.imshow(res)
         plt.colorbar()
         plt.clim(bounds)
         plt.tight_layout()
-        if year == 2034:
-            plt.title(str(2035))
-        else:
-            plt.title(str(year))
+#        if year == 2034:
+#            plt.title(str(2035))
+#        else:
+#            plt.title(str(year))
     #plt.suptitle('Electric cars per 1000 people')
     plt.savefig(path + 'greenCarPerCell')
 
@@ -1516,7 +1598,7 @@ def plot_emissions(data, propDict, parameters, enums, filters):
     h5writer = H5Writer('mapData', 'emissions')
     for step in range(parameters['nSteps']):
         
-        cellData = data.ce[step,:,propDict.ce['emissions']]
+        cellData = data.ce[step,:,propDict.ce['emissions']].sum(axis=2)
         mapData = cellData2Map(cellData, data)
         h5writer.addData(step,mapData)
     h5writer.close()
@@ -1526,7 +1608,7 @@ def plot_emissions(data, propDict, parameters, enums, filters):
 
 
         plt.subplot(3,3,i+1)
-        cellData = data.ce[tt,:,propDict.ce['emissions']]
+        cellData = data.ce[tt,:,propDict.ce['emissions']].sum(axis=2)
         mapData = cellData2Map(cellData, data) / 1000 # in T Co2
         
         plt.imshow(mapData)
