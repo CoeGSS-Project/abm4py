@@ -182,7 +182,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     
     
     
-    setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster            = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
@@ -302,7 +302,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
-    setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster    = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *1519
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
@@ -866,7 +866,7 @@ def mobilitySetup(earth):
 
     # define convenience functions
     def convenienceBrown(density, pa, kappa, cell):
-
+        
         conv = pa['minConvB'] +\
         kappa * (pa['maxConvB'] - pa['minConvB']) * \
         np.exp( - (density - pa['muConvB'])**2 / (2 * pa['sigmaConvB']**2))
@@ -1022,7 +1022,7 @@ def householdSetup(earth, calibration=False):
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 500 # additional agents that are loaded 
+    overheadAgents = 1000 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -1138,8 +1138,9 @@ def householdSetup(earth, calibration=False):
             hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
 
             # set minimal income
+            #income *= (1.- (0.1 * max(3, nKids))) # reduction fo effective income by kids
             income = max(400., income)
-            income *= parameters['mobIncomeShare']
+            income *= parameters['mobIncomeShare'] 
 
 
             nJourneysPerPerson = hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5MOBDEM]
@@ -1188,7 +1189,8 @@ def householdSetup(earth, calibration=False):
                               prop        = np.asarray([0.]*len(parameters['properties'])),
                               consequences= np.asarray([0.]*len(prefTuple)),
                               lastAction  = 0,
-                              hhType      = hhType)
+                              hhType      = hhType,
+                              emissions   = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
                 pers.register(earth, parentEntity=hh, edgeType=CON_HP)
@@ -1275,6 +1277,7 @@ def initEarth(simNo,
     earth.market.mean = np.array([400., 300.])
     earth.market.std  = np.array([100., 50.])
     
+    earth.market.initExogenousExperience(parameters['scenario'])
 
     
     #init location memory
@@ -1359,7 +1362,8 @@ def initTypes(earth):
                                                    'mobType',
                                                    'prop',
                                                    'consequences',
-                                                   'lastAction'])
+                                                   'lastAction',
+                                                   'emissions'])
 
 
     earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
@@ -1406,7 +1410,7 @@ def initSpatialLayer(earth):
         for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
             cell.setValue('chargStat', 0)
-            cell.setValue('emissions', 0.)
+            cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
             cell.setValue('electricConsumption', 0.)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
@@ -1428,8 +1432,8 @@ def cellTest(earth):
 
     for good in earth.market.goods.values():
         
-        #good.emissionFunction(good, earth.market)
-        good.updateMaturity()  
+        good.emissionFunction(good, earth.market)
+        #good.updateMaturity()  
         
     nLocations = len(earth.getLocationDict())
     convArray  = np.zeros([earth.market.getNMobTypes(), nLocations])
@@ -1525,7 +1529,24 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(),
                          style='plot',
                          mpiReduce='sum')
+    
+        earth.registerRecord('elDemand_' + str(re),
+                         'electric Demand -' + str(re),
+                         ['electric_demand'],
+                         style='plot',
+                         mpiReduce='sum')
+        
+        earth.registerRecord('emissions_' + str(re),
+                         'co2Emissions -' + str(re),
+                         earth.enums['mobilityTypes'].values(),
+                         style='plot',
+                         mpiReduce='sum')
 
+        earth.registerRecord('nChargStations_' + str(re),
+                         'Number of charging stations -' + str(re),
+                         ['nChargStations'],
+                         style='plot',
+                         mpiReduce='sum')
 
         timeIdxs = list()
         values   = list()
@@ -1548,9 +1569,9 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(), style='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
                          earth.enums['mobilityTypes'].values(), style='plot')
-    earth.registerRecord('kappas', 'Technological maturity of mobility types',
-                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
-    earth.registerRecord('mobProp', 'Properties',
+    earth.registerRecord('maturities', 'Technological maturity of mobility types',
+                         ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
+    earth.registerRecord('globEmmAndPrice', 'Properties',
                          ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
     if mpiRank == 0:
@@ -1586,20 +1607,66 @@ def initCacheArrays(earth):
 
 def initExogeneousExperience(parameters):
     inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
-    experienceWorld         = inputFromGlobal['expWorld'].values
-    experienceWorldGreen    = inputFromGlobal['expWorldGreen'].values
-    parameters['experienceWorldGreen']  = experienceWorldGreen
-    parameters['experienceWorldBrown']  = [experienceWorld[i]-experienceWorldGreen[i] for i in range(len(experienceWorld))]
+    randomFactor = (5*np.random.randn() + 100.)/100
+    parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10. * randomFactor
+    randomFactor = (5*np.random.randn() + 100.)/100
+    parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values * randomFactor
     experienceGer                       = inputFromGlobal['expGer'].values
     experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
     parameters['experienceGerGreen']    = experienceGerGreen
     parameters['experienceGerBrown']    = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
+    
+    #fake model
+#    def func(year):
+#        a = -654.47792283470665
+#        b = 0.33129306614034293
+#        stockGlE = np.exp(b * year+a)
+#        return stockGlE
+#    
+#    years = range(2005, 2036)
+#    
+#    correctedData = [func(year) for year in years]
+#    
+#    fig = plt.figure()
+#    plt.clf()
+#    ax = fig.add_subplot(1, 1, 1)
+#    plt.plot(years, parameters['experienceWorldGreen'])
+#    plt.plot(years, parameters['experienceWorldGreen']/10)
+#    plt.plot(years, correctedData)
+#    plt.legend(['old', 'old/10', 'corrected'])
+#    ax.set_yscale('log')
+    
     return parameters
 
 def readParameterFile(parameters, fileName):
     for item in csv.DictReader(open(fileName)):
         if item['name'][0] != '#':
             parameters[item['name']] = aux.convertStr(item['value'])
+    return parameters
+
+def randomizeParameters(parameters):
+    #%%
+    def randDeviation(percent, minDev=-np.inf, maxDev=np.inf):
+        while True:
+            dev = np.random.randn() *percent
+            if dev < maxDev and dev > minDev:
+                break
+        return (100. + dev) / 100.
+    
+    maxFriendsRand  = int( parameters['maxFriends'] * randDeviation(20)) 
+    if maxFriendsRand > parameters['minFriends']+1:
+        parameters['maxFriends'] = maxFriendsRand
+    minFriendsRand  = int( parameters['minFriends'] * randDeviation(5)) 
+    if minFriendsRand < parameters['maxFriends']-1:
+        parameters['minFriends'] = minFriendsRand
+    parameters['mobIncomeShare'] * randDeviation(5)
+    parameters['charIncome'] * randDeviation(5)
+    parameters['innoPriority'] * randDeviation(5)
+    parameters['individualPrio'] * randDeviation(10)
+    parameters['priceRedBCorrection'] * randDeviation(3, -3, 3)
+    parameters['priceRedGCorrection'] * randDeviation(3, -3, 3)
+    
+    parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
     return parameters
 # %% Online processing functions
 
@@ -1661,12 +1728,12 @@ def runModel(earth, parameters):
     for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
      
-    earth.market.initExogenousExperience(parameters['scenario'])
+    
     earth.market.initPrices()
     for good in earth.market.goods.values():
         
-        good.emissionFunction(good, earth.market)
-        good.updateMaturity()
+        good.updateEmissionsAndMaturity(earth.market)
+        #good.updateMaturity()
     
     lg.info('Initial market step done')
 
@@ -1878,7 +1945,7 @@ def setupHouseholdsWithOptimalChoice():
 if __name__ == '__main__':
 
 
-    debug = 0
+    debug = 1
     showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
@@ -1922,6 +1989,7 @@ if __name__ == '__main__':
         # reading of scenario-specific parameters
         parameters = readParameterFile(parameters,fileName)
         
+        
         lg.info('Setting loaded:')
         
         
@@ -1941,13 +2009,13 @@ if __name__ == '__main__':
             parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
             
             parameters = initExogeneousExperience(parameters)
-            
+            parameters = randomizeParameters(parameters)   
             
         else:
             parameters = None
         
 
-            
+         
         parameters = comm.bcast(parameters,root=0)    
             
         if mpiRank == 0:

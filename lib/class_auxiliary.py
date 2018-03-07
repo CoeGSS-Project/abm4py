@@ -332,6 +332,7 @@ class Record():
 
     def gatherSyncDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
+        return self.glob[self.name]
 
     def set(self, timeStep, data):
         self.rec[timeStep,:] = data
@@ -399,6 +400,7 @@ class Record():
         dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
         dset[:] = self.rec
         dset.attrs['columns'] = self.columns
+        dset.attrs['title']   = self.title
         if hasattr(self,'calDataDict'):
             tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
             for i, key in enumerate(self.calDataDict.keys()):
