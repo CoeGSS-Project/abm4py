@@ -815,7 +815,7 @@ class Market():
   
     
     def updatePrices(self):
-        yearIdx = self.time-self.burnIn #int((self.time-self.burnIn)/12.)        
+        yearIdx = self.time-self.burnIn        
         for good in self.goods.values():
             if good.label == 'brown': 
                 exponent = self.para['priceReductionB']
@@ -824,7 +824,8 @@ class Market():
                     exp = self.experienceBrownExo[yearIdx] + good.experience
                 else:
                     exp = self.experienceBrownExo[yearIdx]
-                expInMio = exp/1000000.       
+                expInMio = exp/1000000.  
+                print expInMio
                 good.properties['costs'] = factor * expInMio**exponent 
                 
             elif good.label == 'green':                 

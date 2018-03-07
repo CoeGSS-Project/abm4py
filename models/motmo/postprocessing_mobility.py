@@ -94,7 +94,7 @@ path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 simParas   = loadObj(path + 'simulation_parameters')
 
 nBurnIn       = simParas['burnIn']
-withoutBurnIn = False
+withoutBurnIn = True #False
 plotYears     = True         # only applicable in plots without burn-in
 
 print 'omniscient Agents: ' + str(simParas['omniscientAgents'])
@@ -633,12 +633,12 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
         plt.xlim([nBurnIn,parameters['nSteps']])
     if parameters['plotYears']:
         years = (parameters['nSteps'] - nBurnIn) / 12
-        plt.xticks(np.linspace(nBurnIn,nBurnIn+years*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
+        plt.xticks(np.linspace(nBurnIn,nBurnIn+(years)*12,years+1), [str(2005 + year) for year in range(years)], rotation=45)
     plt.subplots_adjust(top=0.96,bottom=0.14,left=0.1,right=0.80,hspace=0.45,wspace=0.1)
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     plt.legend(enums['brands'].values(),loc=0)
     plt.tight_layout()
-    plt.xlim([0,parameters['nSteps']])
+    plt.xlim([148+nBurnIn,parameters['nSteps']])
     plt.ylim([0, np.sum(carMat[ti,:])])
     plt.savefig(path + 'carStock')
 
