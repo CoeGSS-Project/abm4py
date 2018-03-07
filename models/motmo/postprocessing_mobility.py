@@ -97,7 +97,6 @@ simNo = sys.argv[1]
 #    relID = '#' + sys.argv[2]
 #    print 'realization: ' + relID
 #else:
-relID = ''
 
 path = getEnvironment(None,getSimNo = False) +'sim' + str(simNo).zfill(4) + '/'
 
@@ -189,17 +188,24 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
         
         propDict.ceSta, propDict.ce    = getAttributes(parameters, 1)
         
-#        from tempfile import mkdtemp
-#        import os.path as path
         filename = path + 'test_ce.dat'
         
         ceStep          = getData(parameters,1,0)
         if memmap:
-            data.ce     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]))
+            writeMemMapData = not os.path.isfile(filename)
+            if writeMemMapData:
+                print  'creating new ce memmap file'
+                data.ce     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]))
+  
+                for step in range(parameters['nSteps']):
+                    data.ce[step,:,:] = getData(parameters,1,step)
+            else:
+                print  'loading old ce memmap file'
+                data.ce     = np.memmap(filename, dtype='float32', mode='r+', shape=(parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]))
         else:
             data.ce     = np.zeros([parameters['nSteps'], ceStep.shape[0], ceStep.shape[1]])
-        for step in range(parameters['nSteps']):
-            data.ce[step,:,:] = getData(parameters,1,step)
+            for step in range(parameters['nSteps']):
+                data.ce[step,:,:] = getData(parameters,1,step)
         data.ceSta = getStaticData(parameters,1)
         
 
@@ -217,10 +223,12 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
             filename = path + 'test_hh.dat'
             writeMemMapData = not os.path.isfile(filename)
             if writeMemMapData:
+                print  'creating new hh memmap file'
                 data.hh     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]))
                 for step in range(parameters['nSteps']):
                     data.hh[step,:,:] = getData(parameters,2,step)
             else:
+                print  'loading old hh memmap file'
                 data.hh     = np.memmap(filename, dtype='float32', mode='r+', shape=(parameters['nSteps'], hhStep.shape[0], hhStep.shape[1]))
         # no memmap file
         else:
@@ -242,10 +250,12 @@ def loadData(path, parameters, data, propDict, filters, nodeType):
             filename = path + 'test_pe.dat'
             writeMemMapData = not os.path.isfile(filename)
             if writeMemMapData:
+                print  'creating new memmap file'
                 data.pe     = np.memmap(filename, dtype='float32', mode='w+', shape=(parameters['nSteps'], peStep.shape[0], peStep.shape[1]))
                 for step in range(parameters['nSteps']):
                     data.pe[step,:,:] = getData(parameters,3,step)
             else:
+                print  'loading old memmap file'
                 data.pe     = np.memmap(filename, dtype='float32', mode='r+', shape=(parameters['nSteps'], peStep.shape[0], peStep.shape[1]))
         # no memmap file
         else:
@@ -322,7 +332,7 @@ class CSVWriter():
     def __init__(self, fileName, columns):
         global relID
         
-        self.fid = open(path + '/' + fileName + relID + '.csv', 'w')
+        self.fid = open(path + '/' + fileName + '.csv', 'w')
         self.fid.write('step, ' + ', '.join(columns) + '\n')
         
     def addData(self, step, data):
@@ -335,16 +345,20 @@ class H5Writer():
     
     def __init__(self, fileName, groupName):
         
-        self.h5File  = ta.File(path + '/' + fileName + relID + '.hdf5', 'a')
+        self.h5File  = ta.File(path + '/' + fileName + '.hdf5', 'a')
         try:
             self.h5File.create_group('/',groupName)
         except:
-            pass
+            print "failed to create group"
+            
         self.node    = self.h5File.get_node('/' + groupName)
         
         
     def addData(self, step, data):
         #self.shape   = data.shape
+#        if step == 134:
+#            print 'data'
+#            print data
         self.data    = self.h5File.create_array(self.node,'step' + str(step), data)
         #self.data[step] = data
         
@@ -741,17 +755,32 @@ def plot_carSharePerHHType(data, propDict, parameters, enums, filters):
     plt.figure(figsize=[15,12])
     mobMin = parameters['nMobTypes']
     titles = list()
-    titles.append('1P_18-30')
-    titles.append('1P_31-60')
-    titles.append('1P_>60')
-    titles.append('2P_j18-30')
-    titles.append('2P_j31-60')
-    titles.append('2P_>j60')
-    titles.append('3+P')
-    titles.append('child<6J')
-    titles.append('child<14J')
-    titles.append('child<18J')
-    titles.append('singelParent')
+    titles.append('Single HH young')
+    titles.append('Single HH medium')
+    titles.append('Single HH old')
+    
+    titles.append('Couple young')
+    titles.append('Couple medium')
+    titles.append('Couple old')
+    
+    titles.append('3 Person HH')
+    titles.append('HH with Infant')
+    titles.append('HH with Teenager')
+    
+    titles.append('HH with Minor')
+    titles.append('Single HH with Child')
+
+#    titles.append('1P_18-30')
+#    titles.append('1P_31-60')
+#    titles.append('1P_>60')
+#    titles.append('2P_j18-30')
+#    titles.append('2P_j31-60')
+#    titles.append('2P_>j60')
+#    titles.append('3+P')
+#    titles.append('child<6J')
+#    titles.append('child<14J')
+#    titles.append('child<18J')
+#    titles.append('singelParent')
     for hhType in range(1,12):
         plt.subplot(3,4,hhType)
         carMat = np.zeros([parameters['nSteps'],parameters['nMobTypes']])
@@ -1515,6 +1544,7 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     bounds = [0, np.nanpercentile(cellData,98)]
     if bounds[0] == bounds[1]:
         bounds = [0, np.nanmax(cellData)]
+        print bounds
     posArray = data.ceSta[:,propDict.ceSta['pos']].astype(int)
     
     h5writer = H5Writer('mapData', 'greenCarsPerCell')
@@ -1522,7 +1552,13 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     for step in range(parameters['nSteps']):
         
         cellData = data.ce[step,:,propDict.ce['carsInCell'][iBrand]]
+        if step < 10:
+            print 'cellData'
+            print cellData   
         mapData = cellData2Map(cellData, data)
+#        if step == 134:
+#            print 'mapData'
+#            print mapData        
         h5writer.addData(step,mapData)
     h5writer.close()
 
@@ -1530,7 +1566,8 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
     for i, year in enumerate (years):
         tt = (year - 2005)*12 + nBurnIn -1
 
-
+#        import pdb 
+#        pdb.set_trace()
         plt.subplot(3,3,i+1)
 
         cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] #/ data.ce[tt,:,propDict.ce['population'][0]] * 1000
@@ -1539,7 +1576,10 @@ def plot_greenCarsPerCell(data, propDict, parameters, enums, filters):
         print bounds
         res[posArray[:,0],posArray[:,1]] = cellData#.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
 
-
+        bounds = [0, np.nanpercentile(res,98)]
+        if bounds[0] == bounds[1]:
+            bounds = [0, np.nanmax(res)]
+            print bounds
         #plt.imshow(res, cmap=my_cmap)
         plt.imshow(res)
         plt.colorbar()
@@ -1598,8 +1638,10 @@ def plot_emissions(data, propDict, parameters, enums, filters):
     h5writer = H5Writer('mapData', 'emissions')
     for step in range(parameters['nSteps']):
         
-        cellData = data.ce[step,:,propDict.ce['emissions']].sum(axis=2)
+        cellData = data.ce[step,:,propDict.ce['emissions']].sum(axis=0)
         mapData = cellData2Map(cellData, data)
+        if step < 10:
+            print mapData
         h5writer.addData(step,mapData)
     h5writer.close()
         
@@ -1608,7 +1650,7 @@ def plot_emissions(data, propDict, parameters, enums, filters):
 
 
         plt.subplot(3,3,i+1)
-        cellData = data.ce[tt,:,propDict.ce['emissions']].sum(axis=2)
+        cellData = data.ce[tt,:,propDict.ce['emissions']].sum(axis=0)
         mapData = cellData2Map(cellData, data) / 1000 # in T Co2
         
         plt.imshow(mapData)
@@ -1867,7 +1909,7 @@ if __name__ == "__main__":
     enums['brandTitles'][1] = 'Electric powered cars'
     enums['brandTitles'][2] = 'Puplic transport'
     enums['brandTitles'][3] = 'Car sharing'
-    enums['brandTitles'][4] = 'Foot / Bike'
+    enums['brandTitles'][4] = 'None motorized'
     parameters['plotYears'] = plotYears
     parameters['withoutBurnIn'] = withoutBurnIn
     print 'loading done in ' + str(time.time() - tt) + ' s'

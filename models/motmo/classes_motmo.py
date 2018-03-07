@@ -721,6 +721,7 @@ class Market():
         self.para                = earth.getParameter()
 
         self.time                = time
+        self.date                = earth.date
         self.nodeDict            = earth.nodeDict
         self.properties          = properties                 # (currently: emission, costs)
         self.mobilityProp        = dict()                     # mobType -> [properties]
@@ -887,8 +888,10 @@ class Market():
                 expInMio = exp/1000000.       
                 good.properties['costs'] = factor * expInMio**exponent 
                 
-#            elif good.label == 'public':
-#                
+            elif good.label == 'public':
+                if self.date[1] > 2017:
+                    good.properties['costs'] *= .99**(1./12)
+                    #print good.properties['costs'] 
 #            elif good.label == 'shared':
 #                               
 #            else:
