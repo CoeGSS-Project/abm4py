@@ -698,7 +698,7 @@ def plot_expectUtil(data, propDict, parameters, enums, filters):
     for label in range(len(enums['brands'])):
         legStr.append(enums['brands'][label])
     style = ['-','-', ':','--','-.']
-    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (immi)']
+    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (inno)']
     newLegStr = []
     newLegStr += [ string + ledAdd[0] for string in  legStr]
     for prefType in range(4):
@@ -728,7 +728,7 @@ def plot_selfUtil(data, propDict, parameters, enums, filters):
     for label in range(len(enums['brands'])):
         legStr.append(enums['brands'][label])
     style = ['-','-', ':','--','-.']
-    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (immi)']
+    ledAdd = [' (all)', ' (convenience)', ' (ecology)', ' (money)', ' (inno)']
     newLegStr = []
     newLegStr += [ string + ledAdd[0] for string in  legStr]
     for prefType in range(4):
@@ -1034,7 +1034,7 @@ def plot_utilPerLabel(data, propDict, parameters, enums, filters):
     newLegStr += [ string + ' (money)' for string in  legStr]
     plt.gca().set_prop_cycle(None)
     plt.plot(res[:,:,4],style[4])
-    newLegStr += [ string + ' (immi)' for string in  legStr]
+    newLegStr += [ string + ' (inno)' for string in  legStr]
     plt.legend(newLegStr,loc=0, ncol=5)
     #plt.title('Average utility by mobility type -=conv | ..=eco | --=mon ')
     if withoutBurnIn:

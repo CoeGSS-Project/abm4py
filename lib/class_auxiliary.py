@@ -327,10 +327,10 @@ class Record():
             self.calDataDict[idx] = value
 
 
-    def updateValues(self, timeStep):
+    def updateLocalValues(self, timeStep):
         self.glob.updateLocalValues(self.name, self.rec[timeStep,:])
 
-    def gatherSyncDataToRec(self, timeStep):
+    def gatherGlobalDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
         return self.glob[self.name]
 

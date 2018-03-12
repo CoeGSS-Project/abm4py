@@ -270,10 +270,10 @@ class Earth(World):
                 
         # move values to global data class
         for re in self.para['regionIDList']:
-            self.globalRecord['stock_' + str(re)].updateValues(self.time)
-            self.globalRecord['elDemand_' + str(re)].updateValues(self.time)
-            self.globalRecord['emissions_' + str(re)].updateValues(self.time)
-            self.globalRecord['nChargStations_' + str(re)].updateValues(self.time)
+            self.globalRecord['stock_' + str(re)].updateLocalValues(self.time)
+            self.globalRecord['elDemand_' + str(re)].updateLocalValues(self.time)
+            self.globalRecord['emissions_' + str(re)].updateLocalValues(self.time)
+            self.globalRecord['nChargStations_' + str(re)].updateLocalValues(self.time)
             
 #            if self.graph.glob['emissions_99'][0] > 1e6:
 #                import pdb
@@ -295,18 +295,18 @@ class Earth(World):
         #gather data back to the records
         globalStock = np.zeros(self.para['nMobTypes'])
         for re in self.para['regionIDList']:
-            reStock = self.globalRecord['stock_' + str(re)].gatherSyncDataToRec(self.time)
+            reStock = self.globalRecord['stock_' + str(re)].gatherGlobalDataToRec(self.time)
             globalStock += reStock
-            self.globalRecord['elDemand_' + str(re)].gatherSyncDataToRec(self.time)
-            self.globalRecord['emissions_' + str(re)].gatherSyncDataToRec(self.time)
-            self.globalRecord['nChargStations_' + str(re)].gatherSyncDataToRec(self.time)
+            self.globalRecord['elDemand_' + str(re)].gatherGlobalDataToRec(self.time)
+            self.globalRecord['emissions_' + str(re)].gatherGlobalDataToRec(self.time)
+            self.globalRecord['nChargStations_' + str(re)].gatherGlobalDataToRec(self.time)
             
         tmp = [self.graph.glob['meanEmm'], self.graph.glob['stdEmm'], self.graph.glob['meanPrc'], self.graph.glob['stdPrc']]
         self.globalRecord['globEmmAndPrice'].set(self.time,np.asarray(tmp))
 
 
         self.syncTime[self.time] = time.time()-ttSync        
-        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
+        lg.debug('globals synced in ' +str(time.time()- ttSync) + ' seconds') ##OPTPRODUCTION
 
     def syncGhosts(self):
         """
@@ -1047,9 +1047,11 @@ class Infrastructure():
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
         lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))##OPTPRODUCTION
         
+        self.currStatMap = np.zeros_like(potMap) # map for the stations this year
+        self.nextStatMap = np.zeros_like(potMap) # map for the stations next year
         
         self.carsPerStation = 15. # number taken from assumptions of the German government
-        
+        self.mapLoaded = True
         self.sigPara = 2.56141377e+02, 3.39506037e-2 # calibarted parameters
 
     # scurve for fitting 
@@ -1059,34 +1061,58 @@ class Infrastructure():
         return y
 
     def loadData(self, earth):
-            
-        if earth.para['scenario'] == 6:
-            fileName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '_186x219.npy'
-        else:
-            fileName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '.npy'
         
-        if os.path.isfile(fileName):
-            currStations = np.load(fileName)
-            currStations = currStations / 12. * earth.date[0]
+        if self.mapLoaded:
+            if earth.date[0] == 1: # First month of the year
+                
+                if earth.para['scenario'] == 6:
+                    nextName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '_186x219.npy'
+                    currName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]) + '_186x219.npy'
+                else:
+                    nextName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]+1) + '.npy'
+                    currName = earth.para['resourcePath'] + 'charge_stations_' +str(earth.date[1]) + '.npy'
+    
+                if os.path.isfile(nextName):
+                    self.currStatMap = np.load(currName)
+                    self.nextStatMap = np.load(nextName)
+                else:
+                    # switch flag, so that for future steps, new stations are gernerated
+                    self.mapLoaded = False
+                    
+                    return None
+                
+                
+            nextYearfactor = (earth.date[0]-1)/12
+            currStations = nextYearfactor * self.nextStatMap + (1-nextYearfactor) * self.currStatMap
             
             return currStations
         else:
             return None
 
     def step(self, earth):
-#        if earth.mpi.comm.rank == 0:
-#            currStations = self.loadData(earth)
-#        else:
-#            currStations = None
-        #currStations = earth.mpi.comm.bcast(currStations,root=0) 
         
-        # if currStations is not None:
-        if False:
-            lg.info('New station loaded for: ' + str(earth.date))
-            self.setStations(earth, currStations)
-        else:
+        
+        if earth.para['scenario'] in [0,1]:
+            #scenario small or medium
             lg.info('New station generated for: ' + str(earth.date))
             self.growthModel(earth)
+            
+        elif earth.para['scenario'] in [2,6]:
+            # scenario ger or leun
+            
+            if earth.mpi.comm.rank == 0:
+                currStations = self.loadData(earth)
+            else:
+                currStations = None
+            currStations = earth.mpi.comm.bcast(currStations,root=0) 
+        
+            if currStations is not None:
+            
+                lg.info('New station loaded for: ' + str(earth.date))
+                self.setStations(earth, currStations)
+            else:
+                lg.info('New station generated for: ' + str(earth.date))
+                self.growthModel(earth)
     
     def setStations(self, earth, newStationsMap):
         newValues = newStationsMap[earth.cellMapIds]
