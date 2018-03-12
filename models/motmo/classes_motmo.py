@@ -110,7 +110,7 @@ def sumSquared1D(array):
 def prod1D(array1, array2):
     return np.multiply(array1,array2)
 
-@njit(cache=True)
+#@njit(cache=True)
 def normalizedGaussian(array, center, errStd):
     diff = (array - center) +  np.random.randn(array.shape[0])*errStd
     normDiff = np.exp(-(diff**2.) / (2.* errStd**2.))  
@@ -512,11 +512,12 @@ class Good():
         self.paras            = parameters
 #       self.emissionFunction 
         
-        self.currGrowthRate  = 1
+        self.currGrowthRate  = 1.
         self.currStock       = 0
-        self.experience      = 0.
+        self.experience      = 1.
         self.initExperience  = initExperience
         self.addToOverallExperience(initExperience)
+        self.progress        = 1.
         self.maturity        = 0.0001         
         
         self.oldStock        = 0
@@ -546,6 +547,11 @@ class Good():
 #            print 'not implemented'
 #            # TODO add Moore and SKC + ...
 
+    def initMaturity(self):
+        if (self.label == 'shared' or self.label == 'none'):
+            self.maturity = self.paras['initMaturity']
+            self.progress = 1./(1.-self.paras['initMaturity'])
+                  
         
     def initEmissionFunction(self):
 
@@ -593,21 +599,22 @@ class Good():
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
-                stockElShare = min(1.,market.goods[1].getGlobalStock()/max(0.1,market.goods[0].getGlobalStock()+market.goods[1].getGlobalStock()))
-                electricShare = 0.1 + 0.9*stockElShare                     
+                stockElShare = market.goods[1].getGlobalStock()/(market.goods[0].getGlobalStock()+market.goods[1].getGlobalStock())
+                electricShare = 0.1 + 0.9*stockElShare                    
                 weight = self.paras['weight']
                 emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
                 
-                maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
-                maturity = .1
+                #maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
+                maturity = (1-1/self.progress)
                 return emissions, maturity
                 
         else:
             def emissionFn(self, market):
                 emissions = self.properties['emissions']
-                maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
-                maturity = .02
+                
+                #maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of none
+                maturity = (1-1/self.progress)
                 return emissions, maturity
         
         self.emissionFunction = emissionFn
@@ -643,6 +650,7 @@ class Good():
             self.currLocalSales = production
             
         self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
 #        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
 #        for prop in self.properties.keys():
 #            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
@@ -889,8 +897,11 @@ class Market():
             elif good.label == 'public':
                 if self.date[1] > 2017:
                     good.properties['costs'] *= .99**(1./12)
-                    #print good.properties['costs'] 
-#            elif good.label == 'shared':
+                    #print good.properties['costs']
+                    
+            elif good.label == 'shared':
+                if good.properties['costs'] > 0.8*min(self.goods[0].properties['costs'],self.goods[1].properties['costs']) :
+                    good.properties['costs'] = 0.8*min(self.goods[0].properties['costs'],self.goods[1].properties['costs'])
 #                               
 #            else:
         
@@ -1178,7 +1189,11 @@ class Person(Agent):
         nFriends   = friendUtil.shape[0]
         ownUtil    = self.getValue('util')
         
+#        try:
         prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
+#        except:
+#            import pdb
+#            pdb.set_trace()    
         #diff = friendUtil - ownUtil +  np.random.randn(nFriends)*world.para['utilObsError']
         #prop = normalize(np.exp(-(diff**2) / (2* world.para['utilObsError']**2)))
         #prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
@@ -1470,6 +1485,7 @@ class Person(Agent):
             # weight friends
             self.weightFriendExperience(earth, commUtilPeers, edges, weights)
 
+
             # compute similarity
             #weights = np.asarray(self.getEdgeValues('weig', edgeType=CON_PP)[0])
             #preferences = np.asarray(self.getPeerValues('preferences',CON_PP)[0])
@@ -1484,6 +1500,10 @@ class Person(Agent):
         else:
             self.imitation = [-1]
         
+        if self.getValue('mobType')>1:
+            good = earth.market.goods[self.getValue('mobType')]
+            self.setValue('prop',[good.properties['costs'], good.properties['costs']])
+            
         # socialize
 #        if ESSR < 0.1 and np.random.rand() >0.99:
 #            self.socialize(world)

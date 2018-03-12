@@ -863,7 +863,7 @@ def plot_carStockBarPlot(data, propDict, parameters, enums, filters):
     #plt.legend(legStr,bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
     plt.legend(enums['mobilityTypes'].values(),loc=0)
     plt.tight_layout()
-    plt.xlim([148+nBurnIn,parameters['nSteps']])
+    plt.xlim([0 ,parameters['nSteps']])
     plt.ylim([0, np.sum(carMat[ti,:])])
     plt.savefig(path + 'carStock')
 

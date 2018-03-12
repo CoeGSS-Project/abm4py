@@ -986,8 +986,8 @@ def mobilitySetup(earth):
                     #parameters['techSlopeShared'],           # initial technical progress
                     #parameters['techProgShared'],            # slope of technical progress
                     #parameters['techExpShared'])             # initial experience
-                    weight = parameters['weightS'])          # average weight
-
+                    weight = parameters['weightS'],           # average weight
+                    initMaturity = parameters['initMaturityS']) # initital maturity
     # register none:    
     propDict = OrderedDict()
     propDict['costs']    = parameters['initPriceNone']#,  parameters['initPriceNone']/10.
@@ -996,9 +996,10 @@ def mobilitySetup(earth):
                     propDict,   #(emissions, TCO)
                     convenienceNone,
                     'start',
-                    initExperience = parameters['techExpNone'])
-                    #parameters['techSlopeNone'],            # initial technical progress
-                    #parameters['techProgNone'],           # slope of technical progress
+                    initExperience = parameters['techExpNone'],
+                    initMaturity = parameters['initMaturityN']) # initital maturity
+                    #parameters['techSlopeNone'],           # initial technical progress
+                    #parameters['techProgNone'],            # slope of technical progress
                     #parameters['techExpNone'])             # initial experience
     
 
@@ -1731,7 +1732,7 @@ def runModel(earth, parameters):
     
     earth.market.initPrices()
     for good in earth.market.goods.values():
-        
+        good.initMaturity()
         good.updateEmissionsAndMaturity(earth.market)
         #good.updateMaturity()
     
