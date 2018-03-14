@@ -7,26 +7,38 @@ Created on Tue Feb 20 14:15:50 2018
 """
 
 
+# S E T U P #################################################
+
+minAgentPerCell = 5  # minimal number of agents per cell
+maxAgentPerCell = 15 # minimal number of agetns per cell
+
+nFriends = 50 # number of interconnections per agents -> increase computation
+factor = 25   # spatial extend per process (factor x factor)
+nSteps = 10 # number of model steps that are run
+radius = 5    # spatial interaction radius -> increases of communication
+#############################################################
+
+
+
+
 import mpi4py
 mpi4py.rc.threads = False
 import sys, os
 import socket
 import time
-#import guppy
-from copy import copy
+
 from os.path import expanduser
 
 home = expanduser("~")
 
-sys.path.append('../../lib/')
-sys.path.append('../../modules/')
+#sys.path.append('../lib/')
 
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+    sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+    sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
 else:
     
@@ -39,51 +51,31 @@ import numpy as np
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
 import class_auxiliary as aux
 
-#comm = abm.MPI.COMM_WORLD
-#mpiRank = comm.Get_rank()
-#mpiSize = comm.Get_size()
-
 import logging as lg
 import matplotlib.pylab as plt
-import seaborn as sns; sns.set()
-sns.set_color_codes("dark")
-#import matplotlib.pyplot as plt
-
-import pandas as pd
-from bunch import Bunch
-
-from scipy import signal
 
 print 'import done'
+
+
 
 #%% get mpi comm
 mpiComm = LIB.MPI.COMM_WORLD
 mpiRank = mpiComm.Get_rank()
 mpiSize = mpiComm.Get_size()
 
-#%% CONSTANTS - ENUMERATIONS
-#CELL  = 1
-#AGENT = 2
-
-CON_CC = 1 # cell-to-cell onnnection
-CON_AC = 2 # cell-to-agent connection
-CON_AA = 3 # agent-to-agent connection
 
 debug = 0
 showFigures    = 0
 
-minAgentPerCell = 2
-maxAgentPerCell = 11
-
-nFriends = 50
-factor = 20
-nSteps = 1000
-radius = 3
-
-baseOutputPath = aux.getEnvironment(mpiComm, getSimNo=False)
 simNo = 0
+baseOutputPath = ''
 outputPath = aux.createOutputDirectory(mpiComm, baseOutputPath, simNo)
 
+if not os.path.isfile(outputPath + '/run_times.csv'):
+    fid = open(outputPath + '/run_times.csv','w')
+    fid.write(', '.join([number  for number in ['mpiSize', 'tInit', 'tComp', 'tSync', 'tWait', 'tIO', 'tAveragePerStep', 'tOverall']]) + '\n')
+    fid.close()
+    
 #%% Setup of log file
 if debug:
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
@@ -107,12 +99,14 @@ parameters = dict()
 parameters['nSteps'] = nSteps
 parameters['showFigures'] = 0
 
+
+ttInit = time.time()
 #%% Init of world
 earth = LIB.World(simNo,
               outputPath,
               True,
               parameters['nSteps'],
-              maxNodes=1e6,
+              maxNodes=1e8,
               debug=debug,
               mpiComm=mpiComm,
               caching=True,
@@ -122,20 +116,22 @@ earth.setParameters(parameters)
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
                                      staticProperies  = ['type',
-                                                       'gID',
-                                                       'pos'],
+                                                         'gID',
+                                                         'pos'],
                                      dynamicProperies = ['agentsPerCell'])
 
 AGENT   = earth.registerNodeType('cell' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
                                      staticProperies  = ['type',
-                                                   'gID',
-                                                   'pos'],
-                                     dynamicProperies =  ['prop_A',
-                                                          'prop_B'])
+                                                         'gID',
+                                                         'pos'],
+                                     dynamicProperies = ['prop_A',
+                                                         'prop_B'])
+
 #%% Init of edge types
-earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
-earth.registerEdgeType('cell-ag', CELL, AGENT)
-earth.registerEdgeType('ag-ag', AGENT,AGENT)
+
+CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
+CON_AC = earth.registerEdgeType('cell-ag', CELL, AGENT)
+CON_AA = earth.registerEdgeType('ag-ag', AGENT,AGENT)
 
 parameters['connRadius'] = radius
 
@@ -229,7 +225,7 @@ earth.io.initNodeFile(earth, [CELL, AGENT])
 #earth.io.gatherNodeData(0)
 #earth.io.writeDataToFile(0)
 
-def step(earth):
+def stepFunction(earth):
     
     
     tt = time.time()    
@@ -276,20 +272,71 @@ def step(earth):
     
 times = np.zeros(parameters['nSteps'])    
 
+
+if mpiRank == 0:
+    tInit = time.time() - ttInit
+    print 'Time for model initialization: ' + str(tInit) + ' s'
+
+
+
+
 for iStep in range(parameters['nSteps']):
     tt = time.time()
-    step(earth)
+    stepFunction(earth)
     times[iStep] =  time.time() -tt
-print 'average time per step: ' + str(times.mean())
+
 
 earth.io.finalizeAgentFile()
 earth.finalize()
 
+if mpiRank==0: 
+    tAveragePerStep = times.mean()
+    print 'average time per step: ' + str(tAveragePerStep)
+    tOverall = time.time() - ttInit
+    print 'overall time: ' + str(tOverall)    
+    
 if mpiRank==0:
     plt.figure('average_prop_B')
     plt.plot(earth.globalRecord['average_prop_B'].rec)
-    plt.savefig('test.png')
+    plt.savefig(outputPath + '/test.png')
     
     plt.figure('times')
     plt.plot(times)
-    plt.savefig('times.png')
+    plt.savefig(outputPath + '/times.png')
+
+gatherData= np.asarray([earth.compTime, earth.syncTime, earth.waitTime, earth.ioTime])
+gatherData = np.asarray(mpiComm.gather(gatherData, root=0))
+
+
+if mpiRank==0: 
+    print np.asarray(gatherData).shape
+    gatherData = gatherData.mean(axis=2).mean(axis=0)
+    tComp = gatherData[0]
+    tSync = gatherData[1]
+    tWait = gatherData[2]
+    tIO   = gatherData[3]
+    fid = open(outputPath + '/run_times.csv','a')
+    fid.write(', '.join(["{:10.6f}".format(number)  for number in [mpiSize, tInit, tComp, tSync, tWait, tIO, tAveragePerStep, tOverall]]) + '\n')
+    fid.close()
+    
+
+
+
+
+if False:
+    #%%
+    # plotting    
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    plt.clf()
+    dfTimes = pd.read_csv('run_times.csv')
+    nRuns = 4
+    
+    colList = ['r', 'g', 'b', 'm']
+    for start in range(nRuns):
+        idx = np.arange(start,dfTimes.shape[0],nRuns)
+        plt.plot(dfTimes['mpiSize'].loc[idx], dfTimes[' tOverall'].loc[idx], colList[start])
+    plt.xlabel('number of processes')
+    plt.ylabel('overall time')
+    
