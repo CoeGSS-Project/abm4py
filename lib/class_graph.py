@@ -54,11 +54,14 @@ class WorldGraph(Graph):
 
 
 
-    def addNodeType(self, nodeTypeIdx, typeStr, staticProperties, dynamicProperties):
+    def addNodeType(self, nodeTypeIdx, typeStr, AgentClass, GhostAgentClass, staticProperties, dynamicProperties):
         """ Create node type description"""
         nodeType = TypeDescription(nodeTypeIdx, typeStr, staticProperties, dynamicProperties)
         self.nodeTypes[nodeTypeIdx] = nodeType
-
+        # same nodeType for ghost and non-ghost
+        self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
+        self.class2NodeType[AgentClass]       = nodeTypeIdx
+        self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
 
     def addEdgeType(self ,  edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
         """ Create edge type description"""

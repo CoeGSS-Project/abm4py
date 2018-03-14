@@ -81,6 +81,14 @@ import class_auxiliary as aux
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
+
+def assertUpdate(graph, prop, nodeType):
+    
+    isUpdated = prop in graph.ghostTypeUpdated[nodeType]  ##OPTPRODUCTION
+    isStatic  = prop in graph.nodeTypes[nodeType].staProp ##OPTPRODUCTION
+    assert not(graph.isParallel) or isUpdated or isStatic ##OPTPRODUCTION
+    pass
+
 class Queue():
 
     def __init__(self, world):
@@ -245,14 +253,12 @@ class Cache():
     """
     As default only out peers and out connections are in the cache. 
     """
-    def __init__(self, graph, nID, nodeType, isParallel):
+    def __init__(self, graph, nID, nodeType):
         self.graph       = graph
         self.nID         = nID
         self.edgesAll    = None
         self.edgesByType = dict()
         self.nodeType    = nodeType
-        
-        self.isSerial    = not(isParallel)
         self.peersAll    = None
         self.peersByType = dict()
         self.getPeerValues2 = self.peersByType.__getitem__
@@ -371,11 +377,8 @@ class Cache():
         # check if re-caching is required
         self.__checkPeerCache__(edgeType)
         
-        nodeType = self.graph.edge2NodeType[edgeType][1]
-        assert self.isSerial or \                                    ##OPTPRODUCTION
-               prop in self.graph.ghostTypeUpdated[nodeType] or \    ##OPTPRODUCTION
-               prop in self.graph.nodeTypes[nodeType].staProp        ##OPTPRODUCTION
-       
+        nodeType  = self.graph.edge2NodeType[edgeType][1]
+        
         if edgeType is None:
 
             return self.peersAll[prop], self.peersAll
@@ -470,9 +473,8 @@ class Entity():
         self.getValue = self._node.__getitem__
         self.setValue = self._node.__setitem__
 
-        isParallel = world.mpi.size > 1
         if world.caching:
-            self._cache  = Cache(self._graph, self.nID, nodeType, isParallel)
+            self._cache  = Cache(self._graph, self.nID, nodeType)
 
             # definition of access functions
             self.getPeerValues = self._cache.getPeerValues
@@ -521,7 +523,8 @@ class Entity():
         return self._graph.vs[self.getPeerIDs(edgeType)]
 
     def getPeerValues(self, prop, edgeType=None):
-        return self.getPeerSeq(edgeType)[prop], self.getPeerSeq(edgeType)
+        peerSeq = self.getPeers(edgeType)
+        return peerSeq[prop], peerSeq
 
 
     def getEdgeValues(self, prop, edgeType=None):
@@ -951,7 +954,7 @@ class World:
         def registerStat(self, globName, values, statType):
             #statfunc = self.statOperations[statType]
 
-            assert statType in ['mean', 'std','var']    ##OPTPRODUCTION
+            assert statType in ['mean', 'std', 'var']    ##OPTPRODUCTION
 
 
             if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
@@ -1145,6 +1148,8 @@ class World:
                     self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
 
+        
+
         #%% Init of the IO class
         def __init__(self, world, nSteps, outputPath = ''): # of IO
 
@@ -1266,31 +1271,25 @@ class World:
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
                 
             tt = time.time()
-            self.gatherNodeData(0,static=True)
+            #self.gatherNodeData(0,static=True)
             self.writeDataToFile(0,static=True)
             lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-        def gatherNodeData(self, timeStep, static=False):
+        def writeDataToFile(self, timeStep, static=False):
             """
             Transfers data from the graph to record for the I/O
+            and writing data to hdf5 file
             """
             if static:
                 for typ in self.staticData.keys():
                     self.staticData[typ].addData(timeStep, self._graph)
-            else:
-                for typ in self.dynamicData.keys():
-                    self.dynamicData[typ].addData(timeStep, self._graph)
-
-        def writeDataToFile(self, timeStep, static=False):
-            """
-            Writing data to hdf5 file
-            """
-            if static:
-                for typ in self.staticData.keys():
                     self.staticData[typ].writeData(self.h5File, folderName='static')
             else:
                 for typ in self.dynamicData.keys():
+                    self.dynamicData[typ].addData(timeStep, self._graph)
                     self.dynamicData[typ].writeData(self.h5File)
+
+                   
 
         def initEdgeFile(self, edfeTypes):
             """
@@ -1326,6 +1325,7 @@ class World:
                 record = self.dynamicData[nodeType]
                 #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
                 saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
+    
     class Mpi():
         """
         MPI communication module that controles all communcation between
@@ -1366,6 +1366,9 @@ class World:
             self._clearBuffer()
             
             self.world.graph.ghostTypeUpdated = dict()
+            
+            self.world.graph.isParallel =  self.size > 1
+                
 #            for nodeType in world.graph.nodeTypes.keys():
 #                # lists all attributes of the nodeType which have been updated in the last step
 #                self.world.graph.self.ghostTypeUpdated[nodeType] = list()
@@ -1837,7 +1840,11 @@ class World:
         """
         Method to read values of node sequences at once
         Return type is numpy array
+        Only return non-ghost agent properties
         """
+        #if nodeType:
+        #    assertUpdate(self.graph, prop, nodeType)
+        
         if idxList:
             return np.asarray(self.graph.vs[idxList][prop])
         elif nodeType:
@@ -2061,19 +2068,19 @@ class World:
             - nodeDict
             - ghostNodeDict
         - enumerations
-
         """
+        
         # type is an required property
         assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
 
         nodeTypeIdx = len(self.graph.nodeTypes)
 
-        self.graph.addNodeType(nodeTypeIdx, typeStr, staticProperies, dynamicProperies)
-
-        # same nodeType for ghost and non-ghost
-        self.graph.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
-        self.graph.class2NodeType[AgentClass]       = nodeTypeIdx
-        self.graph.class2NodeType[GhostAgentClass]  = nodeTypeIdx
+        self.graph.addNodeType(nodeTypeIdx, 
+                               typeStr, 
+                               AgentClass,
+                               GhostAgentClass,
+                               staticProperies, 
+                               dynamicProperies)
         self.nodeDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
@@ -2086,19 +2093,15 @@ class World:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
         of these properties
         - update of convertions dicts:
-            - nodeType2Class
+            - node2EdgeType
+            - edge2NodeType
         - update of enumerations
-
         """
+        
         assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)
-        
-
         self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
-
-        #self.graph.edgeProperies[edgeTypeIdx] = propertyList
-        #self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)
         self.enums[typeStr] = edgeTypeIdx
 
         return  edgeTypeIdx
