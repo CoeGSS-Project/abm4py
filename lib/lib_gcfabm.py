@@ -245,12 +245,14 @@ class Cache():
     """
     As default only out peers and out connections are in the cache. 
     """
-    def __init__(self, graph, nID):
+    def __init__(self, graph, nID, nodeType, isParallel):
         self.graph       = graph
         self.nID         = nID
         self.edgesAll    = None
         self.edgesByType = dict()
-
+        self.nodeType    = nodeType
+        
+        self.isSerial    = not(isParallel)
         self.peersAll    = None
         self.peersByType = dict()
         self.getPeerValues2 = self.peersByType.__getitem__
@@ -368,7 +370,12 @@ class Cache():
     def getPeerValues(self, prop, edgeType=None):
         # check if re-caching is required
         self.__checkPeerCache__(edgeType)
-
+        
+        nodeType = self.graph.edge2NodeType[edgeType][1]
+        assert self.isSerial or \                                    ##OPTPRODUCTION
+               prop in self.graph.ghostTypeUpdated[nodeType] or \    ##OPTPRODUCTION
+               prop in self.graph.nodeTypes[nodeType].staProp        ##OPTPRODUCTION
+       
         if edgeType is None:
 
             return self.peersAll[prop], self.peersAll
@@ -432,7 +439,7 @@ class Entity():
     Most basic class from which agents of different type are derived
     """
     __slots__ = ['gID', 'nID']
-
+    
 
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
@@ -463,13 +470,13 @@ class Entity():
         self.getValue = self._node.__getitem__
         self.setValue = self._node.__setitem__
 
-
+        isParallel = world.mpi.size > 1
         if world.caching:
-            self._cache  = Cache(self._graph, self.nID)
+            self._cache  = Cache(self._graph, self.nID, nodeType, isParallel)
 
             # definition of access functions
             self.getPeerValues = self._cache.getPeerValues
-            self.getPeerValues2 = self._cache.getPeerValues2
+            #self.getPeerValues2 = self._cache.getPeerValues2
             self.setPeerValues = self._cache.setPeerValues
             self.getPeers      = self._cache.getPeers
             self.getPeerIDs    = self._cache.getPeerIDs
@@ -768,7 +775,8 @@ class Agent(Entity):
 
 
 class GhostAgent(Entity):
-
+    ghostUpdated = list()
+    
     def __init__(self, world, owner, nID=None, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(owner)
@@ -781,7 +789,7 @@ class GhostAgent(Entity):
 
         return None # global ID need to be acquired via MPI communication
 
-    def getLocationValue(self,prop):
+    def getLocationValue(self, prop):
 
         return self.loc.node[prop]
 
@@ -790,6 +798,10 @@ class GhostAgent(Entity):
     def registerChild(self, world, entity, edgeType):
         world.addEdge(entity.nID,self.nID, type=edgeType)
 
+    @classmethod
+    def setGhostUpdate(cls, reference):
+        cls.ghostUpdated = reference
+        
 ################ LOCATION CLASS #########################################
 class Location(Entity):
 
@@ -830,7 +842,8 @@ class Location(Entity):
         return self.weights, edges.indices, self.connNodeDict
 
 class GhostLocation(Entity):
-
+    ghostUpdated = list()
+    
     def getGlobID(self,world):
 
         return None
@@ -848,6 +861,10 @@ class GhostLocation(Entity):
         world.addEdge(entity.nID,self.nID, type=edgeType)
         entity.loc = self
 
+    @classmethod
+    def setGhostUpdate(cls, reference):
+        cls.ghostUpdated = reference
+        
 #    def updateAgentList(self, graph, edgeType):  # toDo nodeType is not correct anymore
 #        """
 #        updated method for the agents list, which is required since
@@ -1347,6 +1364,11 @@ class World:
             world.irecv = self.comm.irecv
 
             self._clearBuffer()
+            
+            self.world.graph.ghostTypeUpdated = dict()
+#            for nodeType in world.graph.nodeTypes.keys():
+#                # lists all attributes of the nodeType which have been updated in the last step
+#                self.world.graph.self.ghostTypeUpdated[nodeType] = list()
 
         #%% Privat functions
         def _clearBuffer(self):
@@ -1405,7 +1427,7 @@ class World:
                     if propertyList in ['all', 'dyn', 'sta']:
                         propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
                         propertyList.remove('gID')
-
+                    lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeType ' + str(nodeType) + 'MPIMPIMPI')
                     dataPackage ,packageSize = self._packData(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
                     messageSize = messageSize + packageSize
                     self._add2Buffer(mpiPeer, dataPackage)
@@ -1432,6 +1454,8 @@ class World:
                         nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
                         for i, prop in enumerate(propertyList):
                             nodeSeq[prop] = dataPackage[i+1]
+                            
+                            
             syncUnpackTime = time.time() -tt
 
             lg.info('Sync times - ' +
@@ -1582,7 +1606,7 @@ class World:
 
 
                         parentEntity = world.entDict[world._glob2loc[gID]]
-                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity._node['type'], nodeType]
+                        edgeType = world.graph.node2EdgeType[parentEntity._node['type'], nodeType]
 
 
                         agent.register(world, parentEntity, edgeType)
@@ -1617,7 +1641,25 @@ class World:
                 lg.debug('Ghost update (of approx size ' +                  ##OPTPRODUCTION
                          str(messageSize * 24. / 1000. ) + ' KB)' +         ##OPTPRODUCTION
                          ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
-
+            
+            if nodeTypeList == 'all':
+                nodeTypeList =self.world.graph.nodeTypes
+            
+            
+            for nodeType in nodeTypeList:
+                self.world.graph.ghostTypeUpdated[nodeType] = list()
+                if propertyList in ['all', 'dyn', 'sta']:        
+                    propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
+                    propertyList.remove('gID')
+                
+                for prop in propertyList:
+                    self.world.graph.ghostTypeUpdated[nodeType].append(prop)
+                
+#                if len(self.world.ghostNodeDict[nodeType]) > 0:
+#                    firstGhostID = self.world.ghostNodeDict[nodeType][0]
+#                    ghost = self.world.entDict[firstGhostID]
+#                    ghost.setGhostUpdate(self.world.graph.ghostTypeUpdated[nodeType])
+                
         def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
             if (nodeType, mpiPeer) not in self.ghostNodeQueue.keys():
@@ -2044,17 +2086,16 @@ class World:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
         of these properties
         - update of convertions dicts:
-            - nodeTypes2edgeTypes
+            - nodeType2Class
         - update of enumerations
 
         """
         assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)
-        #self.graph.edgeTypes.append(edgeTypeIdx)
-        self.graph.nodeTypes2edgeTypes[nodeType1, nodeType2] = edgeTypeIdx
+        
 
-        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies)
+        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
 
         #self.graph.edgeProperies[edgeTypeIdx] = propertyList
         #self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)

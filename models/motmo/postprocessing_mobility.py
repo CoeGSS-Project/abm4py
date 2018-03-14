@@ -55,10 +55,11 @@ _hh  = 1
 _pe  = 2
 
 ##%% INIT
+plotFunc.append('plot_globalRecords')
 plotFunc.append('plotEmissionOverTime')
 plotFunc.append('plotElectricDemandOverTime')
 plotFunc.append('plot_globalID')
-plotFunc.append('plot_globalRecords')
+
 plotFunc.append('plot_emissions')
 plotFunc.append('plot_electricConsumption')
 plotFunc.append('plot_ChargingStations')
@@ -121,13 +122,7 @@ print 'of which omniscient burn-in: ' + str(simParas['omniscientBurnIn'])
 #%% DATA LOADING FILES
 
 
-def loadMisc(path):
-    enums        = loadObj(path + 'enumerations')
-    parameters   = loadObj(path + 'simulation_parameters')
-    parameters['timeStepMag'] = int(np.ceil(np.log10(parameters['nSteps'])))
-    parameters['nPriorities'] = len(enums['priorities'])
 
-    return parameters, enums
 
 def cellDataAsMap(landLayer, posArray, cellData):
 
@@ -138,7 +133,13 @@ def cellDataAsMap(landLayer, posArray, cellData):
 
     return cellArray
 
+def loadMisc(path):
+    enums        = loadObj(path + 'enumerations')
+    parameters   = loadObj(path + 'simulation_parameters')
+    parameters['timeStepMag'] = int(np.ceil(np.log10(parameters['nSteps'])))
+    parameters['nPriorities'] = len(enums['priorities'])
 
+    return parameters, enums
 
 
 def loadData(path, parameters, data, propDict, filters, nodeType):
@@ -1385,7 +1386,7 @@ def plot_carsPerCell(data, propDict, parameters, enums, filters):
     test = landLayer*0
     for iBrand in range(parameters['nMobTypes']):
         res = landLayer*1.0
-        res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] / data.ce[step,:,propDict.ce['population'][0]] *1000.
+        res[posArray[:,0],posArray[:,1]] = data.ce[step,:,propDict.ce['carsInCell'][iBrand]] #/ data.ce[step,:,propDict.ce['population'][0]] *1000.
         #cellData = data.ce[tt,:,propDict.ce['carsInCell'][iBrand]] / data.ce[tt,:,propDict.ce['population'][0]] * 1000
         res[np.isinf(res)] = 0
         res[np.isnan(res)] = 0

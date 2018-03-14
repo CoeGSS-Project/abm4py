@@ -45,7 +45,8 @@ class WorldGraph(Graph):
         # list of types
         self.nodeTypes = dict()
         self.edgeTypes = dict()
-        self.nodeTypes2edgeTypes = dict()
+        self.node2EdgeType = dict()
+        self.edge2NodeType = dict()
 
         # dict of classes to init node automatically
         self.nodeType2Class = dict()
@@ -59,11 +60,13 @@ class WorldGraph(Graph):
         self.nodeTypes[nodeTypeIdx] = nodeType
 
 
-    def addEdgeType(self ,  edgeTypeIdx, typeStr, staticProperties, dynamicProperties):
+    def addEdgeType(self ,  edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
         """ Create edge type description"""
         edgeType = TypeDescription(edgeTypeIdx, typeStr, staticProperties, dynamicProperties)
         self.edgeTypes[edgeTypeIdx] = edgeType
-
+        self.node2EdgeType[nodeType1, nodeType2] = edgeTypeIdx
+        self.edge2NodeType[edgeTypeIdx] = nodeType1, nodeType2
+        
     def getPropOfNodeType(self, nodeType, kind):
         if kind == 'all':
             return self.nodeTypes[nodeType].staProp + self.nodeTypes[nodeType].dynProp

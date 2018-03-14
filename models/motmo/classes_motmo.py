@@ -313,7 +313,7 @@ class Earth(World):
         Encapsulating method for the syncronization of selected ghost agents
         """
         ttSync = time.time()
-        self.mpi.updateGhostNodes([PERS],['commUtil'])
+        self.mpi.updateGhostNodes([PERS],['commUtil','util', 'mobType'])
         self.mpi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
@@ -514,7 +514,7 @@ class Good():
         
         self.currGrowthRate  = 1.
         self.currStock       = 0
-        self.experience      = 1.
+        self.experience      = initExperience
         self.initExperience  = initExperience
         self.addToOverallExperience(initExperience)
         self.progress        = 1.
@@ -631,26 +631,32 @@ class Good():
 #    def updateMaturity(self):
 #        self.maturity = self.getExperience() / self.overallExperience
         
-    def updateExperience(self):
+    def updateTechnicalProgress(self):
+        """
+        Updates the growth rate and progress
+        """
         # only endogeneous experience, there may also be exogenous experience, from market
         self.experience += self.lastGlobalSales[self.goodID]  
-        self.addToOverallExperience(self.lastGlobalSales[self.goodID])      
+        self.addToOverallExperience(self.lastGlobalSales[self.goodID])  
+        
+        # use last step global sales for update of the growth rate and technical progress
+        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        
+        
         
     def updateSales(self, production=None):
         """
-#        Computes the technical progress
-#        If the production is not given, internally the stock and the replacement
-#        rate is used calcualte sales
+#        Computes the sales
 #        """ 
-#        
+        
         # if production is not given, the internal sales is used
         if production is None:
             self.currLocalSales = self.salesModel()
         else:
             self.currLocalSales = production
             
-        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
-        self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        
 #        self.technicalProgress = self.technicalProgress * (self.currGrowthRate)**self.slope
 #        for prop in self.properties.keys():
 #            self.properties[prop] = (self.initialProperties[prop][0] / self.technicalProgress) + self.initialProperties[prop][1]
@@ -665,9 +671,10 @@ class Good():
         """ replaces the old stock by the current Stock and computes the 
         technical progress
         """
+        self.updateSales()
+        
         if doTechProgress:
-            self.updateSales()
-            self.updateExperience()
+            self.updateTechnicalProgress()
                 
         self.oldStock = self.currStock
         self.updateEmissionsAndMaturity(market)                
@@ -771,7 +778,7 @@ class Market():
         # push current Sales to globals for sync
         #ToDo: check this implementation of class variables
         sales = np.asarray([good.currLocalSales for good in self.goods.itervalues()])
-        self.glob.updateLocalValues('sales', sales)
+        self.glob.updateLocalValues('sales', sales * self.para['reductionFactor'])
             
         # pull sales from last time step to oldSales for technical chance
         self.goods[0].updateGlobalSales(self.glob['sales'])
@@ -935,8 +942,10 @@ class Market():
             for mobTuple in self.mobilityInitDict[self.time]:
                 for label, propertyDict, _, goodID in  mobTuple:
                     self.addGood2Market(label, propertyDict, goodID)
+        
         self.updateGlobalStock()
-        self.updateSales()
+        
+        #self.updateSales() done in earth.step
         
         # only do technical change after the burn in phase
         doTechProgress = self.time > self.burnIn
@@ -1057,7 +1066,7 @@ class Infrastructure():
         self.currStatMap = np.zeros_like(potMap) # map for the stations this year
         self.nextStatMap = np.zeros_like(potMap) # map for the stations next year
         
-        self.carsPerStation = 15. # number taken from assumptions of the German government
+        self.carsPerStation = 10. # number taken from assumptions of the German government
         self.mapLoaded = True
         self.sigPara = 2.56141377e+02, 3.39506037e-2 # calibarted parameters
 
@@ -1158,8 +1167,8 @@ class Infrastructure():
             
             # dampening factor that applies for infrastructure that is not used and
             # reduces the potential increase of charging stations
-            overSupplyFactor = 3
-            demand  = greenCarsPerCell * earth.para['reductionFactor'] / self.carsPerStation * overSupplyFactor
+            overSupplyFactor = 1
+            demand  = greenCarsPerCell * earth.para['reductionFactor'] / (self.carsPerStation * overSupplyFactor)
             supply  = currNumStations
 
             #dampFac  = np.divide(demand, supply, out=np.zeros_like(demand)+1, where=supply!=0) ** self.dampenFactor
@@ -1420,6 +1429,13 @@ class Person(Agent):
             connList.append((self.nID,self.nID))
 
         weigList   = [1./len(connList)]*len(connList)
+        nGhosts = 0
+        if world.debug:                                                                 ##OPTPRODUCTION
+            for peId in contactList:                                                    ##OPTPRODUCTION
+                if isinstance(world.entDict[peId], GhostPerson):                        ##OPTPRODUCTION
+                    nGhosts += 1                                                        ##OPTPRODUCTION
+        lg.debug('At location ' + str(self.loc._node['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
+        
         return contactList, connList, weigList
 
 
@@ -1492,11 +1508,11 @@ class Person(Agent):
         
         nPeers          = len(peers)
         commUtilPeers   = Person.cacheCommUtil[:nPeers,:]
-        commUtilPeers[:]= peers['commUtil']
+        commUtilPeers[:]= self.getPeerValues('commUtil', CON_PP)[0]
         utilPeers       = Person.cacheUtil[:nPeers]
-        utilPeers[:]    = peers['util']
+        utilPeers[:]    = self.getPeerValues('util', CON_PP)[0]
         mobTypePeers    = Person.cacheMobType[:nPeers]
-        mobTypePeers[:] = peers['mobType']
+        mobTypePeers[:] = self.getPeerValues('mobType', CON_PP)[0]
         weights         = Person.cacheWeights[:nPeers]
         weights[:]      = edges['weig']
 
@@ -1572,9 +1588,9 @@ class Household(Agent):
         Agent.__init__(self, world, **kwProperties)
 
 
-        if world.para['util'] == 'cobb':
+        if world.getParameter('util') == 'cobb':
             self.utilFunc = cobbDouglasUtilNumba
-        elif world.getParamerter('util') == 'ces':
+        elif world.getParameter('util') == 'ces':
             self.utilFunc = self.CESUtil
         self.computeTime = 0
         
@@ -1612,7 +1628,7 @@ class Household(Agent):
     @staticmethod
     def CESUtil(x, alpha):
         uti = 0.
-        s = 2.    # elasticity of substitution, has to be float!
+        s = 3.    # elasticity of substitution, has to be float!
         factor = 100.
         for i in xrange(len(x)):
             uti += (alpha[i]*(factor * x[i])**(s-1))**(1/s)

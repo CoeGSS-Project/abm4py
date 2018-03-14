@@ -10,12 +10,12 @@ sys.path.append('../../../modules/')
 import numpy as np
 import mod_geotiff as gt
 import matplotlib.pyplot as plt
-import mod_geotiff as gt
+#import mod_geotiff as gt
 #import seaborn as sns
 xData   = list()
 yData   = list()
 dyData  = [0]
-for year in range(2005,2019):
+for year in range(2005,2018):
     
     #year = 2015
     fileName = '/home/gcf/shared/processed_data/tiff/e_charging_stations_ger/charge_stations_' + str(year) + '_186x219.npy'
@@ -23,7 +23,9 @@ for year in range(2005,2019):
     xData.append(year)
     yData.append(np.nansum(chargeMap))
     dyData.append(np.nansum(chargeMap) - np.sum(dyData))
-    
+
+xData.append(2020)
+yData.append(70000)    
 plt.plot(xData,yData)
 geoFormat = gt.get_format('/home/gcf/shared/processed_data/tiff/e_charging_stations_ger/charge_stations_' + str(year) + '_186x219.tiff')
 coord = geoFormat['rasterOrigin']
@@ -66,6 +68,62 @@ pylab.legend(loc='best')
 pylab.show()
 plt.savefig('nChargingOverTime.png')
 
+
+#if False:
+#%%
+iEnd = 10
+fileName = '/home/gcf/shared/processed_data/tiff/e_charging_stations_ger/charge_stations_' + str(xdata[iEnd]) + '_186x219.npy'
+chargeMap = np.load(fileName)
+
+xList, yList = np.where(chargeMap>0)
+statX, statY = [], []
+for x,y in zip(xList.tolist(), yList.tolist()):
+    print x,y 
+    statX.extend([x]*int(chargeMap[int(x),int(y)]))
+    statY.extend([y]*int(chargeMap[int(x),int(y)]))
+
+rand = np.random.rand(len(statX))    
+randIdx = np.argsort(rand)
+#random ordered station
+statXRand = np.asarray(statX)[randIdx]
+
+statYRand = np.asarray(statY)[randIdx]
+
+plt.plot(xdata[:iEnd], yProjection[:iEnd])
+
+# regernate map
+newMap = chargeMap*0
+plt.figure()
+plt.clf()
+for ii in range(iEnd):
+    nStations = int(yProjection[ii])
+    
+    newStat = np.asarray([statXRand[:nStations], statYRand[:nStations]])
+    uniquePos, count = np.unique(newStat, axis=1, return_counts=True)
+    #uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
+        
+    newMap[uniquePos[0,:], uniquePos[1,:]] += count   
+    if ii > 1:
+        print ii
+        plt.subplot(3,3,ii-1)
+        plt.imshow(newMap)
+        plt.clim([0, np.nanpercentile(newMap,98)])
+        plt.colorbar()
+    fileName = '../resources_ger/charge_stations_' + str(xdata[ii]) + '_186x219.npy'
+    np.save(fileName, newMap)
+
+# add okayisch data
+for year in range(2015, 2018):
+    fileName = '/home/gcf/shared/processed_data/tiff/e_charging_stations_ger/charge_stations_' + str(year) + '_186x219.npy'    
+    chargeMap = np.load(fileName)
+    if year == 2015:
+        plt.subplot(3,3,9)
+        plt.imshow(chargeMap)
+        plt.clim([0, np.nanpercentile(newMap,98)])
+        plt.colorbar()
+    fileName = '../resources_ger/charge_stations_' + str(year) + '_186x219.npy'    
+    np.save(fileName, chargeMap)
+plt.tight_layout()
 #%%new fit for simulation
 xdata = 1+ (np.array(xData)-2005)*12.
 popt, pcov = curve_fit(sigmoid, xdata, ydata,p0=[60., .01])
