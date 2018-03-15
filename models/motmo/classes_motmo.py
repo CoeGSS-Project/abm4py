@@ -513,7 +513,7 @@ class Good():
         
         self.currGrowthRate  = 1.
         self.currStock       = 0
-        self.experience      = initExperience
+        self.experience      = 1.
         self.initExperience  = initExperience
         self.addToOverallExperience(initExperience)
         self.progress        = 1.
@@ -897,7 +897,7 @@ class Market():
                     exp = self.experienceGreenExo[yearIdx] + good.experience
                 else:
                     exp = self.experienceGreenExo[yearIdx]
-                expInMio = exp/1000000.       
+                expInMio = exp / 1000000.       
                 good.properties['costs'] = factor * expInMio**exponent 
                 
             elif good.label == 'public':
