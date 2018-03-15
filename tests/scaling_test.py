@@ -12,10 +12,11 @@ Created on Tue Feb 20 14:15:50 2018
 minAgentPerCell = 5  # minimal number of agents per cell
 maxAgentPerCell = 15 # minimal number of agetns per cell
 
-nFriends = 50 # number of interconnections per agents -> increase computation
-factor = 25   # spatial extend per process (factor x factor)
-nSteps = 10 # number of model steps that are run
-radius = 5    # spatial interaction radius -> increases of communication
+nFriends = 50        # number of interconnections per agents -> increase computation
+factor = 25          # spatial extend per process (factor x factor)
+nSteps = 10          # number of model steps that are run
+radius = 5           # spatial interaction radius -> increases of communication
+weakScaling = False  # testin weak scaling
 #############################################################
 
 
@@ -31,7 +32,7 @@ from os.path import expanduser
 
 home = expanduser("~")
 
-#sys.path.append('../lib/')
+sys.path.append('../lib/')
 
 
 
@@ -64,10 +65,10 @@ mpiRank = mpiComm.Get_rank()
 mpiSize = mpiComm.Get_size()
 
 
-debug = 0
-showFigures    = 0
+debug       = 0
+showFigures = 0
 
-simNo = 0
+simNo       = 0
 baseOutputPath = ''
 outputPath = aux.createOutputDirectory(mpiComm, baseOutputPath, simNo)
 
@@ -79,18 +80,20 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
 #%% Setup of log file
 if debug:
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                filemode='w',
-                format='%(levelname)7s %(asctime)s : %(message)s',
-                datefmt='%m/%d/%y-%H:%M:%S',
-                level=lg.DEBUG)
+                    filemode='w',
+                    format='%(levelname)7s %(asctime)s : %(message)s',
+                    datefmt='%m/%d/%y-%H:%M:%S',
+                    level=lg.DEBUG)
 else:
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                     filemode='w',
                     format='%(levelname)7s %(asctime)s : %(message)s',
                     datefmt='%m/%d/%y-%H:%M:%S',
                     level=lg.INFO)
+
 mpiComm.Barrier()
-if mpiComm.rank == 0:
+
+if mpiRank == 0:
     print 'log files created'
         
 lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
@@ -104,8 +107,8 @@ ttInit = time.time()
 #%% Init of world
 earth = LIB.World(simNo,
               outputPath,
-              True,
-              parameters['nSteps'],
+              spatial=True,
+              nSteps=parameters['nSteps'],
               maxNodes=1e8,
               debug=debug,
               mpiComm=mpiComm,
@@ -128,37 +131,50 @@ AGENT   = earth.registerNodeType('cell' , AgentClass=LIB.Agent, GhostAgentClass=
                                                          'prop_B'])
 
 #%% Init of edge types
-
 CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
 CON_AC = earth.registerEdgeType('cell-ag', CELL, AGENT)
 CON_AA = earth.registerEdgeType('ag-ag', AGENT,AGENT)
 
 parameters['connRadius'] = radius
 
-connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
-procPerDim = int(np.sqrt(mpiSize))
-layerShape = [procPerDim*factor,  procPerDim*factor]
-parameters['landLayer'] = np.zeros(layerShape)
 
+if weakScaling:
+    procPerDim = int(np.sqrt(mpiSize))
+    layerShape = [procPerDim*factor,  procPerDim*factor]
+    parameters['landLayer'] = np.zeros(layerShape)
+
+
+
+else:
+    layerShape = [64, 64]
+    
+    procPerDim = int(np.sqrt(mpiSize))
+    factor = layerShape[0] / procPerDim
+    parameters['landLayer'] = np.zeros(layerShape)
+    
 iProcess = 0
 for x in range(procPerDim):     
     for y in range(procPerDim):
         
         parameters['landLayer'][x*factor:(x+1)*factor,y*factor:(y+1)*factor] = iProcess
-        iProcess +=1
-        
+        iProcess +=1    
+    
+connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
 earth.initSpatialLayer(parameters['landLayer'],
-                           connList, CELL,
+                           connList, 
+                           CELL,
                            LocClassObject=LIB.Location,
                            GhstLocClassObject=LIB.GhostLocation)
 
-for cell in earth.iterEntRandom(CELL):
+for cell in earth.iterEntRandom(CELL, random=False):
     cell.setValue('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
+    
 earth.mpi.updateGhostNodes([CELL],['agentsPerCell'])
-
+if mpiRank == 0:
+    print 'spatial layer initialized'
 
 for cell in earth.iterEntRandom(CELL, ghosts=True):
     cell.peList = list()
@@ -188,10 +204,14 @@ if earth.queuing:
     earth.queue.dequeueVertices(earth)
     earth.queue.dequeueEdges(earth)   
     
-for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
-    ghostCell.updatePeList(earth.graph, AGENT)
+#for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
+#    ghostCell.updatePeList(earth.graph, AGENT)
+for ghostAgent in earth.iterEntRandom(AGENT, ghosts = True, random=False)    :
+    ghostAgent.loc.peList.append(ghostAgent.nID)
     
-
+    
+if mpiRank == 0:
+    print 'Agents created'
     
 #earth.view('test2.png')
     
@@ -209,11 +229,18 @@ for agent in earth.iterEntRandom(AGENT):
 earth.addEdges(globalEdgeList, type=CON_AA)
 if earth.queuing:
     earth.queue.dequeueEdges(earth)    
+
+del  globalEdgeList
+   
+if mpiRank == 0:
+    print 'Agents connections created'    
 #%% register of global records
+
 earth.registerRecord('average_prop_B',
                      'sumation test for agents',
-                     ['global sum of prob_B'])
-earth.graph.glob.registerStat('mean_prop_B' , np.asarray([0]),'mean')
+                     ['global sum of prob_B'],)
+                     #mpiReduce= 'mean')
+earth.graph.glob.registerStat('average_prop_B' , np.asarray([0]), 'mean')
         
 #%% init times
 earth.compTime = np.zeros(nSteps)
@@ -224,7 +251,7 @@ earth.ioTime      = np.zeros(nSteps)
 earth.io.initNodeFile(earth, [CELL, AGENT])
 #earth.io.gatherNodeData(0)
 #earth.io.writeDataToFile(0)
-
+#from tqdm import tqdm
 def stepFunction(earth):
     
     
@@ -237,17 +264,16 @@ def stepFunction(earth):
         if peerAverage < 0.5:
             
             agent.setValue('prop_B', np.random.random())
-    earth.compTime[earth.timeStep] += time.time()-tt
+    earth.compTime[earth.timeStep] += time.time() - tt
     
     
     tt = time.time()
     earth.mpi.updateGhostNodes([AGENT],['prop_B'])
-    earth.syncTime[earth.timeStep] += time.time()-tt
+    earth.syncTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
-    earth.io.gatherNodeData(earth.timeStep)
     earth.io.writeDataToFile(earth.timeStep)
-    earth.ioTime[earth.timeStep] += time.time()-tt
+    earth.ioTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
     earth.mpi.comm.Barrier()
@@ -255,10 +281,10 @@ def stepFunction(earth):
 
     tt = time.time()
     #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeValues('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('mean_prop_B', np.asarray(earth.graph.vs[earth.nodeDict[AGENT]]['prop_B']))
+    earth.graph.glob.updateLocalValues('average_prop_B', np.asarray(earth.graph.vs[earth.nodeDict[AGENT]]['prop_B']))
         
     earth.graph.glob.sync()
-    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob['mean_prop_B'])
+    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob['average_prop_B'])
     earth.syncTime[earth.timeStep] += time.time()-tt
     
     
