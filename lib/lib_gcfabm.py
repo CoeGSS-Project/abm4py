@@ -84,9 +84,19 @@ ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 def assertUpdate(graph, prop, nodeType):
     
-    isUpdated = prop in graph.ghostTypeUpdated[nodeType]  ##OPTPRODUCTION
-    isStatic  = prop in graph.nodeTypes[nodeType].staProp ##OPTPRODUCTION
-    assert not(graph.isParallel) or isUpdated or isStatic ##OPTPRODUCTION
+    # if is serial
+    if not(graph.isParallel):##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    # if is static
+    if prop in graph.nodeTypes[nodeType].staProp: ##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    # if is updated
+    if prop in graph.ghostTypeUpdated[nodeType]:  ##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    raise('Error while accessing non-updated property')##OPTPRODUCTION
     pass
 
 class Queue():
@@ -379,6 +389,8 @@ class Cache():
         
         nodeType  = self.graph.edge2NodeType[edgeType][1]
         
+        assertUpdate(self.graph, prop, nodeType)
+        
         if edgeType is None:
 
             return self.peersAll[prop], self.peersAll
@@ -449,6 +461,9 @@ class Entity():
 
         if not hasattr(self, '_graph'):
             self.setGraph(world.graph)
+        
+        if not hasattr(self, '_queue'):
+            self.setQueue(world.queue)            
         #self._graph = world.graph
 
         self.gID    = self.getGlobID(world)
@@ -493,11 +508,17 @@ class Entity():
             self._cache = None
             
 
-            
+    @classmethod
+    def setQueue(cls, queue):
+        """ Makes the class variable _queue available at the first init of an entity"""
+        cls._queue = queue           
 
     @classmethod
     def setGraph(cls, graph):
+        """ Makes the class variable _graph available at the first init of an entity"""
         cls._graph = graph
+
+
 
     def setPeerValues(self, prop, values, nodeType=None):
         nodeDict = self._node.neighbors(mode='out')
@@ -577,7 +598,7 @@ class Entity():
 
     def queueConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
-        self.queue.addEdge(self.nID,friendID, **kwpropDict)
+        self._queue.addEdge(self.nID,friendID, **kwpropDict)
 
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
@@ -778,7 +799,6 @@ class Agent(Entity):
 
 
 class GhostAgent(Entity):
-    ghostUpdated = list()
     
     def __init__(self, world, owner, nID=None, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
@@ -786,7 +806,7 @@ class GhostAgent(Entity):
 
     def register(self, world, parentEntity=None, edgeType=None):
         Entity.register(self, world, parentEntity, edgeType, ghost= True)
-
+        
 
     def getGlobID(self,world):
 
@@ -801,9 +821,6 @@ class GhostAgent(Entity):
     def registerChild(self, world, entity, edgeType):
         world.addEdge(entity.nID,self.nID, type=edgeType)
 
-    @classmethod
-    def setGhostUpdate(cls, reference):
-        cls.ghostUpdated = reference
         
 ################ LOCATION CLASS #########################################
 class Location(Entity):
@@ -845,7 +862,6 @@ class Location(Entity):
         return self.weights, edges.indices, self.connNodeDict
 
 class GhostLocation(Entity):
-    ghostUpdated = list()
     
     def getGlobID(self,world):
 
@@ -864,10 +880,7 @@ class GhostLocation(Entity):
         world.addEdge(entity.nID,self.nID, type=edgeType)
         entity.loc = self
 
-    @classmethod
-    def setGhostUpdate(cls, reference):
-        cls.ghostUpdated = reference
-        
+ 
 #    def updateAgentList(self, graph, edgeType):  # toDo nodeType is not correct anymore
 #        """
 #        updated method for the agents list, which is required since
