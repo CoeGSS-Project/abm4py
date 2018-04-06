@@ -29,22 +29,50 @@ class BaseGraph():
     
     CHUNK_SIZE = 1000
     
-    class NodeType(np.rec.ndarray):
+    class NodeArray(np.rec.ndarray):
         
-        def __new__(cls, maxNodes, startID, dtype):
+        def __new__(cls, maxNodes, nTypeID, startID, dtype):
             self = np.rec.array(np.empty(maxNodes,dtype=dtype)).view(cls)
             
             self.maxNodes       = maxNodes
-            
+            self.nType          = nTypeID
             self.getNewID       = itertools.count(startID).next
             self.nodeList       = []
             self.freeRows       = []
+            
             return self
         
         def nCount(self):
             return len(self.nodeList)
+        
+        def add(self, attributes):
+            if len(self.freeRows) > 0:
+                # use and old local node ID from the free row
+                dataID = self.freeRows.pop()
+                lnID   = dataID + self.nType * self.maxNodes
+            else:
+                # generate a new local ID
+                lnID   = self.getNewID()
+                #print lnID
+                dataID = lnID - self.nType * self.maxNodes
+                #print dataID
+            dataview = self[dataID:dataID+1].view() 
+            if attributes is not None:
+                dataview[:] = attributes
+            self.nodeList.append(lnID)
+            return lnID, dataview
+        
+        def rem(self):
+            pass
+            
+        def set(self):
+            pass
+        
+        def get(self):
+            pass
+            
     
-    class EdgeType(np.rec.ndarray):
+    class EdgeArray(np.rec.ndarray):
         def __new__(cls, maxEdges, startID, dtype):
             self = np.rec.array(np.empty(maxEdges,dtype=dtype)).view(cls)
             
@@ -61,10 +89,17 @@ class BaseGraph():
         def eCount(self):
             return len(self.edgeList)
         
-    def __init__(self, maxNodes, maxEdges):
+    def __init__(self, maxNodesPerType, maxEdgesPerType):
+        """
+        This class provides the basic functions to contruct a directed graph
+        with different node and edge types. 
+        The max number of edges and nodes
+        cannot be exceeded during execution, since it is used for pre-assigning
+        storage space.
+        """
         
-        self.maxNodes       = maxNodes
-        self.maxEdges       = maxEdges
+        self.maxNodes       = maxNodesPerType
+        self.maxEdges       = maxEdgesPerType
         
 
         self.nodeGlob2Loc   = dict()
@@ -90,7 +125,7 @@ class BaseGraph():
         nTypeID          = self.getNodeTypeID()
         dt               = np.dtype(self.persNodeAttr + attrDescriptor)
         nIDStart         = nTypeID * self.maxNodes
-        self.nodes[nTypeID] = self.NodeType(self.maxNodes, nIDStart, dtype=dt)
+        self.nodes[nTypeID] = self.NodeArray(self.maxNodes, nTypeID, nIDStart, dtype=dt)
         return nTypeID
     
 #    def extendNodeArray(self, nTypeID):
@@ -134,6 +169,7 @@ class BaseGraph():
              dataview[:] = attributes
          self.nodes[nTypeID].nodeList.append(lnID)
          return lnID, dataview
+#         return self.nodes[nTypeID].add(attributes)
     
    
 
@@ -176,7 +212,7 @@ class BaseGraph():
         dt = np.dtype(self.persEdgeAttr + attrDescriptor)
         eIDStart               = eTypeID * self.maxNodes
 
-        self.edges[eTypeID] = self.EdgeType(self.maxEdges, eIDStart, dtype=dt)
+        self.edges[eTypeID] = self.EdgeArray(self.maxEdges, eIDStart, dtype=dt)
         return eTypeID
 
     def getEdgeDataRef(self, leID):
@@ -235,12 +271,14 @@ class BaseGraph():
     def remEdge(self, source, target, eTypeID):
         
         dataID = self.edges[eTypeID].eDict[(source, target)]
+        leID   = dataID + eTypeID * self.maxEdges 
         self.edges[eTypeID].freeRows.append(dataID)
         self.edges[eTypeID][dataID:dataID+1][:] = (-1, -1,- 1)
         del self.edges[eTypeID].eDict[(source, target)]
+        self.edges[eTypeID].edgeList.remove(leID)
         self.edges[eTypeID].edgesIn[target].remove(dataID)
         self.edges[eTypeID].edgesOut[source].remove(dataID)
-
+        
     def setEdgeAttr(self, leID, label, value, eTypeID=None):
         
         eTypeID, dataID = self.getEdgeDataRef(leID)
@@ -307,6 +345,118 @@ class BaseGraph():
         else:
             return self.edges[eTypeID].eCount()
 
+    def selfTest(self):
+        """ 
+        This function is testing the base graph class
+        Not complete 
+        """
+        NT1 = self.initNodeType('A',
+                          10000, 
+                          [('f1', np.float32,4),
+                           ('i2', np.int32,1),
+                           ('s3', np.str,20)])
+        self.addNode(NT1,(1000, [1,2,3,4],44, 'foo' ))
+        
+class WorldGraphNP(BaseGraph):
+    """
+    World graph NP is a high-level API to contrl BaseGraph
+    
+    """    
+
+    def __init__(self, world, maxNodesPerType, maxEdgesPerType):
+
+        BaseGraph.__init__(self, maxNodesPerType, maxEdgesPerType)
+        self.world = world
+        self.queingMode = False
+
+        # list of types
+        self.nodeTypes = dict()
+        self.edgeTypes = dict()
+        self.node2EdgeType = dict()
+        self.edge2NodeType = dict()
+
+        # dict of classes to init node automatically
+        self.nodeType2Class = dict()
+        self.class2NodeType = dict()
+
+    def addNodeType(self, 
+                    nodeTypeIdx, 
+                    typeStr, 
+                    AgentClass, 
+                    GhostAgentClass, 
+                    staticProperties, 
+                    dynamicProperties):
+        """ Create node type description"""
+        
+        nodeType = TypeDescription(nodeTypeIdx, typeStr, staticProperties, dynamicProperties)
+        self.nodeTypes[nodeTypeIdx] = nodeType
+        # same nodeType for ghost and non-ghost
+        self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
+        self.class2NodeType[AgentClass]       = nodeTypeIdx
+        self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
+        self.initNodeType(typeStr, 1e5, staticProperties + dynamicProperties)
+
+    def addEdgeType(self ,  edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
+        """ Create edge type description"""
+        edgeType = TypeDescription(edgeTypeIdx, typeStr, staticProperties, dynamicProperties)
+        self.edgeTypes[edgeTypeIdx] = edgeType
+        self.node2EdgeType[nodeType1, nodeType2] = edgeTypeIdx
+        self.edge2NodeType[edgeTypeIdx] = nodeType1, nodeType2
+        self.initEdgeType(typeStr, 1e5, staticProperties + dynamicProperties)
+
+
+    def getPropOfNodeType(self, nodeType, kind):
+        if kind == 'all':
+            return self.nodeTypes[nodeType].staProp + self.nodeTypes[nodeType].dynProp
+        elif kind == 'sta':
+            return self.nodeTypes[nodeType].staProp
+        elif kind == 'dyn':
+            return self.nodeTypes[nodeType].dynProp
+
+    def add_edges(self, edgeList, **argProps):
+        """ overrides graph.add_edges"""
+        eStart = self.ecount()
+        Graph.add_edges(self, edgeList)
+        for key in argProps.keys():
+            self.es[eStart:][key] = argProps[key]
+
+    def startQueuingMode(self):
+        """
+        Starts queuing mode for more efficient setup of the graph
+        Blocks the access to the graph and stores new vertices and eges in
+        a queue
+        """
+        pass
+
+    def stopQueuingMode(self):
+        """
+        Stops queuing mode and adds all vertices and edges from the queue.
+        """
+        pass
+
+
+    def add_edge(self, source, target, **kwproperties):
+        """ overrides graph.add_edge"""
+        return Graph.add_edge(self, source, target, **kwproperties)
+
+    def add_vertex(self, nodeType, gID, **kwProperties):
+        """ overrides graph.add_vertice"""
+        nID  = len(self.vs)
+        kwProperties.update({'nID':nID, 'type': nodeType, 'gID':gID})
+        Graph.add_vertex(self, **kwProperties)
+        return nID, self.vs[nID]
+
+    def delete_edges(self, edgeIDs=None, pairs=None):
+        """ overrides graph.delete_edges"""
+        if pairs:
+            edgeIDs = self.get_eids(pairs)
+
+
+        self.es[edgeIDs]['type'] = 0 # set to inactive
+
+    def delete_vertex(self, nodeID):
+        print 'not implemented yet'
+
 class WorldGraph(Graph):
     """
     World graph is an agumented version of igraphs Graph that overrides some
@@ -317,9 +467,6 @@ class WorldGraph(Graph):
     """
 
     def __init__(self, world, directed=None):
-
-
-
 
         Graph.__init__(self, directed=directed)
         self.world = world
@@ -417,12 +564,13 @@ if __name__ == "__main__":
 
     bigTest = 1
     bg = BaseGraph(int(1e6), int(1e6))
-    
+    bg.selfTest()
+    sdf
     #%% nodes
     LOC = bg.initNodeType('location', 
-                                 1000, 
-                                 [('pos', np.float64,2),
-                                  ('population', np.int16,1)])
+                          1000, 
+                          [('pos', np.float64,2),
+                           ('population', np.int16,1)])
     
     lnID1, dataview1 = bg.addNode(1, (1, np.random.random(2), 10 ))
     lnID2, dataview2 = bg.addNode(1, (2, np.random.random(2), 10 ))
