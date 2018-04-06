@@ -29,25 +29,52 @@ class BaseGraph():
     
     CHUNK_SIZE = 1000
     
+    class NodeType(np.rec.ndarray):
+        
+        def __new__(cls, maxNodes, startID, dtype):
+            self = np.rec.array(np.empty(maxNodes,dtype=dtype)).view(cls)
+            
+            self.maxNodes       = maxNodes
+            
+            self.getNewID       = itertools.count(startID).next
+            self.nodeList       = []
+            self.freeRows       = []
+            return self
+        
+        def nCount(self):
+            return len(self.nodeList)
+    
+    class EdgeType(np.rec.ndarray):
+        def __new__(cls, maxEdges, startID, dtype):
+            self = np.rec.array(np.empty(maxEdges,dtype=dtype)).view(cls)
+            
+            self.maxEdges       = maxEdges
+            
+            self.getNewID       = itertools.count(startID).next
+            self.edgeList       = []
+            self.freeRows       = []
+            self.eDict          = dict()
+            self.edgesOut       = dict() # (source -> targets)
+            self.edgesIn        = dict() # (target -> sources)
+            return self
+        
+        def eCount(self):
+            return len(self.edgeList)
+        
     def __init__(self, maxNodes, maxEdges):
         
         self.maxNodes       = maxNodes
         self.maxEdges       = maxEdges
         
-        self.freeNodeRows   = dict()
-        self.freeEdgeRows   = dict()
+
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
-        self.nAttr          = dict()
-        self.eAttr          = dict()
-        self.getNewNodeID   = dict()
-        self.getNewEdgeID   = dict()
+        self.nodes          = dict()
+        self.edges          = dict()
         
-        self.nDict          = dict()    
-        self.eDict          = dict()
+        
         self.eDict    = dict() # (source, target -> leID)
-        self.edgesOut = dict() # (source -> targets)
-        self.edgesIn  = dict() # (target -> sources)
+
         
         self.getNodeTypeID = itertools.count(1).next
         self.getEdgeTypeID = itertools.count(1).next
@@ -60,13 +87,10 @@ class BaseGraph():
     #%% NODES
     def initNodeType(self, nodeName, size, attrDescriptor):
         
-        nTypeID = self.getNodeTypeID()
-        dt = np.dtype(self.persNodeAttr + attrDescriptor)
-        nIDStart               = nTypeID * self.maxNodes
-        self.nAttr[nTypeID]    = np.rec.array(np.empty(size,dtype=dt))
-        self.getNewNodeID[nTypeID] = itertools.count(nIDStart).next
-        self.freeNodeRows[nTypeID] = []
-        self.nDict[nTypeID]        = []
+        nTypeID          = self.getNodeTypeID()
+        dt               = np.dtype(self.persNodeAttr + attrDescriptor)
+        nIDStart         = nTypeID * self.maxNodes
+        self.nodes[nTypeID] = self.NodeType(self.maxNodes, nIDStart, dtype=dt)
         return nTypeID
     
 #    def extendNodeArray(self, nTypeID):
@@ -80,7 +104,12 @@ class BaseGraph():
         if isinstance(lnID, tuple):
             nTypeID, dataID = lnID
         else:
-            if isinstance(lnID, np.array):
+            if isinstance(lnID, list):
+                lnID = np.asarray(lnID)
+                nTypeID, dataID = int(lnID[0] / self.maxNodes), lnID%self.maxNodes
+                
+            elif isinstance(lnID, np.ndarray):
+            
                 nTypeID, dataID = int(lnID[0] / self.maxNodes), lnID%self.maxNodes
             else:
                 nTypeID, dataID = int(lnID / self.maxNodes), lnID%self.maxNodes
@@ -90,20 +119,20 @@ class BaseGraph():
     def addNode(self, nTypeID, attributes=None):
         
         
-         if len(self.freeNodeRows[nTypeID]) > 0:
+         if len(self.nodes[nTypeID].freeRows) > 0:
              # use and old local node ID from the free row
-             dataID = self.freeNodeRows[nTypeID].pop()
+             dataID = self.nodes[nTypeID].freeRows.pop()
              lnID   = dataID + nTypeID * self.maxNodes
          else:
              # generate a new local ID
-             lnID   = self.getNewNodeID[nTypeID]()
+             lnID   = self.nodes[nTypeID].getNewID()
              #print lnID
              dataID = lnID - nTypeID * self.maxNodes
              #print dataID
-         dataview = self.nAttr[nTypeID][dataID:dataID+1].view() 
+         dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
          if attributes is not None:
              dataview[:] = attributes
-         self.nDict[nTypeID].append(lnID)
+         self.nodes[nTypeID].nodeList.append(lnID)
          return lnID, dataview
     
    
@@ -112,49 +141,42 @@ class BaseGraph():
         nTypeID = self.getNodeType(lnID)
         dataID = lnID - nTypeID * self.maxNodes
         self.freeNodeRows.append(dataID)
-        self.nAttr[dataID]['gnID'] = -1
+        self.nodes[dataID]['gnID'] = -1
         self.nDict[nTypeID].remove(lnID)
     
     def setNodeAttr(self, lnID, label, value, nTypeID=None):
         
         nTypeID, dataID = self.getEdgeDataRef(lnID)
-        self.nAttr[nTypeID][dataID][label] = value
+        self.nodes[nTypeID][label][dataID] = value
     
     def getNodeAttr(self, lnID, label=None, nTypeID=None):
-        nTypeID, dataID = self.getEdgeDataRef(lnID)
+        nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
-            return self.nAttr[nTypeID][dataID][label]
+            return self.nodes[nTypeID][label][dataID]
         else:
-            return self.nAttr[nTypeID][dataID]
+            return self.nodes[nTypeID][dataID]
         
         
     def setNodeSeqAttr(self, lnID, label, value, nTypeID=None):
        
-        nTypeID, dataIDs = self.getEdgeDataRef(lnID)
-        self.nAttr[nTypeID][dataIDs][label] = value
-    
+        nTypeID, dataIDs = self.getNodeDataRef(lnID)
+        self.nodes[nTypeID][label][dataIDs] = value
+
     def getNodeSeqAttr(self, lnIDs, label=None, nTypeID=None):
-        nTypeID, dataIDs = self.getEdgeDataRef(lnIDs)
+        nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         if label:
-            return self.nAttr[nTypeID][label][dataIDs]
+            return self.nodes[nTypeID][label][dataIDs]
         else:
-            return self.nAttr[nTypeID][dataIDs]
+            return self.nodes[nTypeID][dataIDs]
 
     #%% EDGES
     def initEdgeType(self, nodeName, size, attrDescriptor):
         
-        
         eTypeID = self.getEdgeTypeID()
         dt = np.dtype(self.persEdgeAttr + attrDescriptor)
-        self.eAttr[eTypeID]    = np.rec.array(np.empty(size,dtype=dt))
-        nIDStart               = eTypeID * self.maxNodes
-        
-        self.getNewEdgeID[eTypeID] = itertools.count(nIDStart).next
-        self.eDict[eTypeID] = dict()
-        self.edgesOut[eTypeID] = dict() 
-        self.edgesIn[eTypeID]  = dict() 
-        self.freeEdgeRows[eTypeID] = []
-        
+        eIDStart               = eTypeID * self.maxNodes
+
+        self.edges[eTypeID] = self.EdgeType(self.maxEdges, eIDStart, dtype=dt)
         return eTypeID
 
     def getEdgeDataRef(self, leID):
@@ -162,38 +184,47 @@ class BaseGraph():
         if isinstance(leID, tuple):
             eTypeID, dataID = leID
         else:
-            if isinstance(leID, np.ndarray):
+            if isinstance(leID, list):
+                leID = np.asarray(leID)
+                eTypeID, dataID = int(leID[0] / self.maxEdges), leID%self.maxEdges
+            
+            elif isinstance(leID, np.ndarray):
                 eTypeID, dataID = int(leID[0] / self.maxEdges), leID%self.maxEdges
             else:
                 eTypeID, dataID = int(leID / self.maxEdges), leID%self.maxEdges
         
+        #assert leID in self.edges[eTypeID].edgeList ##OPTPRODUCTION
         return  eTypeID, dataID
     
     def addEdge(self, eTypeID, source, target, attributes = None):
-        
+         """ 
+         Adding a new connecting edge between source and target of
+         the specified type
+         """
          
-         if len(self.freeEdgeRows[eTypeID]) > 0:
+         if len(self.edges[eTypeID].freeRows) > 0:
              # use and old local node ID from the free row
-             dataID = self.freeEdgeRows[eTypeID].pop()
+             dataID = self.edges[eTypeID].freeRows.pop()
              leID   = dataID + eTypeID * self.maxNodes
          else:
              # gernerate a new local ID
-             leID   = self.getNewEdgeID[eTypeID]()
+             leID   = self.edges[eTypeID].getNewID()
              #print lnID
              dataID = leID - eTypeID * self.maxNodes
              #print dataID
-         dataview = self.eAttr[eTypeID][dataID:dataID+1].view() 
+         dataview = self.edges[eTypeID][dataID:dataID+1].view() 
          
          #updating edge dictionaries
-         self.eDict[eTypeID][(source, target)] = dataID
-         if source in self.edgesOut[eTypeID]:
-             self.edgesOut[eTypeID][source].append(dataID)
+         self.edges[eTypeID].eDict[(source, target)] = dataID
+         self.edges[eTypeID].edgeList.append(leID)
+         if source in self.edges[eTypeID].edgesOut:
+             self.edges[eTypeID].edgesOut[source].append(dataID)
          else:
-             self.edgesOut[eTypeID][source] = [dataID]
-         if target in self.edgesIn[eTypeID]:
-             self.edgesIn[eTypeID][target].append(dataID)
+             self.edges[eTypeID].edgesOut[source] = [dataID]
+         if target in self.edges[eTypeID].edgesIn:
+             self.edges[eTypeID].edgesIn[target].append(dataID)
          else:
-             self.edgesIn[eTypeID][target] = [dataID]     
+             self.edges[eTypeID].edgesIn[target] = [dataID]     
              
          if attributes is not None:
              dataview[:] = (source, target) + attributes
@@ -203,43 +234,43 @@ class BaseGraph():
 
     def remEdge(self, source, target, eTypeID):
         
-        dataID = self.eDict[eTypeID][(source, target)]
-        self.freeEdgeRows[eTypeID].append(dataID)
-        self.eAttr[eTypeID][dataID:dataID+1][:] = (-1, -1,- 1)
-        del self.eDict[eTypeID][(source, target)]
-        self.edgesIn[eTypeID][target].remove(dataID)
-        self.edgesOut[eTypeID][source].remove(dataID)
+        dataID = self.edges[eTypeID].eDict[(source, target)]
+        self.edges[eTypeID].freeRows.append(dataID)
+        self.edges[eTypeID][dataID:dataID+1][:] = (-1, -1,- 1)
+        del self.edges[eTypeID].eDict[(source, target)]
+        self.edges[eTypeID].edgesIn[target].remove(dataID)
+        self.edges[eTypeID].edgesOut[source].remove(dataID)
 
     def setEdgeAttr(self, leID, label, value, eTypeID=None):
         
         eTypeID, dataID = self.getEdgeDataRef(leID)
         
-        self.eAttr[eTypeID][dataID][label] = value
+        self.edges[eTypeID][label][dataID] = value
     
     def getEdgeAttr(self, leID, label=None, eTypeID=None):
 
         eTypeID, dataID = self.getEdgeDataRef(leID)
             
         if label:
-            return self.eAttr[eTypeID][dataID][label]
+            return self.edges[eTypeID][dataID][label]
         else:
-            return self.eAttr[eTypeID][dataID]
+            return self.edges[eTypeID][dataID]
         
         
     def setEdgeSeqAttr(self, leIDs, label, value, eTypeID=None):
-       
+        
         eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         
-        self.eAttr[eTypeID][dataIDs][label] = value
+        self.edges[eTypeID][label][dataIDs] = value
     
     def getEdgeSeqAttr(self, leIDs, label=None, eTypeID=None):
        
         eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         
         if label:
-            return self.eAttr[eTypeID][label][dataIDs]
+            return self.edges[eTypeID][label][dataIDs]
         else:
-            return self.eAttr[eTypeID][dataIDs]
+            return self.edges[eTypeID][dataIDs]
         
     #%% General
     def isConnected(self, source, target, eTypeID):
@@ -247,16 +278,34 @@ class BaseGraph():
         Returns if source and target is connected by an eddge of the specified
         edge type
         """
-        return (source, target) in self.eDict[eTypeID]
+        return (source, target) in self.edges[eTypeID].eDict
 
     def outgoing(self, lnID, eTypeID):
-        """ Returns the dataIDs of all outgoing edges"""
-        return self.edgesOut[eTypeID][lnID] 
-    
+        """ Returns the dataIDs of all outgoing edges of the specified type"""
+        try: 
+            return self.edges[eTypeID].edgesOut[lnID] 
+        except:
+            return []
     def incomming(self, lnID, eTypeID):
-        """ Returns the dataIDs of all incoming edges"""
-        return self.edgesIN[eTypeID][lnID]
-            
+        """ Returns the dataIDs of all incoming edges of the specified type"""
+        try:
+            return self.edges[eTypeID].edgesIn[lnID]
+        except:
+            return []
+        
+    def nCount(self, nTypeID=None):
+        """Returns the number of nodes of all or a specific node type"""
+        if nTypeID is None:
+            return sum([nodeType.nCount() for nodeType in self.nodes.itervalues()])
+        else:
+            return self.nodes[nTypeID].nCount()
+
+    def eCount(self, eTypeID=None):
+        """Returns the number of edges of all or a specific node type"""
+        if eTypeID is None:
+            return sum([edgeType.eCount() for edgeType in self.edges.itervalues()])
+        else:
+            return self.edges[eTypeID].eCount()
 
 class WorldGraph(Graph):
     """
@@ -366,62 +415,87 @@ if __name__ == "__main__":
 
     graph.add_edges([(1,2),(2,3)], type=[1,1], weig=[0.5,0.5])
 
-
-    basegraph = BaseGraph(int(1e6), int(1e6))
+    bigTest = 1
+    bg = BaseGraph(int(1e6), int(1e6))
     
     #%% nodes
-    basegraph.initNodeType('agent', 1000, [('preferences', np.float64,4)])
+    LOC = bg.initNodeType('location', 
+                                 1000, 
+                                 [('pos', np.float64,2),
+                                  ('population', np.int16,1)])
     
-    lnID1, dataview1 = basegraph.addNode(1)
-    lnID2, dataview2 = basegraph.addNode(1)
-    lnID3, dataview3 = basegraph.addNode(1)
+    lnID1, dataview1 = bg.addNode(1, (1, np.random.random(2), 10 ))
+    lnID2, dataview2 = bg.addNode(1, (2, np.random.random(2), 10 ))
+    lnID3, dataview3 = bg.addNode(1, (3, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    basegraph.getNodeAttr(lnID1)
-    print basegraph.getNodeSeqAttr(np.array([lnID1, lnID2]),'gnID')
+    bg.getNodeAttr(lnID1)
+    bg.setNodeSeqAttr([lnID1, lnID2],'gnID',[12,13])
+    print bg.getNodeSeqAttr([lnID1, lnID2],'gnID',[12,13])
+    print bg.getNodeAttr(lnID2)
+    print bg.getNodeSeqAttr(np.array([lnID1, lnID2]),'gnID')
     
     #%% edges
-    AGAG = basegraph.initEdgeType('ag_ag', 
+    LOCLOC = bg.initEdgeType('loc-loc', 
                                   1000, 
                                   [('weig', np.float64, 1)])
-    leID1, dataview4 = basegraph.addEdge(AGAG, lnID1, lnID2, (.5,))
-    leID2, dataview4 = basegraph.addEdge(AGAG, lnID1, lnID3, (.5,))
+    
+    leID1, dataview4 = bg.addEdge(LOCLOC, lnID1, lnID2, (.5,))
+    leID2, dataview4 = bg.addEdge(LOCLOC, lnID1, lnID3, (.4,))
+    
+    print bg.getEdgeSeqAttr([leID1, leID2], 'weig')
+    bg.setEdgeSeqAttr([leID1, leID2], 'weig', [.9, .1])
+    print bg.getEdgeSeqAttr([leID1, leID2], 'weig')
     dataview4
-    print basegraph.isConnected(lnID1, lnID3, AGAG)
-    print basegraph.outgoing(lnID1, AGAG)
-    #print basegraph.eAttr[1].target
-    basegraph.remEdge(lnID1, lnID3, AGAG)
+    print bg.isConnected(lnID1, lnID3, LOCLOC)
+    print bg.outgoing(lnID1, LOCLOC)
+    print bg.eCount(LOCLOC)
+    #print bg.eAttr[1].target
+    bg.remEdge(lnID1, lnID3, LOCLOC)
     
-    print basegraph.isConnected(lnID1, lnID3, AGAG)
-    print basegraph.outgoing(lnID1, AGAG)
-    print basegraph.eAttr[1][0:2].weig
+    print bg.isConnected(lnID1, lnID3, LOCLOC)
+    print bg.outgoing(lnID1, LOCLOC)
+    print bg.edges[1][0:2]['weig']
 
-    print basegraph.getEdgeAttr(leID1)
+    print bg.getEdgeAttr(leID1)
     
-    bigTest = True
+    print bg.eCount()
+    
     if bigTest:
         from tqdm import tqdm
         nAgents = int(1e5)
-        basegraph.initNodeType('agent', 
+        AGENT = bg.initNodeType('agent', 
                                 nAgents, 
-                                [('preferences', np.float64,4)])
-        AGAG = basegraph.initEdgeType('ag_ag', 
+                                [('preferences', np.float64,4),])
+        AGAG = bg.initEdgeType('ag_ag', 
                                   nAgents, 
                                   [('weig', np.float64, 1)])
         agArray = np.zeros(nAgents, dtype=np.int32)
         randAttr = np.random.random([nAgents,4])
+        
         for i in tqdm(range(nAgents)):
-            lnID, dataview1 = basegraph.addNode(1, (i,randAttr[i,:]))
+            lnID, dataview = bg.addNode(AGENT, (i,randAttr[i,:]))
             agArray[i] = lnID
          
-        nConnections = int(1e5)
+        nConnections = int(5e5)
          
         for i in tqdm(range(nConnections)):
             
             source, target = np.random.choice(agArray,2)
-            basegraph.addEdge(AGAG, source, target, attributes = (.5,))
+            bg.addEdge(AGAG, source, target, attributes = (.5,))
              
         nChecks = int(1e5)
         for i in tqdm(range(nChecks)) :
             source, target = np.random.choice(agArray,2)
-            basegraph.isConnected(source, target, AGAG)
+            bg.isConnected(source, target, AGAG)
+            
+        nReadsOfNeigbours = int(1e5)
+        
+        for i in tqdm(range(nReadsOfNeigbours)):
+            lnID  = bg.nodes[2].nodeList[i]
+            eList = bg.outgoing(lnID,AGAG)
+            if len(eList)>0:
+                neigList  = bg.edges[AGAG]['target'][eList]
+                y = bg.getEdgeSeqAttr((1, eList),'weig')
+                x = bg.getNodeSeqAttr(neigList,'preferences')
+                
