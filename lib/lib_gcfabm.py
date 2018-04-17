@@ -59,7 +59,9 @@ later:
 
 """
 
-import sys, mpi4py
+import sys
+sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+import mpi4py
 mpi4py.rc.threads = False
 sys_excepthook = sys.excepthook
 def mpi_excepthook(v, t, tb):
@@ -116,13 +118,13 @@ class Queue():
 
         if len(self.nodeList) == 0:
             #print 'setting current nID: ' + str(self.graph.vcount())
-            self.currNodeID = self.graph.vcount()
+            self.currNodeID = self.graph.nCount()
 
         # adding of the data
         nID = self.currNodeID
-        self.nodeList.append(nID)               # nID to general list
+        self.nodeList.append(nID) # nID to general list
         #kwProperties.update({'nID': nID})
-        kwProperties.update({ 'type': nodeType, 'gID':gID})
+        kwProperties.update({ 'gID':gID})
 
         if nodeType not in self.nodeProperties.keys():
             # init of new nodeType
@@ -461,19 +463,20 @@ class Entity():
 
         if not hasattr(self, '_graph'):
             self.setGraph(world.graph)
-        
-        if not hasattr(self, '_queue'):
-            self.setQueue(world.queue)            
+
+        if world.queuing:        
+            if not hasattr(self, '_queue'):
+                self.setQueue(world.queue)            
         #self._graph = world.graph
 
         self.gID    = self.getGlobID(world)
-
+        kwProperties['gID'] = self.gID
 
         # create instance from existing node
         if nID is not None:
 
             self.nID = nID
-            self._node = self._graph.vs[nID]
+            self._node = self._graph.nodes[nodeType][nID].view()
             #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
             self.gID = self._node['gID']
             # redireciton of internal functionality:
@@ -482,8 +485,9 @@ class Entity():
             return
 
         # create instance newly
-
-        self.nID, self._node = world.addVertex(nodeType, self.gID, **kwProperties)
+        self.nID, self.dataID, self._node = world.addVertex(nodeType,  **kwProperties)
+        self.nodeType = nodeType
+        
         # redireciton of internal functionality:
         self.getValue = self._node.__getitem__
         self.setValue = self._node.__setitem__
@@ -548,16 +552,14 @@ class Entity():
         return peerSeq[prop], peerSeq
 
 
-    def getEdgeValues(self, prop, edgeType=None):
+    def getEdgeValues(self, prop, edgeType):
         """
         privat function to access the values of  edges
         """
-        eList  = self._graph.incident(self.nID,mode="out")
+        eList  = self._graph.outgoing(self.nID, edgeType)
 
-        if edgeType is not None:
-            edges = self._graph.es[eList].select(type=edgeType)
-        else:
-            edges = self._graph.es[eList].select(type_ne=0)
+
+        edges = self._graph.edges[edgeType][eList]
 
         return edges[prop], edges
 
@@ -734,7 +736,8 @@ class Agent(Entity):
             currentContacts.append(self.nID)
 
         contactList = list()
-        connList   = list()
+        sourceList  = list()
+        targetLis   = list()
         #ownPref    = self._node['preferences']
         #ownIncome  = self.hh._node['income']
 
@@ -785,15 +788,17 @@ class Agent(Entity):
             # adding contacts
             ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
             contactList = [ personIdsAll[idx] for idx in ids ]
-            connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
-
+            targetList  = [ personIdsAll[idx] for idx in ids]
+        sourceList = [self.nID] * len(ids)
+        
         if isInit and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
-            connList.append((self.nID,self.nID))
+            sourceList.append(self.nID)
+            targetList.append(self.nID)
 
-        weigList   = [1./len(connList)]*len(connList)
-        return contactList, connList, weigList
+        weigList   = [1./len(sourceList)]*len(sourceList)
+        return contactList, (sourceList, targetList), weigList
 
 
 
@@ -842,7 +847,7 @@ class Location(Entity):
 
 
     def registerChild(self, world, entity, edgeType=None):
-        world.addEdge(entity.nID,self.nID, type=edgeType)
+        world.addEdge(edgeType, entity.nID,self.nID )
         entity.loc = self
 
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
@@ -1137,28 +1142,30 @@ class World:
                 self.nAttr += len(attrIdx)
                 self.header += [name] * nProp
 
-            def initStorage(self):
-                self.data = np.zeros([self.nAgents,self.nAttr ], dtype=np.float32)
+            def initStorage(self, dtype):
+                print dtype
+                self.data = np.zeros([self.nAgents,self.nAttr ], dtype=dtype)
 
-            def addData(self, timeStep, graph):
+            def addData(self, timeStep, nodeData):
                 self.timeStep = timeStep
-                for attr in self.attributeList:
-                    if len(self.attrIdx[attr]) == 1:
-                        self.data[:,self.attrIdx[attr]] = np.expand_dims(graph.vs[self.ag2FileIdx][attr],1)
-                    else:
-                        self.data[:,self.attrIdx[attr]] = graph.vs[self.ag2FileIdx][attr]
+                self.data = nodeData[self.ag2FileIdx][self.attributeList]
+#                for attr in self.attributeList:
+#                    if len(self.attrIdx[attr]) == 1:
+#                        self.data[:,self.attrIdx[attr]] = np.expand_dims(graph.vs[self.ag2FileIdx][attr],1)
+#                    else:
+#                        self.data[:,self.attrIdx[attr]] = graph.vs[self.ag2FileIdx][attr]
 
             def writeData(self, h5File, folderName=None):
                 #print self.header
                 if folderName is None:
                     path = '/' + str(self.nodeType)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
                     #print 'IO-path: ' + path
-                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
+                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
                 else:
                     path = '/' + str(self.nodeType)+ '/' + folderName
-                    #print 'IO-path: ' + path
-                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
+                    print 'IO-path: ' + path
+                    self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
 
         
@@ -1193,8 +1200,8 @@ class World:
                 lg.info(' NodeType: ' +str(nodeType))
                 group = self.h5File.create_group(str(nodeType))
 
-                group.attrs.create('dynamicProps', world.graph.getPropOfNodeType(nodeType, 'dyn'))
-                group.attrs.create('staticProps', world.graph.getPropOfNodeType(nodeType, 'sta'))
+                group.attrs.create('dynamicProps', world.graph.getPropOfNodeType(nodeType, 'dyn')['names'])
+                group.attrs.create('staticProps', world.graph.getPropOfNodeType(nodeType, 'sta')['names'])
 
                 lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
                 tt = time.time()
@@ -1219,88 +1226,98 @@ class World:
 
 
                 # static data
-                staticRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
-                attributes = world.graph.nodeTypes[nodeType].staProp
-                attributes.remove('type')
+                staticRec  = self.Record(nAgents, world.dataDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 
+                attrInfo   = world.graph.getPropOfNodeType(nodeType, 'sta')
+                attributes = attrInfo['names']
+                sizes      = attrInfo['sizes']
+                
+                attrDtype = world.graph.getDTypeOfNodeType(nodeType, 'sta')
                 
                 lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
-                for attr in attributes:
+                for attr, nProp in zip(attributes, sizes):
                     #print attr
                     #check if first property of first entity is string
                     try:
-                        entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
-                    except:
+                         
+                        entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=nodeType, dataIDs=staticRec.ag2FileIdx[0])
+                    except ValueError:
                         print attr
-                        raise(str(attr) + ' not found')
+                        raise ValueError(str(attr) + ' not found')
                     if not isinstance(entProp,str):
 
                         #todo - check why not np.array allowed
-                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
-                            # add mutiple fields
-                            nProp = len(self._graph.vs[staticRec.ag2FileIdx[0]][attr])
-                        else:
-                            #add one field
-                            nProp = 1
+#                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
+#                            # add mutiple fields
+#                            nProp = len(self._graph.nodes[staticRec.ag2FileIdx[0]][attr])
+#                        else:
+#                            #add one field
+#                            nProp = 1
 
                         staticRec.addAttr(attr, nProp)
 
                 tt = time.time()
                 # allocate storage
-                staticRec.initStorage()
+                staticRec.initStorage(attrDtype)
+                print attrInfo
+                
                 self.staticData[nodeType] = staticRec
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
                 # dynamic data
                 dynamicRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
-                attributes = world.graph.nodeTypes[nodeType].dynProp
 
+                attrInfo   = world.graph.getPropOfNodeType(nodeType, 'dyn')
+                attributes = attrInfo['names']
+                sizes      = attrInfo['sizes']
 
-
+                attrDtype = world.graph.getDTypeOfNodeType(nodeType, 'dyn')
 
                 lg.info('Dynamic record created in  ' + str(time.time()-tt)  + ' seconds')
 
 
-                for attr in attributes:
+                for attr, nProp in zip(attributes, sizes):
                     #check if first property of first entity is string
-                    entProp = world.graph.vs[dynamicRec.ag2FileIdx[0]][attr]
+                    entProp = self._graph.getNodeSeqAttr(staticRec.ag2FileIdx[0], 
+                                                         label=attr, 
+                                                         nTypeID=nodeType)
                     if not isinstance(entProp,str):
 
 
-                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
-                            # add mutiple fields
-                            nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
-                        else:
-                            #add one field
-                            nProp = 1
+#                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
+#                            # add mutiple fields
+#                            nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
+#                        else:
+#                            #add one field
+#                            nProp = 1
 
                         dynamicRec.addAttr(attr, nProp)
 
                 tt = time.time()
                 # allocate storage
-                dynamicRec.initStorage()
+                dynamicRec.initStorage(attrDtype)
                 self.dynamicData[nodeType] = dynamicRec
-                lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
                 
-            tt = time.time()
-            #self.gatherNodeData(0,static=True)
-            self.writeDataToFile(0,static=True)
+                #lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+                
+                self.writeDataToFile(0, nodeType, static=True)
+                
             lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-        def writeDataToFile(self, timeStep, static=False):
+        def writeDataToFile(self, timeStep, nodeType, static=False):
             """
             Transfers data from the graph to record for the I/O
             and writing data to hdf5 file
             """
             if static:
-                for typ in self.staticData.keys():
-                    self.staticData[typ].addData(timeStep, self._graph)
-                    self.staticData[typ].writeData(self.h5File, folderName='static')
+                #for typ in self.staticData.keys():
+                self.staticData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
+                self.staticData[nodeType].writeData(self.h5File, folderName='static')
             else:
-                for typ in self.dynamicData.keys():
-                    self.dynamicData[typ].addData(timeStep, self._graph)
-                    self.dynamicData[typ].writeData(self.h5File)
+                #for typ in self.dynamicData.keys():
+                self.dynamicData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
+                self.dynamicData[nodeType].writeData(self.h5File)
 
                    
 
@@ -1725,6 +1742,7 @@ class World:
                  spatial=True,
                  nSteps= 1,
                  maxNodes = 1e6,
+                 maxEdges = 1e6,
                  debug = False,
                  mpiComm=None,
                  caching=True,
@@ -1744,7 +1762,7 @@ class World:
         self.caching = caching  # flat that indicate that edges and peers are cached for faster access
 
         # GRAPH
-        self.graph    = WorldGraph(self, directed=True)
+        self.graph    = WorldGraph(self, maxNodes, maxEdges)
         self.para['outPath'] = outPath
 
         
@@ -1757,10 +1775,10 @@ class World:
             self.addEdges   = self.queue.addEdges
             self.addVertex  = self.queue.addVertex
         else:
-            self.addEdge    = self.graph.add_edge
-            self.addEdges   = self.graph.add_edges
+            self.addEdge    = self.graph.addEdge
+            self.addEdges   = self.graph.addEdges
             self.delEdges    = self.graph.delete_edges
-            self.addVertex  = self.graph.add_vertex
+            self.addVertex  = self.graph.addNode
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
@@ -1784,6 +1802,9 @@ class World:
         # node lists and dicts
         self.nodeDict       = dict()
         self.ghostNodeDict  = dict()
+        
+        # dict of list that provides the storage place for each agent per nodeType
+        self.dataDict       = dict()
 
         self.entList   = list()
         self.entDict   = dict()
@@ -1793,8 +1814,8 @@ class World:
         self._loc2glob = dict()  # reference from local IDs to global IDs
 
         # inactive is used to virtually remove nodes
-        self.registerNodeType('inactiv', None, None)
-        self.registerEdgeType('inactiv', None, None)
+        #self.registerNodeType('inactiv', None, None)
+        #self.registerEdgeType('inactiv', None, None)
 
 
     def _globIDGen(self):
@@ -1927,7 +1948,7 @@ class World:
                 # only add an vertex if spatial location exist
                 if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.mpi.rank:
 
-                    loc = LocClassObject(self, pos= (x, y))
+                    loc = LocClassObject(self, pos = [x, y])
                     IDArray[x,y] = loc.nID
                     
                     self.registerLocation(loc, x, y)          # only for real cells
@@ -1960,7 +1981,8 @@ class World:
         if self.queuing:
             self.queue.dequeueVertices(self)
 
-        fullConnectionList      = list()
+        fullSourceList      = list()
+        fullTargetList      = list()
         fullWeightList          = list()
         #nConnection  = list()
         #print 'rank: ' +  str(self.locDict)
@@ -1971,8 +1993,8 @@ class World:
             
             weigList = list()
             destList = list()
-            connectionList = list()
-
+            sourceList = list()
+            targetList = list()
             for (dx,dy,weight) in connList:
 
                 xDst = x + dx
@@ -1987,23 +2009,24 @@ class World:
                     if not np.isnan(trgID): #and srcID != trgID:
                         destList.append(int(trgID))
                         weigList.append(weight)
-                        connectionList.append((int(srcID),int(trgID)))
+                        sourceList.append(int(srcID))
+                        targetList.append(int(trgID))
 
             #normalize weight to sum up to unity
             sumWeig = sum(weigList)
             weig    = np.asarray(weigList) / sumWeig
             #print loc.nID
             #print connectionList
-            fullConnectionList.extend(connectionList)
+            fullSourceList.extend(sourceList)
+            fullTargetList.extend(targetList)
             #nConnection.append(len(connectionList))
             fullWeightList.extend(weig)
 
 
             
-        eStart = self.graph.ecount()
-        self.graph.add_edges(fullConnectionList)
-        self.graph.es[eStart:]['type'] = 1
-        self.graph.es[eStart:]['weig'] = fullWeightList
+        #eStart = self.graph.ecount()
+        self.graph.addEdges(1, fullSourceList, fullTargetList, weig=fullWeightList)
+
 
 #        eStart = 0
 #        ii = 0
@@ -2044,9 +2067,9 @@ class World:
             #print 'nodeDict' + str(nodeDict)
             #print self.entList
             shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
-            return [self.entList[i] for i in shuffled_list]
+            return [self.entDict[i] for i in shuffled_list]
         else:
-            return  [self.entList[i] for i in nodeDict]
+            return  [self.entDict[i] for i in nodeDict]
 
     def iterEntAndIDRandom(self, nodeType, ghosts = False, random=True):
         """
@@ -2069,7 +2092,7 @@ class World:
 
 
 
-    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = ['type', 'gID'], dynamicProperies = []):
+    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = [], dynamicProperies = []):
         """
         Method to register a node type:
         - Registers the properties of each nodeType for other purposes, e.g. I/O
@@ -2084,9 +2107,9 @@ class World:
         """
         
         # type is an required property
-        assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
+        #assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
 
-        nodeTypeIdx = len(self.graph.nodeTypes)
+        nodeTypeIdx = len(self.graph.nodeTypes)+1
 
         self.graph.addNodeType(nodeTypeIdx, 
                                typeStr, 
@@ -2095,12 +2118,13 @@ class World:
                                staticProperies, 
                                dynamicProperies)
         self.nodeDict[nodeTypeIdx]      = list()
+        self.dataDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
         return nodeTypeIdx
 
 
-    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperies = ['type'], dynamicProperies=[]):
+    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperies = [], dynamicProperies=[]):
         """
         Method to register a edge type:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
@@ -2111,9 +2135,9 @@ class World:
         - update of enumerations
         """
         
-        assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
+        #assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
 
-        edgeTypeIdx = len(self.graph.edgeTypes)
+        edgeTypeIdx = len(self.graph.edgeTypes)+1
         self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
         self.enums[typeStr] = edgeTypeIdx
 
@@ -2129,7 +2153,7 @@ class World:
             - _loc2glob
         """
         #print 'assert' + str((len(self.entList), agent.nID))
-        assert len(self.entList) == agent.nID                                  ##OPTPRODUCTION
+        #assert len(self.entList) == agent.nID                                  ##OPTPRODUCTION
         self.entList.append(agent)
         self.entDict[agent.nID] = agent
         self._glob2loc[agent.gID] = agent.nID
@@ -2140,6 +2164,7 @@ class World:
         else:
             #print typ
             self.nodeDict[typ].append(agent.nID)
+            self.dataDict[typ].append(agent.dataID)
 
     def deRegisterNode(self):
         """
@@ -2154,8 +2179,10 @@ class World:
         del self.entDict[agent.nID]
         del self._glob2loc[agent.gID]
         del self._loc2glob[agent.gID]
-
-
+            
+        
+        self.nodeDict[self.nodeType].remove(agent.nID)
+        self.dataDict[self.nodeType].remove(agent.dataID)
 
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
@@ -2297,7 +2324,7 @@ class easyUI():
         
 if __name__ == '__main__':
 
-    earth = World(maxNodes = 1e2, nSteps = 10)
+    earth = World(0, '',maxNodes = 1e2, nSteps = 10)
 #
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
