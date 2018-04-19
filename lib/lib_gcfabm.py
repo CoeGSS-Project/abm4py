@@ -59,7 +59,10 @@ later:
 
 """
 
-import sys, mpi4py
+import sys
+sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+import mpi4py
 mpi4py.rc.threads = False
 sys_excepthook = sys.excepthook
 def mpi_excepthook(v, t, tb):
@@ -2297,16 +2300,16 @@ class easyUI():
         
 if __name__ == '__main__':
 
-    earth = World(maxNodes = 1e2, nSteps = 10)
+    earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
 #
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
-    earth.graph.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.graph.glob.registerValue('test' , np.asarray([earth.mpi.comm.rank]),'max')
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
     print earth.graph.glob['test']
     print earth.graph.glob['meantest']
-    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
+    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local mean: ',earth.glob['meantest']
     print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
     earth.graph.glob.sync()
     print earth.graph.glob['test']
