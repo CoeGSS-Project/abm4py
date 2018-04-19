@@ -147,7 +147,7 @@ if weakScaling:
 
 
 else:
-    layerShape = [64, 64]
+    layerShape = [32, 32]
     
     procPerDim = int(np.sqrt(mpiSize))
     factor = layerShape[0] / procPerDim
