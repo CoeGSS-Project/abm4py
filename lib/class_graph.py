@@ -666,7 +666,7 @@ class WorldGraphNP(BaseGraph):
         """
         nIDsOut = self.edges[eTypeID].nodesOut[lnID]
         
-        nTypeID, dataIDs = self.getNodeDataRef(self, nIDsOut)
+        nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)
         
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]
@@ -680,7 +680,7 @@ class WorldGraphNP(BaseGraph):
         """
         nIDsIn = self.edges[eTypeID].nodesIn[lnID]
         
-        nTypeID, dataIDs = self.getNodeDataRef(self, nIDsIn)
+        nTypeID, dataIDs = self.getNodeDataRef(nIDsIn)
         
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]

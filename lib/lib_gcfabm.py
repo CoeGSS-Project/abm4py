@@ -78,7 +78,7 @@ import numpy as np
 import time
 import random as rd
 from bunch import Bunch
-from class_graph import WorldGraph
+from class_graph import WorldGraphNP
 import class_auxiliary as aux
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
@@ -544,12 +544,14 @@ class Entity():
 
         return [edge.target for edge in edges]
 
-    def getPeers(self, edgeType=None):
-        return self._graph.vs[self.getPeerIDs(edgeType)]
+#    def getPeers(self, edgeType=None):
+#        return self._graph.vs[self.getPeerIDs(edgeType)]
+#        return self._graph.getOutNodeValues(self, self.nID, eTypeID, attr=None)
 
     def getPeerValues(self, prop, edgeType=None):
-        peerSeq = self.getPeers(edgeType)
-        return peerSeq[prop], peerSeq
+        #peerSeq = self.getPeers(edgeType)
+        #return peerSeq[prop], peerSeq
+        return self._graph.getOutNodeValues(self.nID, edgeType, attr=prop)
 
 
     def getEdgeValues(self, prop, edgeType):
@@ -1226,7 +1228,12 @@ class World:
 
 
                 # static data
-                staticRec  = self.Record(nAgents, world.dataDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
+                staticRec  = self.Record(nAgents, 
+                                         world.dataDict[nodeType], 
+                                         nAgentsGlob, 
+                                         loc2GlobIdx, 
+                                         nodeType, 
+                                         self.timeStepMag)
                 
                 attrInfo   = world.graph.getPropOfNodeType(nodeType, 'sta')
                 attributes = attrInfo['names']
@@ -1266,7 +1273,12 @@ class World:
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
                 # dynamic data
-                dynamicRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
+                dynamicRec = self.Record(nAgents, 
+                                         world.dataDict[nodeType], 
+                                         nAgentsGlob, 
+                                         loc2GlobIdx, 
+                                         nodeType, 
+                                         self.timeStepMag)
 
                 attrInfo   = world.graph.getPropOfNodeType(nodeType, 'dyn')
                 attributes = attrInfo['names']
@@ -1305,23 +1317,27 @@ class World:
                 
             lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-        def writeDataToFile(self, timeStep, nodeType, static=False):
+        def writeDataToFile(self, timeStep, nodeTypes, static=False):
             """
             Transfers data from the graph to record for the I/O
             and writing data to hdf5 file
             """
-            if static:
-                #for typ in self.staticData.keys():
-                self.staticData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
-                self.staticData[nodeType].writeData(self.h5File, folderName='static')
-            else:
-                #for typ in self.dynamicData.keys():
-                self.dynamicData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
-                self.dynamicData[nodeType].writeData(self.h5File)
+            if isinstance(nodeTypes,int):
+                nodeTypes = [nodeTypes]
+            
+            for nodeType in nodeTypes:
+                if static:
+                    #for typ in self.staticData.keys():
+                    self.staticData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
+                    self.staticData[nodeType].writeData(self.h5File, folderName='static')
+                else:
+                    #for typ in self.dynamicData.keys():
+                    self.dynamicData[nodeType].addData(timeStep, self._graph.nodes[nodeType])
+                    self.dynamicData[nodeType].writeData(self.h5File)
 
                    
 
-        def initEdgeFile(self, edfeTypes):
+        def initEdgeFile(self, edgeTypes):
             """
             ToDo
             """
@@ -1762,7 +1778,7 @@ class World:
         self.caching = caching  # flat that indicate that edges and peers are cached for faster access
 
         # GRAPH
-        self.graph    = WorldGraph(self, maxNodes, maxEdges)
+        self.graph    = WorldGraphNP(self, maxNodes, maxEdges)
         self.para['outPath'] = outPath
 
         
