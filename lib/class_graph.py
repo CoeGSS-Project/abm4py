@@ -231,7 +231,7 @@ class BaseGraph():
          else:
              dataview['active'] = True
              #print self.nodes[nTypeID].dtype.names
-             
+             #print kwProp.values()
              dataview[kwProp.keys()] = tuple(kwProp.values())
              
          self.nodes[nTypeID].nodeList.append(lnID)
@@ -265,6 +265,8 @@ class BaseGraph():
         if kwAttr is not None:
             for attrKey in kwAttr.keys():
                 nType[attrKey][dataIDs] = kwAttr[attrKey]
+                
+        return [dataID + nTypeID * self.maxNodes for dataID in dataIDs]
 
     def remNode(self, lnID):
         nTypeID = self.getNodeType(lnID)
@@ -300,17 +302,17 @@ class BaseGraph():
             return self.nodes[nTypeID][dataID]
         
         
-    def setNodeSeqAttr(self, lnID, label, value, nTypeID=None):
+    def setNodeSeqAttr(self, lnID, label, values, nTypeID=None):
        
         nTypeID, dataIDs = self.getNodeDataRef(lnID)
-        self.nodes[nTypeID][label][dataIDs] = value
+        self.nodes[nTypeID][label][dataIDs] = values
 
     def getNodeSeqAttr(self, lnIDs=None, label=None, nTypeID=None, dataIDs=None):
         
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         if label:
-            return self.nodes[nTypeID][dataIDs][label]
+            return self.nodes[nTypeID][label][dataIDs]
         else:
             return self.nodes[nTypeID][dataIDs]
 

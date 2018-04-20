@@ -145,7 +145,7 @@ if weakScaling:
 
 
 else:
-    layerShape = [32, 32]
+    layerShape = [8, 8]
     
     procPerDim = int(np.sqrt(mpiSize))
     factor = layerShape[0] / procPerDim
@@ -186,9 +186,9 @@ for x, y in locDict.keys():
     
     for iAgent in range(nAgentsCell):
         agent = LIB.Agent(earth,
-                      pos=(x, y),
-                      prop_A = float(iAgent),
-                      prop_B = np.random.random())
+                          pos=(x, y),
+                          prop_A = float(iAgent),
+                          prop_B = np.random.random())
         agent.register(earth, parentEntity=loc, edgeType=CON_AC)
         agent.loc.peList.append(agent.nID)
 

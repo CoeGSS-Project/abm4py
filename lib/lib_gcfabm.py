@@ -451,6 +451,11 @@ class Cache():
 ################ ENTITY CLASS #########################################
 # general ABM entity class for objects connected with the graph
 
+def deco(fun):
+    def helper(arg):
+        return fun(arg)[0]
+    return helper
+
 class Entity():
     """
     Most basic class from which agents of different type are derived
@@ -458,7 +463,7 @@ class Entity():
     __slots__ = ['gID', 'nID']
     
 
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, nID = -1, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
 
         if not hasattr(self, '_graph'):
@@ -473,14 +478,16 @@ class Entity():
         kwProperties['gID'] = self.gID
 
         # create instance from existing node
-        if nID is not None:
+        if nID is not -1:
+            if nID is None:
+                raise()
 
             self.nID = nID
             self._node = self._graph.nodes[nodeType][nID].view()
             #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
-            self.gID = self._node['gID']
+            self.gID = self.getValue('gID')
             # redireciton of internal functionality:
-            self.getValue = self._node.__getitem__
+            self.getValue = deco(self._node.__getitem__)
             self.setValue = self._node.__setitem__
             return
 
@@ -489,7 +496,7 @@ class Entity():
         self.nodeType = nodeType
         
         # redireciton of internal functionality:
-        self.getValue = self._node.__getitem__
+        self.getValue = deco(self._node.__getitem__)
         self.setValue = self._node.__setitem__
 
         if world.caching:
@@ -681,7 +688,7 @@ class Agent(Entity):
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in kwProperties.keys():
-            nID = None
+            nID = -1
         else:
             nID = kwProperties['nID']
         Entity.__init__(self, world, nID, **kwProperties)
@@ -807,7 +814,7 @@ class Agent(Entity):
 
 class GhostAgent(Entity):
     
-    def __init__(self, world, owner, nID=None, **kwProperties):
+    def __init__(self, world, owner, nID=-1, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(owner)
 
@@ -837,7 +844,7 @@ class Location(Entity):
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in kwProperties.keys():
-            nID = None
+            nID = -1
         else:
             nID = kwProperties['nID']
 
@@ -872,9 +879,9 @@ class GhostLocation(Entity):
     
     def getGlobID(self,world):
 
-        return None
+        return -1
 
-    def __init__(self, world, owner, nID=None, **kwProperties):
+    def __init__(self, world, owner, nID=-1, **kwProperties):
 
         Entity.__init__(self,world, nID, **kwProperties)
         self.mpiOwner = int(owner)
@@ -947,7 +954,10 @@ class World:
         def registerValue(self, globName, value, reduceType):
             self[globName] = value
             self.localValues[globName] = value
-            self.nValues[globName] = len(value)
+            try:
+                self.nValues[globName] = len(value)
+            except:
+                self.nValues[globName] = 1
             if reduceType not in self.reduceDict.keys():
                 self.reduceDict[reduceType] = list()
             self.reduceDict[reduceType].append(globName)
@@ -1444,17 +1454,19 @@ class World:
             return recvBuffer
 
 
-        def _packData(self, nodeType, mpiPeer, nodeSeq, propList, connList=None):
+        def _packData(self, nodeType, mpiPeer, propList, connList=None):
             """
             Privat method to pack all data for MPI transfer
             """
             dataSize = 0
-            nNodes = len(nodeSeq)
+            nNodes = len(self.mpiSendIDList[(nodeType,mpiPeer)])
             dataPackage = list()
             dataPackage.append((nNodes,nodeType))
             for prop in propList:
-                dataPackage.append(nodeSeq[prop])
-                dataSize += len(nodeSeq[prop])
+                
+                
+                dataPackage.append(np.rec.array(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop)))
+                dataSize += len(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
             if connList is not None:
                 dataPackage.append(connList)
                 dataSize += len(connList)
@@ -1522,19 +1534,25 @@ class World:
             tt = time.time()
             # acquire the global IDs for the ghostNodes
             mpiRequest = dict()
-            mpiReqIDList = dict()
+            
+            #ID list of ghost nodes that recieve updates from other processes
+            self.mpiRecvIDList = dict()
+            
+            #ID list of ghost nodes that send updates from other processes
+            self.mpiSendIDList = dict()
+            
             lg.debug('ID Array: ' + str(self.world.graph.IDArray))##OPTPRODUCTION
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
                 #print owner
-                x,y   = ghLoc._node['pos']
+                x,y   = ghLoc.getValue('pos')
                 if owner not in mpiRequest:
                     mpiRequest[owner]   = (list(), 'gID')
-                    mpiReqIDList[owner] = list()
+                    self.mpiRecvIDList[(locNodeType, owner)] = list()
 
                 mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
-                mpiReqIDList[owner].append(ghLoc.nID)
-            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))##OPTPRODUCTION
+                self.mpiRecvIDList[(locNodeType, owner)].append(ghLoc.nID)
+            lg.debug('rank ' + str(self.rank) + ' mpiRecvIDList: ' + str(self.mpiRecvIDList))##OPTPRODUCTION
 
             for mpiDest in mpiRequest.keys():
 
@@ -1553,26 +1571,34 @@ class World:
 
             for mpiDest in mpiRequest.keys():
 
-                self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
+                #self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiRecvIDList[mpiDest]] #sequence
 
                 # receive request of global IDs
                 lg.debug('receive request of global IDs from:  ' + str(mpiDest))##OPTPRODUCTION
                 #incRequest = self.comm.recv(source=mpiDest)
                 incRequest = requestIn[mpiDest][0]
+                
                 #pprint(incRequest)
-                iDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))##OPTPRODUCTION
-                self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[iDList]
+                lnIDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
+                #print lnIDList
+                lg.debug( str(self.rank) + ' - idlist:' + str(lnIDList))##OPTPRODUCTION
+                self.mpiSendIDList[(locNodeType,mpiDest)] = lnIDList
+                #self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[IDList]
                 #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
-                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))##OPTPRODUCTION
+                
+                lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr( lnIDList, label='gID')))##OPTPRODUCTION
 
-                for entity in [self.world.entList[i] for i in iDList]:
+                for entity in [self.world.entDict[i] for i in lnIDList]:
                     entity.mpiPeers.append(mpiDest)
 
                 # send requested global IDs
-                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))##OPTPRODUCTION
+                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
 
-                self._add2Buffer(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
+                #x = self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1])
+                #print x
+                #print type(x)
+                #print x.shape
+                self._add2Buffer(mpiDest,np.asarray(self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1])))
 
             requestRecv = self._all2allSync()
 
@@ -1580,11 +1606,13 @@ class World:
                 #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
                 #receive requested global IDs
                 globIDList = requestRecv[mpiDest][0]
-
-                self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
+                
+                #self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
+                print self.mpiRecvIDList[(locNodeType, mpiDest)]
+                self.world.graph.setNodeSeqAttr( self.mpiRecvIDList[(locNodeType, mpiDest)], label=['gID'], values=globIDList)
                 lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
-                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))##OPTPRODUCTION
-                for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
+                lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
+                for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
                     #print nID, gID
                     self.world._glob2loc[gID] = nID
                     self.world._loc2glob[nID] = gID
@@ -1605,15 +1633,15 @@ class World:
                 IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
                 connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
 
+                self.mpiSendIDList[(nodeType,mpiPeer)] = IDsList
 
-
-                nodeSeq = world.graph.vs[IDsList]
+                #nodeSeq = world.graph.vs[IDsList]
 
                 # setting up ghost out communication
-                self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
-                propList = world.graph.getPropOfNodeType(nodeType, kind='all')
-                #print propList
-                dataPackage, packageSize = self._packData( nodeType, mpiPeer, nodeSeq,  propList, connList)
+                #self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
+                propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
+                print propList
+                dataPackage, packageSize = self._packData( nodeType, mpiPeer,  propList, connList)
                 self._add2Buffer(mpiPeer, dataPackage)
                 messageSize = messageSize + packageSize
             recvBuffer = self._all2allSync()
@@ -1630,17 +1658,20 @@ class World:
 
                     nNodes, nodeType = dataPackage[0]
 
-                    nIDStart= world.graph.vcount()
-                    nIDs = range(nIDStart,nIDStart+nNodes)
-                    world.graph.add_vertices(nNodes)
-                    nodeSeq = world.graph.vs[nIDs]
+#                    nIDStart= world.graph.vcount()
+#                    nIDs = range(nIDStart,nIDStart+nNodes)
+#                    world.graph.add_vertices(nNodes)
+#                    nodeSeq = world.graph.vs[nIDs]
+
+                    lnIDs = world.addVertices(nodeType, nNodes)
 
                     # setting up ghostIn communicator
-                    self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
+                    #self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
 
                     propList = world.graph.getPropOfNodeType(nodeType, kind='all')
 
-
+                    print dataPackage
+                    print dataPackage[-1]
                     for i, prop in enumerate(propList):
                         nodeSeq[prop] = dataPackage[i+1]
 
@@ -1790,12 +1821,13 @@ class World:
             self.addEdge    = self.queue.addEdge
             self.addEdges   = self.queue.addEdges
             self.addVertex  = self.queue.addVertex
+            
         else:
-            self.addEdge    = self.graph.addEdge
-            self.addEdges   = self.graph.addEdges
-            self.delEdges    = self.graph.delete_edges
-            self.addVertex  = self.graph.addNode
-
+            self.addEdge        = self.graph.addEdge
+            self.addEdges       = self.graph.addEdges
+            self.delEdges       = self.graph.delete_edges
+            self.addVertex      = self.graph.addNode
+            self.addVertices    = self.graph.addNodes
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
         lg.debug('Init MPI done')##OPTPRODUCTION
@@ -2340,17 +2372,17 @@ class easyUI():
         
 if __name__ == '__main__':
 
-    earth = World(0, '',maxNodes = 1e2, nSteps = 10)
+    earth = World(0, '.',maxNodes = 1e2, nSteps = 10)
 #
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
-    earth.graph.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.graph.glob.registerValue('test' , earth.mpi.comm.rank,'max')
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
     print earth.graph.glob['test']
     print earth.graph.glob['meantest']
-    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
-    print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
+    print 'mean of values: ',earth.graph.glob['meantest'],'-> local maen: ',earth.graph.glob['meantest']
+    print 'std od values:  ',earth.graph.glob['stdtest'],'-> local std: ',earth.graph.glob['stdtest']
     earth.graph.glob.sync()
     print earth.graph.glob['test']
     print 'global mean: ', earth.graph.glob['meantest']
