@@ -33,12 +33,12 @@ class BaseGraph():
     
     CHUNK_SIZE = 1000
     
-    class NodeArray(np.rec.ndarray):
+    class NodeArray():
     
-        def __new__(cls, maxNodes, nTypeID, dtype):
+        def __init__(self, maxNodes, nTypeID, dtype):
             # Input array is an already formed ndarray instance
             # We first cast to be our class type
-            self = np.rec.array(np.empty(maxNodes, dtype)).view(cls)
+            self._data = np.rec.array(np.empty(maxNodes, dtype)).view()
             # add the new attribute to the created instance
             self.maxNodes       = maxNodes
             self.nType          = nTypeID
@@ -46,8 +46,9 @@ class BaseGraph():
             self.nodeList       = []
             self.freeRows       = []
             # Finally, we must return the newly created object:
-            return self
-
+            #return self
+            self.__getitem__    = self._data.__getitem__
+            
         def __array_finalize__(self, obj):
             # see InfoArray.__array_finalize__ for comments
             if obj is None: return
@@ -58,7 +59,7 @@ class BaseGraph():
             
 
         def __getattr__(self, attr):
-            try: return getattr(self, attr)
+            try: return getattr(self._data, attr)
             except AttributeError:
                 # extend interface to all functions from numpy
                 f = getattr(np, attr, None)
@@ -66,7 +67,9 @@ class BaseGraph():
                     return functools.partial(f, self)
                 else:
                     raise AttributeError(attr)
-                  
+        
+#        def __getitem__(self, attr):          
+#            return self._data.__getitem__([attr])
             
         def nCount(self):
             return len(self.nodeList)
@@ -225,7 +228,7 @@ class BaseGraph():
              #print lnID
              lnID = dataID + nTypeID * self.maxNodes
              #print dataID
-         dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
+         dataview = self.nodes[nTypeID]._data[dataID:dataID+1].view() 
          if attributes is not None:
              dataview[:] = (True,) + attributes
          else:
@@ -688,6 +691,10 @@ class WorldGraphNP(BaseGraph):
             return self.nodes[nTypeID][dataIDs][attr]
         else:
             return self.nodes[nTypeID][dataIDs]
+        
+    def getNodeView(self, lnID):
+        nTypeID, dataID = self.getNodeDataRef(lnID)
+        return self.nodes[nTypeID]._data[dataID:dataID+1].view() 
 
 class WorldGraph(Graph):
     """

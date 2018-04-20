@@ -109,7 +109,7 @@ earth = LIB.World(simNo,
               spatial=True,
               nSteps=parameters['nSteps'],
               maxNodes=1e6,
-              maxEdges=1e6,
+              maxEdges=1e7,
               debug=debug,
               mpiComm=mpiComm,
               caching=False,
@@ -118,12 +118,12 @@ earth = LIB.World(simNo,
 earth.setParameters(parameters)
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
-                                     staticProperies  = [('gID', np.int16,1),
+                                     staticProperies  = [('gID', np.int32,1),
                                                          ('pos', np.int16,2)],
                                      dynamicProperies = [('agentsPerCell', np.int16,1)])
 
 AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
-                                     staticProperies  = [('gID', np.int16,1),
+                                     staticProperies  = [('gID', np.int32,1),
                                                          ('pos', np.int16,2)],
                                      dynamicProperies = [('prop_A', np.float32,1),
                                                          ('prop_B', np.float32,1)])
@@ -145,7 +145,7 @@ if weakScaling:
 
 
 else:
-    layerShape = [8, 8]
+    layerShape = [64, 64]
     
     procPerDim = int(np.sqrt(mpiSize))
     factor = layerShape[0] / procPerDim

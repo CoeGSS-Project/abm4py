@@ -483,12 +483,15 @@ class Entity():
                 raise()
 
             self.nID = nID
-            self._node = self._graph.nodes[nodeType][nID].view()
+            #print nID , world.mpi.rank
+            
+            self._node = self._graph.getNodeView(nID)
+            self.getValue = deco(self._node.__getitem__)
+            self.setValue = self._node.__setitem__
             #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
             self.gID = self.getValue('gID')
             # redireciton of internal functionality:
-            self.getValue = deco(self._node.__getitem__)
-            self.setValue = self._node.__setitem__
+            
             return
 
         # create instance newly
@@ -891,7 +894,8 @@ class GhostLocation(Entity):
         Entity.register(self, world, parentEntity, edgeType, ghost= True)
 
     def registerChild(self, world, entity, edgeType=None):
-        world.addEdge(entity.nID,self.nID, type=edgeType)
+        world.addEdge(edgeType, entity.nID,self.nID)
+        
         entity.loc = self
 
  
@@ -1155,7 +1159,7 @@ class World:
                 self.header += [name] * nProp
 
             def initStorage(self, dtype):
-                print dtype
+                #print dtype
                 self.data = np.zeros([self.nAgents,self.nAttr ], dtype=dtype)
 
             def addData(self, timeStep, nodeData):
@@ -1176,7 +1180,7 @@ class World:
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
                 else:
                     path = '/' + str(self.nodeType)+ '/' + folderName
-                    print 'IO-path: ' + path
+                    #print 'IO-path: ' + path
                     self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
 
@@ -1277,7 +1281,7 @@ class World:
                 tt = time.time()
                 # allocate storage
                 staticRec.initStorage(attrDtype)
-                print attrInfo
+                #print attrInfo
                 
                 self.staticData[nodeType] = staticRec
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
@@ -1465,7 +1469,7 @@ class World:
             for prop in propList:
                 
                 
-                dataPackage.append(np.rec.array(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop)))
+                dataPackage.append(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
                 dataSize += len(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
             if connList is not None:
                 dataPackage.append(connList)
@@ -1594,11 +1598,11 @@ class World:
                 # send requested global IDs
                 lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
 
-                #x = self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1])
-                #print x
+                x = self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1])
+                #print 'global IDS' + str(x)
                 #print type(x)
                 #print x.shape
-                self._add2Buffer(mpiDest,np.asarray(self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1])))
+                self._add2Buffer(mpiDest,self.world.graph.getNodeSeqAttr( lnIDList, label=incRequest[1]))
 
             requestRecv = self._all2allSync()
 
@@ -1608,7 +1612,7 @@ class World:
                 globIDList = requestRecv[mpiDest][0]
                 
                 #self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
-                print self.mpiRecvIDList[(locNodeType, mpiDest)]
+                #print self.mpiRecvIDList[(locNodeType, mpiDest)]
                 self.world.graph.setNodeSeqAttr( self.mpiRecvIDList[(locNodeType, mpiDest)], label=['gID'], values=globIDList)
                 lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
                 lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
@@ -1640,7 +1644,7 @@ class World:
                 # setting up ghost out communication
                 #self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
-                print propList
+                #print propList
                 dataPackage, packageSize = self._packData( nodeType, mpiPeer,  propList, connList)
                 self._add2Buffer(mpiPeer, dataPackage)
                 messageSize = messageSize + packageSize
@@ -1663,22 +1667,25 @@ class World:
 #                    world.graph.add_vertices(nNodes)
 #                    nodeSeq = world.graph.vs[nIDs]
 
-                    lnIDs = world.addVertices(nodeType, nNodes)
-
+                    
+                    self.mpiRecvIDList[(nodeType, mpiPeer)] = world.addVertices(nodeType, nNodes)
                     # setting up ghostIn communicator
                     #self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
 
-                    propList = world.graph.getPropOfNodeType(nodeType, kind='all')
-
-                    print dataPackage
-                    print dataPackage[-1]
+                    propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
+                    #if self.world.mpi.rank == 0:
+                        #print dataPackage
+                    
+                        #print dataPackage[-1]
                     for i, prop in enumerate(propList):
-                        nodeSeq[prop] = dataPackage[i+1]
+                    #    nodeSeq[prop] = dataPackage[i+1]
+                        #print prop
+                        self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], label=prop, values=dataPackage[i+1])                        
 
                     gIDsCells = dataPackage[-1]
 
                     # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
-                    for nID, gID in zip(nIDs, gIDsCells):
+                    for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsCells):
 
                         GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
 
@@ -1686,7 +1693,7 @@ class World:
 
 
                         parentEntity = world.entDict[world._glob2loc[gID]]
-                        edgeType = world.graph.node2EdgeType[parentEntity._node['type'], nodeType]
+                        edgeType = world.graph.node2EdgeType[parentEntity.nodeType, nodeType]
 
 
                         agent.register(world, parentEntity, edgeType)
