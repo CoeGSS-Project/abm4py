@@ -568,12 +568,15 @@ class Entity():
         """
         privat function to access the values of  edges
         """
-        eList  = self._graph.outgoing(self.nID, edgeType)
+        (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, edgeType)
 
+        edgesValues = self._graph.getEdgeSeqAttr(label=prop, 
+                                                 eTypeID=eTypeID, 
+                                                 dataIDs=dataID)
 
-        edges = self._graph.edges[edgeType][eList]
+        
 
-        return edges[prop], edges
+        return edgesValues, nIDList
 
     def setEdgeValues(self, prop, values, edgeType=None):
         """
@@ -755,7 +758,7 @@ class Agent(Entity):
 
 
         #get spatial weights to all connected cells
-        cellConnWeights, edgeIds, cellIds = self.loc.getConnectedLocation()
+        cellConnWeights, cellIds = self.loc.getConnectedLocation()
         personIdsAll = list()
         nPers = list()
         cellWeigList = list()
@@ -874,9 +877,9 @@ class Location(Entity):
         """ 
         ToDo: check if not deprecated 
         """
-        self.weights, edges = self.getEdgeValues('weig',edgeType=edgeType)
-        self.connNodeDict = [edge.target for edge in edges ]
-        return self.weights, edges.indices, self.connNodeDict
+        self.weights, nodeIDList = self.getEdgeValues('weig',edgeType=edgeType)
+        
+        return self.weights,  nodeIDList
 
 class GhostLocation(Entity):
     
@@ -1464,16 +1467,25 @@ class World:
             """
             dataSize = 0
             nNodes = len(self.mpiSendIDList[(nodeType,mpiPeer)])
-            dataPackage = list()
-            dataPackage.append((nNodes,nodeType))
-            for prop in propList:
-                
-                
-                dataPackage.append(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
-                dataSize += len(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
+            
+            dataPackage = dict()
+            dataPackage['nNodes']  = nNodes
+            dataPackage['nTypeID'] = nodeType
+            
+            dataPackage['data'] = self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=propList)
+            dataSize += np.prod(dataPackage['data'].shape)
             if connList is not None:
-                dataPackage.append(connList)
+                dataPackage['connectedNodes'] = connList
                 dataSize += len(connList)
+#            for prop in propList:
+#                
+#                
+#                dataPackage.append(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
+#                dataSize += len(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
+            
+#                dataPackage.append(connList)
+#                dataSize += len(connList)
+                
             lg.debug('package size: ' + str(dataSize))
             return dataPackage, dataSize
 
@@ -1492,6 +1504,7 @@ class World:
                     if propertyList in ['all', 'dyn', 'sta']:
                         propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
                         propertyList.remove('gID')
+                        
                     lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeType ' + str(nodeType) + 'MPIMPIMPI')
                     dataPackage ,packageSize = self._packData(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
                     messageSize = messageSize + packageSize
@@ -1509,17 +1522,20 @@ class World:
 
 
                     for dataPackage in recvBuffer[mpiPeer]:
-                        mNodes, nodeType = dataPackage[0]
+                        nNodes   = dataPackage['nNodes']
+                        nodeType = dataPackage['nTypeID']
 
                         if propertyList == 'all':
                             propertyList= self.world.graph.nodeProperies[nodeType][:]
                             #print propertyList
                             propertyList.remove('gID')
-
-                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
+                        print type(self.ghostNodeRecv[nodeType, mpiPeer])
+#                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
                         for i, prop in enumerate(propertyList):
-                            nodeSeq[prop] = dataPackage[i+1]
-                            
+                           #nodeSeq[prop] = dataPackage[i+1]
+                            self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], 
+                                                            label=propertyList, 
+                                                            values=dataPackage['data'][prop])    
                             
             syncUnpackTime = time.time() -tt
 
@@ -1660,7 +1676,8 @@ class World:
 
             #%% create ghost agents from dataDict
 
-                    nNodes, nodeType = dataPackage[0]
+                    nNodes   = dataPackage['nNodes']
+                    nodeType = dataPackage['nTypeID']
 
 #                    nIDStart= world.graph.vcount()
 #                    nIDs = range(nIDStart,nIDStart+nNodes)
@@ -1673,19 +1690,24 @@ class World:
                     #self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
 
                     propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
+                    propList.append('gID')
                     #if self.world.mpi.rank == 0:
                         #print dataPackage
                     
                         #print dataPackage[-1]
                     for i, prop in enumerate(propList):
-                    #    nodeSeq[prop] = dataPackage[i+1]
+                        #nodeSeq[prop] = dataPackage[i+1]
                         #print prop
-                        self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], label=prop, values=dataPackage[i+1])                        
+                        self.world.graph.setNodeSeqAttr(lnID=self.mpiRecvIDList[(nodeType, mpiPeer)], 
+                                                        label=prop, 
+                                                        values=dataPackage['data'][prop])                        
 
-                    gIDsCells = dataPackage[-1]
+                    gIDsParents = dataPackage['connectedNodes']
+                    #print gIDsParents
+                    
 
                     # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
-                    for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsCells):
+                    for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsParents):
 
                         GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
 

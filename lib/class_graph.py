@@ -38,7 +38,7 @@ class BaseGraph():
         def __init__(self, maxNodes, nTypeID, dtype):
             # Input array is an already formed ndarray instance
             # We first cast to be our class type
-            self._data = np.rec.array(np.empty(maxNodes, dtype)).view()
+            self._data = np.array(np.empty(maxNodes, dtype)).view()
             # add the new attribute to the created instance
             self.maxNodes       = maxNodes
             self.nType          = nTypeID
@@ -102,9 +102,10 @@ class BaseGraph():
             pass
          
     
-    class EdgeArray(np.rec.ndarray):
-        def __new__(cls, maxEdges, eTypeID, dtype):
-            self = np.rec.array(np.empty(maxEdges, dtype=dtype)).view(cls)
+    class EdgeArray():
+        
+        def __init__(self, maxEdges, eTypeID, dtype):
+            self._data = np.array(np.empty(maxEdges, dtype=dtype)).view()
             
             self.maxEdges       = maxEdges
             self.eTypeID        = eTypeID
@@ -116,7 +117,8 @@ class BaseGraph():
             self.edgesIn        = dict() # (target -> leID)
             self.nodesOut       = dict() # (source -> target)
             self.nodesIn        = dict() # (target -> source)
-            return self
+            
+            
 
         def __array_finalize__(self, obj):
             # see InfoArray.__array_finalize__ for comments
@@ -128,15 +130,17 @@ class BaseGraph():
             
 
         def __getattr__(self, attr):
-            #try: return getattr(self, attr)
-            #except AttributeError:
+            try: return getattr(self._data, attr)
+            except AttributeError:
+                if attr == 'indices':
+                    return self.edgeList
                 # extend interface to all functions from numpy
-            f = getattr(np, attr, None)
-            if hasattr(f, '__call__'):
-                return functools.partial(f, self)
-            else:
-                raise AttributeError(attr)
-                
+                f = getattr(np, attr, None)
+                if hasattr(f, '__call__'):
+                    return functools.partial(f, self)
+                else:
+                    raise AttributeError(attr)
+                    
         def eCount(self):
             return len(self.edgeList)
         
@@ -262,7 +266,7 @@ class BaseGraph():
             dataIDs[:] = nType.freeRows[:nNodes]
             nType.freeRows = nType.freeRows[nNodes:]
    
-        nType.active[dataIDs] = True
+        nType['active'][dataIDs] = True
         
         # adding attributes
         if kwAttr is not None:
@@ -424,9 +428,9 @@ class BaseGraph():
             dataIDs[:] = eType.freeRows[:nEdges]
             eType.freeRows = eType.freeRows[nEdges:]
         
-        eType.source[dataIDs] = sources
-        eType.target[dataIDs] = targets    
-        eType.active[dataIDs] = True
+        eType['source'][dataIDs] = sources
+        eType['target'][dataIDs] = targets    
+        eType['active'][dataIDs] = True
               
         #updating edge dictionaries
         leIDs = dataIDs + eTypeID * self.maxNodes
@@ -484,15 +488,18 @@ class BaseGraph():
             return self.edges[eTypeID][dataID]
         
         
-    def setEdgeSeqAttr(self, leIDs, label, value, eTypeID=None):
-        
+    def setEdgeSeqAttr(self, leIDs, label, value, eTypeID=None, dataIDs=None):
+        if dataIDs is None:
+            assert leIDs is None        
         eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         
         self.edges[eTypeID][label][dataIDs] = value
     
-    def getEdgeSeqAttr(self, leIDs, label=None, eTypeID=None):
-       
-        eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
+    def getEdgeSeqAttr(self, leIDs=None, label=None, eTypeID=None, dataIDs=None):
+        
+        if dataIDs is None:
+            assert eTypeID is None
+            eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         
         if label:
             return self.edges[eTypeID][label][dataIDs]
@@ -510,15 +517,16 @@ class BaseGraph():
     def outgoing(self, lnID, eTypeID):
         """ Returns the dataIDs of all outgoing edges of the specified type"""
         try: 
-            return self.edges[eTypeID].edgesOut[lnID] 
+            return (eTypeID, self.edges[eTypeID].edgesOut[lnID]) , self.edges[eTypeID].nodesOut[lnID]
         except:
-            return []
+            return (None, []), []
+        
     def incomming(self, lnID, eTypeID):
         """ Returns the dataIDs of all incoming edges of the specified type"""
         try:
-            return self.edges[eTypeID].edgesIn[lnID]
+            return (eTypeID, self.edges[eTypeID].edgesIn[lnID]), self.edges[eTypeID].nodesIn[lnID]
         except:
-            return []
+            return (None, []), []
         
     def nCount(self, nTypeID=None):
         """Returns the number of nodes of all or a specific node type"""
@@ -840,7 +848,7 @@ if __name__ == "__main__":
     print bg.isConnected(lnID1, lnID3, LOCLOC)
     print bg.outgoing(lnID1, LOCLOC)
     print bg.eCount(LOCLOC)
-    #print bg.eAttr[1].target
+    #print bg.eAttr[1]['target']
     bg.remEdge(lnID1, lnID3, LOCLOC)
     
     print bg.isConnected(lnID1, lnID3, LOCLOC)
