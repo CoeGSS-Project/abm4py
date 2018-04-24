@@ -252,6 +252,7 @@ earth.io.initNodeFile(earth, [CELL, AGENT])
 #earth.io.gatherNodeData(0)
 #earth.io.writeDataToFile(0)
 #from tqdm import tqdm
+
 def stepFunction(earth):
     
     

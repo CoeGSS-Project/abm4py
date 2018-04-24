@@ -61,6 +61,8 @@ class BaseGraph():
         def __getattr__(self, attr):
             try: return getattr(self._data, attr)
             except AttributeError:
+                if attr == 'indices':
+                    return self.nodeList
                 # extend interface to all functions from numpy
                 f = getattr(np, attr, None)
                 if hasattr(f, '__call__'):
@@ -175,6 +177,7 @@ class BaseGraph():
         self.persEdgeAttr =[('active', np.bool_, 1),
                             ('source', np.int32, 1), 
                             ('target', np.int32, 1)]
+        
     #%% NODES
     def initNodeType(self, nodeName, attrDescriptor):
         
@@ -193,6 +196,7 @@ class BaseGraph():
         calculates the node type ID from local ID
         ONLY on node type per call
         """
+        
         try:
             return lnIDs[0] // self.maxNodes, lnIDs%self.maxNodes
             
@@ -200,6 +204,7 @@ class BaseGraph():
             try: 
                 return int(lnIDs[0] / self.maxNodes), [lnID%self.maxNodes for lnID in lnIDs]
             except:
+                
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
         
 #    def getNodeDataRef(self, lnID):
@@ -276,6 +281,8 @@ class BaseGraph():
         return [dataID + nTypeID * self.maxNodes for dataID in dataIDs]
 
     def remNode(self, lnID):
+        raise DeprecationWarning('not supported right now')
+        raise NameError('sorry')
         nTypeID = self.getNodeType(lnID)
         dataID = lnID - nTypeID * self.maxNodes
         self.freeNodeRows.append(dataID)
@@ -296,12 +303,12 @@ class BaseGraph():
             return self.nodes[nTypeIDs]['active'][dataIDs]
             
             
-    def setNodeAttr(self, lnID, label, value, nTypeID=None):
+    def setNodeAttr(self, label, value, lnID, nTypeID=None):
         
         nTypeID, dataID = self.getEdgeDataRef(lnID)
         self.nodes[nTypeID][label][dataID] = value
     
-    def getNodeAttr(self, lnID, label=None, nTypeID=None):
+    def getNodeAttr(self, label=None, lnID=None, nTypeID=None):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
             return self.nodes[nTypeID][label][dataID]
@@ -309,15 +316,18 @@ class BaseGraph():
             return self.nodes[nTypeID][dataID]
         
         
-    def setNodeSeqAttr(self, lnID, label, values, nTypeID=None):
-       
-        nTypeID, dataIDs = self.getNodeDataRef(lnID)
-        self.nodes[nTypeID][label][dataIDs] = values
-
-    def getNodeSeqAttr(self, lnIDs=None, label=None, nTypeID=None, dataIDs=None):
+    def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
         
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
+            
+        self.nodes[nTypeID][label][dataIDs] = values
+
+    def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
+        
+        if nTypeID is None:
+            nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
+        
         if label:
             return self.nodes[nTypeID][label][dataIDs]
         else:
@@ -487,15 +497,17 @@ class BaseGraph():
         else:
             return self.edges[eTypeID][dataID]
         
+
+    def setEdgeSeqAttr(self, label, values, leIDs=None, eTypeID=None, dataIDs=None):
         
-    def setEdgeSeqAttr(self, leIDs, label, value, eTypeID=None, dataIDs=None):
         if dataIDs is None:
-            assert leIDs is None        
-        eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
-        
-        self.edges[eTypeID][label][dataIDs] = value
+            eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
+        else:
+            assert leIDs is None    
+        #print eTypeID, dataIDs
+        self.edges[eTypeID][label][dataIDs] = values
     
-    def getEdgeSeqAttr(self, leIDs=None, label=None, eTypeID=None, dataIDs=None):
+    def getEdgeSeqAttr(self, label=None, leIDs=None, eTypeID=None, dataIDs=None):
         
         if dataIDs is None:
             assert eTypeID is None
@@ -554,7 +566,7 @@ class BaseGraph():
                            ('s3', np.str,20)])
         self.addNode(NT1,(1000, [1,2,3,4],44, 'foo' ))
         
-class WorldGraphNP(BaseGraph):
+class ABMGraph(BaseGraph):
     """
     World graph NP is a high-level API to contrl BaseGraph
     
@@ -686,6 +698,19 @@ class WorldGraphNP(BaseGraph):
         else:
             return self.nodes[nTypeID][dataIDs]
 
+    def setOutNodeValues(self, lnID, eTypeID, attr, values):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and outward direction
+        """
+        nIDsOut = self.edges[eTypeID].nodesOut[lnID]
+        
+        nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)
+        
+        
+        self.nodes[nTypeID][attr][dataIDs] = values
+        
+
     def getInNodeValues(self, lnID, eTypeID, attr=None):
         """
         Method to read the attributes of connected nodes via a 
@@ -699,6 +724,17 @@ class WorldGraphNP(BaseGraph):
             return self.nodes[nTypeID][dataIDs][attr]
         else:
             return self.nodes[nTypeID][dataIDs]
+
+    def setInNodeValues(self, lnID, eTypeID, attr, values):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and inward direction
+        """
+        nIDsIn = self.edges[eTypeID].nodesIn[lnID]
+        
+        nTypeID, dataIDs = self.getNodeDataRef(nIDsIn)
+        
+        self.edges[eTypeID][attr][dataIDs] = values
         
     def getNodeView(self, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
@@ -825,11 +861,11 @@ if __name__ == "__main__":
     lnID4, _, dataview4 = bg.addNode(LOC, (4, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    bg.getNodeAttr(lnID1)
-    bg.setNodeSeqAttr([lnID1, lnID2],'gnID',[12,13])
-    print bg.getNodeSeqAttr([lnID1, lnID2],'gnID')
-    print bg.getNodeAttr(lnID2)
-    print bg.getNodeSeqAttr(np.array([lnID1, lnID2]),'gnID')
+    bg.getNodeAttr(lnID=lnID1)
+    bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
+    print bg.getNodeSeqAttr('gnID', [lnID1, lnID2])
+    print bg.getNodeAttr(lnID=lnID2)
+    print bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2]))
     
     #%% edges
     LOCLOC = bg.initEdgeType('loc-loc', 
@@ -841,9 +877,9 @@ if __name__ == "__main__":
     
     
     
-    print bg.getEdgeSeqAttr([leID1, leID2], 'weig')
-    bg.setEdgeSeqAttr([leID1, leID2], 'weig', [.9, .1])
-    print bg.getEdgeSeqAttr([leID1, leID2], 'weig')
+    print bg.getEdgeSeqAttr('weig', [leID1, leID2])
+    bg.setEdgeSeqAttr('weig', [.9, .1], [leID1, leID2]) 
+    print bg.getEdgeSeqAttr('weig', [leID1, leID2])
     dataview4
     print bg.isConnected(lnID1, lnID3, LOCLOC)
     print bg.outgoing(lnID1, LOCLOC)
@@ -902,9 +938,9 @@ if __name__ == "__main__":
         
         for i in tqdm(range(nReadsOfNeigbours)):
             lnID  = bg.nodes[AGENT].nodeList[i]
-            eList = bg.outgoing(lnID,AGAG)
-            if len(eList)>0:
-                neigList  = bg.edges[AGAG]['target'][eList]
-                y = bg.getEdgeSeqAttr((1, eList),'weig')
-                x = bg.getNodeSeqAttr(neigList,'preferences')
+            (eType, dataIDs) , neigList = bg.outgoing(lnID,AGAG)
+            if len(dataIDs)>0:
+                neigList  = bg.edges[AGAG]['target'][dataIDs]
+                y = bg.getEdgeSeqAttr('weig', eTypeID=eType, dataIDs=dataIDs)
+                x = bg.getNodeSeqAttr('preferences', neigList)
                 
