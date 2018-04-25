@@ -1,0 +1,75 @@
+name,value, comment,
+linearCharging,1,               # if set to 1 charging develops lineaer after 2020
+hhAcceptFactor,1.,
+techExpBrown,2e10,              # inertial experience of brown
+techExpGreen,3e8,               # inertial experience of green
+techExpPublic,3e9,              # inertial experience of other
+techExpShared,1e9,              # inertial experience of other
+techExpNone,3e9,                # inertial experience of other
+################# Mobility types ############################,,
+################# BROWN          ############################,,
+initEmBrown,206.7,              # initial emissions of combustion engine car
+initPriceBrown,450.0,           # initial price of combution engine car
+priceReductionB,-3.45960751,    # price reduction through experience (brown)
+priceRedBCorrection,0.15,       # correction due to weight and comfort       
+emReductionB,-0.894311327388,   # emission reduction through experience (brown)
+emFactorB,9.20569967051,        # emission factor (brown)
+emLimitB,0.058279616211,        # emission limit (brown) gCO2 per kg car per km
+weightB, 1541, 		        # average weight of brown cars 
+#### Infrastructure Brown,,
+minConvB,0.3,                   # minimal convenience of combustion cars
+maxConvB,0.95,                   # maximal convenience of combustion cars
+sigmaConvB,2600.0,              # spread factor for convenience fo combustion cars
+muConvB,0,                      # argument value for conventience maximum
+################# GREEN          ############################,,
+initEmGreen,183.5,              # initial emissions of green cars
+initPriceGreen,1600.0,          # initial price of green engine car
+priceReductionG,-0.20919615,    # price reduction through experience (green)
+priceRedGCorrection,0.9,        # correction due to weight and comfort       
+emReductionG,-0.20919615,       # emission reduction through experience (green)
+emFactorG,0.31052309,           # emission factor (green)
+emLimitG,0.04178411,            # emission limit (green) gCO2 per kg car per km
+initEmGreen,183.5,              # initial emissions of green cars
+weightG, 1471,   		# average weight of green cars 
+#### Infrastructure GREEN,,
+minConvG,0.1,			# minimal convenience of e-cars
+maxConvG,0.8,			# maximal convenience of e-cars
+maxConvGInit,0.20,		# initial maximal initial convenience of e-cars
+sigmaConvGInit,1500.0,		# initial spread factor for convenience fo e-cars
+sigmaConvG,3500.0,		# spread factor for convenience fo combustion cars
+muConvGInit,2600.0,		# initial argument value for convenience maximum of e-cars
+muConvG,2600.0,	         	# argument value for convenience maximum of e-cars
+################# PUBLIC          ############################,,
+initEmPublic,81.0,             # initial emissions of other mobi
+initPricePublic,120.0,          # initial price of other mobility
+pt2030,0.8,			# reduction factor for public transport emissions in 2030 (compared to 2012)
+ptLimit,0.5, 			# reduction factor for public transport emissions limit (compared to 2012) 
+#### Infrastructure PUBLIC,,
+minConvP,0.10,			# initial maximal initial convenience of public transport
+maxConvP,0.70,			# initial maximal initial convenience of public transport
+sigmaConvP,3000.0,		# spread factor for convenience of public transport
+sigmaConvPInit,2000.0,		# initial spread factor for convenience of public transport
+muConvP,4000.0,		        # argument value for convenience maximum of public transport
+################# SHARED          ############################,,
+initEmShared,186.0,             # initial emissions of other mobi
+initPriceShared,350.0,          # initial price of other mobility
+initEmShared,186.0,             # initial emissions of other mobi
+weightS, 1400, 	        	# average weight of shared cars 
+#### Infrastructure SHARED,,
+minConvS,0.1,		        # initial maximal initial convenience of car sharing
+maxConvS,0.3,	  		# initial maximal initial convenience  of car sharing
+maxConvSInit,0.2,
+sigmaConvS,1200.0,		# spread factor for convenience  of car sharing
+sigmaConvSInit,600.0,		# spread factor for convenience  of car sharing
+muConvS,4000.0,	        	# argument value for convenience maximum of  of car sharing
+initMaturityS, 0.3,             # # initial maturity of shared
+################# NONE          ############################,,
+initEmNone,0.1,                # initial emissions of other none motorized
+initPriceNone,60.0,             # initial price of other mobility
+initMaturityN, 0.4,             # initial maturity of none motorized
+#### Infrastructure None,,
+minConvN,0.01,			# minimal convenience of non-motorized transport
+maxConvN,0.03,			# maximal convenience of non-motorized transport
+sigmaConvN,4000.0,		# initial spread factor for convenience of non-motorized transport
+sigmaConvNInit,200.0,		# initial spread factor for convenience of non-motorized transport
+muConvN,4000.0,   		# argument value for convenience maximum of non-motorized transport
