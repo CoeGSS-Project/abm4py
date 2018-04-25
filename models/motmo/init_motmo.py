@@ -55,22 +55,11 @@ long-term:
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-import mpi4py
-mpi4py.rc.threads = False
 import sys, os
 import socket
-import csv
-import time
-#import guppy
-from copy import copy
-from os.path import expanduser
-import pdb
-home = expanduser("~")
 
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
-
-
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
@@ -78,8 +67,21 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
 else:
+    
     import matplotlib
     matplotlib.use('Agg')
+    
+import mpi4py
+mpi4py.rc.threads = False
+
+
+import csv
+import time
+#import guppy
+from copy import copy
+from os.path import expanduser
+import pdb
+home = expanduser("~")
 
 #from deco_util import timing_function
 import numpy as np
@@ -95,7 +97,7 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-
+import logging as lg
 import matplotlib.pylab as plt
 import seaborn as sns; sns.set()
 sns.set_color_codes("dark")
@@ -103,7 +105,6 @@ sns.set_color_codes("dark")
 
 import pandas as pd
 from bunch import Bunch
-
 
 from scipy import signal
 
@@ -170,16 +171,16 @@ print 'import done'
 overallTime = time.time()
 ###### Enums ################
 #connections
-_cll = 1 # loc - loc
-_clh = 2 # loc - household
-_chh = 3 # household, household
-_chp = 4 # household, person
-_cpp = 5 # person, person
+CON_LL = 1 # loc - loc
+CON_LH = 2 # loc - household
+CON_HH = 3 # household, household
+CON_HP = 4 # household, person
+CON_PP = 5 # person, person
 
 #nodes
-_cell   = 1
-_hh     = 2
-_pers   = 3
+CELL   = 1
+HH     = 2
+PERS   = 3
 
 #time spans
 _month = 1
@@ -212,23 +213,34 @@ def scenarioTestSmall(parameterInput, dirPath):
     #spatial
     setup.reductionFactor = 5000
     setup.isSpatial       = True
-    setup.connRadius      = 2.0     # radíus of cells that get an connection
-    setup.landLayer   = np.asarray([[1     , 1, 1 , np.nan, np.nan],
-                                    [1     , 1, 1 , np.nan, 0     ],
-                                    [np.nan, 0, 0 , 0     , 0     ]])
+    setup.spatialRedFactor = 280.
     
-    setup.chargStat   = np.asarray([[0, 2, 2, 0, 0],
-                                    [0, 2, 1, 0, 0],
-                                    [0, 0, 0, 0, 0]])
+    setup.connRadius      = 2.0     # radíus of cells that get an connection
 
+    
     setup.population  = np.asarray([[c, a, b, 0, 0],
                                     [c, b, d, 0, f],
                                     [0, h, i, g, e]])
     
+    setup.landLayer  = setup.population.copy().astype(float)
+    setup.landLayer[setup.landLayer== 0.] = np.nan
+    
+    setup.landLayer  = (setup.landLayer*0.) +1.
+    
+    
     
     setup.cellSizeMap  = setup.landLayer * 15.
     
-    setup.regionIdRaster            = ((setup.landLayer*0)+1)*1518
+    setup.roadKmPerCell   = np.asarray([[1, 5, 3, 0, 0],
+                                        [1, 4, 4, 0, 1],
+                                        [0, 1, 1, 1, 1]]) / setup.cellSizeMap
+
+
+    
+    
+    
+    
+    setup.regionIdRaster            = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
@@ -268,8 +280,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
     #del dummy
 
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
-                   'population']:
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
+                    'population']:
         setup[paName] /= setup['reductionFactor']
 
     import pprint as pp
@@ -302,6 +314,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     #spatial
     setup.isSpatial         = True
+    setup.spatialRedFactor = 80.
     
     setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1 , 1, 1],
                                     [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 , 1, 0],
@@ -310,12 +323,14 @@ def scenarioTestMedium(parameterInput, dirPath):
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
                                     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
     
-    setup.chargStat   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
-                                    [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
-                                    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
-                                    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
-                                    [3, 4, 1, 1, 0, 1, 1, 0, 0, 0, 0 , 0, 1],
-                                    [6, 5, 2, 0, 0, 0, 1, 0, 0, 0, 0 , 1, 0]])    
+    setup.cellSizeMap  = setup.landLayer * 15.
+    
+    setup.roadKmPerCell   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
+                                        [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
+                                        [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
+                                        [2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
+                                        [3, 4, 1, 1, 2, 1, 1, 0, 0, 0, 0 , 0, 1],
+                                        [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]])     / setup.cellSizeMap
     a = 60000.
     b = 45000.
     c = 30000.
@@ -341,11 +356,11 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.landLayer  = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer== 0] = np.nan
 
-    setup.cellSizeMap  = setup.landLayer * 15.
+    
     if mpiSize == 1:
         setup.landLayer = setup.landLayer*0
 
-    setup.regionIdRaster    = ((setup.landLayer*0)+1)*1518
+    setup.regionIdRaster    = ((setup.landLayer*0)+1)*6321
     #setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *1519
     setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
@@ -379,7 +394,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
     # calculate dependent parameters
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
@@ -488,7 +503,7 @@ def scenarioNBH(parameterInput, dirPath):
     #setup['population']     /= setup['reductionFactor']
     #setup['urbanThreshold'] /= setup['reductionFactor']
     #setup['urbanCritical']  /= setup['reductionFactor']
-    #setup['puplicTransBonus']  /= setup['reductionFactor']
+    #setup['publicTransBonus']  /= setup['reductionFactor']
     #setup.convD /= setup['reductionFactor']
 
     # calculate dependent parameters
@@ -528,6 +543,7 @@ def scenarioGer(parameterInput, dirPath):
 
     #spatial
     setup.isSpatial     = True
+    setup.spatialRedFactor = 1.
     #setup.connRadius    = 3.5      # radíus of cells that get an connection
     #setup.reductionFactor = parameterInput['reductionFactor']
 
@@ -538,7 +554,7 @@ def scenarioGer(parameterInput, dirPath):
 
     #setup.landLayer[np.isnan(setup.landLayer)] = 0
     if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+        setup.landLayer = np.load(setup.resourcePath + 'partition_map_' + str(mpiSize) + '.npy')
     else:
 
         setup.landLayer=  np.load(setup.resourcePath + 'land_layer_186x219.npy')
@@ -554,11 +570,13 @@ def scenarioGer(parameterInput, dirPath):
     # bad bugfix for 4 cells
     #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
 
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+    setup.regionIDList  = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
-    setup.chargStat    = np.load(setup.resourcePath + 'charge_stations_186x219.npy')
+    setup.cellSizeMap   = np.load(setup.resourcePath + 'cell_area_186x219.npy')
 
-    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_area_186x219.npy')
+    setup.roadKmPerCell = np.load(setup.resourcePath + 'road_km_all_new_186x219.npy') / setup.cellSizeMap
+
+    
     
     # correction of ID map
     xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
@@ -573,6 +591,129 @@ def scenarioGer(parameterInput, dirPath):
             setup.regionIdRaster[x, y] = np.unique(reList)[0]
 
     assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
+
+
+    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
+    setup.regionIdRaster = setup.regionIdRaster.astype(int)
+
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    print setup.landLayer.shape
+    print setup.population.shape    
+    setup.landLayer[np.isnan(setup.population)] = np.nan
+
+
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+
+    #cars and infrastructure
+    setup.properties    = ['costs', 'emissions']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False
+
+    # redefinition of setup parameters from file
+    setup.update(parameterInput.toDict())
+
+    #setup.population = (setup.population ** .5) * 100
+    # Correciton of population depend parameter by the reduction factor
+    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
+                   'population']:
+        setup[paName] /= setup['reductionFactor']
+    for p in range(0, 105, 5) :
+        print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
+    #print 'max population' + str(np.nanmax(setup.population))
+    # calculate dependent parameters
+
+
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
+
+    nAgents = np.nansum(setup.population)
+    lg.info('Running with ' + str(nAgents) + ' agents')
+
+    return setup
+
+def scenarioLueneburg(parameterInput, dirPath):
+    setup = Bunch()
+
+    #general
+    setup.resourcePath = dirPath + '/resources_luen/'
+    setup.progressBar  = True
+    setup.allTypeObservations = True
+
+    #time
+    setup.nSteps           = 340     # number of simulation steps
+    setup.timeUnit         = _month  # unit of time per step
+    setup.startDate        = [01, 2005]
+    setup.burnIn           = 100
+    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+
+    #spatial
+    setup.isSpatial     = True
+    setup.spatialRedFactor = 350.
+    
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
+    #setup.reductionFactor = parameterInput['reductionFactor']
+
+    if hasattr(parameterInput, "reductionFactor"):
+        # overwrite the standart parameter
+        setup.reductionFactor = parameterInput.reductionFactor
+
+
+    #setup.landLayer[np.isnan(setup.landLayer)] = 0
+    if mpiSize > 1:
+        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+    else:
+
+        setup.landLayer=  np.load(setup.resourcePath + 'land_layer.npy')
+        setup.landLayer[setup.landLayer==0] = np.nan
+        setup.landLayer = setup.landLayer * 0
+
+    lg.info('max rank:' + str(np.nanmax(setup.landLayer)))
+
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
+    setup.population = np.load(setup.resourcePath + 'population.npy')
+    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster.npy')
+    # bad bugfix for 4 cells
+    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+
+    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+
+    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_size.npy')
+
+    setup.roadKmPerCell    = np.load(setup.resourcePath + 'road_km_per_cell.npy') / setup.cellSizeMap
+
+    
+    
+    # correction of ID map
+    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
+
+#    for x, y in zip(xList,yList):
+#        reList = []
+#        for dx in [-1, 0, 1]:
+#            for dy in [-1, 0, 1]:
+#                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
+#                    reList.append(setup.regionIdRaster[x+dx,y+dy])
+#        if len(np.unique(reList)) == 1:
+#            setup.regionIdRaster[x, y] = np.unique(reList)[0]
+#
+#    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
 
 
     setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
@@ -604,15 +745,23 @@ def scenarioGer(parameterInput, dirPath):
     #agents
     setup.randomAgents     = False
     setup.omniscientAgents = False
+    
+    publicTranportSetup(setup)
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
 
     #setup.population = (setup.population ** .5) * 100
     # Correciton of population depend parameter by the reduction factor
-    for paName in ['techExpBrown', 'techExpGreen','techExpPuplic', 'techExpShared' ,'techExpNone',
-                   'population']:
-        setup[paName] /= setup['reductionFactor']
+    for paName in ['techExpBrown', 
+                   'techExpGreen',
+                   'techExpPublic', 
+                   'techExpShared',
+                   'techExpNone']:
+        setup[paName] /= setup['reductionFactor'] *  setup.spatialRedFactor
+        
+    setup['population'] /= setup['reductionFactor']
+        
     for p in range(0, 105, 5) :
         print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
     #print 'max population' + str(np.nanmax(setup.population))
@@ -628,34 +777,177 @@ def scenarioGer(parameterInput, dirPath):
 
     return setup
 
-def scenarioChina(calibatationInput):
-    pass
+def scenarioTest(parameterInput, dirPath):
+    
+    setup = Bunch()
+
+    #general
+    setup.resourcePath = None
+    setup.progressBar  = True
+    setup.allTypeObservations = True
+
+    #time
+    setup.nSteps           = 10     # number of simulation steps
+    setup.timeUnit         = _month  # unit of time per step
+    setup.startDate        = [01, 2005]
+    setup.burnIn           = 0
+    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
+
+    #spatial
+    setup.isSpatial     = True
+    setup.spatialRedFactor = 1.
+    #setup.connRadius    = 3.5      # radíus of cells that get an connection
+    #setup.reductionFactor = parameterInput['reductionFactor']
+
+    setup.landLayer = np.zeros([2, mpiSize])
+    setup.landLayer[0,:] = np.asarray(range(mpiSize))
+    setup.landLayer[1,:] = np.asarray(range(mpiSize))
+
+    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
+    setup.population = setup.landLayer * 5
+    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
+    setup.regionIdRaster = setup.landLayer * 99
+    # bad bugfix for 4 cells
+    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
+
+    setup.regionIDList  = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
+
+    setup.cellSizeMap   = setup.landLayer * 1.
+
+    setup.roadKmPerCell = setup.landLayer * 2.
+
+    
+    
+    # correction of ID map
+    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
+
+    setup.randomCarPropDeviationSTD = .05
+    setup.connRadius = 2.
+    setup.reductionFactor = 2.
+
+    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
+    setup.regionIdRaster = setup.regionIdRaster.astype(int)
+
+    if False:
+        try:
+            #plt.imshow(setup.landLayer)
+            plt.imshow(setup.population,cmap='jet')
+            plt.clim([0, np.nanpercentile(setup.population,90)])
+            plt.colorbar()
+        except:
+            pass
+    
+    #setup.landLayer[np.isnan(setup.population)] = np.nan
 
 
+    #social
+    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
+    setup.recAgent      = []       # reporter agents that return a diary
+
+    #output
+    setup.writeOutput   = 1
+    setup.writeNPY      = 1
+    setup.writeCSV      = 0
+
+    #cars and infrastructure
+    setup.properties    = ['costs', 'emissions']
+
+    #agents
+    setup.randomAgents     = False
+    setup.omniscientAgents = False
+
+    # redefinition of setup parameters from file
+    setup.update(parameterInput.toDict())
+
+
+    lg.info( "Final setting of the parameters")
+    lg.info( parameterInput)
+    lg.info( "####################################")
+
+    nAgents = np.nansum(setup.population)
+    lg.info('Running with ' + str(nAgents) + ' agents')
+
+    return setup
+
+    
 ###############################################################################
 ###############################################################################
 
 # %% Setup functions
 
+def convolutionMatrix(radius, centerWeight):
+    convMat = np.zeros([radius*2+1,radius*2+1])
+    for dx in np.arange(-radius, radius+1):
+        for dy in np.arange(-radius, radius+1):
+            if dx == 0 and dy == 0:
+                convMat[radius+dx,radius+dy] = centerWeight
+            else:
+                convMat[radius+dx,radius+dy] = 1./np.sqrt(dx**2 + dy**2) 
+                
+    return convMat
+
+def publicTranportSetup(setup):
+    """
+    computation of the convenience of puplic transport for the Luenburg case
+    """
+    
+
+
+    
+        
+    busMap = np.load(setup.resourcePath + 'nBusStations.npy')
+    trainMap = np.load(setup.resourcePath + 'nTrainStations.npy')
+    
+    #density proxi
+    convMat = convolutionMatrix(5,2)
+    bus_station_density = signal.convolve2d(busMap,convMat,boundary='symm',mode='same')  #/ sumConv
+    bus_station_density[busMap==0] = 0
+    
+    convMat = convolutionMatrix(20,2)
+    train_station_density = signal.convolve2d(trainMap,convMat,boundary='symm',mode='same')
+    train_station_density[trainMap==0] = 0
+    
+    # convolution of the station influence
+    convMat = convolutionMatrix(1,2) / 2.
+    
+    tmp1 = .5 * signal.convolve2d(bus_station_density,convMat,boundary='symm',mode='same')
+    tmp2 = 5 *signal.convolve2d(train_station_density,convMat,boundary='symm',mode='same')   
+    
+    convPup = np.log(1 + tmp1 + tmp2) # one is is used so that log(1) = 0
+
+        
+    setup['conveniencePublic'] = convPup / np.max(convPup) * .6
+
 # Mobility setup setup
 def mobilitySetup(earth):
     parameters = earth.getParameter()
 
+    # define convenience functions
     def convenienceBrown(density, pa, kappa, cell):
-
+        
         conv = pa['minConvB'] +\
         kappa * (pa['maxConvB'] - pa['minConvB']) * \
         np.exp( - (density - pa['muConvB'])**2 / (2 * pa['sigmaConvB']**2))
         return conv
 
     def convenienceGreen(density, pa, kappa, cell):
+        
         conv = pa['minConvG'] + \
         (pa['maxConvGInit']-pa['minConvG']) * \
         (1 - kappa)  * np.exp( - (density - pa['muConvGInit'])**2 / (2 * pa['sigmaConvGInit']**2)) +  \
         (pa['maxConvG'] - pa['minConvG']) * kappa * (np.exp(-(density - pa['muConvG'])**2 / (2 * pa['sigmaConvB']**2)))
+        
+        
         return conv
 
-    def conveniencePuplic(density, pa, kappa, cell):
+
+    def conveniencePublicLeuphana(density, pa, kappa, cell):
+        
+        currKappa   = (1 - kappa) * pa['maxConvGInit'] + kappa * pa['maxConvG']
+        return pa['conveniencePublic'][cell._node['pos']] * currKappa
+
+
+    def conveniencePublic(density, pa, kappa, cell):
         conv = pa['minConvP'] + \
         ((pa['maxConvP'] - pa['minConvP']) * (kappa)) * \
         np.exp(-(density - pa['muConvP'])**2 / (2 * ((1 - kappa) * \
@@ -674,9 +966,7 @@ def mobilitySetup(earth):
                     np.exp( - (density - pa['muConvS'])**2 / (2 * ((1-kappa) * \
                     pa['sigmaConvSInit'] + (kappa * pa['sigmaConvS']))**2) )        
         return conv
-    
-
-    
+        
     def convenienceNone(density, pa, kappa, cell):
         conv = pa['minConvN'] + \
         ((pa['maxConvN'] - pa['minConvN']) * (kappa)) * \
@@ -684,71 +974,91 @@ def mobilitySetup(earth):
                    pa['sigmaConvNInit'] + (kappa * pa['sigmaConvN']))**2))        
         return conv
 
+
     from collections import OrderedDict
-    propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceBrown'], parameters['initPriceBrown']/10.
-    propDict['emissions'] = parameters['initEmBrown'], 120. # init, lim
     
-    earth.registerBrand('brown',                                #name
-                    propDict,                               #(emissions, TCO)
-                    convenienceBrown,                       # convenience function
-                    'start',                                # time step of introduction in simulation
-                    parameters['techSlopeBrown'],            # initial technical progress
-                    parameters['techProgBrown'],           # slope of technical progress
-                    parameters['techExpBrown'])             # initial experience
+    # register brown:
+    propDict = OrderedDict()
+    propDict['costs']     = parameters['initPriceBrown'] #, parameters['initPriceBrown']/10.
+    propDict['emissions'] = parameters['initEmBrown'] #, 120. # init, lim
+    
+    earth.registerGood('brown',                                # name
+                    propDict,                                  # (emissions, TCO)
+                    convenienceBrown,                          # convenience function
+                    'start',                                   # time step of introduction in simulation
+                    #parameters['techSlopeBrown'],              # initial technical progress
+                    #parameters['techProgBrown'],               # slope of technical progress
+                    initExperience = parameters['techExpBrown'], # initial experience
+                    priceRed = parameters['priceReductionB'],  # exponent for price reduction through learning by doing
+                    emRed    = parameters['emReductionB'],     # exponent for emission reduction through learning by doing
+                    emFactor = parameters['emFactorB'],        # factor for emission reduction through learning by doing
+                    emLimit  = parameters['emLimitB'],         # emission limit
+                    weight   = parameters['weightB'])          # average weight
 
+    # register green:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceGreen'], parameters['initPriceGreen']/10.
-    propDict['emissions'] = parameters['initEmGreen'], 70. # init, lim
-    
-    
-    earth.registerBrand('green',                                                        #name
-                    propDict,       #(emissions, TCO)
-                    convenienceGreen,
+    propDict['costs']     = parameters['initPriceGreen']#, parameters['initPriceGreen']/10.
+    propDict['emissions'] = parameters['initEmGreen']#, 70. # init, lim    
+    earth.registerGood('green',                                #name
+                    propDict,                                  # (emissions, TCO)
+                    convenienceGreen,                          # convenience function
                     'start',
-                    parameters['techSlopeGreen'],           # initial technical progress
-                    parameters['techProgGreen'],            # slope of technical progress
+                    #parameters['techSlopeGreen'],              # initial technical progress
+                    #parameters['techProgGreen'],               # slope of technical progress
+                    initExperience = parameters['techExpGreen'],                # initial experience
+                    priceRed = parameters['priceReductionG'],  # exponent for price reduction through learning by doing
+                    emRed    = parameters['emReductionG'],     # exponent for emission reduction through learning by doing
+                    emFactor = parameters['emFactorG'],        # factor for emission reduction through learning by doing
+                    emLimit  = parameters['emLimitG'],         # emission limit
+                    weight   = parameters['weightG'])          # average weight
 
-                    parameters['techExpGreen'])             # initial experience
-
+    # register public:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPricePuplic'], parameters['initPricePuplic']/10.
-    propDict['emissions'] = parameters['initEmPuplic'], 30. # init, lim
-    
-    
-    earth.registerBrand('public',  #name
+    if parameters['scenario'] == 2:
+        convFuncPublic = conveniencePublicLeuphana
+    else:
+        convFuncPublic = conveniencePublic
+    propDict['costs']     = parameters['initPricePublic']#, parameters['initPricePublic']/10.
+    propDict['emissions'] = parameters['initEmPublic']#, 30. # init, lim   
+    earth.registerGood('public',  #name
                     propDict,   #(emissions, TCO)
-                    conveniencePuplic,
+                    convFuncPublic,
                     'start',
-                    parameters['techSlopePuplic'],           # initial technical progress
-                    parameters['techProgPuplic'],            # slope of technical progress
-                    parameters['techExpPuplic'])             # initial experience
+                    initExperience = parameters['techExpPublic'],
+                    pt2030  = parameters['pt2030'],          # emissions 2030 (compared to 2012)
+                    ptLimit = parameters['ptLimit'])         # emissions limit (compared to 2012)
 
-
+                    #parameters['techSlopePublic'],           # initial technical progress
+                    #parameters['techProgPublic'],            # slope of technical progress
+                    #parameters['techExpPublic'])             # initial experience
+                    
+    # register shared:
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceShared'],  parameters['initPriceShared']/10.
-    propDict['emissions'] = parameters['initEmShared'], 50. # init, lim
-    
-    
-    earth.registerBrand('shared',  #name
-                    propDict,   #(emissions, TCO)
+    propDict['costs']     = parameters['initPriceShared']#,  parameters['initPriceShared']/10.
+    propDict['emissions'] = parameters['initEmShared']#, 50. # init, lim    
+    earth.registerGood('shared', # name
+                    propDict,    # (emissions, TCO)
                     convenienceShared,
                     'start',
-                    parameters['techSlopeShared'],           # initial technical progress
-                    parameters['techProgShared'],            # slope of technical progress
-                    parameters['techExpShared'])             # initial experience
-
-    earth.para['nMobTypes'] = len(earth.enums['brands'])
+                    initExperience = parameters['techExpShared'],
+                    #parameters['techSlopeShared'],           # initial technical progress
+                    #parameters['techProgShared'],            # slope of technical progress
+                    #parameters['techExpShared'])             # initial experience
+                    weight = parameters['weightS'],           # average weight
+                    initMaturity = parameters['initMaturityS']) # initital maturity
+    # register none:    
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceNone'],  parameters['initPriceNone']/10.
-    propDict['emissions'] = parameters['initEmNone'], 2.0 # init, lim
-    earth.registerBrand('none',  #name
+    propDict['costs']    = parameters['initPriceNone']#,  parameters['initPriceNone']/10.
+    propDict['emissions'] = parameters['initEmNone']#, 1.0 # init, lim
+    earth.registerGood('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
                     'start',
-                    parameters['techSlopeNone'],            # initial technical progress
-                    parameters['techProgNone'],           # slope of technical progress
-                    parameters['techExpNone'])             # initial experience
+                    initExperience = parameters['techExpNone'],
+                    initMaturity = parameters['initMaturityN']) # initital maturity
+                    #parameters['techSlopeNone'],           # initial technical progress
+                    #parameters['techProgNone'],            # slope of technical progress
+                    #parameters['techExpNone'])             # initial experience
     
 
     earth.para['nMobTypes'] = len(earth.enums['brands'])
@@ -756,12 +1066,22 @@ def mobilitySetup(earth):
     ##############################################################################
 
 def householdSetup(earth, calibration=False):
+    
+    #enumerations for h5File - second dimension
+    H5NPERS  = 0
+    H5AGE = 1
+    H5GENDER = 2
+    H5INCOME = 3
+    H5HHTYPE = 4
+    H5MOBDEM = [5, 6, 7, 8, 9]
+    
+    
     parameters = earth.getParameter()
     tt = time.time()
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 100 # additional agents that are loaded 
+    overheadAgents = 1000 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -794,7 +1114,7 @@ def householdSetup(earth, calibration=False):
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
         # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
-        h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + '.hdf5', 'r')
+        h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + 'new.hdf5', 'r')
     mpi.Barrier()
 
     for i, region in enumerate(regionIdxList):
@@ -802,7 +1122,7 @@ def householdSetup(earth, calibration=False):
 #            offset= 398700
 #        else:
 
-        offset =0
+        offset = 0
 
 
         agentStart = int(np.sum(nAgentsOnProcess[:mpi.rank,i]))
@@ -810,9 +1130,10 @@ def householdSetup(earth, calibration=False):
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
         lg.debug('Vertex count: ' + str(earth.graph.vcount()))
+        
         if earth.debug:
-
-            earth.view(str(earth.mpi.rank) + '.png')
+            pass
+            #earth.view(str(earth.mpi.rank) + '.png')
 
 
         dset = h5Files[i].get('people')
@@ -827,10 +1148,10 @@ def householdSetup(earth, calibration=False):
         idx = 0
         # find the correct possition in file
         nPers = int(hhData[i][idx, 0])
-        if np.sum(np.diff(hhData[i][idx:idx+nPers, 0])) !=0:
+        if np.sum(np.diff(hhData[i][idx:idx+nPers, H5NPERS])) !=0:
 
             #new index for start of a complete household
-            idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers, 0]) != 0)[0][0]
+            idx = idx + np.where(np.diff(hhData[i][idx:idx+nPers, H5NPERS]) != 0)[0][0]
         currIdx[i] = int(idx)
 
 
@@ -854,10 +1175,10 @@ def householdSetup(earth, calibration=False):
 
         while 1:
             successFlag = False
-            nPers   = int(hhData[regionIdx][currIdx[regionIdx], 0])
+            nPers   = int(hhData[regionIdx][currIdx[regionIdx], H5NPERS])
             #print nPers,'-',nAgents
-            ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 1])
-            genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, 2])
+            ages    = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5AGE])
+            genders = list(hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5GENDER])
             
             nAdults = np.sum(np.asarray(ages)>= 18)
             nKids = np.sum(np.asarray(ages) < 18)
@@ -872,13 +1193,17 @@ def householdSetup(earth, calibration=False):
                 print 'asked size: ' + str(currIdx[regionIdx] + nPers)
                 print 'hhDate shape: ' + str(hhData[regionIdx].shape)
 
-            income = hhData[regionIdx][currIdx[regionIdx], 3]
+            income = hhData[regionIdx][currIdx[regionIdx], H5INCOME]
+            hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
 
             # set minimal income
+            #income *= (1.- (0.1 * max(3, nKids))) # reduction fo effective income by kids
             income = max(400., income)
-            income *= parameters['mobIncomeShare']
+            income *= parameters['mobIncomeShare'] 
 
-            
+
+            nJourneysPerPerson = hhData[regionIdx][currIdx[regionIdx]:currIdx[regionIdx]+nPers, H5MOBDEM]
+
 
             # creating houshold
             hh = Household(earth,
@@ -888,11 +1213,12 @@ def householdSetup(earth, calibration=False):
                            income=income,
                            expUtil=0,
                            util=0,
-                           expenses=0)
+                           expenses=0,
+                           hhType=hhType)
 
             hh.adults = list()
-            hh.register(earth, parentEntity=loc, edgeType=_clh)
-            #hh.registerAtLocation(earth,x,y,_hh,_clh)
+            hh.register(earth, parentEntity=loc, edgeType=CON_LH)
+            #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
             hh.loc.addValue('population',  nPers)
             
@@ -908,24 +1234,25 @@ def householdSetup(earth, calibration=False):
                 prefTuple = opinion.getPref(ages[iPers], genders[iPers], nKids, nPers, income, parameters['radicality'])
 
                 
-                
+                assert len(nJourneysPerPerson[iPers]) == 5##OPTPRODUCTION
                 pers = Person(earth,
-                              preferences = prefTuple,
+                              preferences = np.asarray(prefTuple),
                               hhID        = hh.gID,
                               gender      = genders[iPers],
                               age         = ages[iPers],
+                              nJourneys   = nJourneysPerPerson[iPers],
                               util        = 0.,
-                              commUtil    = [0.5, 0.1, 0.4, 0.3, 0.1], # [0.5]*parameters['nMobTypes'],
-                              selfUtil    = [np.nan]*parameters['nMobTypes'],
+                              commUtil    = np.asarray([0.5, 0.1, 0.4, 0.3, 0.1]), # [0.5]*parameters['nMobTypes'],
+                              selfUtil    = np.asarray([np.nan]*parameters['nMobTypes']),
                               mobType     = 0,
-                              prop        = [0]*len(parameters['properties']),
-                              consequences= [0]*len(prefTuple),
+                              prop        = np.asarray([0.]*len(parameters['properties'])),
+                              consequences= np.asarray([0.]*len(prefTuple)),
                               lastAction  = 0,
-                              ESSR        = 1,
-                              peerBubbleHeterogeneity = 0.)
+                              hhType      = hhType,
+                              emissions   = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
-                pers.register(earth, parentEntity=hh, edgeType=_chp)
+                pers.register(earth, parentEntity=hh, edgeType=CON_HP)
                 
                 successFlag = True
             
@@ -953,12 +1280,18 @@ def householdSetup(earth, calibration=False):
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
 
-    for ghostCell in earth.iterEntRandom(_cell, ghosts = True, random=False):
-        ghostCell.updatePeList(earth.graph)
-        ghostCell.updateHHList(earth.graph)
-
-    
-    for hh in earth.iterEntRandom(_hh, ghosts = False, random=False):
+#    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
+#        if mpiRank == 0:
+#            print ghostCell.peList
+#        ghostCell.hhList = ghostCell.updateAgentList(earth.graph, CON_LH)
+#        if mpiRank == 0:
+#            print ghostCell.peList
+#        asd
+#        #ghostCell.peList = ghostCell.updatePeList(earth.graph, CON_)
+#        #ghostCell.peList = None
+#        print ghostCell.peList
+        
+    for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
         hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
@@ -966,6 +1299,10 @@ def householdSetup(earth, calibration=False):
     earth.mpi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
             ' Housholds created in -- ' + str(time.time() - tt) + ' s')
+    
+    if mpiRank == 0:
+        print'Household setup done'
+            
     return earth
 
 
@@ -998,6 +1335,10 @@ def initEarth(simNo,
 
     earth.market.mean = np.array([400., 300.])
     earth.market.std  = np.array([100., 50.])
+    
+    earth.market.initExogenousExperience(parameters['scenario'])
+
+    
     #init location memory
     earth.enums = dict()
 
@@ -1027,73 +1368,79 @@ def initEarth(simNo,
     earth.enums['mobilityTypes']    = dict()
     earth.enums['mobilityTypes'][1] = 'green'
     earth.enums['mobilityTypes'][0] = 'brown'
-    earth.enums['mobilityTypes'][2] = 'Pupic'
-    earth.enums['mobilityTypes'][3] = 'Shared'
-    earth.enums['mobilityTypes'][4] = 'None'
+    earth.enums['mobilityTypes'][2] = 'public transport'
+    earth.enums['mobilityTypes'][3] = 'shared mobility'
+    earth.enums['mobilityTypes'][4] = 'None motorized'
 
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
-
+    if mpiRank == 0:
+        print'Earth init done'
     return earth
 
 def initTypes(earth):
     parameters = earth.getParameter()
-    _cell    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
+    CELL    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
                                staticProperies  = ['type',
                                                    'gID',
                                                    'pos',
                                                    'regionId',
-                                                   'popDensity'],
-                               dynamicProperies = ['population',
-                                                   'convenience',
+                                                   'popDensity',
+                                                   'population'],
+                               dynamicProperies = ['convenience',
                                                    'carsInCell',
-                                                   'chargStat'])
+                                                   'chargStat',
+                                                   'emissions',
+                                                   'electricConsumption'])
 
 
-    _hh = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
+    HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
                                staticProperies  = ['type',
                                                    'gID',
                                                    'pos',
                                                    'hhSize',
-                                                   'nKids'],
+                                                   'nKids',
+                                                   'hhType'],
                                dynamicProperies =  ['income',
                                                    'expUtil',
                                                    'util',
                                                    'expenses'])
 
 
-    _pers = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
+    PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
                                 staticProperies = ['type',
                                                    'gID',
                                                    'hhID',
                                                    'preferences',
-                                                   'gender'],
+                                                   'gender',
+                                                   'nJourneys',
+                                                   'hhType'],
                                 dynamicProperies = ['age',
-                                                  'util',     # current utility
-                                                  'commUtil', # comunity utility
-                                                  'selfUtil', # own utility at time of action
-                                                  'mobType',
-                                                  'prop',
-                                                  'consequences',
-                                                  'lastAction',
-                                                  'ESSR',
-                                                  'peerBubbleHeterogeneity'])
+                                                   'util',     # current utility
+                                                   'commUtil', # comunity utility
+                                                   'selfUtil', # own utility at time of action
+                                                   'mobType',
+                                                   'prop',
+                                                   'consequences',
+                                                   'lastAction',
+                                                   'emissions'])
 
 
-    earth.registerEdgeType('cell-cell', _cell, _cell, ['type','weig'])
-    earth.registerEdgeType('cell-hh', _cell, _hh)
-    earth.registerEdgeType('hh-hh', _hh,_hh)
-    earth.registerEdgeType('hh-pers', _hh, _pers)
-    earth.registerEdgeType('pers-pers', _pers, _pers, ['type','weig'])
+    earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
+    earth.registerEdgeType('cell-hh', CELL, HH)
+    earth.registerEdgeType('hh-hh', HH,HH)
+    earth.registerEdgeType('hh-pers', HH, PERS)
+    earth.registerEdgeType('pers-pers', PERS, PERS, ['type','weig'])
 
+    if mpiRank == 0:
+        print'Initialization of types done'
 
-
-    return _cell, _hh, _pers
+    return CELL, HH, PERS
 
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
     connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.initSpatialLayer(parameters['landLayer'],
-                           connList, _cell,
+                           connList, CELL,
                            LocClassObject=Cell,
                            GhstLocClassObject=GhostCell)
     
@@ -1105,30 +1452,57 @@ def initSpatialLayer(earth):
     tmp[np.isnan(tmp)] = 0
     smoothedCellSize   = signal.convolve2d(tmp,convMat,boundary='symm',mode='same')
 
-    popDensity = smoothedPopulation / smoothedCellSize
-
+    
+    popDensity = np.divide(smoothedPopulation, 
+                           smoothedCellSize, 
+                           out=np.zeros_like(smoothedPopulation), 
+                           where=smoothedCellSize!=0)
+    popDensity[popDensity>4000.]  = 4000.
+    
+#    plt.clf()
+#    plt.imshow(popDensity)
+#    plt.clim([0, np.nanpercentile(popDensity,100)])
+#    plt.colorbar()
+    
     if 'regionIdRaster' in parameters.keys():
 
-        for cell in earth.iterEntRandom(_cell):
+        for cell in earth.iterEntRandom(CELL):
             cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
-            cell.setValue('chargStat', parameters['chargStat'][cell._node['pos']])
+            cell.setValue('chargStat', 0)
+            cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
+            cell.setValue('electricConsumption', 0.)
             cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
             cell.setValue('popDensity', popDensity[cell._node['pos']])
             
-    earth.mpi.updateGhostNodes([_cell],['chargStat'])
+    earth.mpi.updateGhostNodes([CELL],['chargStat'])
+
+    if mpiRank == 0:
+        print'Setup of the spatial layer done'
+
+def initInfrastructure(earth):
+    # infrastructure
+    earth.initChargInfrastructure()
+    
+    if mpiRank == 0:
+        print'Infrastructure setup done'
 
 #%% cell convenience test
 def cellTest(earth):
-    
+
+    for good in earth.market.goods.values():
+        
+        good.emissionFunction(good, earth.market)
+        #good.updateMaturity()  
+        
     nLocations = len(earth.getLocationDict())
     convArray  = np.zeros([earth.market.getNMobTypes(), nLocations])
     popArray   = np.zeros(nLocations)
     eConvArray = earth.para['landLayer'] * 0
     
     #import tqdm
-    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(_cell))):
+    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(CELL))):
     if earth.para['showFigures']:
-        for i, cell in enumerate(earth.iterEntRandom(_cell)):        
+        for i, cell in enumerate(earth.iterEntRandom(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
             #cell.setValue('carsInCell',[0,200.,0,0,0])
@@ -1136,7 +1510,7 @@ def cellTest(earth):
             convArray[:, i] = convAll
             popArray[i] = popDensity
             eConvArray[cell.getValue('pos')] = convAll[1]
-            #print time.time() - tt
+            #print time.time() - ttclass
         
         
             
@@ -1147,8 +1521,8 @@ def cellTest(earth):
         plt.title('el. convenience')
         plt.clim([-.2,np.nanmax(eConvArray)])
         plt.colorbar()
-        plt.subplot(2,2,2)
-        plt.imshow(earth.para['chargStat'])
+#        plt.subplot(2,2,2)
+#        plt.imshow(earth.para['chargStat'])
         plt.clim([-2,10])
         plt.title('number of charging stations')
         plt.colorbar()
@@ -1173,25 +1547,33 @@ def cellTest(earth):
             plt.scatter(popArray,convArray[i,:], s=2)
             plt.title('convenience of ' + earth.enums['mobilityTypes'][i])
         plt.show()
-        asd
+        adsf
+        
 # %% Generate Network
 def generateNetwork(earth):
     parameters = earth.getParameter()
     
-    #tt = time.time()
-    earth.generateSocialNetwork(_pers,_cpp)
-    #lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
-    if parameters['scenario'] == 0:
+    tt = time.time()
+    
+    earth.generateSocialNetwork(PERS,CON_PP)
+    
+    lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
+    if parameters['scenario'] == 0 and earth.para['showFigures']:
         earth.view(str(earth.mpi.rank) + '.png')
+    if mpiRank == 0:
+        print'Social network setup done'
 
 
 def initMobilityTypes(earth):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,350., 100.,50.])
-    for goodKey in earth.market.goods.keys():
-        #print earth.market.goods[goodKey].properties.keys()
+    for goodKey in earth.market.goods.keys():##OPTPRODUCTION
+        #print earth.market.goods[goodKey].properties.keys() 
         #print earth.market.properties
         assert earth.market.goods[goodKey].properties.keys() == earth.market.properties ##OPTPRODUCTION
+    
+    if mpiRank == 0:
+        print'Setup of mobility types done'
 
 
 def initGlobalRecords(earth):
@@ -1206,7 +1588,24 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(),
                          style='plot',
                          mpiReduce='sum')
+    
+        earth.registerRecord('elDemand_' + str(re),
+                         'electric Demand -' + str(re),
+                         ['electric_demand'],
+                         style='plot',
+                         mpiReduce='sum')
+        
+        earth.registerRecord('emissions_' + str(re),
+                         'co2Emissions -' + str(re),
+                         earth.enums['mobilityTypes'].values(),
+                         style='plot',
+                         mpiReduce='sum')
 
+        earth.registerRecord('nChargStations_' + str(re),
+                         'Number of charging stations -' + str(re),
+                         ['nChargStations'],
+                         style='plot',
+                         mpiReduce='sum')
 
         timeIdxs = list()
         values   = list()
@@ -1229,11 +1628,13 @@ def initGlobalRecords(earth):
                          earth.enums['mobilityTypes'].values(), style='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
                          earth.enums['mobilityTypes'].values(), style='plot')
-    earth.registerRecord('kappas', 'Technological maturity of mobility types',
-                         ['kappaB', 'kappaG', 'kappaP', 'kappaS', 'kappaN'], style='plot')
-    earth.registerRecord('mobProp', 'Properties',
+    earth.registerRecord('maturities', 'Technological maturity of mobility types',
+                         ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
+    earth.registerRecord('globEmmAndPrice', 'Properties',
                          ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
+    if mpiRank == 0:
+        print'Setup of global records done'
 
 def initAgentOutput(earth):
     #%% Init of agent file
@@ -1241,26 +1642,100 @@ def initAgentOutput(earth):
     earth.mpi.comm.Barrier()
     lg.info( 'Waited for Barrier for ' + str( time.time() - tt) + ' s')
     tt = time.time()
-    #earth.initAgentFile(typ = _hh)
-    #earth.initAgentFile(typ = _pers)
-    #earth.initAgentFile(typ = _cell)
-    earth.io.initNodeFile(earth, [_cell, _hh, _pers])
+    #earth.initAgentFile(typ = HH)
+    #earth.initAgentFile(typ = PERS)
+    #earth.initAgentFile(typ = CELL)
+    earth.io.initNodeFile(earth, [CELL, HH, PERS])
 
 
     lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
 
+    if mpiRank == 0:
+        print'Setup of agent output done'
 
 
+def initCacheArrays(earth):
+    maxFriends = earth.para['maxFriends']
+    persZero = earth.entDict[earth.nodeDict[PERS][0]]
+    
+    nUtil = persZero.getValue('commUtil').shape[0]
+    Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
+    Person.cacheUtil     = np.zeros(maxFriends+1)
+    Person.cacheMobType  = np.zeros(maxFriends+1, dtype=np.int32)
+    Person.cacheWeights  = np.zeros(maxFriends+1)
 
+def initExogeneousExperience(parameters):
+    inputFromGlobal         = pd.read_csv(parameters['resourcePath'] + 'inputFromGlobal.csv')
+    randomFactor = (5*np.random.randn() + 100.)/100
+    parameters['experienceWorldGreen']  = inputFromGlobal['expWorldGreen'].values / 10. * randomFactor
+    randomFactor = (5*np.random.randn() + 100.)/100
+    parameters['experienceWorldBrown']  = inputFromGlobal['expWorldBrown'].values * randomFactor
+    experienceGer                       = inputFromGlobal['expGer'].values
+    experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
+    parameters['experienceGerGreen']    = experienceGerGreen
+    parameters['experienceGerBrown']    = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
+    
+    #fake model
+#    def func(year):
+#        a = -654.47792283470665
+#        b = 0.33129306614034293
+#        stockGlE = np.exp(b * year+a)
+#        return stockGlE
+#    
+#    years = range(2005, 2036)
+#    
+#    correctedData = [func(year) for year in years]
+#    
+#    fig = plt.figure()
+#    plt.clf()
+#    ax = fig.add_subplot(1, 1, 1)
+#    plt.plot(years, parameters['experienceWorldGreen'])
+#    plt.plot(years, parameters['experienceWorldGreen']/10)
+#    plt.plot(years, correctedData)
+#    plt.legend(['old', 'old/10', 'corrected'])
+#    ax.set_yscale('log')
+    
+    return parameters
+
+def readParameterFile(parameters, fileName):
+    for item in csv.DictReader(open(fileName)):
+        if item['name'][0] != '#':
+            parameters[item['name']] = aux.convertStr(item['value'])
+    return parameters
+
+def randomizeParameters(parameters):
+    #%%
+    def randDeviation(percent, minDev=-np.inf, maxDev=np.inf):
+        while True:
+            dev = np.random.randn() *percent
+            if dev < maxDev and dev > minDev:
+                break
+        return (100. + dev) / 100.
+    
+    maxFriendsRand  = int( parameters['maxFriends'] * randDeviation(20)) 
+    if maxFriendsRand > parameters['minFriends']+1:
+        parameters['maxFriends'] = maxFriendsRand
+    minFriendsRand  = int( parameters['minFriends'] * randDeviation(5)) 
+    if minFriendsRand < parameters['maxFriends']-1:
+        parameters['minFriends'] = minFriendsRand
+    parameters['mobIncomeShare'] * randDeviation(5)
+    parameters['charIncome'] * randDeviation(5)
+    parameters['innoPriority'] * randDeviation(5)
+    parameters['individualPrio'] * randDeviation(10)
+    parameters['priceRedBCorrection'] * randDeviation(3, -3, 3)
+    parameters['priceRedGCorrection'] * randDeviation(3, -3, 3)
+    
+    parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
+    return parameters
 # %% Online processing functions
 
 def plot_calGreenNeigbourhoodShareDist(earth):
     if parameters.showFigures:
-        nPersons = len(earth.getNodeDict(_pers))
+        nPersons = len(earth.getNodeDict(PERS))
         relarsPerNeigborhood = np.zeros([nPersons,3])
-        for i, persId in enumerate(earth.getNodeDict(_pers)):
+        for i, persId in enumerate(earth.getNodeDict(PERS)):
             person = earth.getEntity(persId)
-            x,__ = person.getConnNodeValues('mobType',_pers)
+            x,__ = person.getConnNodeValues('mobType',PERS)
             for mobType in range(3):
                 relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
 
@@ -1270,10 +1745,10 @@ def plot_calGreenNeigbourhoodShareDist(earth):
 
 def plot_incomePerNetwork(earth):
 
-    incomeList = np.zeros([len(earth.nodeDict[_pers]),1])
-    for i, persId in enumerate(earth.nodeDict[_pers]):
+    incomeList = np.zeros([len(earth.nodeDict[PERS]),1])
+    for i, persId in enumerate(earth.nodeDict[PERS]):
         person = earth.entDict[persId]
-        x, friends = person.getConnNodeValues('mobType',_pers)
+        x, friends = person.getConnNodeValues('mobType',PERS)
         incomes = [earth.entDict[friend].hh.getValue('income') for friend in friends]
         incomeList[i,0] = np.mean(incomes)
 
@@ -1301,7 +1776,7 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
@@ -1309,12 +1784,19 @@ def runModel(earth, parameters):
 
     lg.info('Initial actions done')
 
-    for cell in earth.iterEntRandom(_cell):
+    for cell in earth.iterEntRandom(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
-
+     
+    
+    earth.market.initPrices()
+    for good in earth.market.goods.values():
+        good.initMaturity()
+        good.updateEmissionsAndMaturity(earth.market)
+        #good.updateMaturity()
+    
     lg.info('Initial market step done')
 
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
@@ -1322,6 +1804,8 @@ def runModel(earth, parameters):
         
     lg.info('Initial actions randomized in -- ' + str( time.time() - tt) + ' s')
 
+    initCacheArrays(earth)
+    
     #plotIncomePerNetwork(earth)
 
 
@@ -1373,9 +1857,9 @@ def writeSummary(earth, parameters):
     if parameters.scenario == 2:
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) != 2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) == 1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType']) == 0))
+        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) != 2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 1))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 0))
 
         lg.info('Number of agents: ' + str(nPeople))
         lg.info('Number of agents: ' + str(nCars))
@@ -1390,9 +1874,9 @@ def writeSummary(earth, parameters):
 
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])!=2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[_pers]]['mobType'])==0))
+        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])!=2))
+        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==1))
+        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==0))
 
         lg.info( 'Number of agents: ' + str(nPeople))
         lg.info( 'Number of agents: ' + str(nCars))
@@ -1401,7 +1885,7 @@ def writeSummary(earth, parameters):
         lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
 
 
-        cellList       = earth.graph.vs[earth.nodeDict[_cell]]
+        cellList       = earth.graph.vs[earth.nodeDict[CELL]]
         cellListBremen = cellList.select(regionId_eq=1518)
         cellListNieder = cellList.select(regionId_eq=6321)
         cellListHamb   = cellList.select(regionId_eq=1520)
@@ -1442,24 +1926,24 @@ def onlinePostProcessing(earth):
 
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
-    for agent in earth.iterEntRandom(_hh):
-        friendList = agent.getPeerIDs(edgeType=_chh)
+    for agent in earth.iterEntRandom(HH):
+        friendList = agent.getPeerIDs(edgeType=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values
     nAgents    = np.nansum(parameters.population)
     lg.info(avgStd / nAgents)
     prfType = np.argmax(df.values,axis=1)
-    #for i, agent in enumerate(earth.iterNode(_hh)):
+    #for i, agent in enumerate(earth.iterNode(HH)):
     #    print agent.prefTyp, prfType[i]
     df['ref'] = prfType
 
     # calculate the correlation between weights and differences in priorities
     if False:
         pref = np.zeros([earth.graph.vcount(), 4])
-        pref[earth.nodeDict[_pers],:] = np.array(earth.graph.vs[earth.nodeDict[_pers]]['preferences'])
+        pref[earth.nodeDict[PERS],:] = np.array(earth.graph.vs[earth.nodeDict[PERS]]['preferences'])
         idx = list()
-        for edge in earth.iterEdges(_cpp):
+        for edge in earth.iterEdges(CON_PP):
             edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
             idx.append(edge.index)
 
@@ -1495,19 +1979,19 @@ def setupHouseholdsWithOptimalChoice():
     householdSetup(earth, parameters)
     initMobilityTypes(earth, parameters)
     #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
 
-    for cell in earth.iterEntRandom(_cell):
+    for cell in earth.iterEntRandom(CELL):
         cell.step(earth.market.kappa)
 
     earth.market.setInitialStatistics([1000.,5.,300.])
 
-    for household in earth.iterEntRandom(_hh):
+    for household in earth.iterEntRandom(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility()
 
-    for hh in iter(earth.nodeDict[_hh]):
+    for hh in iter(earth.nodeDict[HH]):
         oldEarth = copy(earth)
         earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)
     return earth
@@ -1520,7 +2004,7 @@ def setupHouseholdsWithOptimalChoice():
 if __name__ == '__main__':
 
 
-    debug = True
+    debug = 1
     showFigures    = 0
     
     simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
@@ -1555,117 +2039,119 @@ if __name__ == '__main__':
     dirPath = os.path.dirname(os.path.realpath(__file__))
     
     # loading of standart parameters
-    fileName = sys.argv[1]
-    parameters = Bunch()
-    for item in csv.DictReader(open(fileName)):
-        if item['name'][0] != '#':
-            parameters[item['name']] = aux.convertStr(item['value'])
-    lg.info('Setting loaded:')
+    if len(sys.argv) > 1:
     
-    
-    parameters['outPath'] = outputPath
-    
-    
-    
-    if parameters.scenario == 0:
-    
+        fileName = sys.argv[1]
+        parameters = Bunch()
+        # reading of gerneral parameters
+        parameters = readParameterFile(parameters, 'parameters_all.csv')
+        # reading of scenario-specific parameters
+        parameters = readParameterFile(parameters,fileName)
+        
+        
+        lg.info('Setting loaded:')
+        
+        
+        parameters['outPath'] = outputPath
+        
+        
+        scenarioDict = dict()
+        
+        scenarioDict[0] = scenarioTestSmall
+        scenarioDict[1] = scenarioTestMedium
+        scenarioDict[2] = scenarioLueneburg
+        scenarioDict[3] = scenarioNBH
+        scenarioDict[6] = scenarioGer
+        
+        
         if mpiRank == 0:
-            parameters = scenarioTestSmall(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 1:
-    
-        if mpiRank == 0:
-            parameters = scenarioTestMedium(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 2:
-    
-        if mpiRank == 0:
-            parameters = scenarioNiedersachsen(parameters, dirPath)
-        else:
-            parameters = None
-        parameters = comm.bcast(parameters)
-    
-    elif parameters.scenario == 3:
-    
-        if mpiRank == 0:
-            parameters = scenarioNBH(parameters, dirPath)
+            parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
+            
+            parameters = initExogeneousExperience(parameters)
+            parameters = randomizeParameters(parameters)   
+            
         else:
             parameters = None
         
-        # exchange of the parameters between processes
-        parameters = comm.bcast(parameters)
-    
-    
-    if parameters.scenario == 4:
-        # test scenario
-    
-        parameters.resourcePath = dirPath + '/resources_nie/'
-        parameters = scenarioTestMedium(parameters, dirPath)
-        parameters.showFigures = showFigures
-        earth = initEarth(parameters)
-        mobilitySetup(earth, parameters)
-        earth = setupHouseholdsWithOptimalChoice()
-    
-    
-    #%% Scenario graph NBH
-    if parameters.scenario == 5: #graph partition NBH
-        parameters = scenarioNBH(parameters, dirPath)
-    
-        parameters.landLayer = parameters.landLayer * 0
-        parameters.showFigures = showFigures
-        earth = initEarth(999, 'output/',parameters, maxNodes=1000000, debug =True)
-        _cell, _hh, _pers = initTypes(earth,parameters)
-        initSpatialLayer(earth, parameters)
-        for cell in earth.iterEntRandom(_cell):
-            cell.setValue('population',parameters.population[cell.node['pos']])
-        #earth.view('spatial_graph.png')
-        aux.writeAdjFile(earth.graph,'resources_NBH/outGraph.txt')
-    
-        exit()
-    #%% Scenario graph ger
-    if parameters.scenario == 6: #graph partition NBH
-        parameters = scenarioGer(parameters, dirPath)
-        parameters.landLayer = parameters.landLayer * 0
-        parameters.showFigures = showFigures
-        #parameters.addYourself   = False
-        earth = initEarth(999, 'output/', parameters, maxNodes=1000000, debug =True)
-        _cell, _hh, _pers = initTypes(earth,parameters)
-        initSpatialLayer(earth, parameters)
-        for cell in earth.iterEntRandom(_cell):
-            cell.setValue('population', parameters.population[cell.getValue('pos')])
-        #earth.view('spatial_graph.png')
-    
-        earth.graph.add_edge(995,2057)
-        earth.graph.add_edge(2057,995)
-        earth.graph.add_edge(1310,810)
-        earth.graph.add_edge(810,1310)
-        aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
-    
-        exit()
-    
-    if parameters.scenario == 7:
-    
+
+         
+        parameters = comm.bcast(parameters,root=0)    
+            
         if mpiRank == 0:
-            parameters = scenarioGer(parameters, dirPath)
-        else:
-            parameters = None
+            print'Parameter exchange done'
+        lg.info( 'Parameter exchange done')
+        
+
+        #%% Init
+        parameters.showFigures = showFigures
+        
+        earth = initEarth(simNo,
+                          outputPath,
+                          parameters,
+                          maxNodes=1000000,
+                          debug =debug,
+                          mpiComm=comm,
+                          caching=True,
+                          queuing=True)
+        
+        CELL, HH, PERS = initTypes(earth)
+        
+        initSpatialLayer(earth)
+        
+        initInfrastructure(earth)
+        
+        mobilitySetup(earth)
+        
+        cellTest(earth)
+        
+        initGlobalRecords(earth)
+        
+        householdSetup(earth)
+        
+        generateNetwork(earth)
+        
+        initMobilityTypes(earth)
+        
+        initAgentOutput(earth)
+        
+        cell = earth.entDict[0]
+        #cell.setWorld(earth)
+        
+        if parameters.scenario == 0:
+            earth.view('output/graph.png')
+        
+        #%% run of the model ################################################
+        lg.info('####### Running model with paramertes: #########################')
+        import pprint
+        lg.info(pprint.pformat(parameters.toDict()))
+        if mpiRank == 0:
+            fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
+            pprint.pprint(parameters.toDict(), fidPara)
+            fidPara.close()
+        lg.info('################################################################')
+        
+        runModel(earth, parameters)
+        
+        lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
+        
+        if earth.isRoot:
+            print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+        
+        if earth.isRoot:
+            writeSummary(earth, parameters)
+        
+        if earth.para['showFigures']:
+        
+            onlinePostProcessing(earth)
+        
+        plot_computingTimes(earth)
+    
+    
+    else:
+        parameters = Bunch()
+        parameters = scenarioTest(parameters, dirPath)
         parameters = comm.bcast(parameters)
-        comm.Barrier()
-    
-    if mpiRank == 0:
-        print'Parameter exchange done'
-    lg.info( 'Parameter exchange done')
-    
-    #%% Init
-    parameters.showFigures = showFigures
-    
-    earth = initEarth(simNo,
+        earth = initEarth(simNo,
                       outputPath,
                       parameters,
                       maxNodes=1000000,
@@ -1674,58 +2160,16 @@ if __name__ == '__main__':
                       caching=True,
                       queuing=True)
     
-    _cell, _hh, _pers = initTypes(earth)
-    
-    initSpatialLayer(earth)
-    
-    mobilitySetup(earth)
-    
-    cellTest(earth)
-    
-    initGlobalRecords(earth)
-    
-    householdSetup(earth)
-    
-    generateNetwork(earth)
-    
-    initMobilityTypes(earth)
-    
-    initAgentOutput(earth)
-    
-    cell = earth.entDict[0]
-    #cell.setWorld(earth)
-    
-    if parameters.scenario == 0:
-        earth.view('output/graph.png')
-    
-    #%% run of the model ################################################
-    lg.info('####### Running model with paramertes: #########################')
-    import pprint
-    lg.info(pprint.pformat(parameters.toDict()))
-    if mpiRank == 0:
-        fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
-        pprint.pprint(parameters.toDict(), fidPara)
-        fidPara.close()
-    lg.info('################################################################')
-    
-    runModel(earth, parameters)
-    
-    lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
-    
-    if earth.isRoot:
-        print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-    
-    if earth.isRoot:
-        writeSummary(earth, parameters)
-    
-    if earth.para['showFigures']:
-    
-        onlinePostProcessing(earth)
-    
-    plot_computingTimes(earth)
-    
-    
-
+        CELL, HH, PERS = initTypes(earth)
+        
+        initSpatialLayer(earth)
+        
+        initInfrastructure(earth)
+        
+        earth.mpi.comm.Barrier()
+        print "test finished"
+        exit()
+        
 
 
 

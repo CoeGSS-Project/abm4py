@@ -27,8 +27,9 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import itertools
 import pandas as pd
-import seaborn as sns
+#import seaborn as sns
 import pickle
+#from numba import njit
 
 #import sys
 #from numbers import Number
@@ -139,7 +140,15 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         return dirPath
 
-def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)**.5), ownWeight =2):
+#@njit
+def weightingFunc(x,y):
+    return 1./((x**2. +y**2.)**.5)
+
+#@njit
+def distance(x,y):
+    return (x**2. +y**2.)**.5
+
+def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2):
     """
     Method for easy computing a connections list of regular grids
     """
@@ -148,7 +157,7 @@ def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)
     intRad = int(radius)
     for x in range(-intRad,intRad+1):
         for y in range(-intRad,intRad+1):
-            if (x**2 +y**2)**.5 <= radius:
+            if distance(x,y) <= radius:
                 if x**2 +y**2 > 0:
                     weig  = weightingFunc(x,y)
                 else:
@@ -156,10 +165,25 @@ def computeConnectionList(radius=1, weightingFunc = lambda x,y : 1/((x**2 +y**2)
                 connList.append((x,y,weig))
     return connList
 
-def cartesian(arrays, out=None):
+def cartesian2(arrays):
+    arrays = [np.asarray(a) for a in arrays]
+    shape = (len(x) for x in arrays)
+
+    ix = np.indices(shape, dtype=int)
+    ix = ix.reshape(len(arrays), -1).T
+
+    for n, arr in enumerate(arrays):
+        ix[:, n] = arrays[n][ix[:, n]]
+
+    return ix
+
+from sklearn.utils.extmath import cartesian
+cartesian = cartesian
+
+def cartesian_old(arrays, out=None):
     """
     Generate a cartesian product of input arrays.
-
+    
     Parameters
     ----------
     arrays : list of array-like
@@ -303,11 +327,12 @@ class Record():
             self.calDataDict[idx] = value
 
 
-    def updateValues(self, timeStep):
+    def updateLocalValues(self, timeStep):
         self.glob.updateLocalValues(self.name, self.rec[timeStep,:])
 
-    def gatherSyncDataToRec(self, timeStep):
+    def gatherGlobalDataToRec(self, timeStep):
         self.rec[timeStep,:] = self.glob[self.name]
+        return self.glob[self.name]
 
     def set(self, timeStep, data):
         self.rec[timeStep,:] = data
@@ -342,7 +367,7 @@ class Record():
 
         elif self.style == 'stackedBar':
             nCars = np.zeros(self.nSteps)
-            colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
+            #colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
             for i, brand in enumerate(self.columns):
                plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color =colorPal[i], width=1)
                nCars += self.rec[:,i]
@@ -375,6 +400,7 @@ class Record():
         dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
         dset[:] = self.rec
         dset.attrs['columns'] = self.columns
+        dset.attrs['title']   = self.title
         if hasattr(self,'calDataDict'):
             tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
             for i, key in enumerate(self.calDataDict.keys()):

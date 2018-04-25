@@ -71,25 +71,35 @@ sys.excepthook = mpi_excepthook
 
 from mpi4py import MPI
 import h5py
-
-#from os.path import expanduser
-#home = expanduser("~")
-#import os
-#dir_path = os.path.dirname(os.path.realpath(__file__))
 import logging as lg
 import sys
-#import socket
-
-#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-
-#import tqdm
 import igraph as ig
 import numpy as np
 import time
+import random as rd
 from bunch import Bunch
 from class_graph import WorldGraph
+import class_auxiliary as aux
+
+ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
+
+
+def assertUpdate(graph, prop, nodeType):
+    
+    # if is serial
+    if not(graph.isParallel):##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    # if is static
+    if prop in graph.nodeTypes[nodeType].staProp: ##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    # if is updated
+    if prop in graph.ghostTypeUpdated[nodeType]:  ##OPTPRODUCTION
+        return##OPTPRODUCTION
+    
+    raise('Error while accessing non-updated property')##OPTPRODUCTION
+    pass
 
 class Queue():
 
@@ -255,12 +265,12 @@ class Cache():
     """
     As default only out peers and out connections are in the cache. 
     """
-    def __init__(self, graph, nID):
+    def __init__(self, graph, nID, nodeType):
         self.graph       = graph
         self.nID         = nID
         self.edgesAll    = None
         self.edgesByType = dict()
-
+        self.nodeType    = nodeType
         self.peersAll    = None
         self.peersByType = dict()
         self.getPeerValues2 = self.peersByType.__getitem__
@@ -378,7 +388,11 @@ class Cache():
     def getPeerValues(self, prop, edgeType=None):
         # check if re-caching is required
         self.__checkPeerCache__(edgeType)
-
+        
+        nodeType  = self.graph.edge2NodeType[edgeType][1]
+        
+        assertUpdate(self.graph, prop, nodeType)
+        
         if edgeType is None:
 
             return self.peersAll[prop], self.peersAll
@@ -442,13 +456,16 @@ class Entity():
     Most basic class from which agents of different type are derived
     """
     __slots__ = ['gID', 'nID']
-
+    
 
     def __init__(self, world, nID = None, **kwProperties):
         nodeType =  world.graph.class2NodeType[self.__class__]
 
         if not hasattr(self, '_graph'):
             self.setGraph(world.graph)
+        
+        if not hasattr(self, '_queue'):
+            self.setQueue(world.queue)            
         #self._graph = world.graph
 
         self.gID    = self.getGlobID(world)
@@ -473,13 +490,12 @@ class Entity():
         self.getValue = self._node.__getitem__
         self.setValue = self._node.__setitem__
 
-
         if world.caching:
-            self._cache  = Cache(self._graph, self.nID)
+            self._cache  = Cache(self._graph, self.nID, nodeType)
 
             # definition of access functions
             self.getPeerValues = self._cache.getPeerValues
-            self.getPeerValues2 = self._cache.getPeerValues2
+            #self.getPeerValues2 = self._cache.getPeerValues2
             self.setPeerValues = self._cache.setPeerValues
             self.getPeers      = self._cache.getPeers
             self.getPeerIDs    = self._cache.getPeerIDs
@@ -494,11 +510,17 @@ class Entity():
             self._cache = None
             
 
-            
+    @classmethod
+    def setQueue(cls, queue):
+        """ Makes the class variable _queue available at the first init of an entity"""
+        cls._queue = queue           
 
     @classmethod
     def setGraph(cls, graph):
+        """ Makes the class variable _graph available at the first init of an entity"""
         cls._graph = graph
+
+
 
     def setPeerValues(self, prop, values, nodeType=None):
         nodeDict = self._node.neighbors(mode='out')
@@ -520,11 +542,12 @@ class Entity():
 
         return [edge.target for edge in edges]
 
-    def getPeerSeq(self, edgeType=None):
+    def getPeers(self, edgeType=None):
         return self._graph.vs[self.getPeerIDs(edgeType)]
 
     def getPeerValues(self, prop, edgeType=None):
-        return self.getPeerSeq(edgeType)[prop], self.getPeerSeq(edgeType)
+        peerSeq = self.getPeers(edgeType)
+        return peerSeq[prop], peerSeq
 
 
     def getEdgeValues(self, prop, edgeType=None):
@@ -577,7 +600,7 @@ class Entity():
 
     def queueConnection(self, friendID, edgeType, **kwpropDict):
         kwpropDict.update({'type': edgeType})
-        self.queue.addEdge(self.nID,friendID, **kwpropDict)
+        self._queue.addEdge(self.nID,friendID, **kwpropDict)
 
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
@@ -689,22 +712,109 @@ class Agent(Entity):
         """ not yet implemented"""
         pass
 
+    def getNClosePeers(self, 
+                       world, 
+                       nContacts,
+                       edgeType, 
+                       currentContacts = None, 
+                       addYourself = True):
+        """
+        Method to generate a preliminary friend network that accounts for
+        proximity in space
+        #ToDO add to easyUI
+        """
+
+
+        if currentContacts is None:
+            isInit=True
+        else:
+            isInit=False
+
+        if currentContacts is None:
+            currentContacts = [self.nID]
+        else:
+            currentContacts.append(self.nID)
+
+        contactList = list()
+        connList   = list()
+        #ownPref    = self._node['preferences']
+        #ownIncome  = self.hh._node['income']
+
+
+        #get spatial weights to all connected cells
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnectedLocation()
+        personIdsAll = list()
+        nPers = list()
+        cellWeigList = list()
+        
+        
+        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
+
+            cellWeigList.append(cellWeight)
+            
+            personIds = world.getEntity(cellIdx).peList #doto do more general
+            
+            #personIds = world.getEntity(cellIdx).getPersons()
+
+            personIdsAll.extend(personIds)
+            nPers.append(len(personIds))
+
+        # return nothing if too few candidates
+        if not isInit and nPers > nContacts:
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
+            return [],[],[]
+
+        #setup of spatial weights
+        weightData = np.zeros(np.sum(nPers))
+
+        idx = 0
+        for nP, we in zip(nPers, cellWeigList):
+            weightData[idx:idx+nP] = we
+            idx = idx+ nP
+        del idx
+
+        #normalizing final row
+        weightData /= np.sum(weightData,axis=0)
+
+        if np.sum(weightData>0) < nContacts:
+            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
+            nContacts = min(np.sum(weightData>0)-1,nContacts)
+
+        if nContacts < 1:                                                       ##OPTPRODUCTION
+            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')      ##OPTPRODUCTION
+
+        else:
+            # adding contacts
+            ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
+            contactList = [ personIdsAll[idx] for idx in ids ]
+            connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
+
+        if isInit and addYourself:
+            #add yourself as a friend
+            contactList.append(self.nID)
+            connList.append((self.nID,self.nID))
+
+        weigList   = [1./len(connList)]*len(connList)
+        return contactList, connList, weigList
+
+
+
 
 class GhostAgent(Entity):
-
+    
     def __init__(self, world, owner, nID=None, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(owner)
 
     def register(self, world, parentEntity=None, edgeType=None):
         Entity.register(self, world, parentEntity, edgeType, ghost= True)
-
+        
 
     def getGlobID(self,world):
 
         return None # global ID need to be acquired via MPI communication
 
-    def getLocationValue(self,prop):
+    def getLocationValue(self, prop):
 
         return self.loc.node[prop]
 
@@ -713,6 +823,7 @@ class GhostAgent(Entity):
     def registerChild(self, world, entity, edgeType):
         world.addEdge(entity.nID,self.nID, type=edgeType)
 
+        
 ################ LOCATION CLASS #########################################
 class Location(Entity):
 
@@ -743,9 +854,17 @@ class Location(Entity):
                 world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
+    
+    def getConnectedLocation(self, edgeType=1):
+        """ 
+        ToDo: check if not deprecated 
+        """
+        self.weights, edges = self.getEdgeValues('weig',edgeType=edgeType)
+        self.connNodeDict = [edge.target for edge in edges ]
+        return self.weights, edges.indices, self.connNodeDict
 
 class GhostLocation(Entity):
-
+    
     def getGlobID(self,world):
 
         return None
@@ -763,6 +882,15 @@ class GhostLocation(Entity):
         world.addEdge(entity.nID,self.nID, type=edgeType)
         entity.loc = self
 
+ 
+#    def updateAgentList(self, graph, edgeType):  # toDo nodeType is not correct anymore
+#        """
+#        updated method for the agents list, which is required since
+#        ghost cells are not active on their own
+#        """
+#        
+#        hhIDList = self.getPeerIDs(edgeType)
+#        return graph.vs[hhIDList]
 ################ WORLD CLASS #########################################
 
 class World:
@@ -835,17 +963,17 @@ class World:
                     # communication between all proceees
                     self[globName] = self.comm.allreduce(self.localValues[globName],op)
                     self.updated[globName] = False
-                    lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))
-                    lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))
+                    lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))##OPTPRODUCTION
+                    lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))##OPTPRODUCTION
 
         #%% statistical global reductions/aggregations
         def registerStat(self, globName, values, statType):
             #statfunc = self.statOperations[statType]
 
-            assert statType in ['mean', 'std','var']    ##OPTPRODUCTION
+            assert statType in ['mean', 'std', 'var']    ##OPTPRODUCTION
 
 
-            if not isinstance(values, (list, tuple,np.ndarray)):
+            if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
                 values = [values]
             values = np.asarray(values)
 
@@ -885,13 +1013,13 @@ class World:
                         # communication between all proceees
                         tmp = np.asarray(self.comm.alltoall(tmp))
 
-                        lg.debug('####### Mean of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
                         lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
                         # calculation of global mean
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize  = np.sum(tmp[:,1])             # sum(size)
                         self[globName] = globValue/ globSize    # glob mean
-                        lg.debug('Global mean: ' + str( self[globName] ))   
+                        lg.debug('Global mean: ' + str( self[globName] ))   ##OPTPRODUCTION
                         self.updated[globName] = False
                         
                 elif redType == 'std':
@@ -921,7 +1049,7 @@ class World:
                         locNVar = tmp[:,1]
                         lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
 
-                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  ##OPTPRODUCTION
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  
                         lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
 
                         diffSqrMeans = (locMean - globMean)**2
@@ -931,7 +1059,7 @@ class World:
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = np.sqrt(globVariance)
-                        lg.debug('Global STD: ' + str( self[globName] ))   
+                        lg.debug('Global STD: ' + str( self[globName] ))   ##OPTPRODUCTION
                         self.updated[globName] = False
                         
                 elif redType == 'var':
@@ -953,7 +1081,7 @@ class World:
                         #print 'loc mean: ', locMean
 
                         lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
-                        lg.debug('loc mean: ' + str(locMean))               
+                        lg.debug('loc mean: ' + str(locMean))               ##OPTPRODUCTION
                         locNVar = tmp[:,1]
                         #print 'loc number of var: ',locNVar
 
@@ -961,14 +1089,14 @@ class World:
                         #print 'global mean: ', globMean
                         
                         diffSqrMeans = (locMean - globMean)**2
-                        lg.debug('global mean: ' + str( globMean ))
+                        lg.debug('global mean: ' + str( globMean )) ##OPTPRODUCTION
 
                         deviationOfMeans = np.sum(locNVar * diffSqrMeans)
 
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
                         self[globName] = globVariance
-                        lg.debug('Global variance: ' + str( self[globName] ))  
+                        lg.debug('Global variance: ' + str( self[globName] ))  ##OPTPRODUCTION
                         self.updated[globName] = False
 
         def sync(self):
@@ -1036,6 +1164,8 @@ class World:
                     self.dset = h5File.create_dataset(path, (self.nAgentsGlob,self.nAttr), dtype='f')
                     self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
 
+        
+
         #%% Init of the IO class
         def __init__(self, world, nSteps, outputPath = ''): # of IO
 
@@ -1045,9 +1175,9 @@ class World:
             self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                          'w',
                                          driver='mpio',
-                                         comm=world.mpi.comm,
-                                         libver='latest',
-                                         info = world.mpi.info)
+                                         comm=world.mpi.comm)
+                                         #libver='latest',
+                                         #info = world.mpi.info)
             self.comm        = world.mpi.comm
             self.dynamicData = dict()
             self.staticData  = dict() # only saved once at timestep == 0
@@ -1095,15 +1225,22 @@ class World:
                 staticRec = self.Record(nAgents, world.nodeDict[nodeType], nAgentsGlob, loc2GlobIdx, nodeType, self.timeStepMag)
                 attributes = world.graph.nodeTypes[nodeType].staProp
                 attributes.remove('type')
+                
+                
                 lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
                 for attr in attributes:
+                    #print attr
                     #check if first property of first entity is string
-                    entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
+                    try:
+                        entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
+                    except:
+                        print attr
+                        raise(str(attr) + ' not found')
                     if not isinstance(entProp,str):
 
-
-                        if isinstance(entProp,(list,tuple)):
+                        #todo - check why not np.array allowed
+                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[staticRec.ag2FileIdx[0]][attr])
                         else:
@@ -1134,7 +1271,7 @@ class World:
                     if not isinstance(entProp,str):
 
 
-                        if isinstance(entProp,(list,tuple)):
+                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
                             # add mutiple fields
                             nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
                         else:
@@ -1148,28 +1285,27 @@ class World:
                 dynamicRec.initStorage()
                 self.dynamicData[nodeType] = dynamicRec
                 lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+                
+            tt = time.time()
+            #self.gatherNodeData(0,static=True)
+            self.writeDataToFile(0,static=True)
+            lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-        def gatherNodeData(self, timeStep):
+        def writeDataToFile(self, timeStep, static=False):
             """
             Transfers data from the graph to record for the I/O
+            and writing data to hdf5 file
             """
-            if timeStep == 0:
+            if static:
                 for typ in self.staticData.keys():
                     self.staticData[typ].addData(timeStep, self._graph)
-
-            for typ in self.dynamicData.keys():
-                self.dynamicData[typ].addData(timeStep, self._graph)
-
-        def writeDataToFile(self, timeStep):
-            """
-            Writing data to hdf5 file
-            """
-            if timeStep == 0:
-                for typ in self.staticData.keys():
                     self.staticData[typ].writeData(self.h5File, folderName='static')
+            else:
+                for typ in self.dynamicData.keys():
+                    self.dynamicData[typ].addData(timeStep, self._graph)
+                    self.dynamicData[typ].writeData(self.h5File)
 
-            for typ in self.dynamicData.keys():
-                self.dynamicData[typ].writeData(self.h5File)
+                   
 
         def initEdgeFile(self, edfeTypes):
             """
@@ -1205,6 +1341,7 @@ class World:
                 record = self.dynamicData[nodeType]
                 #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
                 saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
+    
     class Mpi():
         """
         MPI communication module that controles all communcation between
@@ -1243,6 +1380,14 @@ class World:
             world.irecv = self.comm.irecv
 
             self._clearBuffer()
+            
+            self.world.graph.ghostTypeUpdated = dict()
+            
+            self.world.graph.isParallel =  self.size > 1
+                
+#            for nodeType in world.graph.nodeTypes.keys():
+#                # lists all attributes of the nodeType which have been updated in the last step
+#                self.world.graph.self.ghostTypeUpdated[nodeType] = list()
 
         #%% Privat functions
         def _clearBuffer(self):
@@ -1279,11 +1424,11 @@ class World:
             dataPackage.append((nNodes,nodeType))
             for prop in propList:
                 dataPackage.append(nodeSeq[prop])
-                dataSize += len(nodeSeq)
+                dataSize += len(nodeSeq[prop])
             if connList is not None:
                 dataPackage.append(connList)
                 dataSize += len(connList)
-            #lg.info('package size: ' + str(dataSize))
+            lg.debug('package size: ' + str(dataSize))
             return dataPackage, dataSize
 
 
@@ -1301,7 +1446,7 @@ class World:
                     if propertyList in ['all', 'dyn', 'sta']:
                         propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
                         propertyList.remove('gID')
-
+                    lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeType ' + str(nodeType) + 'MPIMPIMPI')
                     dataPackage ,packageSize = self._packData(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
                     messageSize = messageSize + packageSize
                     self._add2Buffer(mpiPeer, dataPackage)
@@ -1328,6 +1473,8 @@ class World:
                         nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
                         for i, prop in enumerate(propertyList):
                             nodeSeq[prop] = dataPackage[i+1]
+                            
+                            
             syncUnpackTime = time.time() -tt
 
             lg.info('Sync times - ' +
@@ -1346,7 +1493,7 @@ class World:
             # acquire the global IDs for the ghostNodes
             mpiRequest = dict()
             mpiReqIDList = dict()
-            lg.debug('ID Array: ' + str(self.world.graph.IDArray))
+            lg.debug('ID Array: ' + str(self.world.graph.IDArray))##OPTPRODUCTION
             for ghLoc in ghostLocationList:
                 owner = ghLoc.mpiOwner
                 #print owner
@@ -1357,7 +1504,7 @@ class World:
 
                 mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
                 mpiReqIDList[owner].append(ghLoc.nID)
-            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))
+            lg.debug('rank ' + str(self.rank) + ' mpiReqIDList: ' + str(mpiReqIDList))##OPTPRODUCTION
 
             for mpiDest in mpiRequest.keys():
 
@@ -1365,13 +1512,13 @@ class World:
                     self.peers.append(mpiDest)
 
                     # send request of global IDs
-                    lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))
+                    lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))##OPTPRODUCTION
                     #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
                     self._add2Buffer(mpiDest, mpiRequest[mpiDest])
 
-            lg.debug( 'requestOut:' + str(self.a2aBuff))
+            lg.debug( 'requestOut:' + str(self.a2aBuff))##OPTPRODUCTION
             requestIn = self._all2allSync()
-            lg.debug( 'requestIn:' +  str(requestIn))
+            lg.debug( 'requestIn:' +  str(requestIn))##OPTPRODUCTION
 
 
             for mpiDest in mpiRequest.keys():
@@ -1379,21 +1526,21 @@ class World:
                 self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiReqIDList[mpiDest]]
 
                 # receive request of global IDs
-                lg.debug('receive request of global IDs from:  ' + str(mpiDest))
+                lg.debug('receive request of global IDs from:  ' + str(mpiDest))##OPTPRODUCTION
                 #incRequest = self.comm.recv(source=mpiDest)
                 incRequest = requestIn[mpiDest][0]
                 #pprint(incRequest)
                 iDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))
+                lg.debug( str(self.rank) + ' - idlist:' + str(iDList))##OPTPRODUCTION
                 self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[iDList]
                 #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
-                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))
+                lg.debug( str(self.rank) + ' - gIDs:' + str(self.ghostNodeSend[locNodeType, mpiDest]['gID']))##OPTPRODUCTION
 
                 for entity in [self.world.entList[i] for i in iDList]:
                     entity.mpiPeers.append(mpiDest)
 
                 # send requested global IDs
-                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))
+                lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]]))##OPTPRODUCTION
 
                 self._add2Buffer(mpiDest,self.ghostNodeSend[locNodeType, mpiDest][incRequest[1]])
 
@@ -1405,8 +1552,8 @@ class World:
                 globIDList = requestRecv[mpiDest][0]
 
                 self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
-                lg.debug( 'receiving globIDList:' + str(globIDList))
-                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))
+                lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
+                lg.debug( 'localDList:' + str(self.ghostNodeRecv[locNodeType, mpiDest].indices))##OPTPRODUCTION
                 for nID, gID in zip(self.ghostNodeRecv[locNodeType, mpiDest].indices, globIDList):
                     #print nID, gID
                     self.world._glob2loc[gID] = nID
@@ -1478,7 +1625,7 @@ class World:
 
 
                         parentEntity = world.entDict[world._glob2loc[gID]]
-                        edgeType = world.graph.nodeTypes2edgeTypes[parentEntity._node['type'], nodeType]
+                        edgeType = world.graph.node2EdgeType[parentEntity._node['type'], nodeType]
 
 
                         agent.register(world, parentEntity, edgeType)
@@ -1499,18 +1646,39 @@ class World:
             """
             Method to update ghost node data on all processes
             """
+            
+            if self.comm.size == 1:
+                return None
             tt = time.time()
             messageSize = self._updateGhostNodeData(nodeTypeList, propertyList)
 
-            if self.world.time == 0:
+            if self.world.timeStep == 0:
                 lg.info('Ghost update (of approx size ' +
                      str(messageSize * 24. / 1000. ) + ' KB)' +
                      ' required: ' + str(time.time()-tt) + ' seconds')
-            else:
-                lg.debug('Ghost update (of approx size ' +
-                         str(messageSize * 24. / 1000. ) + ' KB)' +
-                         ' required: ' + str(time.time()-tt) + ' seconds')
-
+            else:                                                           ##OPTPRODUCTION
+                lg.debug('Ghost update (of approx size ' +                  ##OPTPRODUCTION
+                         str(messageSize * 24. / 1000. ) + ' KB)' +         ##OPTPRODUCTION
+                         ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
+            
+            if nodeTypeList == 'all':
+                nodeTypeList =self.world.graph.nodeTypes
+            
+            
+            for nodeType in nodeTypeList:
+                self.world.graph.ghostTypeUpdated[nodeType] = list()
+                if propertyList in ['all', 'dyn', 'sta']:        
+                    propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
+                    propertyList.remove('gID')
+                
+                for prop in propertyList:
+                    self.world.graph.ghostTypeUpdated[nodeType].append(prop)
+                
+#                if len(self.world.ghostNodeDict[nodeType]) > 0:
+#                    firstGhostID = self.world.ghostNodeDict[nodeType][0]
+#                    ghost = self.world.entDict[firstGhostID]
+#                    ghost.setGhostUpdate(self.world.graph.ghostTypeUpdated[nodeType])
+                
         def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
             if (nodeType, mpiPeer) not in self.ghostNodeQueue.keys():
@@ -1582,8 +1750,8 @@ class World:
         self.graph    = WorldGraph(self, directed=True)
         self.para['outPath'] = outPath
 
-
-
+        
+        self.globalRecord = dict() # storage of global data
 
         # queues
         if self.queuing:
@@ -1599,7 +1767,7 @@ class World:
 
         # MPI communication
         self.mpi = self.Mpi(self, mpiComm=mpiComm)
-        lg.debug('Init MPI done')
+        lg.debug('Init MPI done')##OPTPRODUCTION
         if self.mpi.comm.rank == 0:
             self.isRoot = True
         else:
@@ -1607,10 +1775,10 @@ class World:
 
         # IO
         self.io = self.IO(self, nSteps, self.para['outPath'])
-        lg.debug('Init IO done')
+        lg.debug('Init IO done')##OPTPRODUCTION
         # Globally synced variables
         self.graph.glob     = self.Globals(self)
-        lg.debug('Init Globals done')
+        lg.debug('Init Globals done')##OPTPRODUCTION
 
         # enumerations
         self.enums = dict()
@@ -1632,7 +1800,6 @@ class World:
         self.registerEdgeType('inactiv', None, None)
 
 
-
     def _globIDGen(self):
         i = -1
         while i < self.maxNodes:
@@ -1647,20 +1814,7 @@ class World:
     def loc2glob(self, idx):
         return self._loc2glob[idx]
 
-    def getNodeData(self, propName, nodeType=None):
-        """
-        Method to retrieve all properties of all entities of one nodeType
-        """
-        nodeIdList = self.nodeDict[nodeType]
-
-        return np.asarray(self.graph.vs[nodeIdList][propName])
-
-
-    def getEdgeData(self, propName, edgeType=None):
-        """
-        Method to retrieve all properties of all entities of one edgeType
-        """
-        return self.graph.es.select(type=edgeType)[propName]
+    
 
     def getLocationDict(self):
         """
@@ -1702,7 +1856,11 @@ class World:
         """
         Method to read values of node sequences at once
         Return type is numpy array
+        Only return non-ghost agent properties
         """
+        #if nodeType:
+        #    assertUpdate(self.graph, prop, nodeType)
+        
         if idxList:
             return np.asarray(self.graph.vs[idxList][prop])
         elif nodeType:
@@ -1718,6 +1876,21 @@ class World:
         elif nodeType:
             self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
 
+#    def getNodeData(self, propName, nodeType=None):
+#        """
+#        Method to retrieve all properties of all entities of one nodeType
+#        """
+#        nodeIdList = self.nodeDict[nodeType]
+#
+#        return np.asarray(self.graph.vs[nodeIdList][propName])
+
+
+    def getEdgeData(self, propName, edgeType=None):
+        """
+        Method to retrieve all properties of all entities of one edgeType
+        """
+        return self.graph.es.select(type=edgeType)[propName]
+    
   
     def getEntity(self, nodeID=None, globID=None):
         """
@@ -1746,7 +1919,9 @@ class World:
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
-        self.cellMapIdxList = list()
+        lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
+        # tuple of idx array of cells that correspond of the spatial input maps 
+        self.cellMapIds = np.where(rankArray == self.mpi.rank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):
@@ -1842,9 +2017,9 @@ class World:
 #            eStart += nConnection[ii]
 #            ii +=1
             
-        lg.debug('starting initCommunicationViaLocations')
+        lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
         self.mpi.initCommunicationViaLocations(ghostLocationList, nodeType)
-        lg.debug('finished initCommunicationViaLocations')
+        lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
 
     def iterEdges(self, edgeType):
         """
@@ -1871,7 +2046,7 @@ class World:
         if random:
             #print 'nodeDict' + str(nodeDict)
             #print self.entList
-            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
             return [self.entList[i] for i in shuffled_list]
         else:
             return  [self.entList[i] for i in nodeDict]
@@ -1890,7 +2065,7 @@ class World:
             nodeDict = self.nodeDict[nodeType]
 
         if random:
-            shuffled_list = sorted(nodeDict, key=lambda x: np.random.random())
+            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
             return  [(self.entList[i], i) for i in shuffled_list]
         else:
             return  [(self.entList[i], i) for i in nodeDict]
@@ -1909,19 +2084,19 @@ class World:
             - nodeDict
             - ghostNodeDict
         - enumerations
-
         """
+        
         # type is an required property
         assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
 
         nodeTypeIdx = len(self.graph.nodeTypes)
 
-        self.graph.addNodeType(nodeTypeIdx, typeStr, staticProperies, dynamicProperies)
-
-        # same nodeType for ghost and non-ghost
-        self.graph.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
-        self.graph.class2NodeType[AgentClass]       = nodeTypeIdx
-        self.graph.class2NodeType[GhostAgentClass]  = nodeTypeIdx
+        self.graph.addNodeType(nodeTypeIdx, 
+                               typeStr, 
+                               AgentClass,
+                               GhostAgentClass,
+                               staticProperies, 
+                               dynamicProperies)
         self.nodeDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
@@ -1934,20 +2109,15 @@ class World:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
         of these properties
         - update of convertions dicts:
-            - nodeTypes2edgeTypes
+            - node2EdgeType
+            - edge2NodeType
         - update of enumerations
-
         """
+        
         assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)
-        #self.graph.edgeTypes.append(edgeTypeIdx)
-        self.graph.nodeTypes2edgeTypes[nodeType1, nodeType2] = edgeTypeIdx
-
-        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies)
-
-        #self.graph.edgeProperies[edgeTypeIdx] = propertyList
-        #self.graph.queue.addEdgeType(edgeTypeIdx, propertyList)
+        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
         self.enums[typeStr] = edgeTypeIdx
 
         return  edgeTypeIdx
@@ -1988,6 +2158,20 @@ class World:
         del self._glob2loc[agent.gID]
         del self._loc2glob[agent.gID]
 
+
+
+    def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
+        """
+        Creation of of a new record instance. 
+        If mpiReduce is given, the record is connected with a global variable with the
+        same name
+        """
+        self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
+
+        if mpiReduce is not None:
+            self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
+            self.globalRecord[name].glob = self.graph.glob
+            
     def registerLocation(self, location, x, y):
 
         self.locDict[x,y] = location
@@ -2009,7 +2193,37 @@ class World:
 
     def returnGlobals(self):
         return self.graph.glob
+    
+    def finalize(self):
+        """
+        Method to finalize records, I/O and reporter
+        """
+        from class_auxiliary import saveObj
 
+        # finishing reporter files
+#        for writer in self.reporter:
+#            writer.close()
+
+        if self.isRoot:
+            # writing global records to file
+            h5File = h5py.File(self.para['outPath'] + '/globals.hdf5', 'w')
+            for key in self.globalRecord:
+                self.globalRecord[key].saveCSV(self.para['outPath'])
+                self.globalRecord[key].save2Hdf5(h5File)
+
+            h5File.close()
+            # saving enumerations
+            saveObj(self.enums, self.para['outPath'] + '/enumerations')
+
+
+            # saving enumerations
+            saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
+
+            if self.para['showFigures']:
+                # plotting and saving figures
+                for key in self.globalRecord:
+                    self.globalRecord[key].plot(self.para['outPath'])
+                    
     def view(self,filename = 'none', vertexProp='none', dispProp='gID', layout=None):
         try:
             import matplotlib.cm as cm
@@ -2074,19 +2288,29 @@ class World:
                     ig.plot(self.graph, filename, layout=layout, **visual_style )
         except:
             pass
+        
+class easyUI():
+    """ 
+    Easy-to-use user interace that provides high-level methods or functions to improve 
+    user friendliness of the library
+    """
+    def __init__(earth):
+        pass
+
+        
 if __name__ == '__main__':
 
-    earth = World(simNo = 1, outPath = "", maxNodes = 1e2, nSteps = 10)
+    earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
 #
     print earth.mpi.comm.rank
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
-    earth.graph.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')
+    earth.graph.glob.registerValue('test' , np.asarray([earth.mpi.comm.rank]),'max')
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
     print earth.graph.glob['test']
     print earth.graph.glob['meantest']
-    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local maen: ',earth.glob['meantest']
+    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local mean: ',earth.glob['meantest']
     print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
     earth.graph.glob.sync()
     print earth.graph.glob['test']
