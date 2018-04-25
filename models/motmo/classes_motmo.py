@@ -319,6 +319,10 @@ class Earth(World):
         ttComp = time.time()
 
         # proceed market in time
+        # stf: sollte das nicht eher am Ende des steps aufgerufen
+        # werden? z.b. passiert bei updateTechnologicalProgress nichts
+        # da die sales=0 sind. Hab mir aber nicht alle Details
+        # angeschaut, welche im Market step passieren
         self.market.step(self) # Statistics are computed here
 
         
@@ -426,7 +430,14 @@ class Good():
     """
     
     #class variables (common for all instances, - only updated by class mehtods)
-    
+
+    # stf: ich weiss nicht genau, wie das bei Python aussieht, aber Du
+    # missbrauchst hier eine Liste als ein Array mit einer fixen
+    # Länge. Das hat aber zur Laufzeit normalerweise echte Nachteile,
+    # da Listenelemente nicht am Stück im Speicher stehen (sprich mehr
+    # Cache-misses), und vor allem nur das vorrige und nächste Element
+    # kennen, sprich, wenn Du auf goodid Nummer 4 zugreifen willst,
+    # muss erst von drei Elemente nextElement() aufgerufen werden.
     lastGlobalSales  = list()
 
     @classmethod
@@ -438,6 +449,8 @@ class Good():
         
     def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
         #print self.lastGlobalSales
+        # stf: das finde ich einen recht schrägen Hack um die id zu setzen, siehe auch
+        # mein Kommentar zur Liste selber
         self.goodID             = len(self.lastGlobalSales)
         self.label              = label
         self.currGrowthRate     = 1
@@ -693,6 +706,7 @@ class Market():
         mobType = self.__nMobTypes__
         self.__nMobTypes__ +=1
         self.glob['sales'] = np.asarray([0]*self.__nMobTypes__)
+        # stf: das update verstehe ich nicht, da werden doch die glichen werte gesetzt, oder?
         self.glob.updateLocalValues('sales', np.asarray([0]*self.__nMobTypes__))
         self.stockByMobType.append(0)
         self.mobilityTypesToInit.append(label)
@@ -857,6 +871,7 @@ class Person(Agent):
 
         return contactList, connList
 
+
     def generateContactNetwork(self, world, nContacts,  currentContacts = None, addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for
@@ -979,7 +994,8 @@ class Person(Agent):
         
         # adding weighted selfUtil selftrust
         commUtil[mobType] += self.getValue('selfUtil')[mobType] * earth.para['selfTrust']
-
+        # stf: die teilerei hier finde ich komisch, warum werden z.B. für alle mobTypes / 2 geteilt?
+        # ich hätte einfach eine Zeile mit "commUtil[mobType] /= 2" erwartet
         commUtil /= 2.
         commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
@@ -1320,6 +1336,7 @@ class Household(Agent):
 
         carInHh = False
         # at least one car in househould?
+        # stf: !=2 ist unschön. Was ist in der neuen Version mit Car sharing?
         if any([adult.getValue('mobType') !=2 for adult in self.adults]):
             carInHh = True
 

@@ -58,8 +58,10 @@ later:
 
 
 """
-
-import sys, mpi4py
+import sys
+sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+import mpi4py
 mpi4py.rc.threads = False
 sys_excepthook = sys.excepthook
 def mpi_excepthook(v, t, tb):
@@ -810,6 +812,7 @@ class World:
 
         #%% simple global reductions
         def registerValue(self, globName, value, reduceType):
+            print globName, value, reduceType
             self[globName] = value
             self.localValues[globName] = value
             self.nValues[globName] = len(value)
@@ -2073,8 +2076,9 @@ class World:
             pass
 if __name__ == '__main__':
 
-    earth = World(maxNodes = 1e2, nSteps = 10)
+    earth = World(simNo = 1, outPath = "", maxNodes = 1e2, nSteps = 10)
 #
+    print earth.mpi.comm.rank
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
     earth.graph.glob.registerValue('test' , np.asarray(earth.mpi.comm.rank),'max')

@@ -110,6 +110,64 @@ from scipy import signal
 print 'import done'
 
 overallTime = time.time()
+# %%
+# TODO
+# random iteration (even pairs of agents)
+#from __future__ import division
+
+import sys, os, socket
+dir_path = os.path.dirname(os.path.realpath(__file__))
+if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+else:
+    import matplotlib
+    matplotlib.use('Agg')
+
+import mpi4py
+mpi4py.rc.threads = False
+import csv
+import time
+#import guppy
+from copy import copy
+from os.path import expanduser
+import pdb
+home = expanduser("~")
+
+sys.path.append('../../lib/')
+sys.path.append('../../modules/')
+
+
+
+#from deco_util import timing_function
+import numpy as np
+
+#import mod_geotiff as gt # not working in poznan
+
+#from mpi4py import  MPI
+#import h5py
+
+from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion, aux, h5py, MPI
+#import class_auxiliary  as aux #convertStr
+comm = MPI.COMM_WORLD
+mpiRank = comm.Get_rank()
+mpiSize = comm.Get_size()
+
+
+import matplotlib.pylab as plt
+import seaborn as sns; sns.set()
+sns.set_color_codes("dark")
+#import matplotlib.pyplot as plt
+
+import pandas as pd
+from bunch import Bunch
+
+
+from scipy import signal
+
+print 'import done'
+
+overallTime = time.time()
 ###### Enums ################
 #connections
 _cll = 1 # loc - loc
