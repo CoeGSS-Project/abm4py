@@ -316,12 +316,30 @@ class BaseGraph():
             return self.nodes[nTypeID][dataID]
         
         
+#    def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
+#        
+#        if nTypeID is None:
+#            nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
+#            
+#        self.nodes[nTypeID][label][dataIDs] = values
+
     def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
         
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
-            
-        self.nodes[nTypeID][label][dataIDs] = values
+        
+        dtype2 = np.dtype({name:self.nodes[nTypeID]._data.dtype.fields[name] for name in label})
+        
+        view = np.ndarray(self.nodes[nTypeID]._data.shape, 
+                          dtype2, 
+                          self.nodes[nTypeID]._data, 
+                          0, 
+                          self.nodes[nTypeID]._data.strides) 
+        #print label
+        #print view.dtype
+        #print values.dtype
+        #print values
+        view[dataIDs] = values
 
     def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
         
@@ -329,6 +347,12 @@ class BaseGraph():
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
         if label:
+            print 'label: ' + str(label)
+            print dataIDs
+            print lnIDs
+            print self.nodes[nTypeID][label]
+            print self.nodes[nTypeID].shape
+            print self.nodes[nTypeID].dtype
             return self.nodes[nTypeID][label][dataIDs]
         else:
             return self.nodes[nTypeID][dataIDs]

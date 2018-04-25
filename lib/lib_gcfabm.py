@@ -858,7 +858,7 @@ class Location(Entity):
         ToDo: check if not deprecated 
         """
         self.weights, nodeIDList = self.getEdgeValues('weig',edgeType=edgeType)
-        sdf
+        
         return self.weights,  nodeIDList
 
 class GhostLocation(Entity):
@@ -1451,7 +1451,7 @@ class World:
             dataPackage = dict()
             dataPackage['nNodes']  = nNodes
             dataPackage['nTypeID'] = nodeType
-            
+            print self.mpiSendIDList[(nodeType,mpiPeer)]
             dataPackage['data'] = self.world.graph.getNodeSeqAttr(label=propList, lnIDs=self.mpiSendIDList[(nodeType,mpiPeer)] )
             dataSize += np.prod(dataPackage['data'].shape)
             if connList is not None:
@@ -1477,16 +1477,19 @@ class World:
             """
             tt = time.time()
             messageSize = 0
+            lg.info('before')
             for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
+                lg.info('here')
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
-                    nodeSeq = self.ghostNodeSend[nodeType, mpiPeer]
+                    #IDList = self.ghostNodeSend[nodeType, mpiPeer]
 
                     if propertyList in ['all', 'dyn', 'sta']:
-                        propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
-                        propertyList.remove('gID')
+                        propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)['names']
+                        #del propertyList['gID']
                         
                     lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeType ' + str(nodeType) + 'MPIMPIMPI')
-                    dataPackage ,packageSize = self._packData(nodeType, mpiPeer, nodeSeq,  propertyList, connList=None)
+                    dataPackage ,packageSize = self._packData(nodeType, mpiPeer, propertyList, connList=None)
+                                                        
                     messageSize = messageSize + packageSize
                     self._add2Buffer(mpiPeer, dataPackage)
 
@@ -1511,12 +1514,15 @@ class World:
                             propertyList.remove('gID')
                         #print type(self.ghostNodeRecv[nodeType, mpiPeer])
 #                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
-                        for i, prop in enumerate(propertyList):
-                           #nodeSeq[prop] = dataPackage[i+1]
-                            self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], 
-                                                            label=propertyList, 
-                                                            values=dataPackage['data'][prop])    
-                            
+#                        for i, prop in enumerate(propertyList):
+#                           #nodeSeq[prop] = dataPackage[i+1]
+#                            self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], 
+#                                                            label=propertyList, 
+#                                                            values=dataPackage['data'][prop])    
+                        self.world.graph.setNodeSeqAttr(label=propertyList, 
+                                                        values=dataPackage['data'],
+                                                        lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
+                        print 1
             syncUnpackTime = time.time() -tt
 
             lg.info('Sync times - ' +
@@ -1638,7 +1644,8 @@ class World:
                 #nodeSeq = world.graph.vs[IDsList]
 
                 # setting up ghost out communication
-                #self.ghostNodeSend[nodeType, mpiPeer] = nodeSeq
+                self.ghostNodeSend[nodeType, mpiPeer] = IDsList
+                
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                 #print propList
                 dataPackage, packageSize = self._packData( nodeType, mpiPeer,  propList, connList)
@@ -1665,9 +1672,10 @@ class World:
 #                    nodeSeq = world.graph.vs[nIDs]
 
                     
-                    self.mpiRecvIDList[(nodeType, mpiPeer)] = world.addVertices(nodeType, nNodes)
+                    IDsList = world.addVertices(nodeType, nNodes)
                     # setting up ghostIn communicator
-                    #self.ghostNodeRecv[nodeType, mpiPeer] = nodeSeq
+                    self.mpiRecvIDList[(nodeType, mpiPeer)] = IDsList
+                    self.ghostNodeRecv[nodeType, mpiPeer] = IDsList
 
                     propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                     propList.append('gID')
@@ -1675,12 +1683,16 @@ class World:
                         #print dataPackage
                     
                         #print dataPackage[-1]
-                    for i, prop in enumerate(propList):
-                        #nodeSeq[prop] = dataPackage[i+1]
-                        #print prop
-                        self.world.graph.setNodeSeqAttr(label=prop, 
-                                                        values=dataPackage['data'][prop],
-                                                        lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
+#                    for i, prop in enumerate(propList):
+#                        #nodeSeq[prop] = dataPackage[i+1]
+#                        #print prop
+#                        self.world.graph.setNodeSeqAttr(label=[prop], 
+#                                                        values=dataPackage['data'][[prop]],
+#                                                        lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
+                    self.world.graph.setNodeSeqAttr(label=propList, 
+                                                    values=dataPackage['data'],
+                                                    lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
+
 
                     gIDsParents = dataPackage['connectedNodes']
                     #print gIDsParents
@@ -2030,8 +2042,10 @@ class World:
                         loc = GhstLocClassObject(self, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
                         #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
-
+                        
                         self.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
+                        
+                        self.registerLocation(loc, x, y)
                         ghostLocationList.append(loc)
         self.graph.IDArray = IDArray
 
@@ -2413,8 +2427,8 @@ if __name__ == '__main__':
 
 
         
-#    log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
-#    sys.stdout = log_file
+    log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
+    sys.stdout = log_file
     earth.graph.glob.registerValue('test' , earth.mpi.comm.rank,'max')
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
@@ -2464,7 +2478,7 @@ if __name__ == '__main__':
 
         if cell.getValue('pos')[0] == 0:
             x,y = cell.getValue('pos')
-            agent = Agent(earth, value3=np.random.randn(),pos=(x+ np.random.randn()*.1,  y + np.random.randn()*.1))
+            agent = Agent(earth, value3=np.random.randn(),pos=(x,  y))
             print 'agent.nID' + str(agent.nID)
             agent.register(earth, cell, C_LOAG)
             #cell.registerEntityAtLocation(earth, agent,_cLocAg)
@@ -2543,4 +2557,12 @@ if __name__ == '__main__':
     assert agent['value3'] == value +1
     assert earth.graph.getNodeAttr('value3', agent.nID) == value +1
     print 'Value access and increment sucessful'
+    
+    #%%
+    pos = (0,4)
+    cell40 = earth.locDict[pos]
+    agentID = cell40.getPeerIDs(edgeType=C_LOAG, mode='in')
+    connAgent = earth.entDict[agentID[0]]
+    assert all(cell40['pos'] == connAgent['pos'])
+    
     
