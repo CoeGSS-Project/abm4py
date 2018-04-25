@@ -17,6 +17,9 @@ factor = 25          # spatial extend per process (factor x factor)
 nSteps = 10          # number of model steps that are run
 radius = 5           # spatial interaction radius -> increases of communication
 weakScaling = False  # testin weak scaling
+debug =True
+if weakScaling == False:
+    layerShape = [32, 32]
 #############################################################
 
 
@@ -65,11 +68,13 @@ mpiRank = mpiComm.Get_rank()
 mpiSize = mpiComm.Get_size()
 
 
-debug       = 0
 showFigures = 0
 
 simNo, baseOutputPath = aux.getEnvironment(mpiComm, getSimNo=True)
 outputPath = aux.createOutputDirectory(mpiComm, baseOutputPath, simNo)
+
+#simNo = 0
+#outputPath = '.'
 
 if not os.path.isfile(outputPath + '/run_times.csv'):
     fid = open(outputPath + '/run_times.csv','w')
@@ -77,6 +82,7 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
     fid.close()
     
 #%% Setup of log file
+
 if debug:
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                     filemode='w',
@@ -116,6 +122,8 @@ earth = LIB.World(simNo,
               queuing=False)
 
 earth.setParameters(parameters)
+log_file   =  open('out' + str(earth.mpi.rank) + '.txt', 'w')
+sys.stdout = log_file
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
                                      staticProperies  = [('gID', np.int32,1),
@@ -145,7 +153,7 @@ if weakScaling:
 
 
 else:
-    layerShape = [32, 32]
+    
     
     procPerDim = int(np.sqrt(mpiSize))
     factor = layerShape[0] / procPerDim
@@ -225,6 +233,7 @@ for agent in earth.iterEntRandom(AGENT):
     #connList = [(agent.nID, peerID) for peerID in np.random.choice(earth.nodeDict[AGENT],nFriends)]
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
+    
 earth.addEdges(CON_AA, globalSourceList, globalTargetList)
 if earth.queuing:
     earth.queue.dequeueEdges(earth)    
