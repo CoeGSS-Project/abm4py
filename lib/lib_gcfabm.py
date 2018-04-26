@@ -491,7 +491,8 @@ class Entity():
             #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
             self.gID = self.getValue('gID')
             # redireciton of internal functionality:
-            
+            self.__getitem__ = deco(self._node.__getitem__)
+            self.__setitem__ = self._node.__setitem__
             return
 
         # create instance newly
@@ -1393,8 +1394,11 @@ class World:
             self.peers    = list()     # list of ranks of all processes that have ghost duplicates of this process
 
             self.ghostNodeQueue = dict()
-            self.ghostNodeSend  = dict()     # ghost vertices on this process that receive information
-            self.ghostNodeRecv  = dict()     # vertices on this process that provide information to ghost nodes on other process
+            #ID list of ghost nodes that recieve updates from other processes
+            self.mpiRecvIDList = dict()           
+            #ID list of ghost nodes that send updates from other processes
+            self.mpiSendIDList = dict()
+            
             self.buffer         = dict()
             self.messageSize    = dict()
             self.sendReqList    = list()
@@ -1451,7 +1455,7 @@ class World:
             dataPackage = dict()
             dataPackage['nNodes']  = nNodes
             dataPackage['nTypeID'] = nodeType
-            print self.mpiSendIDList[(nodeType,mpiPeer)]
+            #print self.mpiSendIDList[(nodeType,mpiPeer)]
             dataPackage['data'] = self.world.graph.getNodeSeqAttr(label=propList, lnIDs=self.mpiSendIDList[(nodeType,mpiPeer)] )
             dataSize += np.prod(dataPackage['data'].shape)
             if connList is not None:
@@ -1477,9 +1481,9 @@ class World:
             """
             tt = time.time()
             messageSize = 0
-            lg.info('before')
-            for (nodeType, mpiPeer) in self.ghostNodeSend.keys():
-                lg.info('here')
+            
+            for (nodeType, mpiPeer) in self.mpiSendIDList.keys():
+                #lg.info('here')
                 if nodeTypeList == 'all' or nodeType in nodeTypeList:
                     #IDList = self.ghostNodeSend[nodeType, mpiPeer]
 
@@ -1500,6 +1504,7 @@ class World:
             pureSyncTime = time.time() -tt
 
             tt = time.time()
+            
             for mpiPeer in self.peers:
                 if len(recvBuffer[mpiPeer]) > 0: # will receive a message
 
@@ -1519,10 +1524,11 @@ class World:
 #                            self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], 
 #                                                            label=propertyList, 
 #                                                            values=dataPackage['data'][prop])    
+                        #print dataPackage['data']
                         self.world.graph.setNodeSeqAttr(label=propertyList, 
                                                         values=dataPackage['data'],
                                                         lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
-                        print 1
+                        
             syncUnpackTime = time.time() -tt
 
             lg.info('Sync times - ' +
@@ -1541,11 +1547,7 @@ class World:
             # acquire the global IDs for the ghostNodes
             mpiRequest = dict()
             
-            #ID list of ghost nodes that recieve updates from other processes
-            self.mpiRecvIDList = dict()
-            
-            #ID list of ghost nodes that send updates from other processes
-            self.mpiSendIDList = dict()
+
             
             lg.debug('ID Array: ' + str(self.world.graph.IDArray))##OPTPRODUCTION
             for ghLoc in ghostLocationList:
@@ -1587,7 +1589,7 @@ class World:
                 #pprint(incRequest)
                 lnIDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
                 #print lnIDList
-                lg.debug( str(self.rank) + ' - idlist:' + str(lnIDList))##OPTPRODUCTION
+                lg.debug( str(self.rank) + ' -sendIDlist:' + str(lnIDList))##OPTPRODUCTION
                 self.mpiSendIDList[(locNodeType,mpiDest)] = lnIDList
                 #self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[IDList]
                 #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
@@ -1644,7 +1646,7 @@ class World:
                 #nodeSeq = world.graph.vs[IDsList]
 
                 # setting up ghost out communication
-                self.ghostNodeSend[nodeType, mpiPeer] = IDsList
+                #self.ghostNodeSend[nodeType, mpiPeer] = IDsList
                 
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                 #print propList
@@ -1675,7 +1677,7 @@ class World:
                     IDsList = world.addVertices(nodeType, nNodes)
                     # setting up ghostIn communicator
                     self.mpiRecvIDList[(nodeType, mpiPeer)] = IDsList
-                    self.ghostNodeRecv[nodeType, mpiPeer] = IDsList
+                    #self.ghostNodeRecv[nodeType, mpiPeer] = IDsList
 
                     propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                     propList.append('gID')
@@ -1732,6 +1734,9 @@ class World:
             if self.comm.size == 1:
                 return None
             tt = time.time()
+
+            if nodeTypeList == 'all':
+                nodeTypeList = self.world.graph.nodeTypes
             messageSize = self._updateGhostNodeData(nodeTypeList, propertyList)
 
             if self.world.timeStep == 0:
@@ -1744,14 +1749,14 @@ class World:
                          ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
             
             if nodeTypeList == 'all':
-                nodeTypeList =self.world.graph.nodeTypes
+                nodeTypeList = self.world.graph.nodeTypes
             
             
             for nodeType in nodeTypeList:
                 self.world.graph.ghostTypeUpdated[nodeType] = list()
                 if propertyList in ['all', 'dyn', 'sta']:        
-                    propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)
-                    #del propertyList['gID']
+                    propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)['names']
+                
                 
                 for prop in propertyList:
                     self.world.graph.ghostTypeUpdated[nodeType].append(prop)
@@ -2038,14 +2043,14 @@ class World:
 
 
                     if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.mpi.rank:  # location lives on another process
-
+                        
                         loc = GhstLocClassObject(self, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
                         #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
                         
                         self.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
                         
-                        self.registerLocation(loc, x, y)
+                        #self.registerLocation(loc, xDst, yDst)
                         ghostLocationList.append(loc)
         self.graph.IDArray = IDArray
 
@@ -2494,8 +2499,8 @@ if __name__ == '__main__':
     print str(earth.mpi.rank) + ' values' + str(earth.graph.nodes[CELL]['value'])
     print str(earth.mpi.rank) + ' values2: ' + str(earth.graph.nodes[CELL]['value2'])
 
-    print earth.mpi.ghostNodeRecv
-    print earth.mpi.ghostNodeSend
+    #print earth.mpi.ghostNodeRecv
+    #print earth.mpi.ghostNodeSend
 
     print earth.graph.getPropOfNodeType(AG, 'names')
 
@@ -2560,9 +2565,23 @@ if __name__ == '__main__':
     
     #%%
     pos = (0,4)
-    cell40 = earth.locDict[pos]
+    cellID = earth.graph.IDArray[pos]
+    cell40 = earth.entDict[cellID]
     agentID = cell40.getPeerIDs(edgeType=C_LOAG, mode='in')
     connAgent = earth.entDict[agentID[0]]
     assert all(cell40['pos'] == connAgent['pos'])
     
+    if earth.mpi.rank == 1:
+        cell40['value'] = 32.0
+        connAgent['value3'] = 43.2
+    earth.mpi.updateGhostNodes([CELL])
+    earth.mpi.updateGhostNodes([AG],['value3'])
     
+    
+    buff =  earth.mpi.all2all(cell40['value'])
+    assert buff[0] == buff[1]
+    print 'ghost update of cells successful (all attributes) '
+    
+    buff =  earth.mpi.all2all(connAgent['value3'])
+    assert buff[0] == buff[1]
+    print 'ghost update of agents successful (specific attribute)'

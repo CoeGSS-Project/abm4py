@@ -347,12 +347,6 @@ class BaseGraph():
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
         if label:
-            print 'label: ' + str(label)
-            print dataIDs
-            print lnIDs
-            print self.nodes[nTypeID][label]
-            print self.nodes[nTypeID].shape
-            print self.nodes[nTypeID].dtype
             return self.nodes[nTypeID][label][dataIDs]
         else:
             return self.nodes[nTypeID][dataIDs]
