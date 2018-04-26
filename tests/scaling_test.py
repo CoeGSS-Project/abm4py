@@ -17,6 +17,8 @@ factor = 25          # spatial extend per process (factor x factor)
 nSteps = 10          # number of model steps that are run
 radius = 5           # spatial interaction radius -> increases of communication
 weakScaling = False  # testin weak scaling
+if not weakScaling:
+    layerShape = [64, 64]
 #############################################################
 
 
@@ -147,7 +149,7 @@ if weakScaling:
 
 
 else:
-    layerShape = [128, 128]
+    layerShape = [64, 64]
     
     procPerDim = int(np.sqrt(mpiSize))
     factor = layerShape[0] / procPerDim
