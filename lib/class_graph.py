@@ -445,11 +445,12 @@ class BaseGraph():
         eType = self.edges[eTypeID]
         dataIDs = np.zeros(nEdges, dtype=np.int32)
         
-        if len(eType.freeRows) == 0:
+        nfreeRows = len(eType.freeRows)
+        if nfreeRows == 0:
             
-            dataIDs[:] = [eType.getNewID() for x in range(nEdges)]  
-        elif len(eType.freeRows) < nEdges:
-            newIDs = [eType.getNewID() for x in range(nEdges - len(eType.freeRows))] 
+            dataIDs[:] = [eType.getNewID() for x in xrange(nEdges)]  
+        elif nfreeRows < nEdges:
+            newIDs = [eType.getNewID() for x in xrange(nEdges - nfreeRows)] 
             dataIDs[:] = eType.freeRows + newIDs
             eType.freeRows = []
         else:
