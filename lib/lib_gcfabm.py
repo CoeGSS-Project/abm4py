@@ -73,7 +73,7 @@ from mpi4py import MPI
 import h5py
 import logging as lg
 import sys
-import igraph as ig
+#import igraph as ig
 import numpy as np
 import time
 import random as rd
@@ -720,7 +720,6 @@ class Agent(Entity):
         #ToDO add to easyUI
         """
 
-
         if currentContacts is None:
             isInit=True
         else:
@@ -731,28 +730,15 @@ class Agent(Entity):
         else:
             currentContacts.append(self.nID)
 
-        contactList = list()
-        sourceList  = list()
-        targetLis   = list()
-        #ownPref    = self._node['preferences']
-        #ownIncome  = self.hh._node['income']
-
-
-        #get spatial weights to all connected cells
         cellConnWeights, cellIds = self.loc.getConnectedLocation()
         personIdsAll = list()
         nPers = list()
         cellWeigList = list()
-        
-        
+              
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
-            cellWeigList.append(cellWeight)
-            
+            cellWeigList.append(cellWeight)           
             personIds = world.getEntity(cellIdx).peList #doto do more general
-            
-            #personIds = world.getEntity(cellIdx).getPersons()
-
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -779,21 +765,24 @@ class Agent(Entity):
 
         if nContacts < 1:                                                       ##OPTPRODUCTION
             lg.info('ID: ' + str(self.nID) + ' failed to generate friend')      ##OPTPRODUCTION
-
+            contactList = list()
+            sourceList  = list()
+            targetList   = list()
         else:
             # adding contacts
             ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
-            contactList = [ personIdsAll[idx] for idx in ids ]
-            targetList  = [ personIdsAll[idx] for idx in ids]
-        sourceList = [self.nID] * len(ids)
+            contactList = [personIdsAll[idx] for idx in ids ]
+            targetList  = [personIdsAll[idx] for idx in ids]
+            sourceList  = [self.nID] * nContacts
         
         if isInit and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
             sourceList.append(self.nID)
             targetList.append(self.nID)
+            nContacts +=1
 
-        weigList   = [1./len(sourceList)]*len(sourceList)
+        weigList   = [1./nContacts]*nContacts
         return contactList, (sourceList, targetList), weigList
 
 

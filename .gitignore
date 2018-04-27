@@ -9,7 +9,6 @@
 GDAL-2*
 *.h5
 *popgen*
-*.csv
 *.net
 *.zip
 *.gnumeric
@@ -34,3 +33,4 @@ __pycache__
 *_prod.py
 get
 test_old*
+doe/*
