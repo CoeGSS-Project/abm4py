@@ -413,31 +413,31 @@ class Record():
     def evaluateRelativeError(self):
         if hasattr(self,'calDataDict'):
 
-            err = 0
+            error = 0
             for timeIdx ,calValues in self.calDataDict.iteritems():
 
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
-                       err += np.abs(calValue - self.rec[timeIdx,i]) / calValue
+                       error += np.abs(calValue - self.rec[timeIdx,i]) / calValue
         else:
-            err = None
+            error = None
             
-        return None
+        return error
 
 
     def evaluateAbsoluteError(self):
         if hasattr(self,'calDataDict'):
 
-            err = 0
+            error = 0
             for timeIdx ,calValues in self.calDataDict.iteritems():
 
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
-                       err += np.abs(calValue - self.rec[timeIdx,i])
+                       error += np.abs(calValue - self.rec[timeIdx,i])
         else:
-            err = None
+            error = None
             
-        return None
+        return error
         
 
 if __name__ == '__main__':
