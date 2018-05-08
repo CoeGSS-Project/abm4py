@@ -100,7 +100,6 @@ earth = initEarth(simNo,
                   caching=True,
                   queuing=True)
 
-CELL, HH, PERS = initTypes(earth)
 
 initSpatialLayer(earth)
 
