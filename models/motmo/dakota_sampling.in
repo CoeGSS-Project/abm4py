@@ -1,0 +1,29 @@
+environment
+    tabular_data
+
+method
+    sampling
+        sample_type random
+        samples = 10
+        seed = 1
+
+variables
+    uniform_uncertain = 2
+        lower_bounds    0.0              0.1            
+        upper_bounds    0.5              0.4            
+        descriptor      'innoPriority' 'mobIncomeShare'
+
+interface
+    fork                                                        
+        analysis_drivers = 'init_motmo.py'
+        parameters_file = 'd-params.in'
+        results_file = 'd-results.out'
+ #       file_tag
+ #       file_save
+#       aprepro
+
+responses               
+    response_functions = 1
+    no_gradients
+    no_hessians
+

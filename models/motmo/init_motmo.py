@@ -54,7 +54,7 @@ long-term:
 #TODO
 # random iteration (even pairs of agents)
 #from __future__ import division
-
+import dakota.interfacing as di
 import sys, os
 import socket
 
@@ -1727,8 +1727,14 @@ def randomizeParameters(parameters):
     
     parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
     return parameters
-# %% Online processing functions
 
+def readDakota(parameters):
+    dakota_params, dakota_results = di.read_parameters_file('d-params.in', 'd-results.out')
+    parameters['innoPriority'] = dakota_params['innoPriority']
+    parameters['mobIncomeShare'] = dakota_params['mobIncomeShare']
+    return dakota_results
+
+# %% Online processing functions
 def plot_calGreenNeigbourhoodShareDist(earth):
     if parameters.showFigures:
         nPersons = len(earth.getNodeDict(PERS))
@@ -2045,6 +2051,8 @@ if __name__ == '__main__':
         parameters = Bunch()
         # reading of gerneral parameters
         parameters = readParameterFile(parameters, 'parameters_all.csv')
+        # DAKOTA hack
+        fileName = 'parameters_small.csv'
         # reading of scenario-specific parameters
         parameters = readParameterFile(parameters,fileName)
         
@@ -2073,7 +2081,7 @@ if __name__ == '__main__':
         else:
             parameters = None
         
-
+        dakota_results = readDakota(parameters)
          
         parameters = comm.bcast(parameters,root=0)    
             
@@ -2143,7 +2151,10 @@ if __name__ == '__main__':
         if earth.para['showFigures']:
         
             onlinePostProcessing(earth)
-        
+
+        dakota_results["response_fn_1"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
+        dakota_results.write()
+            
         plot_computingTimes(earth)
     
     
