@@ -11,11 +11,6 @@ import numpy as np
 import itertools
 import functools
 
-class GraphQueue():
-
-    def __init__(self):
-        pass
-
 class TypeDescription():
 
     def __init__(self, nodeTypeIdx, typeStr, staticProperties, dynamicProperties):
@@ -27,124 +22,100 @@ class TypeDescription():
         self.typeIdx = nodeTypeIdx
         self.typeStr = typeStr
         
+class NodeArray():
+    """
+    Data structure for nodes and related informations based on a numpy array
+    """
+    def __init__(self, maxNodes, nTypeID, dtype):
+        # Input array is an already formed ndarray instance
+        # We first cast to be our class type
+        self._data = np.array(np.empty(maxNodes, dtype)).view()
+        # add the new attribute to the created instance
+        self.maxNodes       = maxNodes
+        self.nType          = nTypeID
+        self.getNewID       = itertools.count().next
+        self.nodeList       = []
+        self.freeRows       = []
+        # redirect getitem functionality to _data
+        self.__getitem__    = self._data.__getitem__
         
+    def __array_finalize__(self, obj):
+        # see InfoArray.__array_finalize__ for comments
+        if obj is None: return
+        if obj.dtype.names is not None:
+            for name in obj.dtype.names:
+                self.__setattr__(name, getattr(obj, name, None))
+        
+
+    def __getattr__(self, attr):
+        try: return getattr(self._data, attr)
+        except AttributeError:
+            # extend interface to all functions from numpy
+            f = getattr(np, attr, None)
+            if hasattr(f, '__call__'):
+                return functools.partial(f, self._data)
+            else:
+                raise AttributeError(attr)
+    
+    
+  
+    def nCount(self):
+        return len(self.nodeList)
+
+    def indices(self):
+        return self.nodeList
+
+class EdgeArray():
+    """
+    Data structure for edges and related informations based on a numpy array
+    """    
+    def __init__(self, maxEdges, eTypeID, dtype):
+        self._data = np.array(np.empty(maxEdges, dtype=dtype)).view()
+        
+        self.maxEdges       = maxEdges
+        self.eTypeID        = eTypeID
+        self.getNewID       = itertools.count().next
+        self.edgeList       = []
+        self.freeRows       = []
+        self.eDict          = dict()
+        self.edgesOut       = dict() # (source -> leID)
+        self.edgesIn        = dict() # (target -> leID)
+        self.nodesOut       = dict() # (source -> target)
+        self.nodesIn        = dict() # (target -> source)
+        # redirect getitem functionality to _data
+        self.__getitem__    = self._data.__getitem__
+
+    def __array_finalize__(self, obj):
+        # see InfoArray.__array_finalize__ for comments
+        if obj is None: return
+        self.info = getattr(obj, 'info', None)
+        if obj.dtype.names is not None:
+            for name in obj.dtype.names:
+                self.__setattr__(name, getattr(obj, name, None))
+        
+
+    def __getattr__(self, attr):
+        try: return getattr(self._data, attr)
+        except AttributeError:
+
+            # extend interface to all functions from numpy
+            f = getattr(np, attr, None)
+            if hasattr(f, '__call__'):
+                return functools.partial(f, self._data)
+            else:
+                raise AttributeError(attr)
+                
+    def eCount(self):
+        return len(self.edgeList)
+
+    def indices(self):
+        return self.edgeList
+              
 
 class BaseGraph():
-    
-    CHUNK_SIZE = 1000
-    
-    class NodeArray():
-    
-        def __init__(self, maxNodes, nTypeID, dtype):
-            # Input array is an already formed ndarray instance
-            # We first cast to be our class type
-            self._data = np.array(np.empty(maxNodes, dtype)).view()
-            # add the new attribute to the created instance
-            self.maxNodes       = maxNodes
-            self.nType          = nTypeID
-            self.getNewID       = itertools.count().next
-            self.nodeList       = []
-            self.freeRows       = []
-            # Finally, we must return the newly created object:
-            #return self
-            self.__getitem__    = self._data.__getitem__
-            
-        def __array_finalize__(self, obj):
-            # see InfoArray.__array_finalize__ for comments
-            if obj is None: return
-            self.info = getattr(obj, 'info', None)
-            if obj.dtype.names is not None:
-                for name in obj.dtype.names:
-                    self.__setattr__(name, getattr(obj, name, None))
-            
-
-        def __getattr__(self, attr):
-            try: return getattr(self._data, attr)
-            except AttributeError:
-                if attr == 'indices':
-                    return self.nodeList
-                # extend interface to all functions from numpy
-                f = getattr(np, attr, None)
-                if hasattr(f, '__call__'):
-                    return functools.partial(f, self)
-                else:
-                    raise AttributeError(attr)
-        
-#        def __getitem__(self, attr):          
-#            return self._data.__getitem__([attr])
-            
-        def nCount(self):
-            return len(self.nodeList)
-        
-        def add(self, attributes):
-            if len(self.freeRows) > 0:
-                # use and old local node ID from the free row
-                dataID  = self.freeRows.pop()
-                lnID    = dataID + self.nType * self.maxNodes
-            else:
-                # generate a new local ID
-                dataID  = self.getNewID()
-                #print lnID
-                lnID    = dataID + self.nType * self.maxNodes
-                #print dataID
-            dataview    = self[dataID:dataID+1].view() 
-            
-            if attributes is not None:
-                dataview[:] = attributes
-            self.nodeList.append(lnID)
-            return lnID, dataview
-        
-        def rem(self):
-            pass
-            
-        def set(self):
-            pass
-        
-        def get(self):
-            pass
-         
-    
-    class EdgeArray():
-        
-        def __init__(self, maxEdges, eTypeID, dtype):
-            self._data = np.array(np.empty(maxEdges, dtype=dtype)).view()
-            
-            self.maxEdges       = maxEdges
-            self.eTypeID        = eTypeID
-            self.getNewID       = itertools.count().next
-            self.edgeList       = []
-            self.freeRows       = []
-            self.eDict          = dict()
-            self.edgesOut       = dict() # (source -> leID)
-            self.edgesIn        = dict() # (target -> leID)
-            self.nodesOut       = dict() # (source -> target)
-            self.nodesIn        = dict() # (target -> source)
-            
-            
-
-        def __array_finalize__(self, obj):
-            # see InfoArray.__array_finalize__ for comments
-            if obj is None: return
-            self.info = getattr(obj, 'info', None)
-            if obj.dtype.names is not None:
-                for name in obj.dtype.names:
-                    self.__setattr__(name, getattr(obj, name, None))
-            
-
-        def __getattr__(self, attr):
-            try: return getattr(self._data, attr)
-            except AttributeError:
-                if attr == 'indices':
-                    return self.edgeList
-                # extend interface to all functions from numpy
-                f = getattr(np, attr, None)
-                if hasattr(f, '__call__'):
-                    return functools.partial(f, self)
-                else:
-                    raise AttributeError(attr)
-                    
-        def eCount(self):
-            return len(self.edgeList)
+    """
+    Graph class that is used to store data and connections of the ABM model
+    """   
         
     def __init__(self, maxNodesPerType, maxEdgesPerType):
         """
@@ -183,8 +154,8 @@ class BaseGraph():
         
         nTypeID          = self.getNodeTypeID()
         dt               = np.dtype(self.persNodeAttr + attrDescriptor)
-        nIDStart         = nTypeID * self.maxNodes
-        self.nodes[nTypeID] = self.NodeArray(self.maxNodes, nTypeID, dtype=dt)
+        self.nodes[nTypeID] = NodeArray(self.maxNodes, nTypeID, dtype=dt)
+
         return nTypeID
     
 #    def extendNodeArray(self, nTypeID):
@@ -206,23 +177,7 @@ class BaseGraph():
             except:
                 
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
-        
-#    def getNodeDataRef(self, lnID):
-#        """ calculates the node type ID from local ID"""
-#        if isinstance(lnID, tuple):
-#            nTypeID, dataID = lnID
-#        else:
-#            if isinstance(lnID, list):
-#                lnID = np.asarray(lnID)
-#                nTypeID, dataID = int(lnID[0] / self.maxNodes), lnID%self.maxNodes
-#                
-#            elif isinstance(lnID, np.ndarray):
-#            
-#                nTypeID, dataID = int(lnID[0] / self.maxNodes), lnID%self.maxNodes
-#            else:
-#                nTypeID, dataID = int(lnID / self.maxNodes), lnID%self.maxNodes
-#        
-#        return  nTypeID, dataID
+
     
     def addNode(self, nTypeID, attributes=None, **kwProp):
         
@@ -234,22 +189,19 @@ class BaseGraph():
          else:
              # generate a new local ID
              dataID   = self.nodes[nTypeID].getNewID()
-             #print lnID
              lnID = dataID + nTypeID * self.maxNodes
-             #print dataID
+
          dataview = self.nodes[nTypeID]._data[dataID:dataID+1].view() 
          if attributes is not None:
              dataview[:] = (True,) + attributes
          else:
              dataview['active'] = True
-             #print self.nodes[nTypeID].dtype.names
-             #print kwProp.values()
              dataview[kwProp.keys()] = tuple(kwProp.values())
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
          return lnID, dataID, dataview
-#         return self.nodes[nTypeID].add(attributes)
+     
     
     def addNodes(self, nTypeID, nNodes, **kwAttr):
         """
@@ -316,33 +268,34 @@ class BaseGraph():
             return self.nodes[nTypeID][dataID]
         
         
-#    def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
-#        
-#        if nTypeID is None:
-#            nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
-#            
-#        self.nodes[nTypeID][label][dataIDs] = values
-
     def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
-        
+        """
+        Nodes are either identified by list of lnIDS or (nType and dataID)
+        Label is a either string or list of strings
+        """
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
-        dtype2 = np.dtype({name:self.nodes[nTypeID]._data.dtype.fields[name] for name in label})
-        
+        try :
+            # assuming label is a singel string
+            dtype2 = np.dtype({label : self.nodes[nTypeID]._data.dtype.fields[label]})
+        except:   
+            # assuming label is a list of string
+            dtype2 = np.dtype({name:self.nodes[nTypeID]._data.dtype.fields[name] for name in label})
+                
         view = np.ndarray(self.nodes[nTypeID]._data.shape, 
                           dtype2, 
                           self.nodes[nTypeID]._data, 
                           0, 
                           self.nodes[nTypeID]._data.strides) 
-        #print label
-        #print view.dtype
-        #print values.dtype
-        #print values
+
         view[dataIDs] = values
 
     def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
-        
+        """
+        Nodes are either identified by list of lnIDS or (nType and dataID)
+        label is a either string or list of strings
+        """        
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
@@ -356,9 +309,8 @@ class BaseGraph():
         
         eTypeID = self.getEdgeTypeID()
         dt = np.dtype(self.persEdgeAttr + attrDescriptor)
-        eIDStart               = eTypeID * self.maxNodes
-
-        self.edges[eTypeID] = self.EdgeArray(self.maxEdges, eTypeID, dtype=dt)
+        self.edges[eTypeID] = EdgeArray(self.maxEdges, eTypeID, dtype=dt)
+        
         return eTypeID
 
     def getEdgeDataRef(self, leID):
@@ -401,9 +353,8 @@ class BaseGraph():
         else:
             # generate a new local ID
             dataID   = eType.getNewID()
-            #print lnID
             leID = dataID + eTypeID * self.maxNodes
-            #print dataID
+            
         dataview = eType[dataID:dataID+1].view() 
          
         #updating edge dictionaries
@@ -480,13 +431,10 @@ class BaseGraph():
             else:
                 eType.edgesIn[target] = [dataID]     
                 eType.nodesIn[target] = [source]
-
-        
               
         if kwAttr is not None:
             for attrKey in kwAttr.keys():
                 eType[attrKey][dataIDs] = kwAttr[attrKey]
-#    def add_edges(self, sources, targes, attributes):
 
     def remEdge(self, source, target, eTypeID):
         
@@ -607,9 +555,6 @@ class ABMGraph(BaseGraph):
         self.nodeType2Class = dict()
         self.class2NodeType = dict()
         
-        #self.add_edge = BaseGraph.addEdge
-        #self.add_edges = BaseGraph.addEdges
-
     def addNodeType(self, 
                     nodeTypeIdx, 
                     typeStr, 
@@ -625,6 +570,7 @@ class ABMGraph(BaseGraph):
         self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
         self.class2NodeType[AgentClass]       = nodeTypeIdx
         self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
+        
         self.initNodeType(typeStr, staticProperties + dynamicProperties)
 
     def addEdgeType(self , edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
@@ -660,48 +606,13 @@ class ABMGraph(BaseGraph):
             info['sizes'].append(it[2])
         return info
             
-#    def add_edges(self, edgeList, **argProps):
-#        """ overrides graph.add_edges"""
-#        eStart = self.ecount()
-#        Graph.add_edges(self, edgeList)
-#        for key in argProps.keys():
-#            self.es[eStart:][key] = argProps[key]
-#
-#    def startQueuingMode(self):
-#        """
-#        Starts queuing mode for more efficient setup of the graph
-#        Blocks the access to the graph and stores new vertices and eges in
-#        a queue
-#        """
-#        pass
-#
-#    def stopQueuingMode(self):
-#        """
-#        Stops queuing mode and adds all vertices and edges from the queue.
-#        """
-#        pass
-#
-#
-##    def add_edge(self, source, target, **kwproperties):
-##        """ overrides graph.add_edge"""
-##        return Graph.add_edge(self, source, target, **kwproperties)
-#
-#    def add_vertex(self, nodeType, gID, **kwProperties):
-#        """ overrides graph.add_vertice"""
-#        nID  = len(self.vs)
-#        kwProperties.update({'nID':nID, 'type': nodeType, 'gID':gID})
-#        Graph.add_vertex(self, **kwProperties)
-#        return nID, self.vs[nID]
-#
+
     def delete_edges(self, source, target, eTypeID):
         """ overrides graph.delete_edges"""
         edgeIDs = self.get_leID(source, target, eTypeID)
 
-
         self.remEdge(edgeIDs) # set to inactive
-#
-#    def delete_vertex(self, nodeID):
-#        print 'not implemented yet'
+
 
     def getOutNodeValues(self, lnID, eTypeID, attr=None):
         """
@@ -724,8 +635,7 @@ class ABMGraph(BaseGraph):
         """
         nIDsOut = self.edges[eTypeID].nodesOut[lnID]
         
-        nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)
-        
+        nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)     
         
         self.nodes[nTypeID][attr][dataIDs] = values
         
@@ -759,115 +669,15 @@ class ABMGraph(BaseGraph):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         return self.nodes[nTypeID]._data[dataID:dataID+1].view() 
 
-#class WorldGraph(Graph):
-#    """
-#    World graph is an agumented version of igraphs Graph that overrides some
-#    functions to work with the restrictions and functionality of world.
-#    It ensures that for example that deleting and adding of edges are recognized
-#    and cached.
-#    It also extends some of the functionalities of igraph (e.g. add_edges).
-#    """
-#
-#    def __init__(self, world, directed=None):
-#
-#        Graph.__init__(self, directed=directed)
-#        self.world = world
-#        self.queingMode = False
-#
-#        # list of types
-#        self.nodeTypes = dict()
-#        self.edgeTypes = dict()
-#        self.node2EdgeType = dict()
-#        self.edge2NodeType = dict()
-#
-#        # dict of classes to init node automatically
-#        self.nodeType2Class = dict()
-#        self.class2NodeType = dict()
-#
-#
-#
-#    def addNodeType(self, nodeTypeIdx, typeStr, AgentClass, GhostAgentClass, staticProperties, dynamicProperties):
-#        """ Create node type description"""
-#        nodeType = TypeDescription(nodeTypeIdx, typeStr, staticProperties, dynamicProperties)
-#        self.nodeTypes[nodeTypeIdx] = nodeType
-#        # same nodeType for ghost and non-ghost
-#        self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
-#        self.class2NodeType[AgentClass]       = nodeTypeIdx
-#        self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
-#
-#    def addEdgeType(self ,  edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
-#        """ Create edge type description"""
-#        edgeType = TypeDescription(edgeTypeIdx, typeStr, staticProperties, dynamicProperties)
-#        self.edgeTypes[edgeTypeIdx] = edgeType
-#        self.node2EdgeType[nodeType1, nodeType2] = edgeTypeIdx
-#        self.edge2NodeType[edgeTypeIdx] = nodeType1, nodeType2
-#        
-#    def getPropOfNodeType(self, nodeType, kind):
-#        if kind == 'all':
-#            return self.nodeTypes[nodeType].staProp + self.nodeTypes[nodeType].dynProp
-#        elif kind == 'sta':
-#            return self.nodeTypes[nodeType].staProp
-#        elif kind == 'dyn':
-#            return self.nodeTypes[nodeType].dynProp
-#
-#    def add_edges(self, edgeList, **argProps):
-#        """ overrides graph.add_edges"""
-#        eStart = self.ecount()
-#        Graph.add_edges(self, edgeList)
-#        for key in argProps.keys():
-#            self.es[eStart:][key] = argProps[key]
-#
-#    def startQueuingMode(self):
-#        """
-#        Starts queuing mode for more efficient setup of the graph
-#        Blocks the access to the graph and stores new vertices and eges in
-#        a queue
-#        """
-#        pass
-#
-#    def stopQueuingMode(self):
-#        """
-#        Stops queuing mode and adds all vertices and edges from the queue.
-#        """
-#        pass
-#
-#
-#    def add_edge(self, source, target, **kwproperties):
-#        """ overrides graph.add_edge"""
-#        return Graph.add_edge(self, source, target, **kwproperties)
-#
-#    def add_vertex(self, nodeType, gID, **kwProperties):
-#        """ overrides graph.add_vertice"""
-#        nID  = len(self.vs)
-#        kwProperties.update({'nID':nID, 'type': nodeType, 'gID':gID})
-#        Graph.add_vertex(self, **kwProperties)
-#        return nID, self.vs[nID]
-#
-#    def delete_edges(self, edgeIDs=None, pairs=None):
-#        """ overrides graph.delete_edges"""
-#        if pairs:
-#            edgeIDs = self.get_eids(pairs)
-#
-#
-#        self.es[edgeIDs]['type'] = 0 # set to inactive
-#
-#    def delete_vertex(self, nodeID):
-#        print 'not implemented yet'
 
 if __name__ == "__main__":
 
     world = dict()
 
-    graph = WorldGraph(world)
-
-    graph.add_vertices(5)
-
-    graph.add_edges([(1,2),(2,3)], type=[1,1], weig=[0.5,0.5])
 
     bigTest = 1
-    bg = BaseGraph(int(1e6), int(1e6))
-    #bg.selfTest()
-    #sdf
+    bg = ABMGraph(world, int(1e6), int(1e6))
+
     #%% nodes
     LOC = bg.initNodeType('location', 
                           [('gnID', np.int16, 1),
