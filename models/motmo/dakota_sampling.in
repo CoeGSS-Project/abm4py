@@ -15,7 +15,7 @@ variables
 
 interface
     fork                                                        
-        analysis_drivers = 'init_motmo.py'
+        analysis_drivers = 'run-dakota.py'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
  #       file_tag
