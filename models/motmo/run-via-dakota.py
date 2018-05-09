@@ -7,6 +7,10 @@ import os
 import socket
 import dakota.interfacing as di
 
+dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+dirPath = os.path.dirname(os.path.realpath(__file__))
+os.chdir('..')
+
 import init_motmo as init
 from classes_motmo import aux, MPI
 
@@ -19,10 +23,8 @@ overallTime = time.time()
 
 simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
 outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
-dirPath = os.path.dirname(os.path.realpath(__file__))
-
-dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
-
+print(outputPath)
+print(dirPath)
 init.initLogger(False, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
@@ -57,4 +59,5 @@ if earth.isRoot:
 
 dakotaResults["relativeError"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
 dakotaResults["absoluteError"].function = earth.globalRecord['stock_6321'].evaluateAbsoluteError()
+os.chdir('./dakota')
 dakotaResults.write()

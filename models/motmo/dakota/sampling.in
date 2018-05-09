@@ -4,7 +4,7 @@ environment
 method
     sampling
         sample_type random
-        samples = 3
+        samples = 1
         seed = 1
 
 variables
@@ -19,7 +19,7 @@ variables
 
 interface
     fork                                                        
-        analysis_drivers = 'run-via-dakota.py'
+        analysis_drivers = '../run-via-dakota.py'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
         file_tag
