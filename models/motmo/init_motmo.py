@@ -56,6 +56,7 @@ long-term:
 #from __future__ import division
 import sys, os
 import socket
+import pprint
 
 sys.path.append('../../lib/')
 sys.path.append('../../modules/')
@@ -66,10 +67,9 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
 
 else:
-    
     import matplotlib
     matplotlib.use('Agg')
-    
+
 import mpi4py
 mpi4py.rc.threads = False
 
@@ -97,11 +97,6 @@ mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
 import logging as lg
-import matplotlib.pylab as plt
-import seaborn as sns; sns.set()
-sns.set_color_codes("dark")
-#import matplotlib.pyplot as plt
-
 import pandas as pd
 from bunch import Bunch
 
@@ -152,21 +147,15 @@ comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
-
-import matplotlib.pylab as plt
-import seaborn as sns; sns.set()
-sns.set_color_codes("dark")
-#import matplotlib.pyplot as plt
-
 import pandas as pd
 from bunch import Bunch
 
 
 from scipy import signal
+import scenarios
 
 print 'import done'
 
-overallTime = time.time()
 ###### Enums ################
 #connections
 CON_LL = 1 # loc - loc
@@ -337,6 +326,52 @@ def mobilitySetup(earth):
     earth.para['nMobTypes'] = len(earth.enums['brands'])
     return earth
     ##############################################################################
+
+def initLogger(debug, outputPath):
+    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+                   filemode='w',
+                   format='%(levelname)7s %(asctime)s : %(message)s',
+                   datefmt='%m/%d/%y-%H:%M:%S',
+                   level=lg.DEBUG if debug else lg.INFO)
+
+    lg.info('Log file of process ' + str(mpiRank) + ' of ' + str(mpiSize))
+
+    # wait for all processes - debug only for poznan to debug segmentation fault
+    comm.Barrier()
+    if comm.rank == 0:
+        print 'log files created'
+
+def createAndReadParameters(fileName, dirPath):
+    def readParameterFile(parameters, fileName):
+        for item in csv.DictReader(open(fileName)):
+            if item['name'][0] != '#':
+                parameters[item['name']] = aux.convertStr(item['value'])
+        return parameters
+
+    parameters = Bunch()
+    # reading of gerneral parameters
+    parameters = readParameterFile(parameters, 'parameters_all.csv')
+    # reading of scenario-specific parameters
+    parameters = readParameterFile(parameters, fileName)
+
+    lg.info('Setting loaded:')
+
+    if mpiRank == 0:
+        parameters = scenarios.create(parameters, dirPath)
+
+        parameters = initExogeneousExperience(parameters)
+        parameters = randomizeParameters(parameters)
+    else:
+        parameters = None
+
+    parameters = comm.bcast(parameters, root=0)
+
+    if mpiRank == 0:
+        print'Parameter exchange done'
+    lg.info('Parameter exchange done')
+
+    return parameters
+
 
 def householdSetup(earth, calibration=False):
     
@@ -989,12 +1024,6 @@ def initExogeneousExperience(parameters):
     
     return parameters
 
-def readParameterFile(parameters, fileName):
-    for item in csv.DictReader(open(fileName)):
-        if item['name'][0] != '#':
-            parameters[item['name']] = aux.convertStr(item['value'])
-    return parameters
-
 def randomizeParameters(parameters):
     #%%
     def randDeviation(percent, minDev=-np.inf, maxDev=np.inf):
@@ -1020,51 +1049,16 @@ def randomizeParameters(parameters):
     parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
     return parameters
 
-# %% Online processing functions
-def plot_calGreenNeigbourhoodShareDist(earth):
-    if parameters.showFigures:
-        nPersons = len(earth.getNodeDict(PERS))
-        relarsPerNeigborhood = np.zeros([nPersons,3])
-        for i, persId in enumerate(earth.getNodeDict(PERS)):
-            person = earth.getEntity(persId)
-            x,__ = person.getConnNodeValues('mobType',PERS)
-            for mobType in range(3):
-                relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
-
-        n, bins, patches = plt.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
-                                label=['brown', 'green', 'other'])
-        plt.legend()
-
-def plot_incomePerNetwork(earth):
-
-    incomeList = np.zeros([len(earth.nodeDict[PERS]),1])
-    for i, persId in enumerate(earth.nodeDict[PERS]):
-        person = earth.entDict[persId]
-        x, friends = person.getConnNodeValues('mobType',PERS)
-        incomes = [earth.entDict[friend].hh.getValue('income') for friend in friends]
-        incomeList[i,0] = np.mean(incomes)
-
-    n, bins, patches = plt.hist(incomeList, 20, normed=0, histtype='bar',
-                            label=['average imcome '])
-    plt.legend()
-
-def plot_computingTimes(earth):
-    plt.figure()
-
-    allTime = np.zeros(earth.nSteps)
-    colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
-
-
-    for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
-        plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
-        allTime += var
-    plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
-    plt.tight_layout()
-    plt.ylim([0, np.percentile(allTime,99)])
-    plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
-
     #%%
 def runModel(earth, parameters):
+    # %% run of the model ################################################
+    lg.info('####### Running model with paramertes: #########################')
+    lg.info(pprint.pformat(parameters.toDict()))
+    if mpiRank == 0:
+        fidPara = open(earth.para['outPath'] + '/parameters.txt', 'w')
+        pprint.pprint(parameters.toDict(), fidPara)
+        fidPara.close()
+    lg.info('################################################################')
 
     #%% Initial actions
     tt = time.time()
@@ -1109,7 +1103,7 @@ def runModel(earth, parameters):
         earth.step() # looping over all cells
 
         #plt.figure()
-        #plot_calGreenNeigbourhoodShareDist(earth)
+        #plot.calGreenNeigbourhoodShareDist(earth)
         #plt.show()
 
 
@@ -1250,46 +1244,4 @@ def onlinePostProcessing(earth):
         y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
         lg.info( np.corrcoef(x,y))
 
-
-#%%############### Tests ############################################################
-
-
-def prioritiesCalibrationTest():
-
-    householdSetup(earth, parameters, calibration=True)
-    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeDict[3]:
-        df.loc[agID] = earth.graph.vs[agID]['preferences']
-
-    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeDict[3]]['preferences']))
-
-    return earth
-
-
-def setupHouseholdsWithOptimalChoice():
-
-    householdSetup(earth, parameters)
-    initMobilityTypes(earth, parameters)
-    #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in earth.iterEntRandom(HH):
-        household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
-
-    for cell in earth.iterEntRandom(CELL):
-        cell.step(earth.market.kappa)
-
-    earth.market.setInitialStatistics([1000.,5.,300.])
-
-    for household in earth.iterEntRandom(HH):
-        household.calculateConsequences(earth.market)
-        household.util = household.evalUtility()
-
-    for hh in iter(earth.nodeDict[HH]):
-        oldEarth = copy(earth)
-        earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)
-    return earth
-
-
-
-#%% __main__()
-######################################################################################
 
