@@ -413,20 +413,32 @@ class Record():
     def evaluateRelativeError(self):
         if hasattr(self,'calDataDict'):
 
-            err = 0
+            error = 0
             for timeIdx ,calValues in self.calDataDict.iteritems():
 
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
-                       err += np.abs(calValue - self.rec[timeIdx,i]) / calValue
-            fid = open('err.csv','w')
-            fid.write(str(err))
-            fid.close()
-            return err
-
+                       error += np.abs(calValue - self.rec[timeIdx,i]) / calValue
         else:
-            return None
+            error = None
+            
+        return error
 
+
+    def evaluateAbsoluteError(self):
+        if hasattr(self,'calDataDict'):
+
+            error = 0
+            for timeIdx ,calValues in self.calDataDict.iteritems():
+
+                for i, calValue in enumerate(calValues):
+                   if not np.isnan(calValue):
+                       error += np.abs(calValue - self.rec[timeIdx,i])
+        else:
+            error = None
+            
+        return error
+        
 
 if __name__ == '__main__':
     import mpi4py

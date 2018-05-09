@@ -391,7 +391,7 @@ class Cache():
         
         nodeType  = self.graph.edge2NodeType[edgeType][1]
         
-        assertUpdate(self.graph, prop, nodeType)
+        #assertUpdate(self.graph, prop, nodeType)
         
         if edgeType is None:
 
