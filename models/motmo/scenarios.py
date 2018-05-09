@@ -132,11 +132,6 @@ def scenarioTestSmall(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
     lg.info("####################################")
 
     return setup
@@ -234,12 +229,6 @@ def scenarioTestMedium(parameterInput, dirPath):
     for paName in ['techExpBrown', 'techExpGreen', 'techExpPublic', 'techExpShared', 'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
-
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
 
     return setup
 
@@ -347,12 +336,6 @@ def scenarioNBH(parameterInput, dirPath):
     for paName in ['techExpBrown', 'techExpGreen',
                    'techExpOther', 'population']:
         setup[paName] /= setup['reductionFactor']
-
-    pp.pprint( "Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
 
     return setup
 
@@ -470,10 +453,6 @@ def scenarioGer(parameterInput, dirPath):
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
@@ -602,10 +581,6 @@ def scenarioLueneburg(parameterInput, dirPath):
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
 
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
-
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
 
@@ -688,10 +663,6 @@ def scenarioTest(parameterInput, dirPath):
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')

@@ -5,43 +5,46 @@ import time
 import sys
 import os
 import socket
+import dakota.interfacing as di
 
 import init_motmo as init
 from classes_motmo import aux, MPI
-import plots
-
-debug = True
-showFigures = False
 
 comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
+
+showFigures = 0
 
 overallTime = time.time()
 
 simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
 outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
 dirPath = os.path.dirname(os.path.realpath(__file__))
-fileName = sys.argv[1]
 
-init.initLogger(debug, outputPath)
+dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+
+init.initLogger(False, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
 
-parameters = init.createAndReadParameters(fileName, dirPath)
+parameters = init.createAndReadParameters(dakotaParams['scenarioFileName'], dirPath)
 parameters['outPath'] = outputPath
 parameters.showFigures = showFigures
+
+# TODO loop over all dakota Params
+for d in dakotaParams.descriptors:
+    parameters[d] = dakotaParams[d]
+
+init.exchangeParameters(parameters)
 
 earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
-                       debug=debug,
+                       debug=False,
                        mpiComm=comm,
                        caching=True,
                        queuing=True)
-
-if parameters.scenario == 0:
-    earth.view('output/graph.png')
 
 init.runModel(earth, parameters)
 
@@ -52,7 +55,6 @@ if earth.isRoot:
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
     init.writeSummary(earth, parameters)
 
-if showFigures:
-    init.onlinePostProcessing(earth)
-
-plots.computingTimes(earth)
+dakotaResults["relativeError"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
+dakotaResults["absoluteError"].function = earth.globalRecord['stock_6321'].evaluateAbsoluteError()
+dakotaResults.write()
