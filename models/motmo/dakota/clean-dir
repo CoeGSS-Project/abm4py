@@ -1,0 +1,7 @@
+#!/bin/bash
+
+rm *.out
+rm *.dat
+rm *.rst
+rm *.in.*
+rm *.out.*

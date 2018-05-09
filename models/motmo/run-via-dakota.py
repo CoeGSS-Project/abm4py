@@ -7,6 +7,10 @@ import os
 import socket
 import dakota.interfacing as di
 
+# I don't want to polute the model directory with dakota files, but the
+# dakota.interfacing library uses relativ file names, so I start with the
+# dakota subdirectory, changes to the model diretory after reading the dakota
+# input file and switch back to the dakota dir before writing the output file
 dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
 dirPath = os.path.dirname(os.path.realpath(__file__))
 os.chdir('..')
@@ -33,7 +37,6 @@ parameters = init.createAndReadParameters(dakotaParams['scenarioFileName'], dirP
 parameters['outPath'] = outputPath
 parameters.showFigures = showFigures
 
-# TODO loop over all dakota Params
 for d in dakotaParams.descriptors:
     parameters[d] = dakotaParams[d]
 
