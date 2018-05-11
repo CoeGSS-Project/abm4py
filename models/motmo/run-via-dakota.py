@@ -6,6 +6,12 @@ import sys
 import os
 import socket
 import dakota.interfacing as di
+
+dakotadir = os.getcwd()
+dirPath = os.path.dirname(os.path.realpath(__file__))
+os.chdir('..')
+
+import init_motmo as init
 from classes_motmo import aux, MPI
 
 comm = MPI.COMM_WORLD
@@ -16,12 +22,10 @@ mpiRank = comm.Get_rank()
 # dakota subdirectory, changes to the model diretory after reading the dakota
 # input file and switch back to the dakota dir before writing the output file
 if mpiRank == 0:
+    os.chdir(dakotadir)
     dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+    os.chdir('..')
 
-dirPath = os.path.dirname(os.path.realpath(__file__))
-os.chdir('..')
-
-import init_motmo as init
 
 showFigures = 0
 
@@ -59,12 +63,11 @@ init.runModel(earth, parameters)
 lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
-if earth.isRoot:
+if mpiRank == 0:
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
     init.writeSummary(earth, parameters)
 
-os.chdir('./dakota')
-if mpiRank == 0:
-    dakotaResults["relativeError"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
-    dakotaResults["absoluteError"].function = earth.globalRecord['stock_6321'].evaluateAbsoluteError()
-    dakotaResults.write()
+    os.chdir('./dakota')
+    execfile(dakotaParams['calcResultsScript'])
+    # the script executed contains the calcResults function
+    calcResults(dakotaResults)

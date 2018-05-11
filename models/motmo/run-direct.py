@@ -49,7 +49,7 @@ init.runModel(earth, parameters)
 lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
-if earth.isRoot:
+if mpiRank == 0:
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
     init.writeSummary(earth, parameters)
 

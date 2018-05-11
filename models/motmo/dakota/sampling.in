@@ -9,13 +9,13 @@ method
 
 variables
     uniform_uncertain = 2
+        descriptor      'innoPriority' 'mobIncomeShare'
         lower_bounds    0.0              0.1            
         upper_bounds    0.5              0.4            
-        descriptor      'innoPriority' 'mobIncomeShare'
     discrete_state_set 
-        string = 1
-            descriptors 'scenarioFileName'
-            elements 'parameters_small.csv'
+        string = 2
+            descriptors 'scenarioFileName'     'calcResultsScript'
+            elements 'parameters_small.csv'    'calc-error.py'
 
 interface
     fork                                                        
