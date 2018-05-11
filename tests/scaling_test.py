@@ -19,7 +19,7 @@ radius = 5           # spatial interaction radius -> increases of communication
 weakScaling = False  # testin weak scaling
 debug = True
 if weakScaling == False:
-    layerShape = [64, 64]
+    layerShape = [8, 8]
 #############################################################
 
 
@@ -53,7 +53,7 @@ else:
 import numpy as np
 
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import class_auxiliary as aux
+import core
 
 import logging as lg
 import matplotlib.pylab as plt
@@ -63,15 +63,15 @@ print 'import done'
 
 
 #%% get mpi comm
-mpiComm = LIB.MPI.COMM_WORLD
+mpiComm = core.MPI.COMM_WORLD
 mpiRank = mpiComm.Get_rank()
 mpiSize = mpiComm.Get_size()
 
 
 showFigures = 0
 
-simNo, baseOutputPath = aux.getEnvironment(mpiComm, getSimNo=True)
-outputPath = aux.createOutputDirectory(mpiComm, baseOutputPath, simNo)
+simNo, baseOutputPath = core.getEnvironment(mpiComm, getSimNo=True)
+outputPath = core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
 
 #simNo = 0
 #outputPath = '.'
@@ -166,7 +166,7 @@ for x in range(procPerDim):
         parameters['landLayer'][x*factor:(x+1)*factor,y*factor:(y+1)*factor] = iProcess
         iProcess +=1    
     
-connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
+connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
 earth.initSpatialLayer(parameters['landLayer'],
                            connList, 
