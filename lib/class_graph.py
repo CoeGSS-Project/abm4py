@@ -737,13 +737,13 @@ if __name__ == "__main__":
                                   [('weig', np.float64, 1)])
         agArray = np.zeros(nAgents, dtype=np.int32)
         randAttr = np.random.random([nAgents,4])
-        
+        print 'adding nodes'
         for i in tqdm(range(nAgents)):
             lnID, _, dataview = bg.addNode(AGENT, (i,randAttr[i,:]))
             agArray[i] = lnID
          
-        nConnections = int(1e5)
-         
+        nConnections = int(5e5)
+        print 'creating random edges' 
         for i in tqdm(range(nConnections)):
             
             source, target = np.random.choice(agArray,2)
@@ -758,6 +758,7 @@ if __name__ == "__main__":
         bg.addEdges(AGAG, sources, targets, weig=weights)
         print (str(time.time() - tt) + ' s')
         
+        print 'checking if nodes are connected'
         nChecks = int(1e5)
         for i in tqdm(range(nChecks)) :
             source, target = np.random.choice(agArray,2)
@@ -765,6 +766,7 @@ if __name__ == "__main__":
             
         nReadsOfNeigbours = int(1e5)
         
+        print 'reading values of connected nodes'
         for i in tqdm(range(nReadsOfNeigbours)):
             lnID  = bg.nodes[AGENT].nodeList[i]
             (eType, dataIDs) , neigList = bg.outgoing(lnID,AGAG)

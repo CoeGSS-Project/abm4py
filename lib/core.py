@@ -45,7 +45,7 @@ sys.excepthook = mpi_excepthook
 from mpi4py import MPI
 import h5py
 import logging as lg
-#from numba import njit
+from numba import njit
 
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
@@ -63,29 +63,6 @@ def writeAdjFile(graph,fileName):
     for adjline, popu in zip(adjList, popList):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
     fid.close()
-
-
-#def getsize(obj_0):
-#    """Recursively iterate to sum size of object & members."""
-#    def inner(obj, _seen_ids = set()):
-#        obj_id = id(obj)
-#        if obj_id in _seen_ids:
-#            return 0
-#        _seen_ids.add(obj_id)
-#        size = sys.getsizeof(obj)
-#        if isinstance(obj, zero_depth_bases):
-#            pass # bypass remaining control flow and return
-#        elif isinstance(obj, (tuple, list, Set, deque)):
-#            size += sum(inner(i) for i in obj)
-#        elif isinstance(obj, Mapping) or hasattr(obj, iteritems):
-#            size += sum(inner(k) + inner(v) for k, v in getattr(obj, iteritems)())
-#        # Check for custom object instances - may subclass above too
-#        if hasattr(obj, '__dict__'):
-#            size += inner(vars(obj))
-#        if hasattr(obj, '__slots__'): # can have __slots__ with __dict__
-#            size += sum(inner(getattr(obj, s)) for s in obj.__slots__ if hasattr(obj, s))
-#        return size
-#    return inner(obj_0)
 
 
 def getEnvironment(comm, getSimNo=True):
@@ -149,11 +126,11 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         return dirPath
 
-#@njit
+@njit
 def weightingFunc(x,y):
     return 1./((x**2. +y**2.)**.5)
 
-#@njit
+@njit
 def distance(x,y):
     return (x**2. +y**2.)**.5
 
@@ -777,24 +754,15 @@ class IO():
             lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
             for attr, nProp in zip(attributes, sizes):
-                #print attr
+
                 #check if first property of first entity is string
                 try:
                      
                     entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=nodeType, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
-                    #print attr
+
                     raise ValueError(str(attr) + ' not found')
                 if not isinstance(entProp,str):
-
-                    #todo - check why not np.array allowed
-#                        if isinstance(entProp,ALLOWED_MULTI_VALUE_TYPES):
-#                            # add mutiple fields
-#                            nProp = len(self._graph.nodes[staticRec.ag2FileIdx[0]][attr])
-#                        else:
-#                            #add one field
-#                            nProp = 1
-
                     staticRec.addAttr(attr, nProp)
 
             tt = time.time()
@@ -828,15 +796,6 @@ class IO():
                                                      nTypeID=nodeType,
                                                      dataIDs=staticRec.ag2FileIdx[0])
                 if not isinstance(entProp,str):
-
-
-#                        if isinstance(entProp, ALLOWED_MULTI_VALUE_TYPES):
-#                            # add mutiple fields
-#                            nProp = len(self._graph.vs[dynamicRec.ag2FileIdx[0]][attr])
-#                        else:
-#                            #add one field
-#                            nProp = 1
-
                     dynamicRec.addAttr(attr, nProp)
 
             tt = time.time()
@@ -901,7 +860,6 @@ class IO():
 
         for nodeType in self.dynamicData.keys():
             record = self.dynamicData[nodeType]
-            #np.save(self.para['outPath'] + '/agentFile_type' + str(typ), self.agentRec[typ].recordNPY, allow_pickle=True)
             saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
 
 class Mpi():
@@ -950,10 +908,6 @@ class Mpi():
         
         self.world.graph.isParallel =  self.size > 1
             
-#            for nodeType in world.graph.nodeTypes.keys():
-#                # lists all attributes of the nodeType which have been updated in the last step
-#                self.world.graph.self.ghostTypeUpdated[nodeType] = list()
-
     #%% Privat functions
     def _clearBuffer(self):
         """
@@ -989,20 +943,11 @@ class Mpi():
         dataPackage = dict()
         dataPackage['nNodes']  = nNodes
         dataPackage['nTypeID'] = nodeType
-        #print self.mpiSendIDList[(nodeType,mpiPeer)]
         dataPackage['data'] = self.world.graph.getNodeSeqAttr(label=propList, lnIDs=self.mpiSendIDList[(nodeType,mpiPeer)] )
         dataSize += np.prod(dataPackage['data'].shape)
         if connList is not None:
             dataPackage['connectedNodes'] = connList
             dataSize += len(connList)
-#            for prop in propList:
-#                
-#                
-#                dataPackage.append(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
-#                dataSize += len(self.world.graph.getNodeSeqAttr( self.mpiSendIDList[(nodeType,mpiPeer)], label=prop))
-        
-#                dataPackage.append(connList)
-#                dataSize += len(connList)
             
         lg.debug('package size: ' + str(dataSize))
         return dataPackage, dataSize
@@ -1017,13 +962,11 @@ class Mpi():
         messageSize = 0
         
         for (nodeType, mpiPeer) in self.mpiSendIDList.keys():
-            #lg.info('here')
+
             if nodeTypeList == 'all' or nodeType in nodeTypeList:
-                #IDList = self.ghostNodeSend[nodeType, mpiPeer]
 
                 if propertyList in ['all', 'dyn', 'sta']:
                     propertyList = self.world.graph.getPropOfNodeType(nodeType, kind=propertyList)['names']
-                    #del propertyList['gID']
                     
                 lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeType ' + str(nodeType) + 'MPIMPIMPI')
                 dataPackage ,packageSize = self._packData(nodeType, mpiPeer, propertyList, connList=None)
@@ -1044,21 +987,12 @@ class Mpi():
 
 
                 for dataPackage in recvBuffer[mpiPeer]:
-                    nNodes   = dataPackage['nNodes']
                     nodeType = dataPackage['nTypeID']
 
                     if propertyList == 'all':
                         propertyList= self.world.graph.nodeProperies[nodeType][:]
-                        #print propertyList
                         propertyList.remove('gID')
-                    #print type(self.ghostNodeRecv[nodeType, mpiPeer])
-#                        nodeSeq = self.ghostNodeRecv[nodeType, mpiPeer]
-#                        for i, prop in enumerate(propertyList):
-#                           #nodeSeq[prop] = dataPackage[i+1]
-#                            self.world.graph.setNodeSeqAttr(self.mpiRecvIDList[(nodeType, mpiPeer)], 
-#                                                            label=propertyList, 
-#                                                            values=dataPackage['data'][prop])    
-                    #print dataPackage['data']
+
                     self.world.graph.setNodeSeqAttr(label=propertyList, 
                                                     values=dataPackage['data'],
                                                     lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
@@ -1192,8 +1126,6 @@ class Mpi():
         lg.info('approx. MPI message size: ' + str(messageSize * 24. / 1000. ) + ' KB')
 
         for mpiPeer in self.peers:
-            if len(recvBuffer[mpiPeer]) > 0: # will receive a message
-                pass
 
             for dataPackage in recvBuffer[mpiPeer]:
 
@@ -1201,38 +1133,20 @@ class Mpi():
 
                 nNodes   = dataPackage['nNodes']
                 nodeType = dataPackage['nTypeID']
-
-#                    nIDStart= world.graph.vcount()
-#                    nIDs = range(nIDStart,nIDStart+nNodes)
-#                    world.graph.add_vertices(nNodes)
-#                    nodeSeq = world.graph.vs[nIDs]
-
-                
+               
                 IDsList = world.addVertices(nodeType, nNodes)
                 # setting up ghostIn communicator
                 self.mpiRecvIDList[(nodeType, mpiPeer)] = IDsList
-                #self.ghostNodeRecv[nodeType, mpiPeer] = IDsList
+
 
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                 propList.append('gID')
-                #if self.world.mpi.rank == 0:
-                    #print dataPackage
-                
-                    #print dataPackage[-1]
-#                    for i, prop in enumerate(propList):
-#                        #nodeSeq[prop] = dataPackage[i+1]
-#                        #print prop
-#                        self.world.graph.setNodeSeqAttr(label=[prop], 
-#                                                        values=dataPackage['data'][[prop]],
-#                                                        lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
+                     
                 self.world.graph.setNodeSeqAttr(label=propList, 
                                                 values=dataPackage['data'],
                                                 lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
 
-
                 gIDsParents = dataPackage['connectedNodes']
-                #print gIDsParents
-                
 
                 # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
                 for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsParents):
@@ -1241,10 +1155,8 @@ class Mpi():
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
-
                     parentEntity = world.entDict[world._glob2loc[gID]]
                     edgeType = world.graph.node2EdgeType[parentEntity.nodeType, nodeType]
-
 
                     agent.register(world, parentEntity, edgeType)
 
@@ -1295,11 +1207,7 @@ class Mpi():
             for prop in propertyList:
                 self.world.graph.ghostTypeUpdated[nodeType].append(prop)
             
-#                if len(self.world.ghostNodeDict[nodeType]) > 0:
-#                    firstGhostID = self.world.ghostNodeDict[nodeType][0]
-#                    ghost = self.world.entDict[firstGhostID]
-#                    ghost.setGhostUpdate(self.world.graph.ghostTypeUpdated[nodeType])
-            
+
     def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
         if (nodeType, mpiPeer) not in self.ghostNodeQueue.keys():

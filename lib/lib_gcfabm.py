@@ -84,351 +84,6 @@ def assertUpdate(graph, prop, nodeType):
     raise('Error while accessing non-updated property')##OPTPRODUCTION
     pass
 
-class Queue():
-
-    def __init__(self, world):
-        self.graph = world.graph
-        self.edgeDict       = dict()
-        self.edgeProperties = dict()
-
-        self.currNodeID     = None
-        self.nodeList       = list()
-        self.nodeTypeList   = dict()
-        self.nodeProperties = dict()
-        self.edgeDeleteList = list()
-
-    def addVertex(self, nodeType, gID, **kwProperties):
-
-        if len(self.nodeList) == 0:
-            #print 'setting current nID: ' + str(self.graph.vcount())
-            self.currNodeID = self.graph.nCount()
-
-        # adding of the data
-        nID = self.currNodeID
-        self.nodeList.append(nID) # nID to general list
-        #kwProperties.update({'nID': nID})
-        kwProperties.update({ 'gID':gID})
-
-        if nodeType not in self.nodeProperties.keys():
-            # init of new nodeType
-            propertiesOfType = self.graph.getPropOfNodeType(nodeType,kind='all')
-            #print propertiesOfType
-            #print kwProperties.keys()
-            assert all([prop in propertiesOfType for prop in kwProperties.keys()]) # check that all given properties are registered ##OPTPRODUCTION
-
-            self.nodeProperties[nodeType] = dict()
-            self.nodeTypeList[nodeType]   =list()
-
-            #self.nodeProperties[nodeType]['nID'] = list()
-            for prop in kwProperties.keys():
-                #print prop
-                self.nodeProperties[nodeType][prop] = list()
-
-
-
-        self.nodeTypeList[nodeType].append(self.currNodeID) # nID to type list
-        self.currNodeID += 1                                # moving index
-
-        for prop, value in kwProperties.iteritems():
-            self.nodeProperties[nodeType][prop].append(value)  # properties
-
-
-        return nID, self.nodeProperties[nodeType]
-
-    def dequeueVertices(self, world):
-
-        if len(self.nodeList) ==0:
-            return
-        assert self.nodeList[0] == self.graph.vcount() # check that the queuing idx is consitent ##OPTPRODUCTION
-        #print self.graph.vcount(), self.nodeList[0]
-        #adding all nodes first
-        self.graph.add_vertices(len(self.nodeList))
-
-        # adding data per type
-        for nodeType in self.nodeTypeList.keys():
-
-            nodeSeq = self.graph.vs[self.nodeTypeList[nodeType]]    # node sequence of specified type
-            #print 'indices' + str(nodeSeq.indices)
-            nodeSeq['type'] = nodeType                                # adding type to graph
-            #print 'sequ:' + str(nodeSeq['type'])
-
-            for prop in self.nodeProperties[nodeType].keys():
-                #print prop
-                #print nodeType
-                #print self.nodeProperties[nodeType][prop]
-                nodeSeq[prop] = self.nodeProperties[nodeType][prop] # adding properties
-
-            #print 'nodeTypeList:' +str (self.nodeTypeList[nodeType])
-            for entity in [world.entList[i] for i in self.nodeTypeList[nodeType]]:
-
-                #print 'entity.nID:' + str(entity.nID)
-                entity._node = self.graph.vs[entity.nID]
-                # redireciton of internal functionality:
-                entity.getValue = entity._node.__getitem__
-                entity.setValue = entity._node.__setitem__
-                #print 'node index:'  + str(entity.node.index)
-                #entity.register(world)
-                #print 'assert ' + str((entity.nID, entity.node.index))
-                assert entity.nID == entity._node.index                        ##OPTPRODUCTION
-
-        # reset queue
-        self.currNodeID     = None
-        self.nodeList       = list()
-        self.nodeTypeList   = dict()
-        self.nodeProperties = dict()
-
-    def addEdges(self, edgeList, **kwProperties):
-        edgeType = kwProperties['type']
-        if edgeType not in self.edgeDict.keys():
-            self.edgeDict[edgeType]         = list()
-            self.edgeProperties[edgeType]   = dict()
-            for prop in kwProperties.keys():
-                #print prop
-                self.edgeProperties[edgeType] [prop] = list()
-        self.edgeDict[edgeType].extend(edgeList)
-        for propKey in kwProperties.keys():
-
-            if not isinstance(kwProperties[propKey], list):
-               self.edgeProperties[edgeType][propKey].extend ([kwProperties[propKey]]* len(edgeList) )
-            else :
-                assert len(kwProperties[propKey]) == len(edgeList)             ##OPTPRODUCTION
-                self.edgeProperties[edgeType][propKey].extend(kwProperties[propKey])
-
-    def addEdge(self, source, target, **kwProperties):
-
-        edgeType = kwProperties['type']
-        #possible init
-        if edgeType not in self.edgeDict.keys():
-            self.edgeDict[edgeType]         = list()
-            self.edgeProperties[edgeType]   = dict()
-            for prop in kwProperties.keys():
-                #print prop
-                self.edgeProperties[edgeType] [prop] = list()
-
-        # add edge source-target-tuple
-        self.edgeDict[edgeType].append((source, target))
-
-        # add properties
-        #self.edgeProperties[edgeType]['type'].append(edgeType)
-        for propKey in kwProperties.keys():
-            self.edgeProperties[edgeType][propKey].append(kwProperties[propKey])
-
-
-    def dequeueEdges(self, world):
-
-        if len(self.edgeDict) ==0:
-            return
-        #print "dequeuing edges"
-        #print self.edgeDict.keys()
-        for edgeType in self.edgeDict.keys():
-            #print 'creating edges: ' + str(self.edgeDict[edgeType])
-            eStart = self.graph.ecount()
-            self.graph.add_edges(self.edgeDict[edgeType])
-            for prop in self.edgeProperties[edgeType].keys():
-                self.graph.es[eStart:][prop] = self.edgeProperties[edgeType][prop]
-
-
-#        for node in world.entList:
-#            node.__updateEdges__()
-
-        # empty queue
-        self.edgeDict       = dict()
-        self.edgeProperties = dict()
-
-        # if all queues are done, set complete flag
-        #if len(self.graph.edgeQueues) == 0:
-        #    self.graph.edgesComplete = True
-
-
-    def dequeueEdgeDeleteList(self, world):
-        self.graph.delete_edges(self.edgeDeleteList)
-        self.edgeDeleteList = list()
-
-class Cache():
-    """
-    As default only out peers and out connections are in the cache. 
-    """
-    def __init__(self, graph, nID, nodeType):
-        self.graph       = graph
-        self.nID         = nID
-        self.edgesAll    = None
-        self.edgesByType = dict()
-        self.nodeType    = nodeType
-        self.peersAll    = None
-        self.peersByType = dict()
-        self.getPeerValues2 = self.peersByType.__getitem__
-
-    def __reCachePeers__(self, edgeType=None):
-
-        eList  = self.graph.incident(self.nID,mode="out")
-        if edgeType is not None:
-
-            edges = self.graph.es[eList].select(type=edgeType)
-            peersIDs = [edge.target for edge in edges]
-            self.peersByType[edgeType] = self.graph.vs[peersIDs]
-        else:
-            edges = self.graph.es[eList].select(type_ne=0)
-            peersIDs = [edge.target for edge in edges]
-            self.peersAll = self.graph.vs[peersIDs]
-
-
-    def __checkPeerCache__(self, edgeType):
-        # check if re-caching is required
-        if edgeType is None:
-            if self.peersAll is None:
-                self.__reCachePeers__()
-        else:
-            if edgeType not in self.peersByType.keys():
-                self.__reCachePeers__(edgeType)
-
-    def __reCacheEdges__(self, edgeType=None):
-        """ privat function that re-caches all edges of the node"""
-
-        # out edges by type
-        if edgeType is not None:
-            
-            # check if re-caching is required
-            if self.edgesAll is None:
-                self.edgesAll          = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
-            # re-cache only certain type                
-            self.edgesByType[edgeType] = self.edgesAll.select(type=edgeType)
-        else:
-            # all out edges
-            self.edgesAll              = self.graph.es[self.graph.incident(self.nID,'out')].select(type_ne=0)
-
-    def __checkEdgeCache__(self, edgeType):
-
-        if edgeType is None:
-            self.__reCacheEdges__()
-        else:
-            # check if re-caching is required
-            if edgeType not in self.edgesByType.keys():
-                self.__reCacheEdges__(edgeType)
-                
-    def setEdgeCache(self, idList, edgeType):
-        """
-        If you know what you do, you can use this method to set the cache manualy to save time
-        """
-        self.edgesByType[edgeType] = self.graph.es[idList]
-
-    def setPeerCache(self, idList, nodeType):
-        """
-        If you know what you do, you can use this method to set the cache manualy to save time
-        """
-        self.peersByType[nodeType] = self.graph.vs[idList]
-        
-    def getEdgeValues(self, prop, edgeType=None):
-        """
-        privat function to access the values of pre-cached edges
-        if necessary the edges are re-cached.
-        """
-        # check if re-caching is required
-        self.__checkEdgeCache__(edgeType)
-        if edgeType is None:
-
-            edges = self.edgesAll
-            return edges[prop], edges
-        else:
-
-            edges = self.edgesByType[edgeType]
-         
-            return edges[prop], edges
-
-    def setEdgeValues(self, prop, values, edgeType=None):
-        """
-        privat function to access the values of pre-cached edges
-        if necessary the edges are re-cached.
-        """
-        # check if re-caching is required
-        self.__checkEdgeCache__(edgeType)
-
-        if edgeType is None:
-
-
-            edges = self.edgesAll
-            edges[prop] = values
-        else:
-            edges = self.edgesByType[edgeType]
-            edges[prop] = values
-
-    def getEdges(self, edgeType=None):
-        """
-        privat function to access the values of pre-cached edges
-        if necessary the edges are re-cached.
-        """
-        # check if re-caching is required
-        
-        self.__checkEdgeCache__(edgeType)
-        
-        if edgeType is None:
-
-            return self.edgesAll
-        else:
-
-            return self.edgesByType[edgeType]
-        
-    
-    def getPeerValues(self, prop, edgeType=None):
-        # check if re-caching is required
-        self.__checkPeerCache__(edgeType)
-        
-        nodeType  = self.graph.edge2NodeType[edgeType][1]
-        
-        assertUpdate(self.graph, prop, nodeType)
-        
-        if edgeType is None:
-
-            return self.peersAll[prop], self.peersAll
-        else:
-            return self.peersByType[edgeType][prop], self.peersByType[edgeType]
-
-    def setPeerValues(self, prop, values, edgeType=None):
-        # check if re-caching is required
-        self.__checkPeerCache__(edgeType)
-
-        if edgeType is None:
-            self.peersAll[prop] = values
-        else:
-            self.peersByType[edgeType][prop] = values
-
-    def getPeers(self, edgeType=None):
-        # check if re-caching is required
-        self.__checkPeerCache__(edgeType)
-
-        if edgeType is None:
-
-            return self.peersAll
-        else:
-            return self.peersByType[edgeType]
-
-    def getPeerIDs(self, edgeType=None):
-
-        self.__checkPeerCache__(edgeType)
-
-        if edgeType is None:
-            return self.peersAll.indices
-        else:
-            return self.peersByType[edgeType].indices
-
-    def resetPeerCache(self,edgeType=None):
-        self.peersAll = None
-        if edgeType is None:
-            self.peersByType = dict()
-        else:
-            try:
-                del self.peersByType[edgeType]
-            except:
-                pass
-
-    def resetEdgeCache(self,edgeType=None):
-        self.edgesAll = None
-        if edgeType is None:
-            self.edgesByType = dict()
-        else:
-            try:
-                del self.edgesByType[edgeType]
-            except:
-                pass
 
 
 ################ ENTITY CLASS #########################################
@@ -466,12 +121,9 @@ class Entity():
                 raise()
 
             self.nID = nID
-            #print nID , world.mpi.rank
-            
             self._node = self._graph.getNodeView(nID)
             self.getValue = deco(self._node.__getitem__)
             self.setValue = self._node.__setitem__
-            #print 'nID:' + str(nID) + ' gID: ' + str(self._node['gID'])
             self.gID = self.getValue('gID')
             # redireciton of internal functionality:
             self.__getitem__ = deco(self._node.__getitem__)
@@ -487,27 +139,7 @@ class Entity():
         self.setValue = self._node.__setitem__
         self.__getitem__ = deco(self._node.__getitem__)
         self.__setitem__ = self._node.__setitem__
-        
-        if world.caching:
-            self._cache  = Cache(self._graph, self.nID, nodeType)
 
-            # definition of access functions
-            self.getPeerValues = self._cache.getPeerValues
-            #self.getPeerValues2 = self._cache.getPeerValues2
-            self.setPeerValues = self._cache.setPeerValues
-            self.getPeers      = self._cache.getPeers
-            self.getPeerIDs    = self._cache.getPeerIDs
-            self.setPeerCache  = self._cache.setPeerCache
-
-            self.getEdgeValues = self._cache.getEdgeValues
-            self.setEdgeValues = self._cache.setEdgeValues
-            self.getEdges      = self._cache.getEdges
-            self.setEdgeCache  = self._cache.setEdgeCache
-
-        else:
-            self._cache = None
-
-    
 
     
     @classmethod
@@ -549,6 +181,7 @@ class Entity():
         Set the attributes of all connected nodes of an specified nodeType
         or connected by a specfic edge type
         """
+        raise(StandardError('Violating current rules for parallel implmentation'))
         self._graph.setOutNodeValues(self.nID, edgeType, prop, values)
                                    
 
@@ -1470,7 +1103,8 @@ class easyUI():
 if __name__ == '__main__':
     
     # MINIMAL FUNCTION TEST
-    mpiComm =mpi4py.MPI.COMM_WORLD
+    import mpi4py
+    mpiComm = mpi4py.MPI.COMM_WORLD
     mpiRank = mpiComm.Get_rank()
     mpiSize = mpiComm.Get_size()
     
