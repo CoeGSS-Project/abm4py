@@ -448,6 +448,19 @@ def plotEmissionOverTime(data, propDict, parameters, enums, filters):
         writer.addData(ti, stepData)
     writer.close()        
 
+    if True:
+        #%%
+        df = pd.read_csv(path + '/emissions_all.csv', index_col=0)
+        df.plot.bar(stacked=True, width = 1)
+        years = (parameters['nSteps'] - nBurnIn) / 12
+        plt.xticks(np.arange(nBurnIn,parameters['nSteps']+1, 12),
+                   [str(2005 + year) for year in range(years)],
+                   rotation=45)
+        plt.title('CO2-Emissions from tranport sector in [kg]')
+        plt.xlim([nBurnIn, parameters['nSteps']])
+        plt.legend(enums['brandTitles'].values())
+        plt.savefig(path + '/emissions_all')
+#%%        
 def plotElectricDemandOverTime(data, propDict, parameters, enums, filters):
     #h5File  = ta.File(path + '/globals.hdf5', 'r')
     #reDf = pd.read_csv('resources_ger/regionID_germany.csv',index_col=0)

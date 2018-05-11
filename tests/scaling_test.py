@@ -17,9 +17,14 @@ factor = 25          # spatial extend per process (factor x factor)
 nSteps = 10          # number of model steps that are run
 radius = 5           # spatial interaction radius -> increases of communication
 weakScaling = False  # testin weak scaling
+<<<<<<< HEAD
 debug = True
 if weakScaling == False:
     layerShape = [8, 8]
+=======
+if not weakScaling:
+    layerShape = [64, 64]
+>>>>>>> dakota-integration
 #############################################################
 
 

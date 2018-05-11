@@ -1,0 +1,28 @@
+name,value, comment
+scenario,1,			# selection of the scenario setup
+nSteps,460,              	# number of simulation steps
+burnIn,100,            		# number of burn in time steps
+burnInTimeFactor,1,            # time scaling in burnIn
+omniscientBurnIn,0,   		# number of omiscient agent time steps 
+connRadius,3.5,        		# radius within which location cell get connected
+minFriends,20,         		# min number of friends per person
+maxFriends,50,         		# max number of friends per person
+memoryTime,15,          	# number of time steps for which observations remain saved
+utilObsError,15,         	# observation error to compare utilities
+mobNewPeriod,36,        	# period within a choice is new and not challenged
+randomCarPropDeviationSTD,0.01, # individual random deviation of car properities
+innoPriority,0.15,     		# weight of priority of innovation [0 0.5]
+mobIncomeShare, 0.2,  		# [0.1 0.4]
+individualPrio, 0.33,  		# individual random component of priorities
+charIncome,5000,       		# [100 5000]
+minIncomeEco,2500,    		# [1000 5000]
+innoWeigPrice,0.25,   		# innoWeigEmmisions = 1 - innoWeigPrice [0 1]
+innoDevRange,5,       		# extend of the area within the innovation distribution  
+puplicTransBonus,5,
+charAge,10,            		# [0 10]
+radicality,1,          		# exponent of the preferences -> high values lead to extreme differences
+util,cobb,                      # [cobb ces]
+weightConnections,1,		# flag if connections to friends are weighted
+reductionFactor,2000,           # population reduction factor
+selfTrust,2, 			# how much more a agent values this own opinion
+

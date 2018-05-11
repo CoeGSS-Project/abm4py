@@ -55,7 +55,23 @@ later:
         - other resolution available!
         - share locatons between processes
 """
-
+#<<<<<<< HEAD
+#
+#=======
+#import sys
+#sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+#sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+#import mpi4py
+#mpi4py.rc.threads = False
+#sys_excepthook = sys.excepthook
+#def mpi_excepthook(v, t, tb):
+#    sys_excepthook(v, t, tb)
+#    mpi4py.MPI.COMM_WORLD.Abort(1)
+#sys.excepthook = mpi_excepthook
+#
+#from mpi4py import MPI
+#import h5py
+#>>>>>>> dakota-integration
 import logging as lg
 import sys
 import numpy as np
@@ -499,10 +515,6 @@ class GhostLocation(Entity):
 ################ WORLD CLASS #########################################
 
 class World:
-    #%% World sub-classes
-
-    
-
 
     #%% INIT WORLD
     def __init__(self,
@@ -1127,17 +1139,19 @@ if __name__ == '__main__':
                   queuing=False)
 
 
-
-        
+    earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
+    print earth.mpi.comm.rank
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
-    earth.graph.glob.registerValue('test' , earth.mpi.comm.rank,'max')
+    earth.graph.glob.registerValue('test' , np.asarray([earth.mpi.comm.rank]),'max')
+
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
     print earth.graph.glob['test']
     print earth.graph.glob['meantest']
-    print 'mean of values: ',earth.graph.glob['meantest'],'-> local maen: ',earth.graph.glob['meantest']
-    print 'std od values:  ',earth.graph.glob['stdtest'],'-> local std: ',earth.graph.glob['stdtest']
+    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local mean: ',earth.glob['meantest']
+    print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
+
     earth.graph.glob.sync()
     print earth.graph.glob['test']
     print 'global mean: ', earth.graph.glob['meantest']
