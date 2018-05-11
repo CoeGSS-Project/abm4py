@@ -761,7 +761,7 @@ class IO():
                     entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=nodeType, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
-                    raise ValueError(str(attr) + ' not found')
+                    raise(BaseException(str(attr) + ' not found on rank' + str(self.comm.rank)))
                 if not isinstance(entProp,str):
                     staticRec.addAttr(attr, nProp)
 
