@@ -28,6 +28,7 @@ init.initLogger(debug, outputPath)
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
+parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters.showFigures = showFigures
 

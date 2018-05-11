@@ -372,6 +372,8 @@ def exchangeParameters(parameters):
         print'Parameter exchange done'
     lg.info('Parameter exchange done')
 
+    return parameters
+
 def householdSetup(earth, calibration=False):
     
     #enumerations for h5File - second dimension

@@ -6,20 +6,22 @@ import sys
 import os
 import socket
 import dakota.interfacing as di
+from classes_motmo import aux, MPI
+
+comm = MPI.COMM_WORLD
+mpiRank = comm.Get_rank()
 
 # I don't want to polute the model directory with dakota files, but the
 # dakota.interfacing library uses relativ file names, so I start with the
 # dakota subdirectory, changes to the model diretory after reading the dakota
 # input file and switch back to the dakota dir before writing the output file
-dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+if mpiRank == 0:
+    dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+
 dirPath = os.path.dirname(os.path.realpath(__file__))
 os.chdir('..')
 
 import init_motmo as init
-from classes_motmo import aux, MPI
-
-comm = MPI.COMM_WORLD
-mpiRank = comm.Get_rank()
 
 showFigures = 0
 
@@ -34,13 +36,14 @@ init.initLogger(False, outputPath)
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(dakotaParams['scenarioFileName'], dirPath)
+
+if mpiRank == 0:
+    for d in dakotaParams.descriptors:
+        parameters[d] = dakotaParams[d]
+
+parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters.showFigures = showFigures
-
-for d in dakotaParams.descriptors:
-    parameters[d] = dakotaParams[d]
-
-init.exchangeParameters(parameters)
 
 earth = init.initEarth(simNo,
                        outputPath,
@@ -60,7 +63,8 @@ if earth.isRoot:
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
     init.writeSummary(earth, parameters)
 
-dakotaResults["relativeError"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
-dakotaResults["absoluteError"].function = earth.globalRecord['stock_6321'].evaluateAbsoluteError()
 os.chdir('./dakota')
-dakotaResults.write()
+if mpiRank == 0:
+    dakotaResults["relativeError"].function = earth.globalRecord['stock_6321'].evaluateRelativeError()
+    dakotaResults["absoluteError"].function = earth.globalRecord['stock_6321'].evaluateAbsoluteError()
+    dakotaResults.write()

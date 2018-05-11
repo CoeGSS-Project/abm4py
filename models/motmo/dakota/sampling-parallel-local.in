@@ -4,7 +4,7 @@ environment
 method
     sampling
         sample_type random
-        samples = 5
+        samples = 10
         seed = 1
 
 variables
@@ -18,7 +18,7 @@ variables
             elements 'parameters_small.csv'
 
 interface
-    fork                                                        
+    fork asynchronous evaluation_concurrency = 10
         analysis_drivers = '../run-via-dakota.py'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
