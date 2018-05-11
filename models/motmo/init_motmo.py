@@ -1320,8 +1320,10 @@ def initEarth(simNo,
     return earth
 
 def initTypes(earth):
-    parameters = earth.getParameter()
-    CELL    = earth.registerNodeType('cell' , AgentClass=Cell, GhostAgentClass= GhostCell,
+
+    CELL    = earth.registerNodeType('cell' , 
+                                     AgentClass=Cell, 
+                                     GhostAgentClass= GhostCell,
                                staticProperies  = ['type',
                                                    'gID',
                                                    'pos',

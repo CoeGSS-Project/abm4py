@@ -7,23 +7,33 @@ Created on Thu Nov  9 09:12:38 2017
 """
 import sys
 sys.path.append('../../../lib/')
+sys.path.append('../')
+sys.path = ['../../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+sys.path = ['../../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+
 import class_auxiliary as aux
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
 from bunch import Bunch
+import itertools
 x = np.linspace(0,4000,500)
 sns.color_palette("Paired")
 sns.set_color_codes("dark")
 
-loadFile = True
+loadFile = 1
+
 #%%
 
 
 if loadFile:
-    fileName = '../parameters_ger.csv'
+    fileName = '../parameters_all.csv'
     pa = Bunch()
+    for item in csv.DictReader(open(fileName)):
+        if item['name'][0] != '#':
+            pa[item['name']] = aux.convertStr(item['value'])
+    fileName = '../parameters_ger.csv'
     for item in csv.DictReader(open(fileName)):
         if item['name'][0] != '#':
             pa[item['name']] = aux.convertStr(item['value'])
@@ -31,7 +41,7 @@ if loadFile:
 else:            
     pa.maxConvB = 0.9
     pa.minConvB = 0.2
-    pa.sigmaConvB = 25000.
+    pa.sigmaConvB = 25000/10.
     pa.muConvB = 0.
 plt.figure(3)
 plt.clf()
@@ -39,20 +49,21 @@ ax1 = plt.subplot(2,3,1)
 
 
 
-
-
+palette = itertools.cycle(sns.dark_palette("palegreen",10))
 for kappaB in np.linspace(.9,1,10):
 
     
 
     y = pa.minConvB + kappaB * (pa.maxConvB - pa.minConvB) * np.exp( - (x - pa.muConvB)**2 / (2 * pa.sigmaConvB**2) )
-    plt.scatter(x,y,s=2)
+    plt.scatter(x,y,s=2, c=palette.next())
 ax1.set_xlim([0, 4000])
-plt.legend(['combustion'])
 ax2 = ax1.twiny()
+ax2.scatter(0,0, s=1,c='k')
+ax2.legend(['combustion'])
+
 lim = ax1.get_xlim()
 ax2.set_xlim([0, 4000])
-cityDict = {4000:'Berlin', 2000: 'Hamburg', 2200:'Hanover',  1200:'Karlsruhe', 1400: 'Desden', 450:'Wolfsburg', 2700:'Stuttgart',3900:'Muenchen'}
+cityDict = {4000:'Berlin', 2000: 'Hamburg', 2200:'Hanover',  1200:'Karlsruhe', 1400: 'Desden', 450:'Wolfsburg', 2700:'Stuttgart',3700:'Munich'}
 ax2.set_xticks(cityDict.keys())  
 ax2.set_xticklabels(cityDict.values(),rotation=45)
 
@@ -73,10 +84,12 @@ for kappaG in np.linspace(0,1,10):
     (1-kappaG)  * np.exp( - (x - pa.muConvGInit)**2 / (pa.sigmaConvGInit**2) ) + \
     (pa.maxConvG-pa.minConvG) * kappaG* (np.exp( - (x - pa.muConvG)**2 / (2 * pa.sigmaConvG**2) ))
     
-    plt.scatter(x,y,s=2)
+    plt.scatter(x,y,s=1, c=palette.next())
 ax1.set_xlim([0, 4000])
-plt.legend(['electric'])    
 ax2 = ax1.twiny()
+ax2.scatter(0,0, s=1,c='k')
+ax2.legend(['electric'])    
+
 lim = ax1.get_xlim()
 ax2.set_xlim([0, 4000])
 #cityDict = {60000:'Berlin', 30000: 'Hamburg', 33000:'Hanover',  18000:'Karlsruhe', 21000: 'Desden', 7000:'Wolfsburg', 40000:'Stuttgart',58000:'Muenchen'}
@@ -102,14 +115,15 @@ for kappaP in np.linspace(0,1,10):
     y = pa.minConvP + ((pa.maxConvP - pa.minConvP) * (kappaP)) * \
     np.exp( - (x - pa.muConvP)**2 / (2 * ((1-kappaP) * pa.sigmaConvPInit + \
                                      (kappaP * pa.sigmaConvP))**2) )
-    plt.scatter(x,y,s=2)
+    plt.scatter(x,y,s=1, c=palette.next())
 
-plt.legend(['public transport'])    
+ 
 ax2 = ax1.twiny()
 ax1.set_xlim([0, 4000])  
 print 1
 plt.ylim([0,1])
-
+ax2.scatter(0,0, s=1,c='k')
+ax2.legend(['public transport'])   
 ax2.set_xticks(cityDict.keys())  
 ax2.set_xticklabels(cityDict.values(),rotation=45)
 
@@ -129,7 +143,7 @@ for kappaS in np.linspace(0,1,10):
                     ((1-kappaS)* (pa.maxConvSInit - pa.minConvS - (kappaS/10.)))) * \
                     np.exp( - (x - pa.muConvS)**2 / (2 * ((1-kappaS) * \
                     pa.sigmaConvSInit + (kappaS * pa.sigmaConvS))**2) )
-    plt.scatter(x,y,s=2)
+    plt.scatter(x,y,s=1, c=palette.next())
 plt.legend(['shared mobility'])    
 ax1.set_xlim([0, 4000])  
 print 1
@@ -148,7 +162,7 @@ for kappaN in np.linspace(0,1,10):
     y = pa.minConvN + ((pa.maxConvN - pa.minConvN) * \
                        (kappaN)) * np.exp( - (x - pa.muConvN)**2 / (2 * ((1-kappaN) * \
                                           pa.sigmaConvNInit + (kappaN * pa.sigmaConvN))**2) )
-    plt.scatter(x,y,s=2)
+    plt.scatter(x,y,s=1, c=palette.next())
 plt.legend(['none motorized'])    
 ax1.set_xlim([0, 4000])  
 print 1

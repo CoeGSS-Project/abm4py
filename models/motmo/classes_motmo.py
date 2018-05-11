@@ -598,10 +598,12 @@ class Good():
                                  
         elif self.label == 'shared':
             def emissionFn(self, market):
-                stockElShare = market.goods[1].getGlobalStock()/(market.goods[0].getGlobalStock()+market.goods[1].getGlobalStock())
+                stockElShare = market.goods[GREEN].getGlobalStock() / \
+                               (market.goods[BROWN].getGlobalStock()+market.goods[GREEN].getGlobalStock())
                 electricShare = 0.1 + 0.9*stockElShare                    
                 weight = self.paras['weight']
-                emissionsPerKg = (1-electricShare)*market.goods[0].properties['emissions']/market.para['weightB'] + electricShare*market.goods[1].properties['emissions']/market.para['weightG']
+                emissionsPerKg = (1-electricShare)* market.goods[BROWN].properties['emissions']/market.para['weightB'] + \
+                                    electricShare * market.goods[GREEN].properties['emissions']/market.para['weightG']
                 emissions = emissionsPerKg * weight
                 
                 #maturity = float(self.currStock) / max(0.1,sum(market.goods[i].currStock for i in range(market.__nMobTypes__)))   # maturity is market share of car sharing
@@ -639,8 +641,8 @@ class Good():
         self.addToOverallExperience(self.lastGlobalSales[self.goodID])  
         
         # use last step global sales for update of the growth rate and technical progress
-        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
-        self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience)
+        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.globalStock[self.goodID])
+        self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience + self.initExperience)
         
         
         
@@ -1559,8 +1561,6 @@ class GhostPerson(GhostAgent):
     def register(self, world, parentEntity=None, edgeType=None):
 
         GhostAgent.register(self, world, parentEntity, edgeType)
-
-
         self.loc = parentEntity.loc
         self.loc.peList.append(self.nID)
         self.hh = parentEntity

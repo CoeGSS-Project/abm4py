@@ -11,11 +11,11 @@ import numpy as np
 import mod_geotiff as gt
 import matplotlib.pyplot as plt
 #import mod_geotiff as gt
-#import seaborn as sns
+import seaborn as sns
 xData   = list()
 yData   = list()
 dyData  = [0]
-for year in range(2005,2018):
+for year in range(2005,2019):
     
     #year = 2015
     fileName = '/home/gcf/shared/processed_data/tiff/e_charging_stations_ger/charge_stations_' + str(year) + '_186x219.npy'
@@ -36,11 +36,14 @@ latx = np.round((coord[1] - origin[1] ) / delta[1])
 #%%
 import numpy as np
 import pylab
+import seaborn as sns
 from scipy.optimize import curve_fit
 
 def sigmoid(x, x0, k):
      y = (1. / (1. + np.exp(-k*(x-x0)))) * 1e6
      return y
+
+DE = 0
 
 xdata = np.array(xData)
 ydata = np.array(yData)
@@ -51,24 +54,54 @@ print popt
 xProjection = np.linspace(2005, 2035, 31)
 yProjection = sigmoid(xProjection, *popt)
 
-plt.figure('fit')
+def sigmoid(x, x0, k):
+     y = (1. / (1. + np.exp(-k*(x-x0)))) * 2e5
+     return y
+
+xdata = np.array(xData)
+ydata = np.array(yData)
+
+popt, pcov = curve_fit(sigmoid, xdata, ydata,p0=[2020, .5])
+print popt
+
+xProjection2 = np.linspace(2005, 2035, 31)
+yProjection2 = sigmoid(xProjection2, *popt)
+
+
+plt.figure('fit', figsize=(6,3))
 plt.clf()
-pylab.plot(xdata, ydata, 'o', label='data')
-pylab.plot(2020,70000, 'd', label='Government goal Germany')
+
+if DE:
+    pylab.plot(xdata, ydata, 'o', label='Daten')
+    pylab.plot(2020,70000, 'd', label='Regierungsziel')
+else:
+    pylab.plot(xdata, ydata, 'o', label='data')
+    pylab.plot(2020,70000, 'd', label='Germany government goal')
 
 
 ydata2 = [x for x in yProjection]
 
 for i in np.arange(2020,2036)-2005:
     ydata2[i] = ydata2[15] + (i-15)*24000
-pylab.plot(xProjection, ydata2, '--', label='BAU')
-pylab.plot(xProjection, yProjection, '--', label='Alternative scenario')
-plt.title('Number of electric charging stations')
-pylab.legend(loc='best')
+if DE:
+    pylab.plot(xProjection, ydata2, '--', label='BAU (linear)')
+    pylab.plot(xProjection, yProjection, '--', label='Erhoehte Investitionen')
+    pylab.plot(xProjection2, yProjection2, '--', label='Verminderte Investitionen')
+    #plt.title('Number of electric charging stations')
+    pylab.legend(loc='best')
+else:
+    pylab.plot(xProjection, ydata2, '--', label='BAU (linear)')
+    pylab.plot(xProjection, yProjection, '--', label='high investment')
+    pylab.plot(xProjection2, yProjection2, '--', label='low investment')
+    #plt.title('Number of electric charging stations')
+    pylab.legend(loc='best')
 pylab.show()
-plt.savefig('nChargingOverTime.png')
-
-
+plt.tight_layout()
+if DE:    
+    plt.savefig('nChargingOverTime_de.png')
+else:
+    plt.savefig('nChargingOverTime_en.png')
+sdf
 #if False:
 #%%
 iEnd = 10
