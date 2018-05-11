@@ -1236,7 +1236,7 @@ class World:
                         entProp = world.graph.vs[staticRec.ag2FileIdx[0]][attr]
                     except:
                         print attr
-                        raise(str(attr) + ' not found')
+                        raise(BaseException(str(attr) + ' not found on rank' + str(self.comm.rank)))
                     if not isinstance(entProp,str):
 
                         #todo - check why not np.array allowed

@@ -168,7 +168,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer[setup.landLayer== 0.] = np.nan
     
     setup.landLayer  = (setup.landLayer*0.) +1.
-    
+    setup.landLayer[0,:] = 0.
     
     
     setup.cellSizeMap  = setup.landLayer * 15.
