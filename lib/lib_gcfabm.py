@@ -123,9 +123,9 @@ class Entity():
         if not hasattr(self, '_graph'):
             self.setGraph(world.graph)
 
-        if world.queuing:        
-            if not hasattr(self, '_queue'):
-                self.setQueue(world.queue)            
+#        if world.queuing:        
+#            if not hasattr(self, '_queue'):
+#                self.setQueue(world.queue)            
         #self._graph = world.graph
 
         self.gID    = self.getGlobID(world)
@@ -319,7 +319,7 @@ class Agent(Entity):
     def registerChild(self, world, entity, edgeType):
         if edgeType is not None:
             #print edgeType
-            world.addEdge(entity.nID,self.nID, type=edgeType)
+            world.addEdge(edgeType, self.nID, entity.nID,)
         entity.loc = self
 
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
@@ -464,7 +464,7 @@ class Location(Entity):
 
 
     def registerChild(self, world, entity, edgeType=None):
-        world.addEdge(edgeType, entity.nID,self.nID )
+        world.addEdge(edgeType, self.nID, entity.nID)
         entity.loc = self
 
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
@@ -525,9 +525,7 @@ class World:
                  maxNodes = 1e6,
                  maxEdges = 1e6,
                  debug = False,
-                 mpiComm=None,
-                 caching=True,
-                 queuing=True):
+                 mpiComm=None):
 
         self.simNo    = simNo
         self.timeStep = 0
@@ -539,8 +537,6 @@ class World:
         self.debug    = debug
 
         self.para     = dict()
-        self.queuing = queuing  # flag that indicates the vertexes and edges are queued and not added immediately
-        self.caching = caching  # flat that indicate that edges and peers are cached for faster access
 
         # GRAPH
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
@@ -549,19 +545,11 @@ class World:
         
         self.globalRecord = dict() # storage of global data
 
-        # queues
-        if self.queuing:
-            self.queue      = Queue(self)
-            self.addEdge    = self.queue.addEdge
-            self.addEdges   = self.queue.addEdges
-            self.addVertex  = self.queue.addVertex
-            
-        else:
-            self.addEdge        = self.graph.addEdge
-            self.addEdges       = self.graph.addEdges
-            self.delEdges       = self.graph.delete_edges
-            self.addVertex      = self.graph.addNode
-            self.addVertices    = self.graph.addNodes
+        self.addEdge        = self.graph.addEdge
+        self.addEdges       = self.graph.addEdges
+        self.delEdges       = self.graph.delete_edges
+        self.addVertex      = self.graph.addNode
+        self.addVertices    = self.graph.addNodes
         # MPI communication
         self.mpi = core.Mpi(self, mpiComm=mpiComm)
         lg.debug('Init MPI done')##OPTPRODUCTION
@@ -761,9 +749,6 @@ class World:
                         #self.registerLocation(loc, xDst, yDst)
                         ghostLocationList.append(loc)
         self.graph.IDArray = IDArray
-
-        if self.queuing:
-            self.queue.dequeueVertices(self)
 
         fullSourceList      = list()
         fullTargetList      = list()
