@@ -226,10 +226,11 @@ class Earth(World):
         for agent, x in self.iterEntAndIDRandom(nodeType):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
+            
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
 
-            sourceList += frList
-            targetList += [agent.nID] * len(frList)
+            sourceList += [agent.nID] * len(frList)
+            targetList += frList
             weigList += weights
             populationList.append(agent.loc._node['population'])
 
@@ -1420,6 +1421,7 @@ class Person(Agent):
             connList.append((self.nID,self.nID))
 
         weigList   = [1./len(connList)]*len(connList)
+        
         nGhosts = 0
         if world.debug:                                                                 ##OPTPRODUCTION
             for peId in contactList:                                                    ##OPTPRODUCTION
