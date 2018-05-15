@@ -1071,6 +1071,8 @@ class Infrastructure():
         self.potentialMap = normalize(self.potentialMap)
         # share of new stations that are build in the are of this process
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
+        if np.isnan(self.shareStationsOfProcess):
+            self.shareStationsOfProcess = 0
         lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))##OPTPRODUCTION
         
         self.currStatMap = np.zeros_like(potMap) # map for the stations this year

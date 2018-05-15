@@ -667,7 +667,7 @@ class ABMGraph(BaseGraph):
         
     def getNodeView(self, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
-        return self.nodes[nTypeID]._data[dataID:dataID+1].view() 
+        return self.nodes[nTypeID]._data[dataID:dataID+1].view(), dataID
 
 
 if __name__ == "__main__":

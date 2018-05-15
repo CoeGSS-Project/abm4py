@@ -143,19 +143,12 @@ class Entity():
                 raise()
 
             self.nID = nID
-            self._node = self._graph.getNodeView(nID)
-            self.getValue = firstElementDeco(self._node.__getitem__)
-            self.setValue = self._node.__setitem__
-            self.gID = self.getValue('gID')
-            # redireciton of internal functionality:
-            self.__getitem__ = firstElementDeco(self._node.__getitem__)
-            self.__setitem__ = self._node.__setitem__
-            return
-
-        # create instance newly
-        self.nID, self.dataID, self._node = world.addVertex(nodeType,  **kwProperties)
+            self._node, self.dataID = self._graph.getNodeView(nID)
+            self.gID = self._node['gID'][0]
+        else:
+            self.nID, self.dataID, self._node = world.addVertex(nodeType,  **kwProperties)
+            
         self.nodeType = nodeType
-        
         # redireciton of internal functionality:
         self.getValue = firstElementDeco(self._node.__getitem__)
         self.setValue = self._node.__setitem__
@@ -448,7 +441,7 @@ class GhostAgent(Entity):
 
 
     def registerChild(self, world, entity, edgeType):
-        world.addEdge(entity.nID,self.nID, type=edgeType)
+        world.addEdge(edgeType, entity.nID, self.nID)
 
         
 ################ LOCATION CLASS #########################################
@@ -798,9 +791,10 @@ class World:
 
             
         #eStart = self.graph.ecount()
-        #print fullSourceList
-        #print fullTargetList
-        
+        if self.mpi.rank == 0:
+            print fullSourceList
+            print fullTargetList
+            print self.getParameter('landLayer')
         self.graph.addEdges(1, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
