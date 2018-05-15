@@ -72,7 +72,7 @@ import time
 from copy import copy
 from os.path import expanduser
 import pdb
-from pprint import pprint
+import pprint
 import logging as lg
 home = expanduser("~")
 
@@ -89,9 +89,9 @@ import numpy as np
 #from mpi4py import  MPI
 #import h5py
 
-from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion, aux, h5py, MPI
-#import class_auxiliary  as aux #convertStr
-comm = MPI.COMM_WORLD
+from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion
+import core  
+comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
@@ -977,7 +977,7 @@ def createAndReadParameters(fileName, dirPath):
     def readParameterFile(parameters, fileName):
         for item in csv.DictReader(open(fileName)):
             if item['name'][0] != '#':
-                parameters[item['name']] = aux.convertStr(item['value'])
+                parameters[item['name']] = core.convertStr(item['value'])
         return parameters
 
     parameters = Bunch()
@@ -1050,7 +1050,7 @@ def householdSetup(earth, calibration=False):
     hhData = dict()
     currIdx = dict()
     h5Files = dict()
-
+    import h5py
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
         # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
@@ -1069,7 +1069,7 @@ def householdSetup(earth, calibration=False):
         agentEnd   = int(np.sum(nAgentsOnProcess[:mpi.rank+1,i]))
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
-        lg.debug('Vertex count: ' + str(earth.graph.vcount()))
+        lg.debug('Vertex count: ' + str(earth.graph.nCount()))
         
         if earth.debug:
             pass
@@ -1160,7 +1160,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, edgeType=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
-            hh.loc.addValue('population',  nPers)
+            hh.loc['population'] += nPers
             
             assert nAdults > 0 ##OPTPRODUCTION
             
@@ -1206,17 +1206,11 @@ def householdSetup(earth, calibration=False):
                 break
     lg.info('All agents initialized')
 
-    if earth.queuing:
-        earth.queue.dequeueVertices(earth)
-        earth.queue.dequeueEdges(earth)
 
     earth.mpi.transferGhostNodes(earth)
     #earth.mpi.comm.Barrier()
     #earth.mpi.recvGhostNodes(earth)
 
-    if earth.queuing:
-        earth.queue.dequeueVertices(earth)
-        earth.queue.dequeueEdges(earth)
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
 
@@ -1233,7 +1227,7 @@ def householdSetup(earth, calibration=False):
         
     for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
-        hh.setAdultNodeList(earth)
+        #hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
         
     earth.mpi.comm.Barrier()
@@ -1253,21 +1247,26 @@ def initEarth(simNo,
               parameters,
               maxNodes,
               debug,
-              mpiComm=None,
-              caching=True,
-              queuing=True):
+              mpiComm=None):
     tt = time.time()
-
+    
+    global earth
     earth = Earth(simNo,
                   outPath,
                   parameters,
                   maxNodes=maxNodes,
                   debug=debug,
-                  mpiComm=mpiComm,
-                  caching=caching,
-                  queuing=queuing)
+                  mpiComm=mpiComm)
 
 
+    lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
+    if mpiRank == 0:
+        print'Earth init done'
+    return earth
+
+def initScenario(earth, parameters):
+
+    tt = time.time()
     earth.initMarket(earth,
                      parameters.properties,
                      parameters.randomCarPropDeviationSTD,
@@ -1330,65 +1329,68 @@ def initEarth(simNo,
     
     initAgentOutput(earth)
     
-    lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
+    lg.info('Init of scenario finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
-        print'Earth init done'
-    return earth
+        print'Scenario init done'
+    return earth   
 
 def initTypes(earth):
     parameters = earth.getParameter()
     global CELL
     CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
-                               staticProperies  = ['type',
-                                                   'gID',
-                                                   'pos',
-                                                   'regionId',
-                                                   'popDensity',
-                                                   'population'],
-                               dynamicProperies = ['convenience',
-                                                   'carsInCell',
-                                                   'chargStat',
-                                                   'emissions',
-                                                   'electricConsumption'])
+                               staticProperies  = [('gID', np.int32, 1),
+                                                   ('pos', np.int16, 2),
+                                                   ('regionId', np.int16, 1),
+                                                   ('popDensity', np.float64, 1),
+                                                   ('population', np.int16, 1)],
+                               dynamicProperies = [('convenience', np.float64, 5),
+                                                   ('carsInCell', np.int32, 5),
+                                                   ('chargStat', np.int32, 1),
+                                                   ('emissions', np.float64, 5),
+                                                   ('electricConsumption', np.float64, 1)])
 
     global HH
-    HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
-                               staticProperies  = ['type',
-                                                   'gID',
-                                                   'pos',
-                                                   'hhSize',
-                                                   'nKids',
-                                                   'hhType'],
-                               dynamicProperies =  ['income',
-                                                   'expUtil',
-                                                   'util',
-                                                   'expenses'])
+    HH = earth.registerNodeType('hh', 
+                                AgentClass=Household, 
+                                GhostAgentClass=GhostHousehold,
+                                staticProperies  = [('gID', np.int32, 1),
+                                                    ('pos', np.int16, 2),
+                                                    ('hhSize', np.int8,1),
+                                                    ('nKids', np.int8, 1),
+                                                    ('hhType', np.int8, 1)],
+                                dynamicProperies = [('income', np.float64, 1),
+                                                    ('expUtil', np.float64, 1),
+                                                    ('util', np.float64, 1),
+                                                    ('expenses', np.float64, 1)])
 
     global PERS
     PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
-                                staticProperies = ['type',
-                                                   'gID',
-                                                   'hhID',
-                                                   'preferences',
-                                                   'gender',
-                                                   'nJourneys',
-                                                   'hhType'],
-                                dynamicProperies = ['age',
-                                                   'util',     # current utility
-                                                   'commUtil', # comunity utility
-                                                   'selfUtil', # own utility at time of action
-                                                   'mobType',
-                                                   'prop',
-                                                   'consequences',
-                                                   'lastAction',
-                                                   'emissions'])
+                                staticProperies = [('gID', np.int32, 1),
+                                                   ('hhID', np.int32, 1),
+                                                   ('preferences', np.float64, 4),
+                                                   ('gender', np.int8, 1),
+                                                   ('nJourneys', np.int16, 5),
+                                                   ('hhType', np.int8, 1)],
+                               dynamicProperies = [('age', np.int8, 1),
+                                                   ('util', np.float64, 1),     # current utility
+                                                   ('commUtil', np.float64, 5), # comunity utility
+                                                   ('selfUtil', np.float64, 5), # own utility at time of action
+                                                   ('mobType', np.int8, 1),
+                                                   ('prop', np.float64, 2),
+                                                   ('consequences', np.float64, 4),
+                                                   ('lastAction', np.int16, 1),
+                                                   ('emissions', np.float64, 1)])
 
-
-    earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
-    earth.registerEdgeType('cell-hh', CELL, HH)
-    earth.registerEdgeType('hh-hh', HH,HH)
-    earth.registerEdgeType('hh-pers', HH, PERS)
-    earth.registerEdgeType('pers-pers', PERS, PERS, ['type','weig'])
+    global CON_CC
+    CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float64, 1)])
+    global CON_CH
+    CON_CH = earth.registerEdgeType('cell-hh', CELL, HH)
+    global CON_HH
+    CON_HH = earth.registerEdgeType('hh-hh', HH,HH)
+    global CON_HP
+    CON_HP = earth.registerEdgeType('hh-pers', HH, PERS)
+    global CON_PP
+    CON_PP = earth.registerEdgeType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
 
     if mpiRank == 0:
         print'Initialization of types done'
@@ -1397,7 +1399,7 @@ def initTypes(earth):
 
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
-    connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
+    connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.initSpatialLayer(parameters['landLayer'],
                            connList, CELL,
                            LocClassObject=Cell,
@@ -1426,12 +1428,12 @@ def initSpatialLayer(earth):
     if 'regionIdRaster' in parameters.keys():
 
         for cell in earth.iterEntRandom(CELL):
-            cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
+            cell.setValue('regionId', parameters['regionIdRaster'][tuple(cell['pos'])])
             cell.setValue('chargStat', 0)
             cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
             cell.setValue('electricConsumption', 0.)
-            cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
-            cell.setValue('popDensity', popDensity[cell._node['pos']])
+            cell.cellSize = parameters['cellSizeMap'][tuple(cell['pos'])]
+            cell.setValue('popDensity', popDensity[tuple(cell['pos'])])
             
     earth.mpi.updateGhostNodes([CELL],['chargStat'])
 

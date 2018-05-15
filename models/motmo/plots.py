@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 import seaborn as sns
-from classes_motmo import MPI
+from core import MPI
 
 sns.set()
 sns.set_color_codes("dark")

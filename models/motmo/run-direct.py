@@ -7,19 +7,19 @@ import os
 import socket
 
 import init_motmo as init
-from classes_motmo import aux, MPI
+import core
 import plots
 
 debug = 1
 showFigures = 0
 
-comm = MPI.COMM_WORLD
+comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 
 overallTime = time.time()
 
-simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
-outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
+simNo, baseOutputPath = core.getEnvironment(comm, getSimNo=True)
+outputPath = core.createOutputDirectory(comm, baseOutputPath, simNo)
 dirPath = os.path.dirname(os.path.realpath(__file__))
 fileName = sys.argv[1]
 
@@ -31,14 +31,16 @@ parameters = init.createAndReadParameters(fileName, dirPath)
 parameters['outPath'] = outputPath
 parameters.showFigures = showFigures
 
+global earth
 earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
                        debug=debug,
-                       mpiComm=comm,
-                       caching=True,
-                       queuing=True)
+                       mpiComm=comm)
+
+init.initScenario(earth, parameters)
+
 
 if parameters.scenario == 0:
     earth.view('output/graph.png')

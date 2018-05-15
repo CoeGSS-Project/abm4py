@@ -105,10 +105,16 @@ def assertUpdate(graph, prop, nodeType):
 ################ ENTITY CLASS #########################################
 # general ABM entity class for objects connected with the graph
 
-def deco(fun):
+def firstElementDeco(fun):
+    """ 
+    Decorator that returns the first element
+    ToDo: if possible find better way
+    """
     def helper(arg):
         return fun(arg)[0]
     return helper
+
+
 
 class Entity():
     """
@@ -138,11 +144,11 @@ class Entity():
 
             self.nID = nID
             self._node = self._graph.getNodeView(nID)
-            self.getValue = deco(self._node.__getitem__)
+            self.getValue = firstElementDeco(self._node.__getitem__)
             self.setValue = self._node.__setitem__
             self.gID = self.getValue('gID')
             # redireciton of internal functionality:
-            self.__getitem__ = deco(self._node.__getitem__)
+            self.__getitem__ = firstElementDeco(self._node.__getitem__)
             self.__setitem__ = self._node.__setitem__
             return
 
@@ -151,9 +157,9 @@ class Entity():
         self.nodeType = nodeType
         
         # redireciton of internal functionality:
-        self.getValue = deco(self._node.__getitem__)
+        self.getValue = firstElementDeco(self._node.__getitem__)
         self.setValue = self._node.__setitem__
-        self.__getitem__ = deco(self._node.__getitem__)
+        self.__getitem__ = firstElementDeco(self._node.__getitem__)
         self.__setitem__ = self._node.__setitem__
 
 
@@ -170,6 +176,7 @@ class Entity():
     def getPeerIDs(self, edgeType=None, nodeType=None, mode='out'):
         
         if edgeType is None:
+            assert nodeType is None 
             edgeType = earth.graph.node2EdgeType[self.nodeType, nodeType]
         #print edgeType
         if mode=='out':            
@@ -213,7 +220,7 @@ class Entity():
 
         
 
-        return edgesValues, nIDList
+        return edgesValues, (eTypeID, dataID), nIDList
 
     def setEdgeValues(self, prop, values, edgeType=None):
         """
@@ -493,7 +500,7 @@ class GhostLocation(Entity):
 
         Entity.__init__(self,world, nID, **kwProperties)
         self.mpiOwner = int(owner)
-        self.queuing = world.queuing
+        
 
     def register(self, world, parentEntity=None, edgeType=None):
         Entity.register(self, world, parentEntity, edgeType, ghost= True)
@@ -575,6 +582,7 @@ class World:
         
         # dict of list that provides the storage place for each agent per nodeType
         self.dataDict       = dict()
+        self.ghostDataDict  = dict()
 
         self.entList   = list()
         self.entDict   = dict()
@@ -640,37 +648,33 @@ class World:
             self.setParameter(key, parameterDict[key])
 
 
-    def getNodeValues(self, prop, nodeType=None, idxList=None):
+    def getNodeValues(self, label, localNodeIDList=None, nodeType=None):
         """
         Method to read values of node sequences at once
         Return type is numpy array
         Only return non-ghost agent properties
         """
-        #if nodeType:
-        #    assertUpdate(self.graph, prop, nodeType)
+        if localNodeIDList:   
+            assert nodeType is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=localNodeIDList)
         
-        if idxList:
-            return np.asarray(self.graph.vs[idxList][prop])
-        elif nodeType:
-            return np.asarray(self.graph.vs[self.nodeDict[nodeType]][prop])
-
-    def setNodeValues(self, prop, valueList, nodeType=None, idxList=None):
+        elif nodeType:           
+            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.nodeDict[nodeType])
+        
+    def setNodeValues(self, label, valueList, localNodeIDList=None, nodeType=None):
         """
         Method to read values of node sequences at once
         Return type is numpy array
         """
-        if idxList:
-            self.graph.vs[idxList][prop] = valueList
+        if localNodeIDList:
+            assert nodeType is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localNodeIDList)
+        
         elif nodeType:
-            self.graph.vs[self.nodeDict[nodeType]][prop] = valueList
+            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.nodeDict[nodeType])
 
-#    def getNodeData(self, propName, nodeType=None):
-#        """
-#        Method to retrieve all properties of all entities of one nodeType
-#        """
-#        nodeIdList = self.nodeDict[nodeType]
-#
-#        return np.asarray(self.graph.vs[nodeIdList][propName])
 
 
     def getEdgeData(self, propName, edgeType=None):
@@ -858,9 +862,9 @@ class World:
 
         if random:
             shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
-            return  [(self.entList[i], i) for i in shuffled_list]
+            return  [(self.entDict[i], i) for i in shuffled_list]
         else:
-            return  [(self.entList[i], i) for i in nodeDict]
+            return  [(self.entDict[i], i) for i in nodeDict]
 
 
 
@@ -892,6 +896,7 @@ class World:
         self.nodeDict[nodeTypeIdx]      = list()
         self.dataDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
+        self.ghostDataDict[nodeTypeIdx] = list()
         self.enums[typeStr] = nodeTypeIdx
         return nodeTypeIdx
 
@@ -933,6 +938,7 @@ class World:
 
         if ghost:
             self.ghostNodeDict[typ].append(agent.nID)
+            self.ghostDataDict[typ].append(agent.dataID)
         else:
             #print typ
             self.nodeDict[typ].append(agent.nID)
@@ -1119,9 +1125,7 @@ if __name__ == '__main__':
                   maxNodes=1e4,
                   maxEdges=1e4,
                   debug=True,
-                  mpiComm=mpiComm,
-                  caching=False,
-                  queuing=False)
+                  mpiComm=mpiComm)
 
 
     earth = World(0, '.', maxNodes = 1e2, nSteps = 10)

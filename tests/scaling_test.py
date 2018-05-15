@@ -17,14 +17,11 @@ factor = 25          # spatial extend per process (factor x factor)
 nSteps = 10          # number of model steps that are run
 radius = 5           # spatial interaction radius -> increases of communication
 weakScaling = False  # testin weak scaling
-<<<<<<< HEAD
+
 debug = True
 if weakScaling == False:
     layerShape = [8, 8]
-=======
-if not weakScaling:
-    layerShape = [64, 64]
->>>>>>> dakota-integration
+
 #############################################################
 
 
@@ -41,7 +38,7 @@ from os.path import expanduser
 home = expanduser("~")
 
 sys.path.append('../lib/')
-
+sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -122,9 +119,7 @@ earth = LIB.World(simNo,
               maxNodes=1e5,
               maxEdges=1e7,
               debug=debug,
-              mpiComm=mpiComm,
-              caching=False,
-              queuing=False)
+              mpiComm=mpiComm)
 
 earth.setParameters(parameters)
 log_file   =  open('out' + str(earth.mpi.rank) + '.txt', 'w')
@@ -205,15 +200,9 @@ for x, y in locDict.keys():
         agent.register(earth, parentEntity=loc, edgeType=CON_AC)
         agent.loc.peList.append(agent.nID)
 
-if earth.queuing:
-    earth.queue.dequeueVertices(earth)
-    earth.queue.dequeueEdges(earth)
 
 earth.mpi.transferGhostNodes(earth) 
 
-if earth.queuing:
-    earth.queue.dequeueVertices(earth)
-    earth.queue.dequeueEdges(earth)   
     
 #for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
 #    ghostCell.updatePeList(earth.graph, AGENT)
@@ -240,8 +229,6 @@ for agent in earth.iterEntRandom(AGENT):
     globalTargetList.extend(connList[1])
     
 earth.addEdges(CON_AA, globalSourceList, globalTargetList)
-if earth.queuing:
-    earth.queue.dequeueEdges(earth)    
 
 del  globalSourceList, globalTargetList
    

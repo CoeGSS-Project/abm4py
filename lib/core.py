@@ -34,7 +34,7 @@ import mpi4py
 
 mpi4py.rc.threads = False
 import sys
-sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+
 
 sys_excepthook = sys.excepthook
 def mpi_excepthook(v, t, tb):
