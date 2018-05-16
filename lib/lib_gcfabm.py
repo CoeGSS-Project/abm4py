@@ -145,6 +145,7 @@ class Entity():
             self.nID = nID
             self._node, self.dataID = self._graph.getNodeView(nID)
             self.gID = self._node['gID'][0]
+        
         else:
             self.nID, self.dataID, self._node = world.addVertex(nodeType,  **kwProperties)
             
@@ -791,10 +792,6 @@ class World:
 
             
         #eStart = self.graph.ecount()
-        if self.mpi.rank == 0:
-            print fullSourceList
-            print fullTargetList
-            print self.getParameter('landLayer')
         self.graph.addEdges(1, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
@@ -933,8 +930,8 @@ class World:
         if ghost:
             self.ghostNodeDict[typ].append(agent.nID)
             self.ghostDataDict[typ].append(agent.dataID)
+        
         else:
-            #print typ
             self.nodeDict[typ].append(agent.nID)
             self.dataDict[typ].append(agent.dataID)
 
@@ -1177,7 +1174,7 @@ if __name__ == '__main__':
         if cell.getValue('pos')[0] == 0:
             x,y = cell.getValue('pos')
             agent = Agent(earth, value3=np.random.randn(),pos=(x,  y))
-            print 'agent.nID' + str(agent.nID)
+            #print 'agent.nID' + str(agent.nID)
             agent.register(earth, cell, C_LOAG)
             #cell.registerEntityAtLocation(earth, agent,_cLocAg)
 

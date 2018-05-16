@@ -6,7 +6,7 @@ Created on Fri Sep 15 10:31:00 2017
 @author: Andreas Geiges, Global Climate Forum e.V.
 """
 
-#from igraph import Graph
+import logging as lg
 import numpy as np
 import itertools
 import functools
@@ -276,21 +276,21 @@ class BaseGraph():
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
-        try :
-            # assuming label is a singel string
-            dtype2 = np.dtype({label : self.nodes[nTypeID]._data.dtype.fields[label]})
-        except:   
-            # assuming label is a list of string
+        if isinstance(label, list):
+            # label is a list of string
             dtype2 = np.dtype({name:self.nodes[nTypeID]._data.dtype.fields[name] for name in label})
                 
-        view = np.ndarray(self.nodes[nTypeID]._data.shape, 
-                          dtype2, 
-                          self.nodes[nTypeID]._data, 
-                          0, 
-                          self.nodes[nTypeID]._data.strides) 
-
-        view[dataIDs] = values
-
+            view = np.ndarray(self.nodes[nTypeID]._data.shape, 
+                              dtype2, 
+                              self.nodes[nTypeID]._data, 
+                              0, 
+                              self.nodes[nTypeID]._data.strides) 
+            #print view[dataIDs].dtype
+            view[dataIDs] = values
+        else:
+            #label is a singel string
+            self.nodes[nTypeID]._data[label][dataIDs]= values
+            
     def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
@@ -742,7 +742,7 @@ if __name__ == "__main__":
             lnID, _, dataview = bg.addNode(AGENT, (i,randAttr[i,:]))
             agArray[i] = lnID
          
-        nConnections = int(5e5)
+        nConnections = int(1e4)
         print 'creating random edges' 
         for i in tqdm(range(nConnections)):
             
@@ -774,4 +774,11 @@ if __name__ == "__main__":
                 neigList  = bg.edges[AGAG]['target'][dataIDs]
                 y = bg.getEdgeSeqAttr('weig', eTypeID=eType, dataIDs=dataIDs)
                 x = bg.getNodeSeqAttr('preferences', neigList)
-                
+        #%%
+        print 'writing values of sequence of nodes'    
+        nNodes = 5
+        nWriteOfSequence = int(1e4)
+        values = np.random.randn(nWriteOfSequence+5, 4)
+        for i in tqdm(range(nWriteOfSequence)):
+            lnIDs = np.random.choice( bg.nodes[AGENT].nodeList[:10000],nNodes,replace=False)
+            bg.setNodeSeqAttr( 'preferences', values[i:i+5,:], lnIDs=lnIDs)

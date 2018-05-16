@@ -943,8 +943,11 @@ class Mpi():
         dataPackage = dict()
         dataPackage['nNodes']  = nNodes
         dataPackage['nTypeID'] = nodeType
-        dataPackage['data'] = self.world.graph.getNodeSeqAttr(label=propList, lnIDs=self.mpiSendIDList[(nodeType,mpiPeer)] )
-        dataSize += np.prod(dataPackage['data'].shape)
+
+        for prop in propList:
+            dataPackage[prop] = self.world.graph.getNodeSeqAttr(label=prop, lnIDs=self.mpiSendIDList[(nodeType,mpiPeer)] )
+            dataSize += np.prod(dataPackage[prop].shape)
+        
         if connList is not None:
             dataPackage['connectedNodes'] = connList
             dataSize += len(connList)
@@ -993,8 +996,9 @@ class Mpi():
                         propertyList= self.world.graph.nodeProperies[nodeType][:]
                         propertyList.remove('gID')
 
-                    self.world.graph.setNodeSeqAttr(label=propertyList, 
-                                                    values=dataPackage['data'],
+                    for prop in propertyList:
+                        self.world.graph.setNodeSeqAttr(label=prop, 
+                                                    values=dataPackage[prop],
                                                     lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
                     
         syncUnpackTime = time.time() -tt
@@ -1085,7 +1089,10 @@ class Mpi():
             
             #self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
             #print self.mpiRecvIDList[(locNodeType, mpiDest)]
-            self.world.graph.setNodeSeqAttr(label=['gID'], values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
+
+            self.world.graph.setNodeSeqAttr(label='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
+            
+            
             lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
             for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
@@ -1104,7 +1111,7 @@ class Mpi():
         messageSize = 0
         #%%Packing of data
         for nodeType, mpiPeer in sorted(self.ghostNodeQueue.keys()):
-
+            
             #get size of send array
             IDsList= self.ghostNodeQueue[(nodeType, mpiPeer)]['nIds']
             connList = self.ghostNodeQueue[(nodeType, mpiPeer)]['conn']
@@ -1133,7 +1140,7 @@ class Mpi():
 
                 nNodes   = dataPackage['nNodes']
                 nodeType = dataPackage['nTypeID']
-               
+                #
                 IDsList = world.addVertices(nodeType, nNodes)
                 # setting up ghostIn communicator
                 self.mpiRecvIDList[(nodeType, mpiPeer)] = IDsList
@@ -1141,9 +1148,10 @@ class Mpi():
 
                 propList = world.graph.getPropOfNodeType(nodeType, kind='all')['names']
                 propList.append('gID')
-                     
-                self.world.graph.setNodeSeqAttr(label=propList, 
-                                                values=dataPackage['data'],
+
+                for prop in propList:   
+                    self.world.graph.setNodeSeqAttr(label=prop, 
+                                                values=dataPackage[prop],
                                                 lnIDs=self.mpiRecvIDList[(nodeType, mpiPeer)])                        
 
                 gIDsParents = dataPackage['connectedNodes']
