@@ -647,38 +647,7 @@ def initScenario(earth, parameters):
     return earth   
 
 def initTypes(earth):
-<<<<<<< HEAD
 
-    CELL    = earth.registerNodeType('cell' , 
-                                     AgentClass=Cell, 
-                                     GhostAgentClass= GhostCell,
-                               staticProperies  = ['type',
-                                                   'gID',
-                                                   'pos',
-                                                   'regionId',
-                                                   'popDensity',
-                                                   'population'],
-                               dynamicProperies = ['convenience',
-                                                   'carsInCell',
-                                                   'chargStat',
-                                                   'emissions',
-                                                   'electricConsumption'])
-
-
-    HH = earth.registerNodeType('hh', AgentClass=Household, GhostAgentClass= GhostHousehold,
-                               staticProperies  = ['type',
-                                                   'gID',
-                                                   'pos',
-                                                   'hhSize',
-                                                   'nKids',
-                                                   'hhType'],
-                               dynamicProperies =  ['income',
-                                                   'expUtil',
-                                                   'util',
-                                                   'expenses'])
-
-
-=======
     parameters = earth.getParameter()
     global CELL
     CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
@@ -708,7 +677,6 @@ def initTypes(earth):
                                                     ('expenses', np.float64, 1)])
 
     global PERS
->>>>>>> dev_ag
     PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
                                 staticProperies = [('gID', np.int32, 1),
                                                    ('hhID', np.int32, 1),
