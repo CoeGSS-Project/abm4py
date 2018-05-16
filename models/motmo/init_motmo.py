@@ -50,38 +50,36 @@ long-term:
     - add advertising to experience
 
 """
-#%%
-#TODO
+# %%
+# TODO
 # random iteration (even pairs of agents)
 #from __future__ import division
 
-import sys, os
-import socket
-
-sys.path.append('../../lib/')
-sys.path.append('../../modules/')
-
+import sys, os, socket
+import matplotlib as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
 if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
     sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-
 else:
-    
-    import matplotlib
-    matplotlib.use('Agg')
-    
+    plt.use('Agg')
+
 import mpi4py
 mpi4py.rc.threads = False
-
-
 import csv
 import time
 #import guppy
 from copy import copy
 from os.path import expanduser
 import pdb
+import pprint
+import logging as lg
 home = expanduser("~")
+
+sys.path.append('../../lib/')
+sys.path.append('../../modules/')
+
+
 
 #from deco_util import timing_function
 import numpy as np
@@ -91,26 +89,21 @@ import numpy as np
 #from mpi4py import  MPI
 #import h5py
 
-from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion, aux, h5py, MPI
-#import class_auxiliary  as aux #convertStr
-comm = MPI.COMM_WORLD
+from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion
+import core  
+comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
-
-import logging as lg
-import matplotlib.pylab as plt
-import seaborn as sns; sns.set()
-sns.set_color_codes("dark")
-#import matplotlib.pyplot as plt
 
 import pandas as pd
 from bunch import Bunch
 
+
 from scipy import signal
+import scenarios
 
 print 'import done'
 
-overallTime = time.time()
 ###### Enums ################
 #connections
 CON_LL = 1 # loc - loc
@@ -128,737 +121,8 @@ PERS   = 3
 _month = 1
 _year  = 2
 
-#%% Scenario definition without calibraton parameters
-
-def scenarioTestSmall(parameterInput, dirPath):
-    setup = Bunch()
-
-    #general
-    setup.resourcePath  = dirPath + '/resources/'
-    setup.progressBar   = True
-    setup.allTypeObservations = False
-
-    #time
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01,2005]
-
-    a = 60000.
-    b = 45000.
-    c = 30000.
-    d = 25000.
-    e = 20000.
-    f = 15000.
-    g = 10000.
-    h = 5000.
-    i = 1500.
-    
-    #spatial
-    setup.reductionFactor = 5000
-    setup.isSpatial       = True
-    setup.spatialRedFactor = 280.
-    
-    setup.connRadius      = 2.0     # radíus of cells that get an connection
-
-    
-    setup.population  = np.asarray([[c, a, b, 0, 0],
-                                    [c, b, d, 0, f],
-                                    [0, h, i, g, e]])
-    
-    setup.landLayer  = setup.population.copy().astype(float)
-    setup.landLayer[setup.landLayer== 0.] = np.nan
-    
-    setup.landLayer  = (setup.landLayer*0.) +1.
-    setup.landLayer[0,:] = 0.
-    
-    
-    setup.cellSizeMap  = setup.landLayer * 15.
-    
-    setup.roadKmPerCell   = np.asarray([[1, 5, 3, 0, 0],
-                                        [1, 4, 4, 0, 1],
-                                        [0, 1, 1, 1, 1]]) / setup.cellSizeMap
-
-
-    
-    
-    
-    
-    setup.regionIdRaster            = ((setup.landLayer*0)+1)*6321
-    #setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
-    if mpiSize == 1:
-        setup.landLayer = setup.landLayer*0
-
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-    
-    #setup.population = (np.isnan(setup.landLayer)==0)* np.random.randint(3,23,setup.landLayer.shape)
-    #setup.population = (np.isnan(setup.landLayer)==0)* 13
-    
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters used for automatic calibration
-    setup.update(parameterInput.toDict())
-
-    # calculate dependent parameters
-    #maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    #minCarConvenience = 1 + setup.kappa
-    #setup.convB =  minCarConvenience / (maxDeviation)
-
-    # only for packing with care
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-    #dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    #del dummy
-
-    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
-                    'population']:
-        setup[paName] /= setup['reductionFactor']
-
-    import pprint as pp
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
-
-    return setup
-
-
-
-def scenarioTestMedium(parameterInput, dirPath):
-
-
-    setup = Bunch()
-
-
-    #general
-    setup.resourcePath          = dirPath + '/resources/'
-    setup.allTypeObservations   = False
-
-    setup.progressBar = True
-
-    #time
-    setup.timeUnit          = _month  # unit of time per step
-    setup.startDate         = [01, 2005]
-
-
-    #spatial
-    setup.isSpatial         = True
-    setup.spatialRedFactor = 80.
-    
-    setup.landLayer   = np.asarray([[0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1 , 1, 1],
-                                    [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1 , 1, 0],
-                                    [1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1 , 0, 0],
-                                    [1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0 , 0, 0],
-                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1],
-                                    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1 , 1, 1]])
-    
-    setup.cellSizeMap  = setup.landLayer * 15.
-    
-    setup.roadKmPerCell   = np.asarray([[0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1 , 1, 0],
-                                        [0, 1, 0, 0, 0, 0, 1, 2, 3, 1, 0 , 0, 0],
-                                        [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
-                                        [2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
-                                        [3, 4, 1, 1, 2, 1, 1, 0, 0, 0, 0 , 0, 1],
-                                        [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]])     / setup.cellSizeMap
-    a = 60000.
-    b = 45000.
-    c = 30000.
-    d = 25000.
-    e = 20000.
-    f = 15000.
-    g = 10000.
-    h = 5000.
-    i = 1500.
-    setup.population  = np.asarray([[0, 0, 0, 0, e, d, c, d, h, 0, g, h, i],
-                                    [0, c, 0, 0, 0, e, d, d, e, e, f, g, 0],
-                                    [b, 0, c, 0, e, e, i, 0, 0, g, f, 0, 0],
-                                    [b, c, d, d, e, e, 0, 0, 0, g, i, i, 0],
-                                    [a, b, c, c, d, e, f, 0, 0, 0, i, i, i],
-                                    [a, a, c, c, d, f, f, 0, 0, 0, i, i, g]])    
-    del a, b, c, d, e, f, g, h, i
-
-    #convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
-    #setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    #setup.population = 30 * setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
-    #setup.population = 50 * setup.population 
-
-    setup.landLayer  = setup.landLayer.astype(float)
-    setup.landLayer[setup.landLayer== 0] = np.nan
-
-    
-    if mpiSize == 1:
-        setup.landLayer = setup.landLayer*0
-
-    setup.regionIdRaster    = ((setup.landLayer*0)+1)*6321
-    #setup.regionIdRaster[3:, 0:3] = ((setup.landLayer[3:, 0:3]*0)+1) *1519
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-
-    
-
-    setup.landLayer[:, :5] = setup.landLayer[:, :5] * 0
-    #setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
-    #setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
-    #setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
-
-
-
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters used for automatic calibration
-    setup.update(parameterInput.toDict())
-
-    # calculate dependent parameters
-    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
-                   'population']:
-        setup[paName] /= setup['reductionFactor']
-
-    import pprint as pp
-    pp.pprint( "Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
-
-    return setup
-
-def scenarioNBH(parameterInput, dirPath):
-    setup = Bunch()
-
-    #general
-    setup.resourcePath = dirPath + '/resources_NBH/'
-    #setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
-    setup.progressBar  = True
-    setup.allTypeObservations = True
-
-    #time
-    setup.nSteps           = 340     # number of simulation steps
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01,2005]
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-
-    #spatial
-    setup.isSpatial     = True
-    #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    #setup.reductionFactor = parameterInput['reductionFactor']
-
-    if hasattr(parameterInput, "reductionFactor"):
-        # overwrite the standart parameter
-        setup.reductionFactor = parameterInput.reductionFactor
-
-
-    #
-    #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
-    else:
-
-        setup.landLayer =  np.load(setup.resourcePath + 'land_layer_62x118.npy')
-        setup.landLayer = setup.landLayer * 0
-
-    lg.info('max rank:' +str(np.nanmax(setup.landLayer)))
-
-    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff')
-    setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_62x118.npy')
-    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_62x118.npy')
-    # bad bugfix for 4 cells
-    setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
-
-
-    setup.chargStat      = np.load(setup.resourcePath + 'charge_stations_62x118.npy')
-
-    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_area_62x118.npy')
-
-    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
-
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-
-    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
-    setup.regionIdRaster = setup.regionIdRaster.astype(int)
-
-
-
-    if False:
-        try:
-            #plt.imshow(setup.landLayer)
-            plt.imshow(setup.population,cmap = 'jet')
-            plt.clim([0, np.nanpercentile(setup.population, 90)])
-            plt.colorbar()
-        except:
-            pass
-    setup.landLayer[np.isnan(setup.population)] = np.nan
-
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters from file
-    setup.update(parameterInput.toDict())
-
-    # Correciton of population depend parameter by the reduction factor
-    #setup['initialGreen'] /= setup['reductionFactor']
-    #setup['initialBrown'] /= setup['reductionFactor']
-    #setup['initialOther'] /= setup['reductionFactor']
-
-    #setup['population']     /= setup['reductionFactor']
-    #setup['urbanThreshold'] /= setup['reductionFactor']
-    #setup['urbanCritical']  /= setup['reductionFactor']
-    #setup['publicTransBonus']  /= setup['reductionFactor']
-    #setup.convD /= setup['reductionFactor']
-
-    # calculate dependent parameters
-    #maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    #minCarConvenience = 1 + setup.kappa
-    #setup.convB =  minCarConvenience / (maxDeviation)
-
-
-    for paName in ['techExpBrown', 'techExpGreen',
-                   'techExpOther', 'population']:
-        setup[paName] /= setup['reductionFactor']
-
-    import pprint as pp
-    pp.pprint( "Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
-
-    return setup
-
-def scenarioGer(parameterInput, dirPath):
-    setup = Bunch()
-
-    #general
-    setup.resourcePath = dirPath + '/resources_ger/'
-    #setup.synPopPath = setup['resourcePath'] + 'hh_NBH_1M.csv'
-    setup.progressBar  = True
-    setup.allTypeObservations = True
-
-    #time
-    setup.nSteps           = 340     # number of simulation steps
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01, 2005]
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-
-    #spatial
-    setup.isSpatial     = True
-    setup.spatialRedFactor = 1.
-    #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    #setup.reductionFactor = parameterInput['reductionFactor']
-
-    if hasattr(parameterInput, "reductionFactor"):
-        # overwrite the standart parameter
-        setup.reductionFactor = parameterInput.reductionFactor
-
-
-    #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'partition_map_' + str(mpiSize) + '.npy')
-    else:
-
-        setup.landLayer=  np.load(setup.resourcePath + 'land_layer_186x219.npy')
-        setup.landLayer[setup.landLayer==0] = np.nan
-        setup.landLayer = setup.landLayer * 0
-
-    lg.info('max rank:' + str(np.nanmax(setup.landLayer)))
-
-    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
-    setup.population = np.load(setup.resourcePath + 'pop_counts_ww_2005_186x219.npy')
-    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster_186x219.npy')
-    # bad bugfix for 4 cells
-    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
-
-    setup.regionIDList  = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-
-    setup.cellSizeMap   = np.load(setup.resourcePath + 'cell_area_186x219.npy')
-
-    setup.roadKmPerCell = np.load(setup.resourcePath + 'road_km_all_new_186x219.npy') / setup.cellSizeMap
-
-    
-    
-    # correction of ID map
-    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
-
-    for x, y in zip(xList,yList):
-        reList = []
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
-                    reList.append(setup.regionIdRaster[x+dx,y+dy])
-        if len(np.unique(reList)) == 1:
-            setup.regionIdRaster[x, y] = np.unique(reList)[0]
-
-    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
-
-
-    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
-    setup.regionIdRaster = setup.regionIdRaster.astype(int)
-
-    if False:
-        try:
-            #plt.imshow(setup.landLayer)
-            plt.imshow(setup.population,cmap='jet')
-            plt.clim([0, np.nanpercentile(setup.population,90)])
-            plt.colorbar()
-        except:
-            pass
-    print setup.landLayer.shape
-    print setup.population.shape    
-    setup.landLayer[np.isnan(setup.population)] = np.nan
-
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters from file
-    setup.update(parameterInput.toDict())
-
-    #setup.population = (setup.population ** .5) * 100
-    # Correciton of population depend parameter by the reduction factor
-    for paName in ['techExpBrown', 'techExpGreen','techExpPublic', 'techExpShared' ,'techExpNone',
-                   'population']:
-        setup[paName] /= setup['reductionFactor']
-    for p in range(0, 105, 5) :
-        print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
-    #print 'max population' + str(np.nanmax(setup.population))
-    # calculate dependent parameters
-
-
-    lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
-    lg.info( "####################################")
-
-    nAgents = np.nansum(setup.population)
-    lg.info('Running with ' + str(nAgents) + ' agents')
-
-    return setup
-
-def scenarioLueneburg(parameterInput, dirPath):
-    setup = Bunch()
-
-    #general
-    setup.resourcePath = dirPath + '/resources_luen/'
-    setup.progressBar  = True
-    setup.allTypeObservations = True
-
-    #time
-    setup.nSteps           = 340     # number of simulation steps
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01, 2005]
-    setup.burnIn           = 100
-    setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-
-    #spatial
-    setup.isSpatial     = True
-    setup.spatialRedFactor = 350.
-    
-    #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    #setup.reductionFactor = parameterInput['reductionFactor']
-
-    if hasattr(parameterInput, "reductionFactor"):
-        # overwrite the standart parameter
-        setup.reductionFactor = parameterInput.reductionFactor
-
-
-    #setup.landLayer[np.isnan(setup.landLayer)] = 0
-    if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
-    else:
-
-        setup.landLayer=  np.load(setup.resourcePath + 'land_layer.npy')
-        setup.landLayer[setup.landLayer==0] = np.nan
-        setup.landLayer = setup.landLayer * 0
-
-    lg.info('max rank:' + str(np.nanmax(setup.landLayer)))
-
-    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
-    setup.population = np.load(setup.resourcePath + 'population.npy')
-    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    setup.regionIdRaster = np.load(setup.resourcePath + 'subRegionRaster.npy')
-    # bad bugfix for 4 cells
-    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
-
-    setup.regionIDList = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-
-    setup.cellSizeMap  = np.load(setup.resourcePath + 'cell_size.npy')
-
-    setup.roadKmPerCell    = np.load(setup.resourcePath + 'road_km_per_cell.npy') / setup.cellSizeMap
-
-    
-    
-    # correction of ID map
-    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
-
-#    for x, y in zip(xList,yList):
-#        reList = []
-#        for dx in [-1, 0, 1]:
-#            for dy in [-1, 0, 1]:
-#                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
-#                    reList.append(setup.regionIdRaster[x+dx,y+dy])
-#        if len(np.unique(reList)) == 1:
-#            setup.regionIdRaster[x, y] = np.unique(reList)[0]
-#
-#    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
-
-
-    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
-    setup.regionIdRaster = setup.regionIdRaster.astype(int)
-
-    if False:
-        try:
-            #plt.imshow(setup.landLayer)
-            plt.imshow(setup.population,cmap='jet')
-            plt.clim([0, np.nanpercentile(setup.population,90)])
-            plt.colorbar()
-        except:
-            pass
-    setup.landLayer[np.isnan(setup.population)] = np.nan
-
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-    
-    publicTranportSetup(setup)
-
-    # redefinition of setup parameters from file
-    setup.update(parameterInput.toDict())
-
-    #setup.population = (setup.population ** .5) * 100
-    # Correciton of population depend parameter by the reduction factor
-    for paName in ['techExpBrown', 
-                   'techExpGreen',
-                   'techExpPublic', 
-                   'techExpShared',
-                   'techExpNone']:
-        setup[paName] /= setup['reductionFactor'] *  setup.spatialRedFactor
-        
-    setup['population'] /= setup['reductionFactor']
-        
-    for p in range(0, 105, 5) :
-        print 'p' + str(p) + ': ' + str(np.nanpercentile(setup.population[setup.population!=0], p))
-    #print 'max population' + str(np.nanmax(setup.population))
-    # calculate dependent parameters
-
-
-    lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
-    lg.info( "####################################")
-
-    nAgents = np.nansum(setup.population)
-    lg.info('Running with ' + str(nAgents) + ' agents')
-
-    return setup
-
-def scenarioTest(parameterInput, dirPath):
-    
-    setup = Bunch()
-
-    #general
-    setup.resourcePath = None
-    setup.progressBar  = True
-    setup.allTypeObservations = True
-
-    #time
-    setup.nSteps           = 10     # number of simulation steps
-    setup.timeUnit         = _month  # unit of time per step
-    setup.startDate        = [01, 2005]
-    setup.burnIn           = 0
-    setup.omniscientBurnIn = 0       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
-
-    #spatial
-    setup.isSpatial     = True
-    setup.spatialRedFactor = 1.
-    #setup.connRadius    = 3.5      # radíus of cells that get an connection
-    #setup.reductionFactor = parameterInput['reductionFactor']
-
-    setup.landLayer = np.zeros([2, mpiSize])
-    setup.landLayer[0,:] = np.asarray(range(mpiSize))
-    setup.landLayer[1,:] = np.asarray(range(mpiSize))
-
-    #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
-    setup.population = setup.landLayer * 5
-    #setup.regionIdRaster    = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    setup.regionIdRaster = setup.landLayer * 99
-    # bad bugfix for 4 cells
-    #setup.regionIdRaster[np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))] = 6321
-
-    setup.regionIDList  = np.unique(setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
-
-    setup.cellSizeMap   = setup.landLayer * 1.
-
-    setup.roadKmPerCell = setup.landLayer * 2.
-
-    
-    
-    # correction of ID map
-    xList, yList = np.where(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
-
-    setup.randomCarPropDeviationSTD = .05
-    setup.connRadius = 2.
-    setup.reductionFactor = 2.
-
-    setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
-    setup.regionIdRaster = setup.regionIdRaster.astype(int)
-
-    if False:
-        try:
-            #plt.imshow(setup.landLayer)
-            plt.imshow(setup.population,cmap='jet')
-            plt.clim([0, np.nanpercentile(setup.population,90)])
-            plt.colorbar()
-        except:
-            pass
-    
-    #setup.landLayer[np.isnan(setup.population)] = np.nan
-
-
-    #social
-    setup.addYourself   = True     # have the agent herself as a friend (have own observation)
-    setup.recAgent      = []       # reporter agents that return a diary
-
-    #output
-    setup.writeOutput   = 1
-    setup.writeNPY      = 1
-    setup.writeCSV      = 0
-
-    #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
-
-    #agents
-    setup.randomAgents     = False
-    setup.omniscientAgents = False
-
-    # redefinition of setup parameters from file
-    setup.update(parameterInput.toDict())
-
-
-    lg.info( "Final setting of the parameters")
-    lg.info( parameterInput)
-    lg.info( "####################################")
-
-    nAgents = np.nansum(setup.population)
-    lg.info('Running with ' + str(nAgents) + ' agents')
-
-    return setup
-
-    
-###############################################################################
-###############################################################################
-
 # %% Setup functions
 
-def convolutionMatrix(radius, centerWeight):
-    convMat = np.zeros([radius*2+1,radius*2+1])
-    for dx in np.arange(-radius, radius+1):
-        for dy in np.arange(-radius, radius+1):
-            if dx == 0 and dy == 0:
-                convMat[radius+dx,radius+dy] = centerWeight
-            else:
-                convMat[radius+dx,radius+dy] = 1./np.sqrt(dx**2 + dy**2) 
-                
-    return convMat
-
-def publicTranportSetup(setup):
-    """
-    computation of the convenience of puplic transport for the Luenburg case
-    """
-    
-
-
-    
-        
-    busMap = np.load(setup.resourcePath + 'nBusStations.npy')
-    trainMap = np.load(setup.resourcePath + 'nTrainStations.npy')
-    
-    #density proxi
-    convMat = convolutionMatrix(5,2)
-    bus_station_density = signal.convolve2d(busMap,convMat,boundary='symm',mode='same')  #/ sumConv
-    bus_station_density[busMap==0] = 0
-    
-    convMat = convolutionMatrix(20,2)
-    train_station_density = signal.convolve2d(trainMap,convMat,boundary='symm',mode='same')
-    train_station_density[trainMap==0] = 0
-    
-    # convolution of the station influence
-    convMat = convolutionMatrix(1,2) / 2.
-    
-    tmp1 = .5 * signal.convolve2d(bus_station_density,convMat,boundary='symm',mode='same')
-    tmp2 = 5 *signal.convolve2d(train_station_density,convMat,boundary='symm',mode='same')   
-    
-    convPup = np.log(1 + tmp1 + tmp2) # one is is used so that log(1) = 0
-
-        
-    setup['conveniencePublic'] = convPup / np.max(convPup) * .6
 
 # Mobility setup setup
 def mobilitySetup(earth):
@@ -1007,6 +271,52 @@ def mobilitySetup(earth):
     return earth
     ##############################################################################
 
+def initLogger(debug, outputPath):
+    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+                   filemode='w',
+                   format='%(levelname)7s %(asctime)s : %(message)s',
+                   datefmt='%m/%d/%y-%H:%M:%S',
+                   level=lg.DEBUG if debug else lg.INFO)
+
+    lg.info('Log file of process ' + str(mpiRank) + ' of ' + str(mpiSize))
+
+    # wait for all processes - debug only for poznan to debug segmentation fault
+    comm.Barrier()
+    if comm.rank == 0:
+        print 'log files created'
+
+def createAndReadParameters(fileName, dirPath):
+    def readParameterFile(parameters, fileName):
+        for item in csv.DictReader(open(fileName)):
+            if item['name'][0] != '#':
+                parameters[item['name']] = core.convertStr(item['value'])
+        return parameters
+
+    parameters = Bunch()
+    # reading of gerneral parameters
+    parameters = readParameterFile(parameters, 'parameters_all.csv')
+    # reading of scenario-specific parameters
+    parameters = readParameterFile(parameters, fileName)
+
+    lg.info('Setting loaded:')
+
+    if mpiRank == 0:
+        parameters = scenarios.create(parameters, dirPath)
+
+        parameters = initExogeneousExperience(parameters)
+        parameters = randomizeParameters(parameters)
+    else:
+        parameters = None
+
+    parameters = comm.bcast(parameters, root=0)
+
+    if mpiRank == 0:
+        print'Parameter exchange done'
+    lg.info('Parameter exchange done')
+
+    return parameters
+
+
 def householdSetup(earth, calibration=False):
     
     #enumerations for h5File - second dimension
@@ -1052,7 +362,7 @@ def householdSetup(earth, calibration=False):
     hhData = dict()
     currIdx = dict()
     h5Files = dict()
-
+    import h5py
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
         # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
@@ -1071,7 +381,7 @@ def householdSetup(earth, calibration=False):
         agentEnd   = int(np.sum(nAgentsOnProcess[:mpi.rank+1,i]))
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
-        lg.debug('Vertex count: ' + str(earth.graph.vcount()))
+        lg.debug('Vertex count: ' + str(earth.graph.nCount()))
         
         if earth.debug:
             pass
@@ -1162,7 +472,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, edgeType=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
-            hh.loc.addValue('population',  nPers)
+            hh.loc['population'] += nPers
             
             assert nAdults > 0 ##OPTPRODUCTION
             
@@ -1208,17 +518,11 @@ def householdSetup(earth, calibration=False):
                 break
     lg.info('All agents initialized')
 
-    if earth.queuing:
-        earth.queue.dequeueVertices(earth)
-        earth.queue.dequeueEdges(earth)
 
     earth.mpi.transferGhostNodes(earth)
     #earth.mpi.comm.Barrier()
     #earth.mpi.recvGhostNodes(earth)
 
-    if earth.queuing:
-        earth.queue.dequeueVertices(earth)
-        earth.queue.dequeueEdges(earth)
     #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
     #earth.view(str(earth.mpi.rank) + '.png')
 
@@ -1235,7 +539,7 @@ def householdSetup(earth, calibration=False):
         
     for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
-        hh.setAdultNodeList(earth)
+        #hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
         
     earth.mpi.comm.Barrier()
@@ -1255,21 +559,26 @@ def initEarth(simNo,
               parameters,
               maxNodes,
               debug,
-              mpiComm=None,
-              caching=True,
-              queuing=True):
+              mpiComm=None):
     tt = time.time()
-
+    
+    global earth
     earth = Earth(simNo,
                   outPath,
                   parameters,
                   maxNodes=maxNodes,
                   debug=debug,
-                  mpiComm=mpiComm,
-                  caching=caching,
-                  queuing=queuing)
+                  mpiComm=mpiComm)
 
 
+    lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
+    if mpiRank == 0:
+        print'Earth init done'
+    return earth
+
+def initScenario(earth, parameters):
+
+    tt = time.time()
     earth.initMarket(earth,
                      parameters.properties,
                      parameters.randomCarPropDeviationSTD,
@@ -1283,8 +592,6 @@ def initEarth(simNo,
     
     #init location memory
     earth.enums = dict()
-
-
 
     earth.enums['priorities']    = dict()
     earth.enums['priorities'][0] = 'convinience'
@@ -1314,12 +621,33 @@ def initEarth(simNo,
     earth.enums['mobilityTypes'][3] = 'shared mobility'
     earth.enums['mobilityTypes'][4] = 'None motorized'
 
-    lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
+    initTypes(earth)
+    
+    initSpatialLayer(earth)
+    
+    initInfrastructure(earth)
+    
+    mobilitySetup(earth)
+    
+    cellTest(earth)
+    
+    initGlobalRecords(earth)
+    
+    householdSetup(earth)
+    
+    generateNetwork(earth)
+    
+    initMobilityTypes(earth)
+    
+    initAgentOutput(earth)
+    
+    lg.info('Init of scenario finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
-        print'Earth init done'
-    return earth
+        print'Scenario init done'
+    return earth   
 
 def initTypes(earth):
+<<<<<<< HEAD
 
     CELL    = earth.registerNodeType('cell' , 
                                      AgentClass=Cell, 
@@ -1350,30 +678,64 @@ def initTypes(earth):
                                                    'expenses'])
 
 
+=======
+    parameters = earth.getParameter()
+    global CELL
+    CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
+                               staticProperies  = [('gID', np.int32, 1),
+                                                   ('pos', np.int16, 2),
+                                                   ('regionId', np.int16, 1),
+                                                   ('popDensity', np.float64, 1),
+                                                   ('population', np.int16, 1)],
+                               dynamicProperies = [('convenience', np.float64, 5),
+                                                   ('carsInCell', np.int32, 5),
+                                                   ('chargStat', np.int32, 1),
+                                                   ('emissions', np.float64, 5),
+                                                   ('electricConsumption', np.float64, 1)])
+
+    global HH
+    HH = earth.registerNodeType('hh', 
+                                AgentClass=Household, 
+                                GhostAgentClass=GhostHousehold,
+                                staticProperies  = [('gID', np.int32, 1),
+                                                    ('pos', np.int16, 2),
+                                                    ('hhSize', np.int8,1),
+                                                    ('nKids', np.int8, 1),
+                                                    ('hhType', np.int8, 1)],
+                                dynamicProperies = [('income', np.float64, 1),
+                                                    ('expUtil', np.float64, 1),
+                                                    ('util', np.float64, 1),
+                                                    ('expenses', np.float64, 1)])
+
+    global PERS
+>>>>>>> dev_ag
     PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
-                                staticProperies = ['type',
-                                                   'gID',
-                                                   'hhID',
-                                                   'preferences',
-                                                   'gender',
-                                                   'nJourneys',
-                                                   'hhType'],
-                                dynamicProperies = ['age',
-                                                   'util',     # current utility
-                                                   'commUtil', # comunity utility
-                                                   'selfUtil', # own utility at time of action
-                                                   'mobType',
-                                                   'prop',
-                                                   'consequences',
-                                                   'lastAction',
-                                                   'emissions'])
+                                staticProperies = [('gID', np.int32, 1),
+                                                   ('hhID', np.int32, 1),
+                                                   ('preferences', np.float64, 4),
+                                                   ('gender', np.int8, 1),
+                                                   ('nJourneys', np.int16, 5),
+                                                   ('hhType', np.int8, 1)],
+                               dynamicProperies = [('age', np.int8, 1),
+                                                   ('util', np.float64, 1),     # current utility
+                                                   ('commUtil', np.float64, 5), # comunity utility
+                                                   ('selfUtil', np.float64, 5), # own utility at time of action
+                                                   ('mobType', np.int8, 1),
+                                                   ('prop', np.float64, 2),
+                                                   ('consequences', np.float64, 4),
+                                                   ('lastAction', np.int16, 1),
+                                                   ('emissions', np.float64, 1)])
 
-
-    earth.registerEdgeType('cell-cell', CELL, CELL, ['type','weig'])
-    earth.registerEdgeType('cell-hh', CELL, HH)
-    earth.registerEdgeType('hh-hh', HH,HH)
-    earth.registerEdgeType('hh-pers', HH, PERS)
-    earth.registerEdgeType('pers-pers', PERS, PERS, ['type','weig'])
+    global CON_CC
+    CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float64, 1)])
+    global CON_CH
+    CON_CH = earth.registerEdgeType('cell-hh', CELL, HH)
+    global CON_HH
+    CON_HH = earth.registerEdgeType('hh-hh', HH,HH)
+    global CON_HP
+    CON_HP = earth.registerEdgeType('hh-pers', HH, PERS)
+    global CON_PP
+    CON_PP = earth.registerEdgeType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
 
     if mpiRank == 0:
         print'Initialization of types done'
@@ -1382,7 +744,7 @@ def initTypes(earth):
 
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
-    connList= aux.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
+    connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.initSpatialLayer(parameters['landLayer'],
                            connList, CELL,
                            LocClassObject=Cell,
@@ -1411,12 +773,12 @@ def initSpatialLayer(earth):
     if 'regionIdRaster' in parameters.keys():
 
         for cell in earth.iterEntRandom(CELL):
-            cell.setValue('regionId', parameters['regionIdRaster'][cell._node['pos']])
+            cell.setValue('regionId', parameters['regionIdRaster'][tuple(cell['pos'])])
             cell.setValue('chargStat', 0)
             cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
             cell.setValue('electricConsumption', 0.)
-            cell.cellSize = parameters['cellSizeMap'][cell._node['pos']]
-            cell.setValue('popDensity', popDensity[cell._node['pos']])
+            cell.cellSize = parameters['cellSizeMap'][tuple(cell['pos'])]
+            cell.setValue('popDensity', popDensity[tuple(cell['pos'])])
             
     earth.mpi.updateGhostNodes([CELL],['chargStat'])
 
@@ -1641,12 +1003,6 @@ def initExogeneousExperience(parameters):
     
     return parameters
 
-def readParameterFile(parameters, fileName):
-    for item in csv.DictReader(open(fileName)):
-        if item['name'][0] != '#':
-            parameters[item['name']] = aux.convertStr(item['value'])
-    return parameters
-
 def randomizeParameters(parameters):
     #%%
     def randDeviation(percent, minDev=-np.inf, maxDev=np.inf):
@@ -1671,52 +1027,17 @@ def randomizeParameters(parameters):
     
     parameters['hhAcceptFactor'] = 1.0 + (np.random.rand()*5. / 100.) #correct later
     return parameters
-# %% Online processing functions
-
-def plot_calGreenNeigbourhoodShareDist(earth):
-    if parameters.showFigures:
-        nPersons = len(earth.getNodeDict(PERS))
-        relarsPerNeigborhood = np.zeros([nPersons,3])
-        for i, persId in enumerate(earth.getNodeDict(PERS)):
-            person = earth.getEntity(persId)
-            x,__ = person.getConnNodeValues('mobType',PERS)
-            for mobType in range(3):
-                relarsPerNeigborhood[i,mobType] = float(np.sum(np.asarray(x)==mobType))/len(x)
-
-        n, bins, patches = plt.hist(relarsPerNeigborhood, 30, normed=0, histtype='bar',
-                                label=['brown', 'green', 'other'])
-        plt.legend()
-
-def plot_incomePerNetwork(earth):
-
-    incomeList = np.zeros([len(earth.nodeDict[PERS]),1])
-    for i, persId in enumerate(earth.nodeDict[PERS]):
-        person = earth.entDict[persId]
-        x, friends = person.getConnNodeValues('mobType',PERS)
-        incomes = [earth.entDict[friend].hh.getValue('income') for friend in friends]
-        incomeList[i,0] = np.mean(incomes)
-
-    n, bins, patches = plt.hist(incomeList, 20, normed=0, histtype='bar',
-                            label=['average imcome '])
-    plt.legend()
-
-def plot_computingTimes(earth):
-    plt.figure()
-
-    allTime = np.zeros(earth.nSteps)
-    colorPal =  sns.color_palette("Set2", n_colors=5, desat=.8)
-
-
-    for i,var in enumerate([earth.computeTime, earth.waitTime, earth.syncTime, earth.ioTime]):
-        plt.bar(np.arange(earth.nSteps), var, bottom=allTime, color =colorPal[i], width=1)
-        allTime += var
-    plt.legend(['compute time', 'wait time', 'sync time', 'I/O time'])
-    plt.tight_layout()
-    plt.ylim([0, np.percentile(allTime,99)])
-    plt.savefig(earth.para['outPath'] + '/' + str(mpiRank) + 'times.png')
 
     #%%
 def runModel(earth, parameters):
+    # %% run of the model ################################################
+    lg.info('####### Running model with paramertes: #########################')
+    lg.info(pprint.pformat(parameters.toDict()))
+    if mpiRank == 0:
+        fidPara = open(earth.para['outPath'] + '/parameters.txt', 'w')
+        pprint.pprint(parameters.toDict(), fidPara)
+        fidPara.close()
+    lg.info('################################################################')
 
     #%% Initial actions
     tt = time.time()
@@ -1761,7 +1082,7 @@ def runModel(earth, parameters):
         earth.step() # looping over all cells
 
         #plt.figure()
-        #plot_calGreenNeigbourhoodShareDist(earth)
+        #plot.calGreenNeigbourhoodShareDist(earth)
         #plt.show()
 
 
@@ -1901,222 +1222,5 @@ def onlinePostProcessing(earth):
         x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
         y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
         lg.info( np.corrcoef(x,y))
-
-
-#%%############### Tests ############################################################
-
-
-def prioritiesCalibrationTest():
-
-    householdSetup(earth, parameters, calibration=True)
-    df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])
-    for agID in earth.nodeDict[3]:
-        df.loc[agID] = earth.graph.vs[agID]['preferences']
-
-    propMat = np.array(np.matrix(earth.graph.vs[earth.nodeDict[3]]['preferences']))
-
-    return earth
-
-
-def setupHouseholdsWithOptimalChoice():
-
-    householdSetup(earth, parameters)
-    initMobilityTypes(earth, parameters)
-    #earth.market.setInitialStatistics([500.0,10.0,200.0])
-    for household in earth.iterEntRandom(HH):
-        household.takeAction(earth, household.adults, np.random.randint(0,earth.market.nMobTypes,len(household.adults)))
-
-    for cell in earth.iterEntRandom(CELL):
-        cell.step(earth.market.kappa)
-
-    earth.market.setInitialStatistics([1000.,5.,300.])
-
-    for household in earth.iterEntRandom(HH):
-        household.calculateConsequences(earth.market)
-        household.util = household.evalUtility()
-
-    for hh in iter(earth.nodeDict[HH]):
-        oldEarth = copy(earth)
-        earth.entDict[hh].bestMobilityChoice(oldEarth,forcedTryAll = True)
-    return earth
-
-
-
-#%% __main__()
-######################################################################################
-
-if __name__ == '__main__':
-
-
-    debug = 1
-    showFigures    = 0
-    
-    simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
-    outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
-    
-    import logging as lg
-    import time
-    
-    #exit()
-    
-    if debug:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.DEBUG)
-    else:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                        filemode='w',
-                        format='%(levelname)7s %(asctime)s : %(message)s',
-                        datefmt='%m/%d/%y-%H:%M:%S',
-                        level=lg.INFO)
-    
-    lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
-    
-    # wait for all processes - debug only for poznan to debug segmentation fault
-    comm.Barrier()
-    if comm.rank == 0:
-        print 'log files created'
-    
-    lg.info('on node: ' + socket.gethostname())
-    dirPath = os.path.dirname(os.path.realpath(__file__))
-    
-    # loading of standart parameters
-    if len(sys.argv) > 1:
-    
-        fileName = sys.argv[1]
-        parameters = Bunch()
-        # reading of gerneral parameters
-        parameters = readParameterFile(parameters, 'parameters_all.csv')
-        # reading of scenario-specific parameters
-        parameters = readParameterFile(parameters,fileName)
-        
-        
-        lg.info('Setting loaded:')
-        
-        
-        parameters['outPath'] = outputPath
-        
-        
-        scenarioDict = dict()
-        
-        scenarioDict[0] = scenarioTestSmall
-        scenarioDict[1] = scenarioTestMedium
-        scenarioDict[2] = scenarioLueneburg
-        scenarioDict[3] = scenarioNBH
-        scenarioDict[6] = scenarioGer
-        
-        
-        if mpiRank == 0:
-            parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
-            
-            parameters = initExogeneousExperience(parameters)
-            parameters = randomizeParameters(parameters)   
-            
-        else:
-            parameters = None
-        
-
-         
-        parameters = comm.bcast(parameters,root=0)    
-            
-        if mpiRank == 0:
-            print'Parameter exchange done'
-        lg.info( 'Parameter exchange done')
-        
-
-        #%% Init
-        parameters.showFigures = showFigures
-        
-        earth = initEarth(simNo,
-                          outputPath,
-                          parameters,
-                          maxNodes=1000000,
-                          debug =debug,
-                          mpiComm=comm,
-                          caching=True,
-                          queuing=True)
-        
-        CELL, HH, PERS = initTypes(earth)
-        
-        initSpatialLayer(earth)
-        
-        initInfrastructure(earth)
-        
-        mobilitySetup(earth)
-        
-        cellTest(earth)
-        
-        initGlobalRecords(earth)
-        
-        householdSetup(earth)
-        
-        generateNetwork(earth)
-        
-        initMobilityTypes(earth)
-        
-        initAgentOutput(earth)
-        
-        cell = earth.entDict[0]
-        #cell.setWorld(earth)
-        
-        if parameters.scenario == 0:
-            earth.view('output/graph.png')
-        
-        #%% run of the model ################################################
-        lg.info('####### Running model with paramertes: #########################')
-        import pprint
-        lg.info(pprint.pformat(parameters.toDict()))
-        if mpiRank == 0:
-            fidPara = open(earth.para['outPath'] + '/parameters.txt','w')
-            pprint.pprint(parameters.toDict(), fidPara)
-            fidPara.close()
-        lg.info('################################################################')
-        
-        runModel(earth, parameters)
-        
-        lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
-        
-        if earth.isRoot:
-            print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
-        
-        if earth.isRoot:
-            writeSummary(earth, parameters)
-        
-        if earth.para['showFigures']:
-        
-            onlinePostProcessing(earth)
-        
-        plot_computingTimes(earth)
-    
-    
-    else:
-        parameters = Bunch()
-        parameters = scenarioTest(parameters, dirPath)
-        parameters = comm.bcast(parameters)
-        earth = initEarth(simNo,
-                      outputPath,
-                      parameters,
-                      maxNodes=1000000,
-                      debug =debug,
-                      mpiComm=comm,
-                      caching=True,
-                      queuing=True)
-    
-        CELL, HH, PERS = initTypes(earth)
-        
-        initSpatialLayer(earth)
-        
-        initInfrastructure(earth)
-        
-        earth.mpi.comm.Barrier()
-        print "test finished"
-        exit()
-        
-
-
-
-
 
 

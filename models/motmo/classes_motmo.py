@@ -25,10 +25,10 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import class_auxiliary as aux # Record, Memory, Writer, cartesian
+import core  # Record, Memory, Writer, cartesian
 
 
-from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation, h5py, MPI
+from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation
 #import pdb
 #import igraph as ig
 import numpy as np
@@ -124,9 +124,7 @@ class Earth(World):
                  parameters,
                  maxNodes,
                  debug,
-                 mpiComm=None,
-                 caching=True,
-                 queuing=True):
+                 mpiComm=None):
 
         nSteps     = parameters.nSteps
 
@@ -142,8 +140,7 @@ class Earth(World):
                        nSteps,
                        maxNodes=maxNodes,
                        debug=debug,
-                       mpiComm=mpiComm,
-                       caching=caching)
+                       mpiComm=mpiComm)
 
         self.agentRec   = dict()
         self.time       = 0
@@ -179,7 +176,7 @@ class Earth(World):
         If mpiReduce is given, the record is connected with a global variable with the
         same name
         """
-        self.globalRecord[name] = aux.Record(name, colLables, self.nSteps, title, style)
+        self.globalRecord[name] = core.GlobalRecord(name, colLables, self.nSteps, title, style)
 
         if mpiReduce is not None:
             self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
@@ -222,32 +219,32 @@ class Earth(World):
         distance between the agents and their similarity in their preferences
         """
         tt = time.time()
-        edgeList = list()
+        sourceList = list()
+        targetList = list()
         weigList  = list()
         populationList = list()
         for agent, x in self.iterEntAndIDRandom(nodeType):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
+            
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
 
-            edgeList += edges
+            sourceList += [agent.nID] * len(frList)
+            targetList += frList
             weigList += weights
             populationList.append(agent.loc._node['population'])
 
-        self.addEdges(edgeList, type=edgeType, weig=weigList)
+        self.addEdges(eTypeID=edgeType, sources=sourceList, targets=targetList, weig=weigList)
         lg.info( 'Connections queued in -- ' + str( time.time() - tt) + ' s')
 
-        if self.queuing:
-            self.queue.dequeueEdges(self)
-
         lg.info( 'Social network created in -- ' + str( time.time() - tt) + ' s')
-        lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.ecount()))
+        lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.eCount()))
 
         fid = open(self.para['outPath']+ '/initTimes.out', 'a')
         fid.writelines('r' + str(self.mpi.comm.rank) + ', ' +
                        str( time.time() - tt) + ',' +
                        str(np.mean(populationList)) + ',' +
-                       str(self.graph.ecount()) + '\n')
+                       str(self.graph.eCount()) + '\n')
 
     def updateRecords(self):
         """
@@ -284,10 +281,10 @@ class Earth(World):
         Encapsulating method for the sync of global variables
         """
         ttSync = time.time()
-        self.graph.glob.updateLocalValues('meanEmm', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('stdEmm', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,1])
-        self.graph.glob.updateLocalValues('meanPrc', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,0])
-        self.graph.glob.updateLocalValues('stdPrc', np.asarray(self.graph.vs[self.nodeDict[PERS]]['prop'])[:,0])
+        self.graph.glob.updateLocalValues('meanEmm', self.getNodeValues('prop', nodeType=PERS)[:,1])
+        self.graph.glob.updateLocalValues('stdEmm', self.getNodeValues('prop', nodeType=PERS)[:,1])
+        self.graph.glob.updateLocalValues('meanPrc', self.getNodeValues('prop', nodeType=PERS)[:,0])
+        self.graph.glob.updateLocalValues('stdPrc', self.getNodeValues('prop', nodeType=PERS)[:,0])
         
         # local values are used to update the new global values
         self.graph.glob.sync()
@@ -320,15 +317,15 @@ class Earth(World):
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
 
     
-    def updateGraph(self):
-        """
-        Encapsulating method for the update of the graph structure 
-        """
-        ttUpd = time.time()
-        if self.queuing:
-            self.queue.dequeueEdges(self)
-            self.queue.dequeueEdgeDeleteList(self)
-        lg.debug('Graph updated in ' + str(time.time()- ttUpd) + ' seconds')##OPTPRODUCTION
+#    def updateGraph(self):
+#        """
+#        Encapsulating method for the update of the graph structure 
+#        """
+#        ttUpd = time.time()
+#        if self.queuing:
+#            self.queue.dequeueEdges(self)
+#            self.queue.dequeueEdgeDeleteList(self)
+#        lg.debug('Graph updated in ' + str(time.time()- ttUpd) + ' seconds')##OPTPRODUCTION
 
         
         
@@ -345,21 +342,21 @@ class Earth(World):
         if self.timeStep == 0:
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
-            newValue = np.rint(self.getNodeValues('lastAction',PERS) / self.para['burnInTimeFactor']).astype(int)
-            self.setNodeValues('lastAction', newValue, PERS)
+            newValue = np.rint(self.getNodeValues('lastAction', nodeType=PERS) / self.para['burnInTimeFactor']).astype(int)
+            self.setNodeValues('lastAction', newValue, nodeType=PERS)
 
         elif self.timeStep+5 == self.para['burnIn']:
             lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
-            oldValue = self.getNodeValues('lastAction',PERS) * self.para['burnInTimeFactor']
+            oldValue = self.getNodeValues('lastAction', nodeType=PERS) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
             stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
 
-            self.setNodeValues('lastAction', stochastricRoundValue, PERS)
+            self.setNodeValues('lastAction', stochastricRoundValue,  nodeType=PERS)
             
         else:
-            lastActions = self.getNodeValues('lastAction',PERS)
-            self.setNodeValues('lastAction',lastActions+1, PERS)
+            lastActions = self.getNodeValues('lastAction',nodeType=PERS)
+            self.setNodeValues('lastAction',lastActions+1, nodeType=PERS)
         
         # progressing time
         if self.timeStep > self.para['burnIn']:
@@ -394,6 +391,10 @@ class Earth(World):
             self.chargingInfra.step(self)
 
         # proceed market in time
+        # stf: sollte das nicht eher am Ende des steps aufgerufen
+        # werden? z.b. passiert bei updateTechnologicalProgress nichts
+        # da die sales=0 sind. Hab mir aber nicht alle Details
+        # angeschaut, welche im Market step passieren
         self.market.step(self) # Statistics are computed here
 
         
@@ -430,7 +431,7 @@ class Earth(World):
         for cell in self.iterEntRandom(CELL, random=False):
             cell.aggregateEmission(self)
 
-        self.updateGraph()        
+               
 
         self.market.updateSales()
         
@@ -443,7 +444,7 @@ class Earth(World):
 
         # I/O
         ttIO = time.time()
-        self.io.writeDataToFile(self.time)
+        self.io.writeDataToFile(self.time, [CELL, HH, PERS])
         self.ioTime[self.time] = time.time()-ttIO
 
 
@@ -473,7 +474,14 @@ class Good():
     """
     
     #class variables (common for all instances, - only updated by class mehtods)
-    
+
+    # stf: ich weiss nicht genau, wie das bei Python aussieht, aber Du
+    # missbrauchst hier eine Liste als ein Array mit einer fixen
+    # Länge. Das hat aber zur Laufzeit normalerweise echte Nachteile,
+    # da Listenelemente nicht am Stück im Speicher stehen (sprich mehr
+    # Cache-misses), und vor allem nur das vorrige und nächste Element
+    # kennen, sprich, wenn Du auf goodid Nummer 4 zugreifen willst,
+    # muss erst von drei Elemente nextElement() aufgerufen werden.
     lastGlobalSales  = list()
     overallExperience = 0.
     globalStock      = list()
@@ -504,6 +512,8 @@ class Good():
 #    def __init__(self, label, progressType, initialProgress, slope, propDict, experience):
     def __init__(self, label, propDict, initExperience, **parameters):
         #print self.lastGlobalSales
+        # stf: das finde ich einen recht schrägen Hack um die id zu setzen, siehe auch
+        # mein Kommentar zur Liste selber
         self.goodID           = len(self.lastGlobalSales)
         self.label            = label
         self.replacementRate  = 0.01
@@ -994,6 +1004,7 @@ class Market():
         goodID = self.__nMobTypes__
         self.__nMobTypes__ +=1
         self.glob['sales'] = np.asarray([0]*self.__nMobTypes__)
+        # stf: das update verstehe ich nicht, da werden doch die glichen werte gesetzt, oder?
         self.glob.updateLocalValues('sales', np.asarray([0]*self.__nMobTypes__))
         self.stockByMobType.append(0)
         self.mobilityTypesToInit.append(label)
@@ -1062,6 +1073,8 @@ class Infrastructure():
         self.potentialMap = normalize(self.potentialMap)
         # share of new stations that are build in the are of this process
         self.shareStationsOfProcess = np.sum(potMap[earth.cellMapIds]) / np.nansum(potMap)
+        if np.isnan(self.shareStationsOfProcess):
+            self.shareStationsOfProcess = 0
         lg.debug('Share of new station for this process: ' + str(self.shareStationsOfProcess))##OPTPRODUCTION
         
         self.currStatMap = np.zeros_like(potMap) # map for the stations this year
@@ -1152,7 +1165,7 @@ class Infrastructure():
         
         #get the current number of charging stations
         currNumStations  = earth.getNodeValues('chargStat', nodeType=CELL)
-        greenCarsPerCell = earth.getNodeValues('carsInCell',CELL)[:,GREEN]+1. 
+        greenCarsPerCell = earth.getNodeValues('carsInCell',nodeType=CELL)[:,GREEN]+1. 
         
         #immition factor (related to hotelings law that new competitiors tent to open at the same location)
         
@@ -1220,51 +1233,31 @@ class Person(Agent):
         self.hh.addAdult(self)
 
     
-    def weightFriendExperience(self, world, commUtilPeers, edges, weights):        
-        friendUtil = commUtilPeers[:,self._node['mobType']]
+    def weightFriendExperience(self, world, commUtilPeers, weights):        
+        friendUtil = commUtilPeers[:,self['mobType']]
         nFriends   = friendUtil.shape[0]
         ownUtil    = self.getValue('util')
         
-#        try:
-        prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
-#        except:
-#            import pdb
-#            pdb.set_trace()    
-        #diff = friendUtil - ownUtil +  np.random.randn(nFriends)*world.para['utilObsError']
-        #prop = normalize(np.exp(-(diff**2) / (2* world.para['utilObsError']**2)))
-        #prop = np.exp(-(diff**2) / (2* world.para['utilObsError']**2))
-        #prop = prop / np.sum(prop)
 
-#        prior = weights
-#        prior = prior / np.sum(prior)
+        prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
+
         prior = normalize(weights)
         
         assert not any(np.isnan(prior)) ##OPTPRODUCTION
 
-
-        # TODO - re-think how to avoide
-        #try:
-        #    #post = prior * prop
         post = normalize(prior * prop)
-        #except:
-        #    import pdb
-        #    pdb.set_trace()
 
-
-        #post = post / np.sum(post)
         
         sumWeights = sum1D(post)
         if not(np.isnan(sumWeights) or np.isinf(sumWeights)):
             if sumWeights > 0:
-                edges['weig'] = post
-
-                self._node['ESSR'] =  (1. / sumSquared1D(post)) / nFriends
-                #assert self.edges[CON_PP][self.ownEdgeIdx[0]].target == self.nID ##OPTPRODUCTION
-                #assert self.edges[CON_PP][self.ownEdgeIdx[0]].source == self.nID ##OPTPRODUCTION
+                self.setEdgeValues('weig', post, edgeType=CON_PP)
+                #self['ESSR'] =  (1. / sumSquared1D(post)) / nFriends
+                
                 if sumWeights < 0.99: ##OPTPRODUCTION
                     import pdb        ##OPTPRODUCTION
                     pdb.set_trace()   ##OPTPRODUCTION
-            return post, self._node['ESSR']
+            return post, None
 
         else:
             lg.debug( 'post values:')
@@ -1329,6 +1322,7 @@ class Person(Agent):
 
         return contactList, connList
 
+
     def generateContactNetwork(self, world, nContacts,  currentContacts = None, addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for
@@ -1348,8 +1342,8 @@ class Person(Agent):
 
         contactList = list()
         connList   = list()
-        ownPref    = self._node['preferences']
-        ownIncome  = self.hh._node['income']
+        ownPref    = self['preferences']
+        ownIncome  = self.hh['income']
 
 
         #get spatial weights to all connected cells
@@ -1382,9 +1376,9 @@ class Person(Agent):
             idx = idx+ nP
         del idx
 
-        hhIDs = [world.glob2loc(x) for x in world.getNodeValues('hhID', idxList=personIdsAll)]
-        weightData[:,idxColIn] = abs(world.getNodeValues('income', idxList=hhIDs) - ownIncome)
-        weightData[:,idxColPr] = world.getNodeValues('preferences',   idxList=personIdsAll)
+        hhIDs = [world.glob2loc(x) for x in world.getNodeValues('hhID', localNodeIDList=personIdsAll)]
+        weightData[:,idxColIn] = abs(world.getNodeValues('income', localNodeIDList=hhIDs) - ownIncome)
+        weightData[:,idxColPr] = world.getNodeValues('preferences', localNodeIDList=personIdsAll)
 
 
         for i in idxColPr:
@@ -1423,13 +1417,15 @@ class Person(Agent):
             ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData[:,0])
             contactList = [ personIdsAll[idx] for idx in ids ]
             connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
-
+            assert len(ids) <= world.para['maxFriends']
+            
         if isInit and world.getParameter('addYourself') and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
             connList.append((self.nID,self.nID))
 
         weigList   = [1./len(connList)]*len(connList)
+        
         nGhosts = 0
         if world.debug:                                                                 ##OPTPRODUCTION
             for peId in contactList:                                                    ##OPTPRODUCTION
@@ -1440,10 +1436,10 @@ class Person(Agent):
         return contactList, connList, weigList
 
 
-    def computeCommunityUtility(self,earth, weights, edges, commUtilPeers):
+    def computeCommunityUtility(self,earth, weights, commUtilPeers):
         #get weights from friends
         #weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
-        commUtil = self._node['commUtil'] # old value
+        commUtil = self['commUtil'] # old value
         
         # compute weighted mean of all friends
         if earth.para['weightConnections']:
@@ -1456,7 +1452,8 @@ class Person(Agent):
         
         # adding weighted selfUtil selftrust
         commUtil[mobType] += self.getValue('selfUtil')[mobType] * earth.para['selfTrust']
-
+        # stf: die teilerei hier finde ich komisch, warum werden z.B. für alle mobTypes / 2 geteilt?
+        # ich hätte einfach eine Zeile mit "commUtil[mobType] /= 2" erwartet
         commUtil /= 2.
         commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
@@ -1466,7 +1463,7 @@ class Person(Agent):
             print 'error: '                                                     ##OPTPRODUCTION
             print 'communityUtil: ' + str(commUtil)                             ##OPTPRODUCTION
             print 'selfUtil: ' + str(self.getValue('selfUtil'))                 ##OPTPRODUCTION
-            print 'nEdges: ' + str(len(edges))                                  ##OPTPRODUCTION
+            print 'nEdges: ' + str(len(weights))                                  ##OPTPRODUCTION
 
             return                                                              ##OPTPRODUCTION
         
@@ -1504,18 +1501,17 @@ class Person(Agent):
     def step(self, earth):
         
         #load data
-        peers           = self.getPeers(CON_PP)
-        edges           = self.getEdges(edgeType=CON_PP)
+        peerIDs         = self.getPeerIDs(edgeType=CON_PP)
         
-        nPeers          = len(peers)
+        nPeers          = len(peerIDs)
         commUtilPeers   = Person.cacheCommUtil[:nPeers,:]
-        commUtilPeers[:]= self.getPeerValues('commUtil', CON_PP)[0]
+        commUtilPeers[:]= self.getPeerValues('commUtil', CON_PP)
         utilPeers       = Person.cacheUtil[:nPeers]
-        utilPeers[:]    = self.getPeerValues('util', CON_PP)[0]
+        utilPeers[:]    = self.getPeerValues('util', CON_PP)
         mobTypePeers    = Person.cacheMobType[:nPeers]
-        mobTypePeers[:] = self.getPeerValues('mobType', CON_PP)[0]
+        mobTypePeers[:] = self.getPeerValues('mobType', CON_PP)
         weights         = Person.cacheWeights[:nPeers]
-        weights[:]      = edges['weig']
+        weights[:], _, _= self.getEdgeValues('weig', CON_PP)
 
 #        commUtilPeers  = np.asarray(peers['commUtil'])
 #        utilPeers       = np.asarray(peers['util'])
@@ -1526,7 +1522,7 @@ class Person(Agent):
         
         if earth.para['weightConnections'] and random.random() > self.getValue('util'): 
             # weight friends
-            self.weightFriendExperience(earth, commUtilPeers, edges, weights)
+            self.weightFriendExperience(earth, commUtilPeers, weights)
 
 
             # compute similarity
@@ -1536,7 +1532,7 @@ class Person(Agent):
             #average = np.average(preferences, axis= 0, weights=weights)
             #self._node['peerBubbleHeterogeneity'] = np.sum(np.sqrt(np.average((preferences-average)**2, axis=0, weights=weights)))
         
-        self.computeCommunityUtility(earth, weights, edges, commUtilPeers) 
+        self.computeCommunityUtility(earth, weights, commUtilPeers) 
         
         if self.isAware(earth.para['mobNewPeriod']):
             self.imitate(utilPeers, weights, mobTypePeers)
@@ -1658,9 +1654,9 @@ class Household(Agent):
         """adding reference to the person to household"""
         self.adults.append(personInstance)
         
-    def setAdultNodeList(self, world):
-        adultIdList = [adult.nID for adult in self.adults]
-        self.adultNodeList = world.graph.vs[adultIdList]
+#    def setAdultNodeList(self, world):
+#        adultIdList = [adult.nID for adult in self.adults]
+#        self.adultNodeList = world.graph.vs[adultIdList]
 
     def evalUtility(self, world, actionTaken=False):
         """
@@ -1673,16 +1669,16 @@ class Household(Agent):
             #assert not( np.isnan(utility) or np.isinf(utility)), utility ##OPTPRODUCTION
 
             #adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
-            adult.setValue('util', utility)
+            adult['util'] =  utility
 
 
             if actionTaken:
                 # self-util is only saved if an action is taken
-                adult._node['selfUtil'][adult.getValue('mobType')] = utility
+                adult['selfUtil'][adult.getValue('mobType')] = utility
 
             hhUtility += utility
 
-        self.setValue('util', hhUtility)
+        self['util'] = hhUtility
 
         return hhUtility
 
@@ -1721,8 +1717,8 @@ class Household(Agent):
                 eUtilsList[randIdx] =  [adult.getValue('util')]#[ eUtilsList[randIdx][0] ]
             #print 'large Household'
 
-        combActions = aux.cartesian(actionIdsList)
-        overallUtil = np.sum(aux.cartesian(eUtilsList),axis=1,keepdims=True)
+        combActions = core.cartesian(actionIdsList)
+        overallUtil = np.sum(core.cartesian(eUtilsList),axis=1,keepdims=True)
 
         if len(combActions) != len(overallUtil):        ##OPTPRODUCTION
             import pdb                                  ##OPTPRODUCTION
@@ -1748,7 +1744,7 @@ class Household(Agent):
             else:
                 person.setValue('lastAction', 0)
             # add cost of mobility to the expenses
-            self.addValue('expenses', properties[0])
+            self['expenses'] += properties[0]
 
 
     def undoActions(self, world, persons):
@@ -1760,7 +1756,7 @@ class Household(Agent):
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.addValue('expenses', -1 * adult.getValue('prop')[0])
+            self['expenses'] -= adult.getValue('prop')[0]
             world.market.sellCar(mobType)
 
     def testConsequences(self, earth, actionIds):
@@ -1831,6 +1827,7 @@ class Household(Agent):
 
         carInHh = False
         # at least one car in househould?
+        # stf: !=2 ist unschön. Was ist in der neuen Version mit Car sharing?
         if any([adult.getValue('mobType') !=2 for adult in self.adults]):
             carInHh = True
 
@@ -2014,7 +2011,7 @@ class Household(Agent):
                 actionsList[randIdx] = [-1]
             #print 'large Household'
 
-        possibilities = aux.cartesian(actionsList)
+        possibilities = core.cartesian(actionsList)
         return possibilities
 
     
@@ -2068,18 +2065,18 @@ class Household(Agent):
             actorIds      = [actorIds[idx] for idx in ids]
 #        else:
 #            actorIds = None
-        combinedActionsOptions = aux.cartesian(actionOptions)
+        combinedActionsOptions = core.cartesian(actionOptions)
         
         #tt2 = time.time()
-        consMat = self.testConsequences(earth, aux.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
+        consMat = self.testConsequences(earth, core.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
         #print 'testConsequences : ' +str(time.time() -tt2)
         #tt2 = time.time()
-        #consMat = self.testConsequences2(earth, aux.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
+        #consMat = self.testConsequences2(earth, core.cartesian(actionOptions)) #shape [nOptions x nPersons x nConsequences]
         #print 'testConsequences2: ' +str(time.time() -tt2)
         utilities = np.zeros(consMat.shape[0])
         #print 'done'
-        prioMat = self.adultNodeList['preferences'] # [nPers x nPriorities]
-        
+        #prioMat = self.adultNodeList['preferences'] # [nPers x nPriorities]
+        prioMat = self.getPeerValues('preferences', edgeType=CON_HP)
         if actorIds is None:
             for iAction in range(consMat.shape[0]):
                 for iPers in range(len(self.adults)):
@@ -2213,7 +2210,7 @@ class Reporter(Household):
 
     def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
         Household.__init__(self, world, nodeType , xPos, yPos)
-        self.writer = aux.Writer(world, str(self.nID) + '_diary')
+        self.writer = core.Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
 
         #self.writer.write(
@@ -2223,7 +2220,7 @@ class Reporter(Household):
 class Cell(Location):
 
     def __init__(self, earth,  **kwProperties):
-        kwProperties.update({'population': 0, 'convenience': np.asarray([0.,0.,0.,0.,0.]), 'carsInCell':[0,0,0,0,0], 'regionId':0})
+        kwProperties.update({'population': 0, 'convenience': [0.,0.,0.,0.,0.], 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()
@@ -2242,16 +2239,16 @@ class Cell(Location):
         from collections import deque
         self.deleteQueue = deque([list()]*(memoryLen+1))
         self.currDelList = list()
-        self.obsMemory   = aux.Memory(memeLabels)
+        self.obsMemory   = core.Memory(memeLabels)
 
 
     def getConnCellsPlus(self):
         """ 
         ToDo: check if not deprecated 
         """
-        self.weights, edges = self.getEdgeValues('weig',edgeType=CON_LL)
-        self.connNodeDict = [edge.target for edge in edges ]
-        return self.weights, edges.indices, self.connNodeDict
+        self.weights, edgesReferences, connectedNodes = self.getEdgeValues('weig',edgeType=CON_LL)
+        #self.connNodeDict   = [edge.target for edge in edges ]
+        return self.weights, edgesReferences, connectedNodes
 
     def _getConnCellsPlusOld(self):
         """
@@ -2276,11 +2273,11 @@ class Cell(Location):
         """
         
         """
-        self.addValue('carsInCell', 1, idx=int(mobTypeID))
+        self['carsInCell'][int(mobTypeID)] += 1
 
 
     def remFromTraffic(self,mobTypeID):
-        self.addValue('carsInCell', -1, idx=int(mobTypeID))
+        self['carsInCell'][int(mobTypeID)] -= 1
 
 
 
@@ -2335,16 +2332,16 @@ class Cell(Location):
         Mapping between [0,1]
         """
         
-        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
+        nStation      = self.getPeerValues('chargStat',CON_LL)
         #print nStation
         if sum(nStation) == 0:
             return 0.
         
-        weights       = np.asarray(self.getEdgeValues('weig',CON_LL)[0])
+        weights, _, _ = self.getEdgeValues('weig',CON_LL)
         
         if greenMeanCars is None:
             
-            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0]) * self.redFactor
+            carsInCells   = self.getPeerValues('carsInCell',CON_LL) * self.redFactor
             greenMeanCars = sum1D(carsInCells[:,GREEN]*weights)    
         
 
@@ -2377,75 +2374,11 @@ class Cell(Location):
         assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
         return eConv
     
-
-#    def electricInfrastructure(self, greenMeanCars = None):
-#        """ 
-#        Method for a more detailed estimation of the convenience of 
-#        electric intrastructure.
-#        Two components are considered: 
-#            - minimal infrastructure
-#            - capacity use
-#        Mapping between [0,1]
-#        """
-#        
-#        weights       = self.getEdgeValues('weig',CON_LL)[0]
-#        
-#        if greenMeanCars is None:
-#            
-#            carsInCells   = np.asarray(self.getPeerValues('carsInCell',CON_LL)[0])
-#            greenMeanCars = sum([x*y for  x,y in zip(carsInCells[:,GREEN],weights)])    
-#        
-#        nStation      = self.getPeerValues('chargStat',CON_LL)[0]
-#        #print nStation
-#        if sum(nStation) == 0:
-#            return 0.
-#        
-#        
-#        # part of the convenience that is related to the capacity that is used
-#        avgStatPerCell = sum([x*y for  x,y in zip(nStation, weights)])
-#        
-#        capacityUse = greenMeanCars / (avgStatPerCell * 200.)
-#        
-#        if capacityUse > 100:
-#            useConv = 0
-#        else:
-#            useConv = 1 /  math.exp(capacityUse)
-#        
-#        # part of the convenience that is related to a minimal value of charging
-#        # stations
-#        minRequirement = 1
-#        
-#        if avgStatPerCell < minRequirement:
-#            statMinRequ = 1 / math.exp((1.-avgStatPerCell)**2 / .2)
-#        else:
-#            statMinRequ = 1.
-#        
-#        # overall convenience is product og both 
-#        eConv = statMinRequ * useConv
-##        if self.getValue('chargStat') == 26:
-##            import pdb
-##            pdb.set_trace()
-#        assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
-#        return eConv
-
-        #%%
-#        xx = range(1,1000)
-#        cap = 200. # cars per load station
-#        nStat = 2.
-#        y = [ 1 /  np.exp(x / (nStat*cap)) for x in xx]
-#        plt.clf()
-#        plt.plot(xx,y)
-#        #%%
-#        x = np.linspace(0.01,1.0,50)
-#        y = 1 / np.exp((1.-x)**2 / .1)
-#        plt.clf()
-#        plt.plot(x,y)
-         #%%
     
     def aggregateEmission(self, earth):
-        mobTypesPers = earth.getNodeValues('mobType', PERS, self.peList)
+        mobTypesPers = earth.getNodeValues('mobType', self.peList)
         emissionsCell = np.zeros(5)
-        emissionsPers = earth.getNodeValues('emissions', PERS, self.peList)
+        emissionsPers = earth.getNodeValues('emissions', self.peList)
         for mobType in range(5):
             idx = mobTypesPers == mobType
             emissionsCell[mobType] = emissionsPers[idx].sum()
