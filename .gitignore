@@ -1,5 +1,6 @@
 *.out
 *.pyc
+*.pyo
 *.ipynb
 *.png
 *.pdf
@@ -35,3 +36,4 @@ __pycache__
 get
 test_old*
 doe/*
+tests/*
