@@ -82,6 +82,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer = setup.population.copy().astype(float)
     setup.landLayer[setup.landLayer == 0.] = np.nan
     setup.landLayer = (setup.landLayer * 0.) + 1.
+    setup.landLayer[0,:] = 0.
     setup.cellSizeMap = setup.landLayer * 15.
     setup.roadKmPerCell = np.asarray([[1, 5, 3, 0, 0],
                                       [1, 4, 4, 0, 1],
@@ -91,6 +92,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     # setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
         setup.landLayer = setup.landLayer * 0
+    
+        
 
     setup.regionIDList = np.unique(
         setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
