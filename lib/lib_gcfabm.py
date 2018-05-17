@@ -60,6 +60,7 @@ import logging as lg
 import sys
 import numpy as np
 import random as rd
+import types
 
 from class_graph import ABMGraph
 import core
@@ -99,7 +100,6 @@ def firstElementDeco(fun):
     return helper
 
 
-
 class Entity():
     """
     Most basic class from which agents of different type are derived
@@ -108,8 +108,11 @@ class Entity():
     
 
     def __init__(self, world, nID = -1, **kwProperties):
+        if world is None:
+            return
+        
         nodeType =  world.graph.class2NodeType[self.__class__]
-
+        
         if not hasattr(self, '_graph'):
             self.setGraph(world.graph)
 
@@ -136,10 +139,21 @@ class Entity():
         # redireciton of internal functionality:
         self.getValue = firstElementDeco(self._node.__getitem__)
         self.setValue = self._node.__setitem__
-        self.__getitem__ = firstElementDeco(self._node.__getitem__)
-        self.__setitem__ = self._node.__setitem__
+        
+        #self.__getitem__ = firstElementDeco(self._node.__getitem__)
+        #self.__setitem__ = self._node.__setitem__
 
-
+#    def __getitem__(self, key, value):
+#        return self._node[key]
+#        
+#    def __setitem__(self, key, value):
+#        self._node[key] = value
+#        
+#    def addValue(self, key, value, index=None):
+#        if index is None:
+#            self._node[key] += value
+#        else:
+#            self._node[key][index] += value
     
     @classmethod
     def setGraph(cls, graph):
@@ -147,7 +161,11 @@ class Entity():
         cls._graph = graph
 
 
-
+    def data(self, key=None):
+        if key is None:
+            return self._node.view()
+        else:
+            return self._node[key].view()
 
 
     def getPeerIDs(self, edgeType=None, nodeType=None, mode='out'):
@@ -252,11 +270,11 @@ class Entity():
 
 
     def addValue(self, prop, value, idx = None):
-        raise DeprecationWarning('Will be deprecated in the future')
+        #raise DeprecationWarning('Will be deprecated in the future')
         if idx is None:
             self._node[prop] += value
         else:
-            self._node[prop][idx] += value
+            self._node[prop][0, idx] += value
 
     def delete(self, world):
         raise DeprecationWarning('not supported right now')
@@ -1078,6 +1096,7 @@ class easyUI():
     def __init__(earth):
         pass
 
+
         
 if __name__ == '__main__':
     
@@ -1260,3 +1279,4 @@ if __name__ == '__main__':
     buff =  earth.mpi.all2all(connAgent['value3'])
     assert buff[0] == buff[1]
     print('ghost update of agents successful (specific attribute)')
+

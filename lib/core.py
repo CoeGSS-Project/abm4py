@@ -526,8 +526,8 @@ class GlobalRecord():
         self.glob.updateLocalValues(self.name, self.rec[timeStep,:])
 
     def gatherGlobalDataToRec(self, timeStep):
-        self.rec[timeStep,:] = self.glob[self.name]
-        return self.glob[self.name]
+        self.rec[timeStep,:] = self.glob.globalValue[self.name]
+        return self.glob.globalValue[self.name]
 
     def set(self, timeStep, data):
         self.rec[timeStep,:] = data
@@ -1261,6 +1261,15 @@ class Random():
         ids = np.random.choice(self.world.nodeDict[entType],nChoice,replace=False)
         return [self.world.entDict[idx] for idx in ids]
 
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+    def toDict(self):
+        return dict( (k, v) for k,v in self.items() )
+    
 if __name__ == '__main__':
     import mpi4py
     mpi4py.rc.threads = False

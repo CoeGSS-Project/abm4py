@@ -29,7 +29,7 @@ lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
 parameters['outPath'] = outputPath
-parameters.showFigures = showFigures
+parameters['showFigures'] = showFigures
 
 global earth
 earth = init.initEarth(simNo,
@@ -51,7 +51,7 @@ lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
 if earth.isRoot:
-    print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
+    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
     init.writeSummary(earth, parameters)
 
 if showFigures:

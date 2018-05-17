@@ -58,10 +58,11 @@ long-term:
 import sys, os, socket
 import matplotlib as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
-if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-else:
+#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+#else:
+if not socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     plt.use('Agg')
 
 import mpi4py
@@ -96,13 +97,11 @@ mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
 
 import pandas as pd
-from bunch import Bunch
-
 
 from scipy import signal
 import scenarios
 
-print 'import done'
+print('import done')
 
 ###### Enums ################
 #connections
@@ -284,7 +283,7 @@ def initLogger(debug, outputPath):
     # wait for all processes - debug only for poznan to debug segmentation fault
     comm.Barrier()
     if comm.rank == 0:
-        print 'log files created'
+        print('log files created')
 
 def createAndReadParameters(fileName, dirPath):
     def readParameterFile(parameters, fileName):
@@ -293,7 +292,7 @@ def createAndReadParameters(fileName, dirPath):
                 parameters[item['name']] = core.convertStr(item['value'])
         return parameters
 
-    parameters = Bunch()
+    parameters = core.AttrDict()
     # reading of gerneral parameters
     parameters = readParameterFile(parameters, 'parameters_all.csv')
     # reading of scenario-specific parameters
@@ -312,7 +311,7 @@ def createAndReadParameters(fileName, dirPath):
     parameters = comm.bcast(parameters, root=0)
 
     if mpiRank == 0:
-        print'Parameter exchange done'
+        print('Parameter exchange done')
     lg.info('Parameter exchange done')
 
     return parameters
@@ -419,7 +418,7 @@ def householdSetup(earth, calibration=False):
     locDict = earth.getLocationDict()
     
     
-    for x, y in locDict.keys():
+    for x, y in list(locDict.keys()):
         #print x,y
         nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
         loc         = earth.getEntity(locDict[x, y].nID)
@@ -442,9 +441,9 @@ def householdSetup(earth, calibration=False):
                 continue
                 
             if currIdx[regionIdx] + nPers > hhData[regionIdx].shape[0]:
-                print 'Region: ' + str(regionIdxList[regionIdx])
-                print 'asked size: ' + str(currIdx[regionIdx] + nPers)
-                print 'hhDate shape: ' + str(hhData[regionIdx].shape)
+                print('Region: ' + str(regionIdxList[regionIdx]))
+                print('asked size: ' + str(currIdx[regionIdx] + nPers))
+                print('hhDate shape: ' + str(hhData[regionIdx].shape))
 
             income = hhData[regionIdx][currIdx[regionIdx], H5INCOME]
             hhType = hhData[regionIdx][currIdx[regionIdx], H5HHTYPE]
@@ -473,7 +472,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, edgeType=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
-            hh.loc['population'] += nPers
+            hh.loc.setValue('population', hh.loc.getValue('population') + nPers)
             
             assert nAdults > 0 ##OPTPRODUCTION
             
@@ -548,7 +547,7 @@ def householdSetup(earth, calibration=False):
             ' Housholds created in -- ' + str(time.time() - tt) + ' s')
     
     if mpiRank == 0:
-        print'Household setup done'
+        print('Household setup done')
             
     return earth
 
@@ -574,7 +573,7 @@ def initEarth(simNo,
 
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
-        print'Earth init done'
+        print('Earth init done')
     return earth
 
 def initScenario(earth, parameters):
@@ -644,7 +643,7 @@ def initScenario(earth, parameters):
     
     lg.info('Init of scenario finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
-        print'Scenario init done'
+        print('Scenario init done')
     return earth   
 
 def initTypes(earth):
@@ -706,7 +705,7 @@ def initTypes(earth):
     CON_PP = earth.registerEdgeType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
 
     if mpiRank == 0:
-        print'Initialization of types done'
+        print('Initialization of types done')
 
     return CELL, HH, PERS
 
@@ -738,32 +737,32 @@ def initSpatialLayer(earth):
 #    plt.clim([0, np.nanpercentile(popDensity,100)])
 #    plt.colorbar()
     
-    if 'regionIdRaster' in parameters.keys():
+    if 'regionIdRaster' in list(parameters.keys()):
 
         for cell in earth.iterEntRandom(CELL):
-            cell.setValue('regionId', parameters['regionIdRaster'][tuple(cell['pos'])])
+            cell.setValue('regionId', parameters['regionIdRaster'][tuple(cell.getValue('pos'))])
             cell.setValue('chargStat', 0)
             cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
             cell.setValue('electricConsumption', 0.)
-            cell.cellSize = parameters['cellSizeMap'][tuple(cell['pos'])]
-            cell.setValue('popDensity', popDensity[tuple(cell['pos'])])
+            cell.cellSize = parameters['cellSizeMap'][tuple(cell.getValue('pos'))]
+            cell.setValue('popDensity', popDensity[tuple(cell.getValue('pos'))])
             
     earth.mpi.updateGhostNodes([CELL],['chargStat'])
 
     if mpiRank == 0:
-        print'Setup of the spatial layer done'
+        print('Setup of the spatial layer done')
 
 def initInfrastructure(earth):
     # infrastructure
     earth.initChargInfrastructure()
     
     if mpiRank == 0:
-        print'Infrastructure setup done'
+        print('Infrastructure setup done')
 
 #%% cell convenience test
 def cellTest(earth):
 
-    for good in earth.market.goods.values():
+    for good in list(earth.market.goods.values()):
         
         good.emissionFunction(good, earth.market)
         #good.updateMaturity()  
@@ -835,19 +834,19 @@ def generateNetwork(earth):
     if parameters['scenario'] == 0 and earth.para['showFigures']:
         earth.view(str(earth.mpi.rank) + '.png')
     if mpiRank == 0:
-        print'Social network setup done'
+        print('Social network setup done')
 
 
 def initMobilityTypes(earth):
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,350., 100.,50.])
-    for goodKey in earth.market.goods.keys():##OPTPRODUCTION
+    for goodKey in list(earth.market.goods.keys()):##OPTPRODUCTION
         #print earth.market.goods[goodKey].properties.keys() 
         #print earth.market.properties
-        assert earth.market.goods[goodKey].properties.keys() == earth.market.properties ##OPTPRODUCTION
+        assert list(earth.market.goods[goodKey].properties.keys()) == earth.market.properties ##OPTPRODUCTION
     
     if mpiRank == 0:
-        print'Setup of mobility types done'
+        print('Setup of mobility types done')
 
 
 def initGlobalRecords(earth):
@@ -859,7 +858,7 @@ def initGlobalRecords(earth):
     for re in parameters['regionIDList']:
         earth.registerRecord('stock_' + str(re),
                          'total use per mobility type -' + str(re),
-                         earth.enums['mobilityTypes'].values(),
+                         list(earth.enums['mobilityTypes'].values()),
                          style='plot',
                          mpiReduce='sum')
     
@@ -871,7 +870,7 @@ def initGlobalRecords(earth):
         
         earth.registerRecord('emissions_' + str(re),
                          'co2Emissions -' + str(re),
-                         earth.enums['mobilityTypes'].values(),
+                         list(earth.enums['mobilityTypes'].values()),
                          style='plot',
                          mpiReduce='sum')
 
@@ -899,16 +898,16 @@ def initGlobalRecords(earth):
         earth.globalRecord['stock_' + str(re)].addCalibrationData(timeIdxs,values)
 
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types',
-                         earth.enums['mobilityTypes'].values(), style='plot')
+                         list(earth.enums['mobilityTypes'].values()), style='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
-                         earth.enums['mobilityTypes'].values(), style='plot')
+                         list(earth.enums['mobilityTypes'].values()), style='plot')
     earth.registerRecord('maturities', 'Technological maturity of mobility types',
                          ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
     earth.registerRecord('globEmmAndPrice', 'Properties',
                          ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
 
     if mpiRank == 0:
-        print'Setup of global records done'
+        print('Setup of global records done')
 
 def initAgentOutput(earth):
     #%% Init of agent file
@@ -925,7 +924,7 @@ def initAgentOutput(earth):
     lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
 
     if mpiRank == 0:
-        print'Setup of agent output done'
+        print('Setup of agent output done')
 
 
 def initCacheArrays(earth):
@@ -1022,7 +1021,7 @@ def runModel(earth, parameters):
      
     
     earth.market.initPrices()
-    for good in earth.market.goods.values():
+    for good in list(earth.market.goods.values()):
         good.initMaturity()
         good.updateEmissionsAndMaturity(earth.market)
         #good.updateMaturity()
@@ -1045,7 +1044,7 @@ def runModel(earth, parameters):
     #%% Simulation
     earth.time = -1 # hot bugfix to have both models running #TODO Fix later
     lg.info( "Starting the simulation:")
-    for step in xrange(parameters.nSteps):
+    for step in range(parameters.nSteps):
 
         earth.step() # looping over all cells
 

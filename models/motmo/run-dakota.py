@@ -5,7 +5,7 @@ import dakota.interfacing as di
 import logging as lg
 import time
 
-execfile('init_motmo.py')
+exec(compile(open('init_motmo.py').read(), 'init_motmo.py', 'exec'))
 
 def readDakota(parameters):
     dakota_params, dakota_results = di.read_parameters_file('d-params.in', 'd-results.out')
@@ -40,7 +40,7 @@ lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
 # wait for all processes - debug only for poznan to debug segmentation fault
 comm.Barrier()
 if comm.rank == 0:
-    print 'log files created'
+    print('log files created')
 
 lg.info('on node: ' + socket.gethostname())
 dirPath = os.path.dirname(os.path.realpath(__file__))
@@ -84,7 +84,7 @@ dakota_results = readDakota(parameters)
 parameters = comm.bcast(parameters,root=0)    
 
 if mpiRank == 0:
-    print'Parameter exchange done'
+    print('Parameter exchange done')
 lg.info( 'Parameter exchange done')
 
 
@@ -140,7 +140,7 @@ runModel(earth, parameters)
 lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
 
 if earth.isRoot:
-    print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s'
+    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str( time.time() - overallTime) + ' s')
 
 if earth.isRoot:
     writeSummary(earth, parameters)

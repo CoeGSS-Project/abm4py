@@ -5,7 +5,7 @@ import pprint as pp
 import numpy as np
 import matplotlib.pylab as plt
 from scipy import signal
-from bunch import Bunch
+import core
 
 from init_motmo import mpiSize
 import init_motmo as init
@@ -50,7 +50,7 @@ def publicTransportSetup(setup):
 
 # %% Scenario definition without calibraton parameters
 def scenarioTestSmall(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources/'
@@ -59,7 +59,7 @@ def scenarioTestSmall(parameterInput, dirPath):
 
     # time
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
 
     a = 60000.
     b = 45000.
@@ -146,7 +146,7 @@ def scenarioTestSmall(parameterInput, dirPath):
 
 
 def scenarioTestMedium(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources/'
@@ -155,7 +155,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     # time
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
 
     # spatial
     setup.isSpatial = True
@@ -248,7 +248,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
 
 def scenarioNBH(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_NBH/'
@@ -259,7 +259,7 @@ def scenarioNBH(parameterInput, dirPath):
     # time
     setup.nSteps = 340     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10  # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -360,7 +360,7 @@ def scenarioNBH(parameterInput, dirPath):
     return setup
 
 def scenarioGer(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_ger/'
@@ -371,7 +371,7 @@ def scenarioGer(parameterInput, dirPath):
     # time
     setup.nSteps = 340  # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10  # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -438,8 +438,8 @@ def scenarioGer(parameterInput, dirPath):
             plt.colorbar()
         except:
             pass
-    print setup.landLayer.shape
-    print setup.population.shape    
+    print(setup.landLayer.shape)
+    print(setup.population.shape)    
     setup.landLayer[np.isnan(setup.population)] = np.nan
 
 
@@ -468,8 +468,8 @@ def scenarioGer(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
     for p in range(0, 105, 5):
-        print 'p' + str(p) + ': ' + str(
-            np.nanpercentile(setup.population[setup.population != 0], p))
+        print('p' + str(p) + ': ' + str(
+            np.nanpercentile(setup.population[setup.population != 0], p)))
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
@@ -485,7 +485,7 @@ def scenarioGer(parameterInput, dirPath):
 
 
 def scenarioLueneburg(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_luen/'
@@ -495,7 +495,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     # time
     setup.nSteps = 340     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -599,8 +599,8 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup['population'] /= setup['reductionFactor']
 
     for p in range(0, 105, 5):
-        print 'p' + str(p) + ': ' + str(
-            np.nanpercentile(setup.population[setup.population != 0], p))
+        print('p' + str(p) + ': ' + str(
+            np.nanpercentile(setup.population[setup.population != 0], p)))
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
@@ -615,7 +615,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     return setup
 
 def scenarioTest(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = None
@@ -625,7 +625,7 @@ def scenarioTest(parameterInput, dirPath):
     # time
     setup.nSteps = 10     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 0
     # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
     setup.omniscientBurnIn = 0
@@ -636,8 +636,8 @@ def scenarioTest(parameterInput, dirPath):
     # setup.reductionFactor = parameterInput['reductionFactor']
 
     setup.landLayer = np.zeros([2, mpiSize])
-    setup.landLayer[0, :] = np.asarray(range(mpiSize))
-    setup.landLayer[1, :] = np.asarray(range(mpiSize))
+    setup.landLayer[0, :] = np.asarray(list(range(mpiSize)))
+    setup.landLayer[1, :] = np.asarray(list(range(mpiSize)))
 
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
     setup.population = setup.landLayer * 5
