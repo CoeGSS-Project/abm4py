@@ -26,7 +26,6 @@ tmpOut*
 *.hdf5
 *.ipy
 *.js
-*.sh
 *.txt
 *.pkl
 *.txt.part.*
@@ -36,4 +35,5 @@ __pycache__
 get
 test_old*
 doe/*
-tests/*
+tests/output*
+tests/test_env*
