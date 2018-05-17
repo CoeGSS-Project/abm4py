@@ -260,14 +260,14 @@ class Spatial():
         ghostLocationList = list()
         lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
-        self.world.cellMapIds = np.where(rankArray == self.world.api.rank)
+        self.world.cellMapIds = np.where(rankArray == self.world.papi.rank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):
             for y in range(nodeArray.shape[1]):
 
                 # only add an vertex if spatial location exist
-                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.world.api.rank:
+                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.world.papi.rank:
 
                     loc = LocClassObject(self.world, pos = [x, y])
                     IDArray[x,y] = loc.nID
@@ -289,10 +289,10 @@ class Spatial():
                 if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
 
 
-                    if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.world.api.rank:  # location lives on another process
+                    if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.world.papi.rank:  # location lives on another process
                         
                         loc = GhstLocClassObject(self.world, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
-                        #print 'rank: ' +  str(self.world.api.rank) + ' '  + str(loc.nID)
+                        #print 'rank: ' +  str(self.world.papi.rank) + ' '  + str(loc.nID)
                         IDArray[xDst,yDst] = loc.nID
                         
                         self.world.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
@@ -358,7 +358,7 @@ class Spatial():
 #            ii +=1
             
         lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
-        self.world.api.initCommunicationViaLocations(ghostLocationList, nodeType)
+        self.world.papi.initCommunicationViaLocations(ghostLocationList, nodeType)
         lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
         
 
@@ -516,7 +516,7 @@ class Globals():
 
     def __init__(self, world):
         self.world = world
-        self.comm  = world.api.comm
+        self.comm  = world.papi.comm
 
         # simple reductions
         self.reduceDict = dict()
@@ -897,10 +897,10 @@ class IO():
         self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                      'w',
                                      driver='mpio',
-                                     comm=world.api.comm)
+                                     comm=world.papi.comm)
                                      #libver='latest',
-                                     #info = world.api.info)
-        self.comm        = world.api.comm
+                                     #info = world.papi.info)
+        self.comm        = world.papi.comm
         self.dynamicData = dict()
         self.staticData  = dict() # only saved once at timestep == 0
         self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -913,7 +913,7 @@ class IO():
         lg.info('start init of the node file')
 
         for nodeType in nodeTypes:
-            world.api.comm.Barrier()
+            world.papi.comm.Barrier()
             tt = time.time()
             lg.info(' NodeType: ' +str(nodeType))
             group = self.h5File.create_group(str(nodeType))
@@ -1071,9 +1071,9 @@ class IO():
             record = self.dynamicData[nodeType]
             saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
 
-class API():
+class PAPI():
     """
-    Agent passing interface
+    Parallel agent passing interface
     MPI communication module that controles all communcation between
     different processes.
     ToDo: change to communication using numpy
@@ -1309,7 +1309,7 @@ class API():
                 #print nID, gID
                 self.world._glob2loc[gID] = nID
                 self.world._loc2glob[nID] = gID
-            #self.world.api.comm.Barrier()
+            #self.world.papi.comm.Barrier()
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
     def transferGhostNodes(self, world):

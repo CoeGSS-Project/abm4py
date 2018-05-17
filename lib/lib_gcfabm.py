@@ -313,7 +313,7 @@ class Agent(Entity):
         else:
             nID = kwProperties['nID']
         Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner =  int(world.api.rank)
+        self.mpiOwner =  int(world.papi.rank)
 
     def getGlobID(self,world):
         return next(world.globIDGen)
@@ -328,7 +328,7 @@ class Agent(Entity):
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 nodeType = world.graph.class2NodeType[entity.__class__]
-                world.api.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+                world.papi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
 
@@ -385,7 +385,7 @@ class Location(Entity):
 
 
         Entity.__init__(self,world, nID, **kwProperties)
-        self.mpiOwner = int(world.api.rank)
+        self.mpiOwner = int(world.papi.rank)
         self.mpiPeers = list()
 
 
@@ -398,7 +398,7 @@ class Location(Entity):
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 nodeType = world.graph.class2NodeType[entity.__class__]
-                world.api.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+                world.papi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
     
@@ -479,10 +479,10 @@ class World:
         self.addVertices    = self.graph.addNodes
         
         # agent passing interface for communication between parallel processes
-        self.api = core.API(self, mpiComm=mpiComm)
+        self.papi = core.PAPI(self, mpiComm=mpiComm)
         
         lg.debug('Init MPI done')##OPTPRODUCTION
-        if self.api.comm.rank == 0:
+        if self.papi.comm.rank == 0:
             self.isRoot = True
         else:
             self.isRoot = False
@@ -525,7 +525,7 @@ class World:
         i = -1
         while i < self.maxNodes:
             i += 1
-            yield (self.maxNodes*(self.api.rank+1)) +i
+            yield (self.maxNodes*(self.papi.rank+1)) +i
 
 # GENERAL FUNCTIONS
 
@@ -790,7 +790,7 @@ class World:
         self._cache.resetNodeCache()
 
     def returnApiComm(self):
-        return self.api.comm
+        return self.papi.comm
 
     def returnGraph(self):
         return self.graph

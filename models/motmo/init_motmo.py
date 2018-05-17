@@ -342,7 +342,7 @@ def householdSetup(earth, calibration=False):
     #pdb.set_trace()
     nRegions = np.sum(tmp>0)
 
-    mpi = earth.returnMpiComm()
+    mpi = earth.returnApiComm()
 
     boolMask = parameters['landLayer']==mpi.rank
     nAgentsOnProcess = np.zeros(nRegions)
@@ -355,7 +355,7 @@ def householdSetup(earth, calibration=False):
             nAgentsOnProcess[i] += overheadAgents
 
     #print mpiRank, nAgentsOnProcess
-    nAgentsPerProcess = earth.mpi.all2all(nAgentsOnProcess)
+    nAgentsPerProcess = earth.papi.all2all(nAgentsOnProcess)
     #print nAgentsPerProcess
     nAgentsOnProcess = np.array(nAgentsPerProcess)
     lg.info('Agents on process:' + str(nAgentsOnProcess))
@@ -365,7 +365,7 @@ def householdSetup(earth, calibration=False):
     import h5py
     for i, region in enumerate(regionIdxList):
         # all processes open all region files (not sure if necessary)
-        # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.mpi.comm, info=earth.mpi.comm.info)
+        # h5Files[i]      = h5py.File(parameters.resourcePath + 'people' + str(int(region)) + '.hdf5', 'r', driver='mpio', comm=earth.papi.comm, info=earth.papi.comm.info)
         h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + 'new.hdf5', 'r')
     mpi.Barrier()
 
@@ -385,7 +385,7 @@ def householdSetup(earth, calibration=False):
         
         if earth.debug:
             pass
-            #earth.view(str(earth.mpi.rank) + '.png')
+            #earth.view(str(earth.papi.rank) + '.png')
 
 
         dset = h5Files[i].get('people')
@@ -519,12 +519,12 @@ def householdSetup(earth, calibration=False):
     lg.info('All agents initialized')
 
 
-    earth.mpi.transferGhostNodes(earth)
-    #earth.mpi.comm.Barrier()
-    #earth.mpi.recvGhostNodes(earth)
+    earth.papi.transferGhostNodes(earth)
+    #earth.papi.comm.Barrier()
+    #earth.papi.recvGhostNodes(earth)
 
-    #earth.graph.write_graphml('graph' +str(earth.mpi.rank) + '.graphML')
-    #earth.view(str(earth.mpi.rank) + '.png')
+    #earth.graph.write_graphml('graph' +str(earth.papi.rank) + '.graphML')
+    #earth.view(str(earth.papi.rank) + '.png')
 
 #    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
 #        if mpiRank == 0:
@@ -542,7 +542,7 @@ def householdSetup(earth, calibration=False):
         #hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
         
-    earth.mpi.comm.Barrier()
+    earth.papi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
             ' Housholds created in -- ' + str(time.time() - tt) + ' s')
     
@@ -712,8 +712,9 @@ def initTypes(earth):
 def initSpatialLayer(earth):
     parameters = earth.getParameter()
     connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
-    earth.initSpatialLayer(parameters['landLayer'],
-                           connList, CELL,
+    earth.spatial.initSpatialLayer(parameters['landLayer'],
+                           connList, 
+                           CELL,
                            LocClassObject=Cell,
                            GhstLocClassObject=GhostCell)
     
@@ -747,7 +748,7 @@ def initSpatialLayer(earth):
             cell.cellSize = parameters['cellSizeMap'][tuple(cell.getValue('pos'))]
             cell.setValue('popDensity', popDensity[tuple(cell.getValue('pos'))])
             
-    earth.mpi.updateGhostNodes([CELL],['chargStat'])
+    earth.papi.updateGhostNodes([CELL],['chargStat'])
 
     if mpiRank == 0:
         print('Setup of the spatial layer done')
@@ -832,7 +833,7 @@ def generateNetwork(earth):
     
     lg.info( 'Social network initialized in -- ' + str( time.time() - tt) + ' s')
     if parameters['scenario'] == 0 and earth.para['showFigures']:
-        earth.view(str(earth.mpi.rank) + '.png')
+        earth.view(str(earth.papi.rank) + '.png')
     if mpiRank == 0:
         print('Social network setup done')
 
@@ -912,7 +913,7 @@ def initGlobalRecords(earth):
 def initAgentOutput(earth):
     #%% Init of agent file
     tt = time.time()
-    earth.mpi.comm.Barrier()
+    earth.papi.comm.Barrier()
     lg.info( 'Waited for Barrier for ' + str( time.time() - tt) + ' s')
     tt = time.time()
     #earth.initAgentFile(typ = HH)
