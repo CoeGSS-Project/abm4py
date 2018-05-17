@@ -91,13 +91,13 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
 #%% Setup of log file
 
 if debug:
-    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
                     filemode='w',
                     format='%(levelname)7s %(asctime)s : %(message)s',
                     datefmt='%m/%d/%y-%H:%M:%S',
                     level=lg.DEBUG)
 else:
-    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
                     filemode='w',
                     format='%(levelname)7s %(asctime)s : %(message)s',
                     datefmt='%m/%d/%y-%H:%M:%S',
@@ -127,8 +127,8 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
-log_file   =  open('out' + str(earth.mpi.rank) + '.txt', 'w')
-err_file   =  open('err' + str(earth.mpi.rank) + '.txt', 'w')
+log_file   =  open('output/out' + str(earth.mpi.rank) + '.txt', 'w')
+err_file   =  open('output/err' + str(earth.mpi.rank) + '.txt', 'w')
 sys.stdout = log_file
 sys.stderr = err_file
 #%% Init of entity types
@@ -335,11 +335,11 @@ if mpiRank==0:
 if mpiRank==0:
     plt.figure('average_prop_B')
     plt.plot(earth.globalRecord['average_prop_B'].rec)
-    plt.savefig(outputPath + '/test.png')
+    plt.savefig(outputPath + 'test.png')
     
     plt.figure('times')
     plt.plot(times)
-    plt.savefig(outputPath + '/times.png')
+    plt.savefig(outputPath + 'times.png')
 
 gatherData= np.asarray([earth.compTime, earth.syncTime, earth.waitTime, earth.ioTime])
 gatherData = np.asarray(mpiComm.gather(gatherData, root=0))
@@ -352,7 +352,7 @@ if mpiRank==0:
     tSync = gatherData[1]
     tWait = gatherData[2]
     tIO   = gatherData[3]
-    fid = open(outputPath + '/run_times.csv','a')
+    fid = open(outputPath + 'run_times.csv','a')
     fid.write(', '.join(["{:10.6f}".format(number)  for number in [mpiSize, tInit, tComp, tSync, tWait, tIO, tAveragePerStep, tOverall]]) + '\n')
     fid.close()
     
@@ -367,7 +367,7 @@ if False:
     import pandas as pd
 
     plt.clf()
-    dfTimes = pd.read_csv('run_times.csv')
+    dfTimes = pd.read_csv('output/run_times.csv')
     nRuns = 4
     
     colList = ['r', 'g', 'b', 'm']
