@@ -241,7 +241,7 @@ class Earth(World):
         lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.eCount()))
 
         fid = open(self.para['outPath']+ '/initTimes.out', 'a')
-        fid.writelines('r' + str(self.mpi.comm.rank) + ', ' +
+        fid.writelines('r' + str(self.api.comm.rank) + ', ' +
                        str( time.time() - tt) + ',' +
                        str(np.mean(populationList)) + ',' +
                        str(self.graph.eCount()) + '\n')
@@ -310,8 +310,8 @@ class Earth(World):
         Encapsulating method for the syncronization of selected ghost agents
         """
         ttSync = time.time()
-        self.mpi.updateGhostNodes([PERS],['commUtil','util', 'mobType'])
-        self.mpi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
+        self.api.updateGhostNodes([PERS],['commUtil','util', 'mobType'])
+        self.api.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
@@ -439,7 +439,7 @@ class Earth(World):
 
         # waiting for other processes
         ttWait = time.time()
-        self.mpi.comm.Barrier()
+        self.api.comm.Barrier()
         self.waitTime[self.time] += time.time()-ttWait
 
         # I/O
@@ -739,7 +739,7 @@ class Market():
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0):
         #import global variables
         self.globalRecord        = earth.returnGlobalRecord()
-        self.comm                = earth.returnMpiComm()
+        self.comm                = earth.returnApiComm()
         self.glob                = earth.returnGlobals()
         self._graph              = earth.returnGraph()
         self.para                = earth.getParameter()

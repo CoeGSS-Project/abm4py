@@ -313,7 +313,7 @@ class Agent(Entity):
         else:
             nID = kwProperties['nID']
         Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner =  int(world.mpi.rank)
+        self.mpiOwner =  int(world.api.rank)
 
     def getGlobID(self,world):
         return next(world.globIDGen)
@@ -328,7 +328,7 @@ class Agent(Entity):
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 nodeType = world.graph.class2NodeType[entity.__class__]
-                world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+                world.api.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
 
@@ -342,84 +342,7 @@ class Agent(Entity):
         """ not yet implemented"""
         pass
 
-    def getSpatiallyCloseEntities(self, 
-                                  world, 
-                                  nContacts,
-                                  nodeType, 
-                                  currentContacts = None, 
-                                  addYourself = True):
-        """
-        Method to generate a preliminary friend network that accounts for
-        proximity in space
-        #ToDO add to easyUI
-        """
 
-        edgeType = world.graph.node2EdgeType[1, nodeType]
-        
-        if currentContacts is None:
-            isInit=True
-        else:
-            isInit=False
-
-        if currentContacts is None:
-            currentContacts = [self.nID]
-        else:
-            currentContacts.append(self.nID)
-
-        cellConnWeights, cellIds = self.loc.getConnectedLocation()
-        personIdsAll = list()
-        nPers = list()
-        cellWeigList = list()
-              
-        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
-
-            cellWeigList.append(cellWeight)           
-            personIds = world.getEntity(cellIdx).getPeerIDs(edgeType)
-            personIdsAll.extend(personIds)
-            nPers.append(len(personIds))
-
-        # return nothing if too few candidates
-        if not isInit and nPers > nContacts:
-            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
-            return [],[],[]
-
-        #setup of spatial weights
-        weightData = np.zeros(np.sum(nPers))
-
-        idx = 0
-        for nP, we in zip(nPers, cellWeigList):
-            weightData[idx:idx+nP] = we
-            idx = idx+ nP
-        del idx
-
-        #normalizing final row
-        weightData /= np.sum(weightData,axis=0)
-
-        if np.sum(weightData>0) < nContacts:
-            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
-            nContacts = min(np.sum(weightData>0)-1,nContacts)
-
-        if nContacts < 1:                                                       ##OPTPRODUCTION
-            lg.info('ID: ' + str(self.nID) + ' failed to generate friend')      ##OPTPRODUCTION
-            contactList = list()
-            sourceList  = list()
-            targetList   = list()
-        else:
-            # adding contacts
-            ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
-            contactList = [personIdsAll[idx] for idx in ids ]
-            targetList  = [personIdsAll[idx] for idx in ids]
-            sourceList  = [self.nID] * nContacts
-        
-        if isInit and addYourself:
-            #add yourself as a friend
-            contactList.append(self.nID)
-            sourceList.append(self.nID)
-            targetList.append(self.nID)
-            nContacts +=1
-
-        weigList   = [1./nContacts]*nContacts
-        return contactList, (sourceList, targetList), weigList
 
 
 
@@ -462,7 +385,7 @@ class Location(Entity):
 
 
         Entity.__init__(self,world, nID, **kwProperties)
-        self.mpiOwner = int(world.mpi.rank)
+        self.mpiOwner = int(world.api.rank)
         self.mpiPeers = list()
 
 
@@ -475,7 +398,7 @@ class Location(Entity):
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 nodeType = world.graph.class2NodeType[entity.__class__]
-                world.mpi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
+                world.api.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
     
@@ -534,7 +457,7 @@ class World:
         self.simNo    = simNo
         self.timeStep = 0
         self.para     = dict()
-        self.spatial  = spatial
+        
         self.maxNodes = int(maxNodes)
         self.globIDGen = self._globIDGen()
         self.nSteps   = nSteps
@@ -554,10 +477,12 @@ class World:
         self.delEdges       = self.graph.delete_edges
         self.addVertex      = self.graph.addNode
         self.addVertices    = self.graph.addNodes
-        # MPI communication
-        self.mpi = core.Mpi(self, mpiComm=mpiComm)
+        
+        # agent passing interface for communication between parallel processes
+        self.api = core.API(self, mpiComm=mpiComm)
+        
         lg.debug('Init MPI done')##OPTPRODUCTION
-        if self.mpi.comm.rank == 0:
+        if self.api.comm.rank == 0:
             self.isRoot = True
         else:
             self.isRoot = False
@@ -569,6 +494,9 @@ class World:
         self.graph.glob     = core.Globals(self)
         lg.debug('Init Globals done')##OPTPRODUCTION
 
+        if spatial:
+            self.spatial  = core.Spatial(self)
+        
         # enumerations
         self.enums = dict()
 
@@ -597,7 +525,7 @@ class World:
         i = -1
         while i < self.maxNodes:
             i += 1
-            yield (self.maxNodes*(self.mpi.rank+1)) +i
+            yield (self.maxNodes*(self.api.rank+1)) +i
 
 # GENERAL FUNCTIONS
 
@@ -692,124 +620,7 @@ class World:
 
 
     #TODO add init for non-spatial init of communication
-    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject=Location, GhstLocClassObject=GhostLocation):
-        """
-        Auiliary function to contruct a simple connected layer of spatial locations.
-        Use with  the previously generated connection list (see computeConnnectionList)
-
-        """
-        nodeArray = ((rankArray * 0) +1)
-        #print rankArray
-        IDArray = nodeArray * np.nan
-        #print IDArray
-        # spatial extend
-        xOrg = 0
-        yOrg = 0
-        xMax = nodeArray.shape[0]
-        yMax = nodeArray.shape[1]
-        ghostLocationList = list()
-        lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
-        # tuple of idx array of cells that correspond of the spatial input maps 
-        self.cellMapIds = np.where(rankArray == self.mpi.rank)
-
-        # create vertices
-        for x in range(nodeArray.shape[0]):
-            for y in range(nodeArray.shape[1]):
-
-                # only add an vertex if spatial location exist
-                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.mpi.rank:
-
-                    loc = LocClassObject(self, pos = [x, y])
-                    IDArray[x,y] = loc.nID
-                    
-                    self.registerLocation(loc, x, y)          # only for real cells
-                    #self.registerNode(loc,nodeType)     # only for real cells
-                    loc.register(self)
-
-        # create ghost location nodes
-        for (x,y), loc in list(self.locDict.items()):
-
-            srcID = loc.nID
-            for (dx,dy,weight) in connList:
-
-                xDst = x + dx
-                yDst = y + dy
-
-                # check boundaries of the destination node
-                if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
-
-
-                    if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.mpi.rank:  # location lives on another process
-                        
-                        loc = GhstLocClassObject(self, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
-                        #print 'rank: ' +  str(self.mpi.rank) + ' '  + str(loc.nID)
-                        IDArray[xDst,yDst] = loc.nID
-                        
-                        self.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
-                        
-                        #self.registerLocation(loc, xDst, yDst)
-                        ghostLocationList.append(loc)
-        self.graph.IDArray = IDArray
-
-        fullSourceList      = list()
-        fullTargetList      = list()
-        fullWeightList          = list()
-        #nConnection  = list()
-        #print 'rank: ' +  str(self.locDict)
-
-        for (x,y), loc in list(self.locDict.items()):
-
-            srcID = loc.nID
-            
-            weigList = list()
-            destList = list()
-            sourceList = list()
-            targetList = list()
-            for (dx,dy,weight) in connList:
-
-                xDst = x + dx
-                yDst = y + dy
-
-                # check boundaries of the destination node
-                if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
-
-                    trgID = IDArray[xDst,yDst]
-                    #assert
-
-                    if not np.isnan(trgID): #and srcID != trgID:
-                        destList.append(int(trgID))
-                        weigList.append(weight)
-                        sourceList.append(int(srcID))
-                        targetList.append(int(trgID))
-
-            #normalize weight to sum up to unity
-            sumWeig = sum(weigList)
-            weig    = np.asarray(weigList) / sumWeig
-            #print loc.nID
-            #print connectionList
-            fullSourceList.extend(sourceList)
-            fullTargetList.extend(targetList)
-            #nConnection.append(len(connectionList))
-            fullWeightList.extend(weig)
-
-
-            
-        #eStart = self.graph.ecount()
-        self.graph.addEdges(1, fullSourceList, fullTargetList, weig=fullWeightList)
-
-
-#        eStart = 0
-#        ii = 0
-#        for _, loc in tqdm.tqdm(self.locDict.items()):
-#        #for cell, cellID in self.iterEntAndIDRandom(1, random=False):
-#            loc.setEdgeCache(range(eStart,eStart + nConnection[ii]), 1)
-#            #assert loc._graph.es[loc._graph.incident(loc.nID,'out')].select(type_ne=0).indices == range(eStart,eStart + nConnection[ii])
-#            eStart += nConnection[ii]
-#            ii +=1
-            
-        lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
-        self.mpi.initCommunicationViaLocations(ghostLocationList, nodeType)
-        lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
+    
 
     def iterEdges(self, edgeType):
         """
@@ -978,8 +789,8 @@ class World:
     def resetNodeCache(self):
         self._cache.resetNodeCache()
 
-    def returnMpiComm(self):
-        return self.mpi.comm
+    def returnApiComm(self):
+        return self.api.comm
 
     def returnGraph(self):
         return self.graph

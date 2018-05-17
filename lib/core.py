@@ -237,6 +237,211 @@ def loadObj(name ):
         return pickle.load(f)
 
 
+class Spatial():
+
+    def __init__(self, world):
+        self.world = world # make world availabel in class random
+
+    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject):
+        """
+        Auiliary function to contruct a simple connected layer of spatial locations.
+        Use with  the previously generated connection list (see computeConnnectionList)
+
+        """
+        nodeArray = ((rankArray * 0) +1)
+        #print rankArray
+        IDArray = nodeArray * np.nan
+        #print IDArray
+        # spatial extend
+        xOrg = 0
+        yOrg = 0
+        xMax = nodeArray.shape[0]
+        yMax = nodeArray.shape[1]
+        ghostLocationList = list()
+        lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
+        # tuple of idx array of cells that correspond of the spatial input maps 
+        self.world.cellMapIds = np.where(rankArray == self.world.api.rank)
+
+        # create vertices
+        for x in range(nodeArray.shape[0]):
+            for y in range(nodeArray.shape[1]):
+
+                # only add an vertex if spatial location exist
+                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.world.api.rank:
+
+                    loc = LocClassObject(self.world, pos = [x, y])
+                    IDArray[x,y] = loc.nID
+                    
+                    self.world.registerLocation(loc, x, y)          # only for real cells
+                    #self.world.registerNode(loc,nodeType)     # only for real cells
+                    loc.register(self.world)
+
+        # create ghost location nodes
+        for (x,y), loc in list(self.world.locDict.items()):
+
+            srcID = loc.nID
+            for (dx,dy,weight) in connList:
+
+                xDst = x + dx
+                yDst = y + dy
+
+                # check boundaries of the destination node
+                if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
+
+
+                    if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.world.api.rank:  # location lives on another process
+                        
+                        loc = GhstLocClassObject(self.world, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
+                        #print 'rank: ' +  str(self.world.api.rank) + ' '  + str(loc.nID)
+                        IDArray[xDst,yDst] = loc.nID
+                        
+                        self.world.registerNode(loc,nodeType,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
+                        
+                        #self.world.registerLocation(loc, xDst, yDst)
+                        ghostLocationList.append(loc)
+        self.world.graph.IDArray = IDArray
+
+        fullSourceList      = list()
+        fullTargetList      = list()
+        fullWeightList          = list()
+        #nConnection  = list()
+        #print 'rank: ' +  str(self.world.locDict)
+
+        for (x,y), loc in list(self.world.locDict.items()):
+
+            srcID = loc.nID
+            
+            weigList = list()
+            destList = list()
+            sourceList = list()
+            targetList = list()
+            for (dx,dy,weight) in connList:
+
+                xDst = x + dx
+                yDst = y + dy
+
+                # check boundaries of the destination node
+                if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
+
+                    trgID = IDArray[xDst,yDst]
+                    #assert
+
+                    if not np.isnan(trgID): #and srcID != trgID:
+                        destList.append(int(trgID))
+                        weigList.append(weight)
+                        sourceList.append(int(srcID))
+                        targetList.append(int(trgID))
+
+            #normalize weight to sum up to unity
+            sumWeig = sum(weigList)
+            weig    = np.asarray(weigList) / sumWeig
+            #print loc.nID
+            #print connectionList
+            fullSourceList.extend(sourceList)
+            fullTargetList.extend(targetList)
+            #nConnection.append(len(connectionList))
+            fullWeightList.extend(weig)
+
+
+            
+        #eStart = self.world.graph.ecount()
+        self.world.graph.addEdges(1, fullSourceList, fullTargetList, weig=fullWeightList)
+
+
+#        eStart = 0
+#        ii = 0
+#        for _, loc in tqdm.tqdm(self.world.locDict.items()):
+#        #for cell, cellID in self.world.iterEntAndIDRandom(1, random=False):
+#            loc.setEdgeCache(range(eStart,eStart + nConnection[ii]), 1)
+#            #assert loc._graph.es[loc._graph.incident(loc.nID,'out')].select(type_ne=0).indices == range(eStart,eStart + nConnection[ii])
+#            eStart += nConnection[ii]
+#            ii +=1
+            
+        lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
+        self.world.api.initCommunicationViaLocations(ghostLocationList, nodeType)
+        lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
+        
+
+    def getNCloseEntities(self, 
+                           agent, 
+                           nContacts,
+                           nodeType, 
+                           currentContacts = None, 
+                           addYourself = True):
+        """
+        Method to generate a preliminary friend network that accounts for
+        proximity in space
+        #ToDO add to easyUI
+        """
+
+        edgeType = self.world.graph.node2EdgeType[1, nodeType]
+        
+        if currentContacts is None:
+            isInit=True
+        else:
+            isInit=False
+
+        if currentContacts is None:
+            currentContacts = [agent.nID]
+        else:
+            currentContacts.append(agent.nID)
+
+        cellConnWeights, cellIds = agent.loc.getConnectedLocation()
+        personIdsAll = list()
+        nPers = list()
+        cellWeigList = list()
+              
+        for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
+
+            cellWeigList.append(cellWeight)           
+            personIds = self.world.getEntity(cellIdx).getPeerIDs(edgeType)
+            personIdsAll.extend(personIds)
+            nPers.append(len(personIds))
+
+        # return nothing if too few candidates
+        if not isInit and nPers > nContacts:
+            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')
+            return [],[],[]
+
+        #setup of spatial weights
+        weightData = np.zeros(np.sum(nPers))
+
+        idx = 0
+        for nP, we in zip(nPers, cellWeigList):
+            weightData[idx:idx+nP] = we
+            idx = idx+ nP
+        del idx
+
+        #normalizing final row
+        weightData /= np.sum(weightData,axis=0)
+
+        if np.sum(weightData>0) < nContacts:
+            lg.info( "nID: " + str(agent.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
+            nContacts = min(np.sum(weightData>0)-1,nContacts)
+
+        if nContacts < 1:                                                       ##OPTPRODUCTION
+            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')      ##OPTPRODUCTION
+            contactList = list()
+            sourceList  = list()
+            targetList   = list()
+        else:
+            # adding contacts
+            ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
+            contactList = [personIdsAll[idx] for idx in ids ]
+            targetList  = [personIdsAll[idx] for idx in ids]
+            sourceList  = [agent.nID] * nContacts
+        
+        if isInit and addYourself:
+            #add yourself as a friend
+            contactList.append(agent.nID)
+            sourceList.append(agent.nID)
+            targetList.append(agent.nID)
+            nContacts +=1
+
+        weigList   = [1./nContacts]*nContacts
+        return contactList, (sourceList, targetList), weigList
+    
+
 class Writer():
 
     def __init__(self, world, filename):
@@ -311,7 +516,7 @@ class Globals():
 
     def __init__(self, world):
         self.world = world
-        self.comm  = world.mpi.comm
+        self.comm  = world.api.comm
 
         # simple reductions
         self.reduceDict = dict()
@@ -692,10 +897,10 @@ class IO():
         self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                      'w',
                                      driver='mpio',
-                                     comm=world.mpi.comm)
+                                     comm=world.api.comm)
                                      #libver='latest',
-                                     #info = world.mpi.info)
-        self.comm        = world.mpi.comm
+                                     #info = world.api.info)
+        self.comm        = world.api.comm
         self.dynamicData = dict()
         self.staticData  = dict() # only saved once at timestep == 0
         self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -708,7 +913,7 @@ class IO():
         lg.info('start init of the node file')
 
         for nodeType in nodeTypes:
-            world.mpi.comm.Barrier()
+            world.api.comm.Barrier()
             tt = time.time()
             lg.info(' NodeType: ' +str(nodeType))
             group = self.h5File.create_group(str(nodeType))
@@ -866,8 +1071,9 @@ class IO():
             record = self.dynamicData[nodeType]
             saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
 
-class Mpi():
+class API():
     """
+    Agent passing interface
     MPI communication module that controles all communcation between
     different processes.
     ToDo: change to communication using numpy
@@ -1103,7 +1309,7 @@ class Mpi():
                 #print nID, gID
                 self.world._glob2loc[gID] = nID
                 self.world._loc2glob[nID] = gID
-            #self.world.mpi.comm.Barrier()
+            #self.world.api.comm.Barrier()
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
     def transferGhostNodes(self, world):
