@@ -55,23 +55,7 @@ later:
         - other resolution available!
         - share locatons between processes
 """
-#<<<<<<< HEAD
-#
-#=======
-#import sys
-#sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-#sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-#import mpi4py
-#mpi4py.rc.threads = False
-#sys_excepthook = sys.excepthook
-#def mpi_excepthook(v, t, tb):
-#    sys_excepthook(v, t, tb)
-#    mpi4py.MPI.COMM_WORLD.Abort(1)
-#sys.excepthook = mpi_excepthook
-#
-#from mpi4py import MPI
-#import h5py
-#>>>>>>> dakota-integration
+
 import logging as lg
 import sys
 import numpy as np
@@ -139,8 +123,7 @@ class Entity():
 
         # create instance from existing node
         if nID is not -1:
-            if nID is None:
-                raise()
+
 
             self.nID = nID
             self._node, self.dataID = self._graph.getNodeView(nID)
@@ -198,7 +181,7 @@ class Entity():
         Set the attributes of all connected nodes of an specified nodeType
         or connected by a specfic edge type
         """
-        raise(StandardError('Violating current rules for parallel implmentation'))
+        raise Exception
         self._graph.setOutNodeValues(self.nID, edgeType, prop, values)
                                    
 
@@ -307,7 +290,7 @@ class Agent(Entity):
 
 
     def __init__(self, world, **kwProperties):
-        if 'nID' not in kwProperties.keys():
+        if 'nID' not in list(kwProperties.keys()):
             nID = -1
         else:
             nID = kwProperties['nID']
@@ -315,7 +298,7 @@ class Agent(Entity):
         self.mpiOwner =  int(world.mpi.rank)
 
     def getGlobID(self,world):
-        return world.globIDGen.next()
+        return next(world.globIDGen)
 
     def registerChild(self, world, entity, edgeType):
         if edgeType is not None:
@@ -341,18 +324,20 @@ class Agent(Entity):
         """ not yet implemented"""
         pass
 
-    def getNClosePeers(self, 
-                       world, 
-                       nContacts,
-                       edgeType, 
-                       currentContacts = None, 
-                       addYourself = True):
+    def getSpatiallyCloseEntities(self, 
+                                  world, 
+                                  nContacts,
+                                  nodeType, 
+                                  currentContacts = None, 
+                                  addYourself = True):
         """
         Method to generate a preliminary friend network that accounts for
         proximity in space
         #ToDO add to easyUI
         """
 
+        edgeType = world.graph.node2EdgeType[1, nodeType]
+        
         if currentContacts is None:
             isInit=True
         else:
@@ -371,7 +356,7 @@ class Agent(Entity):
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)           
-            personIds = world.getEntity(cellIdx).peList #doto do more general
+            personIds = world.getEntity(cellIdx).getPeerIDs(edgeType)
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -449,10 +434,10 @@ class GhostAgent(Entity):
 class Location(Entity):
 
     def getGlobID(self,world):
-        return world.globIDGen.next()
+        return next(world.globIDGen)
 
     def __init__(self, world, **kwProperties):
-        if 'nID' not in kwProperties.keys():
+        if 'nID' not in list(kwProperties.keys()):
             nID = -1
         else:
             nID = kwProperties['nID']
@@ -480,7 +465,7 @@ class Location(Entity):
         """ 
         ToDo: check if not deprecated 
         """
-        self.weights, nodeIDList = self.getEdgeValues('weig',edgeType=edgeType)
+        self.weights, _, nodeIDList = self.getEdgeValues('weig',edgeType=edgeType)
         
         return self.weights,  nodeIDList
 
@@ -638,7 +623,7 @@ class World:
         """
         This method allows to set multiple parameters at once
         """
-        for key in parameterDict.keys():
+        for key in list(parameterDict.keys()):
             self.setParameter(key, parameterDict[key])
 
 
@@ -724,7 +709,7 @@ class World:
                     loc.register(self)
 
         # create ghost location nodes
-        for (x,y), loc in self.locDict.items():
+        for (x,y), loc in list(self.locDict.items()):
 
             srcID = loc.nID
             for (dx,dy,weight) in connList:
@@ -754,7 +739,7 @@ class World:
         #nConnection  = list()
         #print 'rank: ' +  str(self.locDict)
 
-        for (x,y), loc in self.locDict.items():
+        for (x,y), loc in list(self.locDict.items()):
 
             srcID = loc.nID
             
@@ -1120,22 +1105,22 @@ if __name__ == '__main__':
 
 
     earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
-    print earth.mpi.comm.rank
+    print(earth.mpi.comm.rank)
     log_file  = open('out' + str(earth.mpi.rank) + '.txt', 'w')
     sys.stdout = log_file
     earth.graph.glob.registerValue('test' , np.asarray([earth.mpi.comm.rank]),'max')
 
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
     earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
-    print earth.graph.glob['test']
-    print earth.graph.glob['meantest']
-    print 'mean of values: ',earth.graph.glob.values['meantest'],'-> local mean: ',earth.glob['meantest']
-    print 'std od values:  ',earth.graph.glob.values['stdtest'],'-> local std: ',earth.glob['stdtest']
+    print(earth.graph.glob.globalValue['test'])
+    print(earth.graph.glob.globalValue['meantest'])
+    print('mean of values: ',earth.graph.glob.localValues['meantest'],'-> local mean: ',earth.graph.glob.globalValue['meantest'])
+    print('std od values:  ',earth.graph.glob.localValues['stdtest'],'-> local std: ',earth.graph.glob.globalValue['stdtest'])
 
     earth.graph.glob.sync()
-    print earth.graph.glob['test']
-    print 'global mean: ', earth.graph.glob['meantest']
-    print 'global std: ', earth.graph.glob['stdtest']
+    print(earth.graph.glob.globalValue['test'])
+    print('global mean: ', earth.graph.glob.globalValue['meantest'])
+    print('global std: ', earth.graph.glob.globalValue['stdtest'])
 
 
 
@@ -1185,18 +1170,18 @@ if __name__ == '__main__':
 
     #earth.mpi.syncNodes(CELL,['value', 'value2'])
     earth.mpi.updateGhostNodes([CELL])
-    print earth.graph.getPropOfNodeType(CELL, 'names')
-    print str(earth.mpi.rank) + ' values' + str(earth.graph.nodes[CELL]['value'])
-    print str(earth.mpi.rank) + ' values2: ' + str(earth.graph.nodes[CELL]['value2'])
+    print(earth.graph.getPropOfNodeType(CELL, 'names'))
+    print(str(earth.mpi.rank) + ' values' + str(earth.graph.nodes[CELL]['value']))
+    print(str(earth.mpi.rank) + ' values2: ' + str(earth.graph.nodes[CELL]['value2']))
 
     #print earth.mpi.ghostNodeRecv
     #print earth.mpi.ghostNodeSend
 
-    print earth.graph.getPropOfNodeType(AG, 'names')
+    print(earth.graph.getPropOfNodeType(AG, 'names'))
 
-    print str(earth.mpi.rank) + ' ' + str(earth.nodeDict[AG])
+    print(str(earth.mpi.rank) + ' ' + str(earth.nodeDict[AG]))
 
-    print str(earth.mpi.rank) + ' SendQueue ' + str(earth.mpi.ghostNodeQueue)
+    print(str(earth.mpi.rank) + ' SendQueue ' + str(earth.mpi.ghostNodeQueue))
 
     earth.mpi.transferGhostNodes(earth)
     #earth.mpi.recvGhostNodes(earth)
@@ -1207,8 +1192,8 @@ if __name__ == '__main__':
     cell.getPeerIDs(nodeType=CELL, mode='out')
     #earth.view(str(earth.mpi.rank) + '.png', layout=ig.Layout(earth.graph.nodes[CELL]['pos'].tolist()))
 
-    print str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG].indices)
-    print str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG]['value3'])
+    print(str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG].indices))
+    print(str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG]['value3']))
 
     for agent in earth.iterEntRandom(AG):
         agent['value3'] = earth.mpi.rank+ agent.nID
@@ -1220,22 +1205,22 @@ if __name__ == '__main__':
 
     earth.io.writeDataToFile(0, [CELL, AG])
 
-    print str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG]['value3'])
+    print(str(earth.mpi.rank) + ' ' + str(earth.graph.nodes[AG]['value3']))
 
     #%% testing agent methods 
     peerList = cell.getPeerIDs(C_LOLO)
-    writeValues = np.asarray(range(len(peerList))).astype(np.float32)
+    writeValues = np.asarray(list(range(len(peerList)))).astype(np.float32)
     cell.setPeerValues('value', writeValues, C_LOLO )
     readValues = cell.getPeerValues('value', C_LOLO)
     assert all(readValues == writeValues)
     assert all(earth.graph.getNodeSeqAttr('value', peerList,) == writeValues)
-    print 'Peer values write/read successful'
+    print('Peer values write/read successful')
     edgeList = cell.getEdgeIDs(C_LOLO)
     writeValues = np.random.random(len(edgeList[1])).astype(np.float32)
     cell.setEdgeValues('weig',writeValues, C_LOLO)
     readValues, _  = cell.getEdgeValues('weig',C_LOLO)
     assert all(readValues == writeValues)
-    print 'Edge values write/read successful'
+    print('Edge values write/read successful')
     
     friendID = earth.nodeDict[AG][0]
     agent.addConnection(friendID, C_AGAG, weig=.51)
@@ -1245,13 +1230,13 @@ if __name__ == '__main__':
     
     agent.remConnection(friendID, C_AGAG)
     assert not(earth.graph.isConnected(agent.nID, friendID, C_AGAG))
-    print 'Adding/removing connection successfull'
+    print('Adding/removing connection successfull')
     
     value = agent['value3']
     agent['value3'] +=1
     assert agent['value3'] == value +1
     assert earth.graph.getNodeAttr('value3', agent.nID) == value +1
-    print 'Value access and increment sucessful'
+    print('Value access and increment sucessful')
     
     #%%
     pos = (0,4)
@@ -1270,8 +1255,8 @@ if __name__ == '__main__':
     
     buff =  earth.mpi.all2all(cell40['value'])
     assert buff[0] == buff[1]
-    print 'ghost update of cells successful (all attributes) '
+    print('ghost update of cells successful (all attributes) ')
     
     buff =  earth.mpi.all2all(connAgent['value3'])
     assert buff[0] == buff[1]
-    print 'ghost update of agents successful (specific attribute)'
+    print('ghost update of agents successful (specific attribute)')

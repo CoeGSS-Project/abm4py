@@ -22,42 +22,57 @@ class TypeDescription():
         self.typeIdx = nodeTypeIdx
         self.typeStr = typeStr
         
-class NodeArray():
-    """
-    Data structure for nodes and related informations based on a numpy array
-    """
-    def __init__(self, maxNodes, nTypeID, dtype):
-        # Input array is an already formed ndarray instance
-        # We first cast to be our class type
-        self._data = np.array(np.empty(maxNodes, dtype)).view()
-        # add the new attribute to the created instance
-        self.maxNodes       = maxNodes
-        self.nType          = nTypeID
-        self.getNewID       = itertools.count().next
-        self.nodeList       = []
-        self.freeRows       = []
-        # redirect getitem functionality to _data
-        self.__getitem__    = self._data.__getitem__
-        
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
-        if obj.dtype.names is not None:
-            for name in obj.dtype.names:
-                self.__setattr__(name, getattr(obj, name, None))
-        
+#class NodeArray():
+#    """
+#    Data structure for nodes and related informations based on a numpy array
+#    """
+#    def __init__(self, maxNodes, nTypeID, dtype):
+#        # Input array is an already formed ndarray instance
+#        # We first cast to be our class type
+#        self._data = np.array(np.empty(maxNodes, dtype)).view()
+#        # add the new attribute to the created instance
+#        self.maxNodes       = maxNodes
+#        self.nType          = nTypeID
+#        self.getNewID       = itertools.count().__next__
+#        self.nodeList       = []
+#        self.freeRows       = []
+#        # redirect getitem functionality to _data
+#        self.__getitem__    = self._data.__getitem__
+#        
+#    def __array_finalize__(self, obj):
+#        # see InfoArray.__array_finalize__ for comments
+#        if obj is None: return
+#        if obj.dtype.names is not None:
+#            for name in obj.dtype.names:
+#                self.__setattr__(name, getattr(obj, name, None))
+#        
+#
+#    def __getattr__(self, attr):
+#        try: return getattr(self._data, attr)
+#        except AttributeError:
+#            # extend interface to all functions from numpy
+#            f = getattr(np, attr, None)
+#            if hasattr(f, '__call__'):
+#                return functools.partial(f, self._data)
+#            else:
+#                raise AttributeError(attr)
+    
+class NodeArray(np.ndarray):
+    def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
+          strides=None, order=None):
 
-    def __getattr__(self, attr):
-        try: return getattr(self._data, attr)
-        except AttributeError:
-            # extend interface to all functions from numpy
-            f = getattr(np, attr, None)
-            if hasattr(f, '__call__'):
-                return functools.partial(f, self._data)
-            else:
-                raise AttributeError(attr)
-    
-    
+        # It also triggers a call to InfoArray.__array_finalize__
+        obj = np.ndarray.__new__(subtype, maxNodes, dtype, buffer, offset, strides,
+                         order)
+        obj.maxNodes       = maxNodes
+        obj.nType          = nTypeID
+        obj.getNewID       = itertools.count().__next__
+        obj.nodeList       = []
+        obj.freeRows       = []
+        return obj
+
+#    def __getitem__(self, key):
+#        return np.ndarray.__getitem__(key)    
   
     def nCount(self):
         return len(self.nodeList)
@@ -65,45 +80,49 @@ class NodeArray():
     def indices(self):
         return self.nodeList
 
-class EdgeArray():
+class EdgeArray(np.ndarray):
     """
     Data structure for edges and related informations based on a numpy array
     """    
-    def __init__(self, maxEdges, eTypeID, dtype):
-        self._data = np.array(np.empty(maxEdges, dtype=dtype)).view()
-        
-        self.maxEdges       = maxEdges
-        self.eTypeID        = eTypeID
-        self.getNewID       = itertools.count().next
-        self.edgeList       = []
-        self.freeRows       = []
-        self.eDict          = dict()
-        self.edgesOut       = dict() # (source -> leID)
-        self.edgesIn        = dict() # (target -> leID)
-        self.nodesOut       = dict() # (source -> target)
-        self.nodesIn        = dict() # (target -> source)
+    def __new__(subtype, maxEdges, eTypeID, dtype=float, buffer=None, offset=0,
+          strides=None, order=None):
+
+        # It also triggers a call to InfoArray.__array_finalize__
+        obj = np.ndarray.__new__(subtype, maxEdges, dtype, buffer, offset, strides,
+                         order)
+        obj.maxEdges       = maxEdges
+        obj.eTypeID        = eTypeID
+        obj.getNewID       = itertools.count().__next__
+        obj.edgeList       = []
+        obj.freeRows       = []
+        obj.eDict          = dict()
+        obj.edgesOut       = dict() # (source -> leID)
+        obj.edgesIn        = dict() # (target -> leID)
+        obj.nodesOut       = dict() # (source -> target)
+        obj.nodesIn        = dict() # (target -> source)
+        return obj
         # redirect getitem functionality to _data
-        self.__getitem__    = self._data.__getitem__
+        #self.__getitem__    = self._data.__getitem__
 
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None: return
-        self.info = getattr(obj, 'info', None)
-        if obj.dtype.names is not None:
-            for name in obj.dtype.names:
-                self.__setattr__(name, getattr(obj, name, None))
-        
-
-    def __getattr__(self, attr):
-        try: return getattr(self._data, attr)
-        except AttributeError:
-
-            # extend interface to all functions from numpy
-            f = getattr(np, attr, None)
-            if hasattr(f, '__call__'):
-                return functools.partial(f, self._data)
-            else:
-                raise AttributeError(attr)
+#    def __array_finalize__(self, obj):
+#        # see InfoArray.__array_finalize__ for comments
+#        if obj is None: return
+#        self.info = getattr(obj, 'info', None)
+#        if obj.dtype.names is not None:
+#            for name in obj.dtype.names:
+#                self.__setattr__(name, getattr(obj, name, None))
+#        
+#
+#    def __getattr__(self, attr):
+#        try: return getattr(self._data, attr)
+#        except AttributeError:
+#
+#            # extend interface to all functions from numpy
+#            f = getattr(np, attr, None)
+#            if hasattr(f, '__call__'):
+#                return functools.partial(f, self._data)
+#            else:
+#                raise AttributeError(attr)
                 
     def eCount(self):
         return len(self.edgeList)
@@ -139,8 +158,8 @@ class BaseGraph():
         self.eDict    = dict() # (source, target -> leID)
 
         
-        self.getNodeTypeID = itertools.count(1).next
-        self.getEdgeTypeID = itertools.count(1).next
+        self.getNodeTypeID = itertools.count(1).__next__
+        self.getEdgeTypeID = itertools.count(1).__next__
         
         #persistent nodeattributes
         self.persNodeAttr =[('active', np.bool_,1)]
@@ -191,12 +210,12 @@ class BaseGraph():
              dataID   = self.nodes[nTypeID].getNewID()
              lnID = dataID + nTypeID * self.maxNodes
 
-         dataview = self.nodes[nTypeID]._data[dataID:dataID+1].view() 
+         dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
          if attributes is not None:
              dataview[:] = (True,) + attributes
          else:
              dataview['active'] = True
-             dataview[kwProp.keys()] = tuple(kwProp.values())
+             dataview[list(kwProp.keys())] = tuple(kwProp.values())
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
@@ -227,7 +246,7 @@ class BaseGraph():
         
         # adding attributes
         if kwAttr is not None:
-            for attrKey in kwAttr.keys():
+            for attrKey in list(kwAttr.keys()):
                 nType[attrKey][dataIDs] = kwAttr[attrKey]
                 
         return [dataID + nTypeID * self.maxNodes for dataID in dataIDs]
@@ -289,7 +308,7 @@ class BaseGraph():
             view[dataIDs] = values
         else:
             #label is a singel string
-            self.nodes[nTypeID]._data[label][dataIDs]= values
+            self.nodes[nTypeID][label][dataIDs]= values
             
     def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
         """
@@ -399,9 +418,9 @@ class BaseGraph():
         nfreeRows = len(eType.freeRows)
         if nfreeRows == 0:
             
-            dataIDs[:] = [eType.getNewID() for x in xrange(nEdges)]  
+            dataIDs[:] = [eType.getNewID() for x in range(nEdges)]  
         elif nfreeRows < nEdges:
-            newIDs = [eType.getNewID() for x in xrange(nEdges - nfreeRows)] 
+            newIDs = [eType.getNewID() for x in range(nEdges - nfreeRows)] 
             dataIDs[:] = eType.freeRows + newIDs
             eType.freeRows = []
         else:
@@ -433,7 +452,7 @@ class BaseGraph():
                 eType.nodesIn[target] = [source]
               
         if kwAttr is not None:
-            for attrKey in kwAttr.keys():
+            for attrKey in list(kwAttr.keys()):
                 eType[attrKey][dataIDs] = kwAttr[attrKey]
 
     def remEdge(self, source, target, eTypeID):
@@ -510,14 +529,14 @@ class BaseGraph():
     def nCount(self, nTypeID=None):
         """Returns the number of nodes of all or a specific node type"""
         if nTypeID is None:
-            return sum([nodeType.nCount() for nodeType in self.nodes.itervalues()])
+            return sum([nodeType.nCount() for nodeType in self.nodes.values()])
         else:
             return self.nodes[nTypeID].nCount()
 
     def eCount(self, eTypeID=None):
         """Returns the number of edges of all or a specific node type"""
         if eTypeID is None:
-            return sum([edgeType.eCount() for edgeType in self.edges.itervalues()])
+            return sum([edgeType.eCount() for edgeType in self.edges.values()])
         else:
             return self.edges[eTypeID].eCount()
 
@@ -667,7 +686,7 @@ class ABMGraph(BaseGraph):
         
     def getNodeView(self, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
-        return self.nodes[nTypeID]._data[dataID:dataID+1].view(), dataID
+        return self.nodes[nTypeID][dataID:dataID+1].view(), dataID
 
 
 if __name__ == "__main__":
@@ -692,9 +711,9 @@ if __name__ == "__main__":
     dataview2['gnID'] = 88
     bg.getNodeAttr(lnID=lnID1)
     bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
-    print bg.getNodeSeqAttr('gnID', [lnID1, lnID2])
-    print bg.getNodeAttr(lnID=lnID2)
-    print bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2]))
+    print(bg.getNodeSeqAttr('gnID', [lnID1, lnID2]))
+    print(bg.getNodeAttr(lnID=lnID2))
+    print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges
     LOCLOC = bg.initEdgeType('loc-loc', 
@@ -706,23 +725,23 @@ if __name__ == "__main__":
     
     
     
-    print bg.getEdgeSeqAttr('weig', [leID1, leID2])
+    print(bg.getEdgeSeqAttr('weig', [leID1, leID2]))
     bg.setEdgeSeqAttr('weig', [.9, .1], [leID1, leID2]) 
-    print bg.getEdgeSeqAttr('weig', [leID1, leID2])
+    print(bg.getEdgeSeqAttr('weig', [leID1, leID2]))
     dataview4
-    print bg.isConnected(lnID1, lnID3, LOCLOC)
-    print bg.outgoing(lnID1, LOCLOC)
-    print bg.eCount(LOCLOC)
+    print(bg.isConnected(lnID1, lnID3, LOCLOC))
+    print(bg.outgoing(lnID1, LOCLOC))
+    print(bg.eCount(LOCLOC))
     #print bg.eAttr[1]['target']
     bg.remEdge(lnID1, lnID3, LOCLOC)
     
-    print bg.isConnected(lnID1, lnID3, LOCLOC)
-    print bg.outgoing(lnID1, LOCLOC)
-    print bg.edges[LOC][0:2]['weig']
+    print(bg.isConnected(lnID1, lnID3, LOCLOC))
+    print(bg.outgoing(lnID1, LOCLOC))
+    print(bg.edges[LOC][0:2]['weig'])
 
-    print bg.getEdgeAttr(leID1)
+    print(bg.getEdgeAttr(leID1))
     
-    print bg.eCount()
+    print(bg.eCount())
     
     bg.addEdges(LOCLOC, [lnID1, lnID2], [lnID4, lnID4], weig=[-.1, -.112])
     
@@ -737,13 +756,13 @@ if __name__ == "__main__":
                                   [('weig', np.float64, 1)])
         agArray = np.zeros(nAgents, dtype=np.int32)
         randAttr = np.random.random([nAgents,4])
-        print 'adding nodes'
+        print('adding nodes')
         for i in tqdm(range(nAgents)):
             lnID, _, dataview = bg.addNode(AGENT, (i,randAttr[i,:]))
             agArray[i] = lnID
          
         nConnections = int(1e4)
-        print 'creating random edges' 
+        print('creating random edges') 
         for i in tqdm(range(nConnections)):
             
             source, target = np.random.choice(agArray,2)
@@ -756,9 +775,9 @@ if __name__ == "__main__":
         targets = np.random.choice(agArray, nConnections)
         
         bg.addEdges(AGAG, sources, targets, weig=weights)
-        print (str(time.time() - tt) + ' s')
+        print((str(time.time() - tt) + ' s'))
         
-        print 'checking if nodes are connected'
+        print('checking if nodes are connected')
         nChecks = int(1e5)
         for i in tqdm(range(nChecks)) :
             source, target = np.random.choice(agArray,2)
@@ -766,7 +785,7 @@ if __name__ == "__main__":
             
         nReadsOfNeigbours = int(1e5)
         
-        print 'reading values of connected nodes'
+        print('reading values of connected nodes')
         for i in tqdm(range(nReadsOfNeigbours)):
             lnID  = bg.nodes[AGENT].nodeList[i]
             (eType, dataIDs) , neigList = bg.outgoing(lnID,AGAG)
@@ -775,7 +794,7 @@ if __name__ == "__main__":
                 y = bg.getEdgeSeqAttr('weig', eTypeID=eType, dataIDs=dataIDs)
                 x = bg.getNodeSeqAttr('preferences', neigList)
         #%%
-        print 'writing values of sequence of nodes'    
+        print('writing values of sequence of nodes')    
         nNodes = 5
         nWriteOfSequence = int(1e4)
         values = np.random.randn(nWriteOfSequence+5, 4)

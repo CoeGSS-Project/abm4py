@@ -33,14 +33,14 @@ import time
 import mpi4py
 
 mpi4py.rc.threads = False
-import sys
+#import sys
 
 
-sys_excepthook = sys.excepthook
-def mpi_excepthook(v, t, tb):
-    sys_excepthook(v, t, tb)
-    mpi4py.MPI.COMM_WORLD.Abort(1)
-sys.excepthook = mpi_excepthook
+#sys_excepthook = sys.excepthook
+#def mpi_excepthook(v, t, tb):
+#    sys_excepthook(v, t, tb)
+#    mpi4py.MPI.COMM_WORLD.Abort(1)
+#sys.excepthook = mpi_excepthook
 
 from mpi4py import MPI
 import h5py
@@ -80,14 +80,14 @@ def getEnvironment(comm, getSimNo=True):
                 fid.writelines(baseOutputPath)
                 fid.close()
         except:
-            print 'ERROR Envirionment file is not set up'
-            print ''
-            print 'Please create file "environment" which contains the simulation'
-            print 'and the baseOutputPath'
-            print '#################################################'
-            print "0"
-            print 'basepath/'
-            print '#################################################'
+            print('ERROR Envirionment file is not set up')
+            print('')
+            print('Please create file "environment" which contains the simulation')
+            print('and the baseOutputPath')
+            print('#################################################')
+            print("0")
+            print('basepath/')
+            print('#################################################')
     else:
         simNo    = None
         baseOutputPath = None
@@ -99,8 +99,8 @@ def getEnvironment(comm, getSimNo=True):
         simNo = comm.bcast(simNo, root=0)
         baseOutputPath = comm.bcast(baseOutputPath, root=0)
         if comm.rank == 0:
-            print 'simulation number is: ' + str(simNo)
-            print 'base path is: ' + str(baseOutputPath)
+            print('simulation number is: ' + str(simNo))
+            print('base path is: ' + str(baseOutputPath))
         return simNo, baseOutputPath
     else:
         if comm is None:
@@ -122,7 +122,7 @@ def createOutputDirectory(comm, baseOutputPath, simNo):
 
         comm.Barrier()
         if comm.rank ==0:
-            print 'output directory created'
+            print('output directory created')
 
         return dirPath
 
@@ -212,7 +212,7 @@ def cartesian_old(arrays, out=None):
     out[:,0] = np.repeat(arrays[0], m)
     if arrays[1:]:
         cartesian(arrays[1:], out=out[0:m,1:])
-        for j in xrange(1, arrays[0].size):
+        for j in range(1, arrays[0].size):
             out[j*m:(j+1)*m,1:] = out[0:m,1:]
     return out
 
@@ -259,7 +259,7 @@ class Memory():
             self.columns[label] = i
         self.ID2Row    = dict()
         self.memory    = np.zeros([0, len(memeLabels)])
-        self.getID     = itertools.count().next
+        self.getID     = itertools.count().__next__
 
     def addMeme(self, meme):
         """
@@ -294,7 +294,7 @@ class Memory():
         rows = [self.ID2Row[x]   for x in memeID]
         return self.memory[np.ix_(rows,cols)]
 
-class Globals(dict):
+class Globals():
     """ This class manages global variables that are assigned on all processes
     and are synced via mpi. Global variables need to be registered together with
     the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
@@ -317,7 +317,7 @@ class Globals(dict):
         self.reduceDict = dict()
         
         # MPI operations
-        self.operations = dict()
+        self.operations         = dict()
         self.operations['sum']  = MPI.SUM
         self.operations['prod'] = MPI.PROD
         self.operations['min']  = MPI.MIN
@@ -326,6 +326,7 @@ class Globals(dict):
         #staticical reductions/aggregations
         self.statsDict       = dict()
         self.localValues     = dict()
+        self.globalValue     = dict()
         self.nValues         = dict()
         self.updated         = dict()
 
@@ -338,20 +339,20 @@ class Globals(dict):
 
     #%% simple global reductions
     def registerValue(self, globName, value, reduceType):
-        self[globName] = value
+        self.globalValue[globName] = value
         self.localValues[globName] = value
         try:
             self.nValues[globName] = len(value)
         except:
             self.nValues[globName] = 1
-        if reduceType not in self.reduceDict.keys():
+        if reduceType not in list(self.reduceDict.keys()):
             self.reduceDict[reduceType] = list()
         self.reduceDict[reduceType].append(globName)
         self.updated[globName] = True
 
     def syncReductions(self):
 
-        for redType in self.reduceDict.keys():
+        for redType in list(self.reduceDict.keys()):
 
             op = self.operations[redType]
             #print op
@@ -361,10 +362,10 @@ class Globals(dict):
                 assert  self.updated[globName] is True    ##OPTPRODUCTION
                 
                 # communication between all proceees
-                self[globName] = self.comm.allreduce(self.localValues[globName],op)
+                self.globalValue[globName] = self.comm.allreduce(self.localValues[globName],op)
                 self.updated[globName] = False
                 lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))##OPTPRODUCTION
-                lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self[globName]))##OPTPRODUCTION
+                lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self.globalValue[globName]))##OPTPRODUCTION
 
     #%% statistical global reductions/aggregations
     def registerStat(self, globName, values, statType):
@@ -381,13 +382,13 @@ class Globals(dict):
         self.localValues[globName]  = values
         self.nValues[globName]      = len(values)
         if statType == 'mean':
-            self[globName]          = np.mean(values)
+            self.globalValue[globName]          = np.mean(values)
         elif statType == 'std':
-            self[globName]          = np.std(values)
+            self.globalValue[globName]          = np.std(values)
         elif statType == 'var':
-            self[globName]          = np.var(values)
+            self.globalValue[globName]          = np.var(values)
 
-        if statType not in self.statsDict.keys():
+        if statType not in list(self.statsDict.keys()):
             self.statsDict[statType] = list()
         self.statsDict[statType].append(globName)
         self.updated[globName] = True
@@ -399,7 +400,7 @@ class Globals(dict):
         self.updated[globName]         = True
 
     def syncStats(self):
-        for redType in self.statsDict.keys():
+        for redType in list(self.statsDict.keys()):
             if redType == 'mean':
 
                 for globName in self.statsDict[redType]:
@@ -418,8 +419,8 @@ class Globals(dict):
                     # calculation of global mean
                     globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                     globSize  = np.sum(tmp[:,1])             # sum(size)
-                    self[globName] = globValue/ globSize    # glob mean
-                    lg.debug('Global mean: ' + str( self[globName] ))   ##OPTPRODUCTION
+                    self.globalValue[globName] = globValue/ globSize    # glob mean
+                    lg.debug('Global mean: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
                     self.updated[globName] = False
                     
             elif redType == 'std':
@@ -458,8 +459,8 @@ class Globals(dict):
 
                     globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
-                    self[globName] = np.sqrt(globVariance)
-                    lg.debug('Global STD: ' + str( self[globName] ))   ##OPTPRODUCTION
+                    self.globalValue[globName] = np.sqrt(globVariance)
+                    lg.debug('Global STD: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
                     self.updated[globName] = False
                     
             elif redType == 'var':
@@ -495,8 +496,8 @@ class Globals(dict):
 
                     globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
 
-                    self[globName] = globVariance
-                    lg.debug('Global variance: ' + str( self[globName] ))  ##OPTPRODUCTION
+                    self.globalValue[globName] = globVariance
+                    lg.debug('Global variance: ' + str( self.globalValue[globName] ))  ##OPTPRODUCTION
                     self.updated[globName] = False
 
     def sync(self):
@@ -553,7 +554,7 @@ class GlobalRecord():
             plt.plot(self.rec)
             if hasattr(self,'calDataDict'):
                 calData = self.rec*np.nan
-                for x,y in self.calDataDict.iteritems():
+                for x,y in self.calDataDict.items():
                     if x <= calData.shape[0]:
                         calData[x,:] = y
 
@@ -594,8 +595,8 @@ class GlobalRecord():
         h5File = h5py.File(filePath, 'a')
         dset = h5File.create_dataset('glob/' + self.name, self.rec.shape, dtype='f8')
         dset[:] = self.rec
-        dset.attrs['columns'] = self.columns
-        dset.attrs['title']   = self.title
+        dset.attrs['columns'] = [string.encode('utf8') for string in self.columns]
+        dset.attrs['title']   = self.title.encode('utf8')
         if hasattr(self,'calDataDict'):
             tmp = np.zeros([len(self.calDataDict), self.rec.shape[1]+1])*np.nan
             for i, key in enumerate(self.calDataDict.keys()):
@@ -610,7 +611,7 @@ class GlobalRecord():
         if hasattr(self,'calDataDict'):
 
             err = 0
-            for timeIdx ,calValues in self.calDataDict.iteritems():
+            for timeIdx ,calValues in self.calDataDict.items():
 
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
@@ -653,7 +654,7 @@ class IO():
 
 
         def addAttr(self, name, nProp):
-            attrIdx = range(self.nAttr,self.nAttr+nProp)
+            attrIdx = list(range(self.nAttr,self.nAttr+nProp))
             self.attributeList.append(name)
             self.attrIdx[name] = attrIdx
             self.nAttr += len(attrIdx)
@@ -711,9 +712,12 @@ class IO():
             tt = time.time()
             lg.info(' NodeType: ' +str(nodeType))
             group = self.h5File.create_group(str(nodeType))
-
-            group.attrs.create('dynamicProps', world.graph.getPropOfNodeType(nodeType, 'dyn')['names'])
-            group.attrs.create('staticProps', world.graph.getPropOfNodeType(nodeType, 'sta')['names'])
+            
+            attrStrings = [string.encode('utf8') for string in world.graph.getPropOfNodeType(nodeType, 'dyn')['names']]
+            group.attrs.create('dynamicProps', attrStrings)
+            
+            attrStrings = [string.encode('utf8') for string in  world.graph.getPropOfNodeType(nodeType, 'sta')['names']]
+            group.attrs.create('staticProps', attrStrings)
 
             lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
@@ -761,7 +765,7 @@ class IO():
                     entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=nodeType, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
-                    raise(BaseException(str(attr) + ' not found on rank' + str(self.comm.rank)))
+                    raise BaseException
                 if not isinstance(entProp,str):
                     staticRec.addAttr(attr, nProp)
 
@@ -842,23 +846,23 @@ class IO():
         ToDo: include attributes in the agent file
         """
 
-        for nodeType in self.dynamicData.keys():
+        for nodeType in list(self.dynamicData.keys()):
             group = self.h5File.get('/' + str(nodeType))
             record = self.dynamicData[nodeType]
-            for attrKey in record.attrIdx.keys():
+            for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
-        for nodeType in self.staticData.keys():
+        for nodeType in list(self.staticData.keys()):
             group = self.h5File.get('/' + str(nodeType))
             record = self.staticData[nodeType]
-            for attrKey in record.attrIdx.keys():
+            for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
 
         self.h5File.close()
         lg.info( 'Agent file closed')
 
-        for nodeType in self.dynamicData.keys():
+        for nodeType in list(self.dynamicData.keys()):
             record = self.dynamicData[nodeType]
             saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeType)))
 
@@ -964,7 +968,7 @@ class Mpi():
         tt = time.time()
         messageSize = 0
         
-        for (nodeType, mpiPeer) in self.mpiSendIDList.keys():
+        for (nodeType, mpiPeer) in list(self.mpiSendIDList.keys()):
 
             if nodeTypeList == 'all' or nodeType in nodeTypeList:
 
@@ -1034,7 +1038,7 @@ class Mpi():
             self.mpiRecvIDList[(locNodeType, owner)].append(ghLoc.nID)
         lg.debug('rank ' + str(self.rank) + ' mpiRecvIDList: ' + str(self.mpiRecvIDList))##OPTPRODUCTION
 
-        for mpiDest in mpiRequest.keys():
+        for mpiDest in list(mpiRequest.keys()):
 
             if mpiDest not in self.peers:
                 self.peers.append(mpiDest)
@@ -1049,7 +1053,7 @@ class Mpi():
         lg.debug( 'requestIn:' +  str(requestIn))##OPTPRODUCTION
 
 
-        for mpiDest in mpiRequest.keys():
+        for mpiDest in list(mpiRequest.keys()):
 
             #self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiRecvIDList[mpiDest]] #sequence
 
@@ -1082,7 +1086,7 @@ class Mpi():
 
         requestRecv = self._all2allSync()
 
-        for mpiDest in mpiRequest.keys():
+        for mpiDest in list(mpiRequest.keys()):
             #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
             #receive requested global IDs
             globIDList = requestRecv[mpiDest][0]
@@ -1170,7 +1174,7 @@ class Mpi():
 
 
         lg.info('################## Ratio of ghost agents ################################################')
-        for nodeTypeIdx in world.graph.nodeTypes.keys():
+        for nodeTypeIdx in list(world.graph.nodeTypes.keys()):
             nodeType = world.graph.nodeTypes[nodeTypeIdx].typeStr
             if len(world.nodeDict[nodeTypeIdx]) > 0:
                 nGhostsRatio = float(len(world.ghostNodeDict[nodeTypeIdx])) / float(len(world.nodeDict[nodeTypeIdx]))
@@ -1218,7 +1222,7 @@ class Mpi():
 
     def queueSendGhostNode(self, mpiPeer, nodeType, entity, parentEntity):
 
-        if (nodeType, mpiPeer) not in self.ghostNodeQueue.keys():
+        if (nodeType, mpiPeer) not in list(self.ghostNodeQueue.keys()):
             self.ghostNodeQueue[nodeType, mpiPeer] = dict()
             self.ghostNodeQueue[nodeType, mpiPeer]['nIds'] = list()
             self.ghostNodeQueue[nodeType, mpiPeer]['conn'] = list()
