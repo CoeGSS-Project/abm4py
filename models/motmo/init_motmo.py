@@ -526,7 +526,7 @@ def householdSetup(earth, calibration=False):
     #earth.graph.write_graphml('graph' +str(earth.papi.rank) + '.graphML')
     #earth.view(str(earth.papi.rank) + '.png')
 
-#    for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
+#    for ghostCell in earth.random.iterEntity(CELL, ghosts = True, random=False):
 #        if mpiRank == 0:
 #            print ghostCell.peList
 #        ghostCell.hhList = ghostCell.updateAgentList(earth.graph, CON_LH)
@@ -537,7 +537,7 @@ def householdSetup(earth, calibration=False):
 #        #ghostCell.peList = None
 #        print ghostCell.peList
         
-    for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
+    for hh in earth.iterEntity(HH, ghosts = False):
         # caching all adult node in one hh
         #hh.setAdultNodeList(earth)
         assert len(hh.adults) == hh.get('hhSize') - hh.get('nKids')  ##OPTPRODUCTION
@@ -740,7 +740,7 @@ def initSpatialLayer(earth):
     
     if 'regionIdRaster' in list(parameters.keys()):
 
-        for cell in earth.iterEntRandom(CELL):
+        for cell in earth.random.iterEntity(CELL):
             cell.set('regionId', parameters['regionIdRaster'][tuple(cell.get('pos'))])
             cell.set('chargStat', 0)
             cell.set('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
@@ -774,9 +774,9 @@ def cellTest(earth):
     eConvArray = earth.para['landLayer'] * 0
     
     #import tqdm
-    #for i, cell in tqdm.tqdm(enumerate(earth.iterEntRandom(CELL))):
+    #for i, cell in tqdm.tqdm(enumerate(earth.random.iterEntity(CELL))):
     if earth.para['showFigures']:
-        for i, cell in enumerate(earth.iterEntRandom(CELL)):        
+        for i, cell in enumerate(earth.random.iterEntity(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
             #cell.set('carsInCell',[0,200.,0,0,0])
@@ -1009,7 +1009,7 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.iterEntRandom(HH):
+    for household in earth.random.iterEntity(HH):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
@@ -1017,7 +1017,7 @@ def runModel(earth, parameters):
 
     lg.info('Initial actions done')
 
-    for cell in earth.iterEntRandom(CELL):
+    for cell in earth.random.iterEntity(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
      
     
@@ -1029,7 +1029,7 @@ def runModel(earth, parameters):
     
     lg.info('Initial market step done')
 
-    for household in earth.iterEntRandom(HH):
+    for household in earth.random.iterEntity(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
@@ -1159,7 +1159,7 @@ def onlinePostProcessing(earth):
 
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
-    for agent in earth.iterEntRandom(HH):
+    for agent in earth.random.iterEntity(HH):
         friendList = agent.getPeerIDs(edgeType=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()

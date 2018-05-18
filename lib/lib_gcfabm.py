@@ -59,8 +59,6 @@ later:
 import logging as lg
 import sys
 import numpy as np
-import random as rd
-import types
 
 from class_graph import ABMGraph
 import core
@@ -116,11 +114,6 @@ class Entity():
         if not hasattr(self, '_graph'):
             self._setGraph(world.graph)
 
-#        if world.queuing:        
-#            if not hasattr(self, '_queue'):
-#                self.setQueue(world.queue)            
-        #self._graph = world.graph
-
         self.gID    = self.getGlobID(world)
         kwProperties['gID'] = self.gID
 
@@ -140,20 +133,6 @@ class Entity():
         self.get = firstElementDeco(self.data.__getitem__)
         self.set = self.data.__setitem__
         
-        #self.__getitem__ = firstElementDeco(self.data.__getitem__)
-        #self.__setitem__ = self.data.__setitem__
-
-#    def __getitem__(self, key, value):
-#        return self.data[key]
-#        
-#    def __setitem__(self, key, value):
-#        self.data[key] = value
-#        
-#    def addValue(self, key, value, index=None):
-#        if index is None:
-#            self.data[key] += value
-#        else:
-#            self.data[key][index] += value
     
     @classmethod
     def _setGraph(cls, graph):
@@ -184,11 +163,6 @@ class Entity():
         return nodeList
 
         
-
-#    def getPeers(self, edgeType=None):
-#        return self._graph.vs[self.getPeerIDs(edgeType)]
-#        return self._graph.getOutNodeValues(self, self.nID, eTypeID, attr=None)
-
     def getPeerValues(self, prop, edgeType=None):
         """
         Access the attributes of all connected nodes of an specified nodeType
@@ -242,20 +216,6 @@ class Entity():
         eList, _  = self._graph.outgoing(self.nID, edgeType)
         return eList
 
-    def getNeigbourhood(self, order):
-        raise DeprecationWarning('not supported right now')
-        raise NameError('sorry')
-#        neigIDList = self._graph.neighborhood(self.nID, order)
-#        neigbours = []
-#        for neigID in neigIDList:
-#            neigbours.append(self._graph.vs[neigID])
-#        return neigbours, neigIDList
-
-
-#    def queueConnection(self, friendID, edgeType, **kwpropDict):
-#        kwpropDict.update({'type': edgeType})
-#        self._queue.addEdge(self.nID,friendID, **kwpropDict)
-
 
     def addConnection(self, friendID, edgeType, **kwpropDict):
         """
@@ -265,18 +225,22 @@ class Entity():
         self._graph.addEdge(edgeType, self.nID, friendID, attributes = tuple(kwpropDict.values()))
 
 
-    def remConnection(self, friendID=None, edgeID=None):
+    def remConnection(self, friendID=None, edgeType=None):
         """
         Removing a connection to another node
         """
-        self._graph.remEdge(source=self.nID, target=friendID, eTypeID=edgeID)
+        self._graph.remEdge(source=self.nID, target=friendID, eTypeID=edgeType)
 
-    def remConnections(self, friendIDs=None, edgeIDs=None):
-        raise DeprecationWarning('not supported right now')
-        raise NameError('sorry')
+    def remConnections(self, friendIDs=None, edgeType=None):
+        """
+        Removing mutiple connections to another node
+        """        
+        if friendIDs is not None:
+            for friendID in friendIDs:
+                self._graph.remEdge(source=self.nID, target=friendID, eTypeID=edgeType)
 
 
-    def addValue(self, prop, value, idx = None):
+    def addTo(self, prop, value, idx = None):
         #raise DeprecationWarning('Will be deprecated in the future')
         if idx is None:
             self.data[prop] += value
@@ -476,7 +440,6 @@ class World:
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
         self.para['outPath'] = outPath
 
-        
         self.globalRecord = dict() # storage of global data
 
         self.addEdge        = self.graph.addEdge
@@ -501,12 +464,12 @@ class World:
         self.graph.glob     = core.Globals(self)
         lg.debug('Init Globals done')##OPTPRODUCTION
 
+        self.random = core.Random(self)
         if spatial:
             self.spatial  = core.Spatial(self)
         
         # enumerations
         self.enums = dict()
-
 
         # node lists and dicts
         self.nodeDict       = dict()
@@ -541,8 +504,7 @@ class World:
 
     def loc2glob(self, idx):
         return self._loc2glob[idx]
-
-    
+ 
 
     def getLocationDict(self):
         """
@@ -607,13 +569,26 @@ class World:
             assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
             self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.nodeDict[nodeType])
 
+    def getEdgeValues(self, label, valueList, localEdgeIDList=None, edgeType=None):
+        if localEdgeIDList:   
+            assert edgeType is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=localEdgeIDList)
+        
+        elif edgeType:           
+            assert localEdgeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.edgeDict[edgeType])
 
-
-    def getEdgeData(self, propName, edgeType=None):
+    def setEdgeValues(self, label, valueList, localEdgeIDList=None, edgeType=None):
         """
         Method to retrieve all properties of all entities of one edgeType
         """
-        return self.graph.es.select(type=edgeType)[propName]
+        if localEdgeIDList:
+            assert edgeType is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localEdgeIDList)
+        
+        elif edgeType:
+            assert localEdgeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.edgeDict[edgeType])
     
   
     def getEntity(self, nodeID=None, globID=None):
@@ -626,19 +601,7 @@ class World:
             return self.entDict[self._glob2loc[globID]]
 
 
-    #TODO add init for non-spatial init of communication
-    
-
-    def iterEdges(self, edgeType):
-        """
-        Iteration over edges of specified type. Default returns
-        non-ghosts in order of creation.
-        """
-        for i in range(self.graph.ecount()):
-            if self.graph.es[i]['type'] == edgeType:
-                yield self.graph.es[i]
-
-    def iterEntRandom(self,nodeType, ghosts = False, random=True):
+    def iterEntity(self,nodeType, ghosts = False):
         """
         Iteration over entities of specified type. Default returns
         non-ghosts in random order.
@@ -651,33 +614,7 @@ class World:
         else:
             nodeDict = self.nodeDict[nodeType]
 
-        if random:
-            #print 'nodeDict' + str(nodeDict)
-            #print self.entList
-            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
-            return [self.entDict[i] for i in shuffled_list]
-        else:
-            return  [self.entDict[i] for i in nodeDict]
-
-    def iterEntAndIDRandom(self, nodeType, ghosts = False, random=True):
-        """
-        Iteration over entities of specified type and their IDs . Default returns
-        non-ghosts in random order.
-        """
-        if isinstance(nodeType,str):
-            nodeType = self.types.index(nodeType)
-
-        if ghosts:
-            nodeDict = self.ghostnodeDict[nodeType]
-        else:
-            nodeDict = self.nodeDict[nodeType]
-
-        if random:
-            shuffled_list = sorted(nodeDict, key=lambda x: rd.random())
-            return  [(self.entDict[i], i) for i in shuffled_list]
-        else:
-            return  [(self.entDict[i], i) for i in nodeDict]
-
+        return  [self.entDict[i] for i in nodeDict]
 
 
     def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = [], dynamicProperies = []):
@@ -790,11 +727,6 @@ class World:
 
         self.locDict[x,y] = location
 
-    def resetEdgeCache(self):
-        self._cache.resetEdgeCache()
-
-    def resetNodeCache(self):
-        self._cache.resetNodeCache()
 
     def returnApiComm(self):
         return self.papi.comm
@@ -943,8 +875,9 @@ if __name__ == '__main__':
 
     #earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
     print(earth.papi.comm.rank)
-    log_file  = open('out' + str(earth.papi.rank) + '.txt', 'w')
-    sys.stdout = log_file
+    if mpiComm.size > 1:
+        log_file  = open('out' + str(earth.papi.rank) + '.txt', 'w')
+        sys.stdout = log_file
     earth.graph.glob.registerValue('test' , np.asarray([earth.papi.comm.rank]),'max')
 
     earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
@@ -989,7 +922,7 @@ if __name__ == '__main__':
     earth.spatial.initSpatialLayer(mpiRankLayer, connList, CELL, Location, GhostLocation)
     #earth.papi.initCommunicationViaLocations(ghostLocationList)
 
-    for cell in earth.iterEntRandom(CELL):
+    for cell in earth.random.iterEntity(CELL):
         cell.data['value'] = earth.papi.rank
         cell.data['value2'] = earth.papi.rank+2
 
@@ -1032,7 +965,7 @@ if __name__ == '__main__':
     print(str(earth.papi.rank) + ' ' + str(earth.graph.nodes[AG].indices))
     print(str(earth.papi.rank) + ' ' + str(earth.graph.nodes[AG]['value3']))
 
-    for agent in earth.iterEntRandom(AG):
+    for agent in earth.random.iterEntity(AG):
         agent.data['value3'] = earth.papi.rank+ agent.nID
         assert agent.get('value3') == earth.papi.rank+ agent.nID
 

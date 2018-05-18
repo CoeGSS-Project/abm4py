@@ -8,7 +8,7 @@ import socket
 
 import init_motmo as init
 import core
-import plots
+
 
 debug = 1
 showFigures = 0
@@ -55,6 +55,7 @@ if earth.isRoot:
     init.writeSummary(earth, parameters)
 
 if showFigures:
+    import plots
     init.onlinePostProcessing(earth)
 
-plots.computingTimes(earth)
+    plots.computingTimes(earth)

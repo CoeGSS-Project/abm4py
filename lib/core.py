@@ -31,6 +31,7 @@ import pandas as pd
 import pickle
 import time
 import mpi4py
+import random
 
 mpi4py.rc.threads = False
 #import sys
@@ -1459,14 +1460,35 @@ class PAPI():
         return buff
 
 class Random():
-
+    
+    
     def __init__(self, world):
         self.world = world # make world availabel in class random
 
-    def entity(self, nChoice, entType):
-        ids = np.random.choice(self.world.nodeDict[entType],nChoice,replace=False)
-        return [self.world.entDict[idx] for idx in ids]
+#    def entity2(self, nChoice, entType):
+#        ids = np.random.choice(self.world.nodeDict[entType],nChoice,replace=False)
+#        return [self.world.entDict[idx] for idx in ids]
 
+    def entity(self, nChoice, entType):
+        return random.sample(self.world.nodeDict[entType],nChoice)
+    
+    def location(self, nChoice):
+        return random.sample(self.world.locDict.items(), nChoice)
+    
+    def iterEntity(self, nodeType, ghosts=False):
+        # a generator that yields items instead of returning a list
+        if isinstance(nodeType,str):
+            nodeType = self.world.types.index(nodeType)
+
+        if ghosts:
+            nodeDict = self.world.ghostNodeDict[nodeType]
+        else:
+            nodeDict = self.world.nodeDict[nodeType]
+
+        shuffled_list = sorted(nodeDict, key=lambda x: random.random())
+        for i in shuffled_list:
+            yield self.world.entDict[i]
+            
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
