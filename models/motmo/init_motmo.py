@@ -472,7 +472,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, edgeType=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
-            hh.loc.setValue('population', hh.loc.getValue('population') + nPers)
+            hh.loc.set('population', hh.loc.get('population') + nPers)
             
             assert nAdults > 0 ##OPTPRODUCTION
             
@@ -540,7 +540,7 @@ def householdSetup(earth, calibration=False):
     for hh in earth.iterEntRandom(HH, ghosts = False, random=False):
         # caching all adult node in one hh
         #hh.setAdultNodeList(earth)
-        assert len(hh.adults) == hh.getValue('hhSize') - hh.getValue('nKids')  ##OPTPRODUCTION
+        assert len(hh.adults) == hh.get('hhSize') - hh.get('nKids')  ##OPTPRODUCTION
         
     earth.papi.comm.Barrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
@@ -741,12 +741,12 @@ def initSpatialLayer(earth):
     if 'regionIdRaster' in list(parameters.keys()):
 
         for cell in earth.iterEntRandom(CELL):
-            cell.setValue('regionId', parameters['regionIdRaster'][tuple(cell.getValue('pos'))])
-            cell.setValue('chargStat', 0)
-            cell.setValue('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
-            cell.setValue('electricConsumption', 0.)
-            cell.cellSize = parameters['cellSizeMap'][tuple(cell.getValue('pos'))]
-            cell.setValue('popDensity', popDensity[tuple(cell.getValue('pos'))])
+            cell.set('regionId', parameters['regionIdRaster'][tuple(cell.get('pos'))])
+            cell.set('chargStat', 0)
+            cell.set('emissions', np.zeros(len(earth.enums['mobilityTypes'])))
+            cell.set('electricConsumption', 0.)
+            cell.cellSize = parameters['cellSizeMap'][tuple(cell.get('pos'))]
+            cell.set('popDensity', popDensity[tuple(cell.get('pos'))])
             
     earth.papi.updateGhostNodes([CELL],['chargStat'])
 
@@ -779,11 +779,11 @@ def cellTest(earth):
         for i, cell in enumerate(earth.iterEntRandom(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
-            #cell.setValue('carsInCell',[0,200.,0,0,0])
+            #cell.set('carsInCell',[0,200.,0,0,0])
             convAll[1] = convAll[1] * cell.electricInfrastructure(100.)
             convArray[:, i] = convAll
             popArray[i] = popDensity
-            eConvArray[cell.getValue('pos')] = convAll[1]
+            eConvArray[cell.get('pos')] = convAll[1]
             #print time.time() - ttclass
         
         
@@ -932,7 +932,7 @@ def initCacheArrays(earth):
     maxFriends = earth.para['maxFriends']
     persZero = earth.entDict[earth.nodeDict[PERS][0]]
     
-    nUtil = persZero.getValue('commUtil').shape[0]
+    nUtil = persZero.get('commUtil').shape[0]
     Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
     Person.cacheUtil     = np.zeros(maxFriends+1)
     Person.cacheMobType  = np.zeros(maxFriends+1, dtype=np.int32)
@@ -1013,7 +1013,7 @@ def runModel(earth, parameters):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
-            adult.setValue('lastAction', int(np.random.rand() * float(earth.para['mobNewPeriod'])))
+            adult.set('lastAction', int(np.random.rand() * float(earth.para['mobNewPeriod'])))
 
     lg.info('Initial actions done')
 
