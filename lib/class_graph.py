@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 15 10:31:00 2017
@@ -9,7 +9,6 @@ Created on Fri Sep 15 10:31:00 2017
 import logging as lg
 import numpy as np
 import itertools
-import functools
 
 class TypeDescription():
 
@@ -22,46 +21,13 @@ class TypeDescription():
         self.typeIdx = nodeTypeIdx
         self.typeStr = typeStr
         
-#class NodeArray():
-#    """
-#    Data structure for nodes and related informations based on a numpy array
-#    """
-#    def __init__(self, maxNodes, nTypeID, dtype):
-#        # Input array is an already formed ndarray instance
-#        # We first cast to be our class type
-#        self._data = np.array(np.empty(maxNodes, dtype)).view()
-#        # add the new attribute to the created instance
-#        self.maxNodes       = maxNodes
-#        self.nType          = nTypeID
-#        self.getNewID       = itertools.count().__next__
-#        self.nodeList       = []
-#        self.freeRows       = []
-#        # redirect getitem functionality to _data
-#        self.__getitem__    = self._data.__getitem__
-#        
-#    def __array_finalize__(self, obj):
-#        # see InfoArray.__array_finalize__ for comments
-#        if obj is None: return
-#        if obj.dtype.names is not None:
-#            for name in obj.dtype.names:
-#                self.__setattr__(name, getattr(obj, name, None))
-#        
-#
-#    def __getattr__(self, attr):
-#        try: return getattr(self._data, attr)
-#        except AttributeError:
-#            # extend interface to all functions from numpy
-#            f = getattr(np, attr, None)
-#            if hasattr(f, '__call__'):
-#                return functools.partial(f, self._data)
-#            else:
-#                raise AttributeError(attr)
+
     
 class NodeArray(np.ndarray):
     def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
           strides=None, order=None):
 
-        # It also triggers a call to InfoArray.__array_finalize__
+        
         obj = np.ndarray.__new__(subtype, maxNodes, dtype, buffer, offset, strides,
                          order)
         obj.maxNodes       = maxNodes
@@ -71,9 +37,7 @@ class NodeArray(np.ndarray):
         obj.freeRows       = []
         return obj
 
-#    def __getitem__(self, key):
-#        return np.ndarray.__getitem__(key)    
-  
+ 
     def nCount(self):
         return len(self.nodeList)
 
@@ -101,28 +65,6 @@ class EdgeArray(np.ndarray):
         obj.nodesOut       = dict() # (source -> target)
         obj.nodesIn        = dict() # (target -> source)
         return obj
-        # redirect getitem functionality to _data
-        #self.__getitem__    = self._data.__getitem__
-
-#    def __array_finalize__(self, obj):
-#        # see InfoArray.__array_finalize__ for comments
-#        if obj is None: return
-#        self.info = getattr(obj, 'info', None)
-#        if obj.dtype.names is not None:
-#            for name in obj.dtype.names:
-#                self.__setattr__(name, getattr(obj, name, None))
-#        
-#
-#    def __getattr__(self, attr):
-#        try: return getattr(self._data, attr)
-#        except AttributeError:
-#
-#            # extend interface to all functions from numpy
-#            f = getattr(np, attr, None)
-#            if hasattr(f, '__call__'):
-#                return functools.partial(f, self._data)
-#            else:
-#                raise AttributeError(attr)
                 
     def eCount(self):
         return len(self.edgeList)
@@ -169,7 +111,7 @@ class BaseGraph():
                             ('target', np.int32, 1)]
         
     #%% NODES
-    def initNodeType(self, nodeName, attrDescriptor):
+    def _initNodeType(self, nodeName, attrDescriptor):
         
         nTypeID          = self.getNodeTypeID()
         dt               = np.dtype(self.persNodeAttr + attrDescriptor)
@@ -324,7 +266,7 @@ class BaseGraph():
             return self.nodes[nTypeID][dataIDs]
 
     #%% EDGES
-    def initEdgeType(self, nodeName, attrDescriptor):
+    def _initEdgeType(self, nodeName, attrDescriptor):
         
         eTypeID = self.getEdgeTypeID()
         dt = np.dtype(self.persEdgeAttr + attrDescriptor)
@@ -368,11 +310,11 @@ class BaseGraph():
         if len(self.edges[eTypeID].freeRows) > 0:
             # use and old local node ID from the free row
             dataID = eType.freeRows.pop()
-            leID   = dataID + eTypeID * self.maxNodes
+            leID   = dataID + eTypeID * self.maxEdges
         else:
             # generate a new local ID
             dataID   = eType.getNewID()
-            leID = dataID + eTypeID * self.maxNodes
+            leID = dataID + eTypeID * self.maxEdges
             
         dataview = eType[dataID:dataID+1].view() 
          
@@ -432,7 +374,7 @@ class BaseGraph():
         eType['active'][dataIDs] = True
               
         #updating edge dictionaries
-        leIDs = dataIDs + eTypeID * self.maxNodes
+        leIDs = dataIDs + eTypeID * self.maxEdges
         eType.edgeList.extend(leIDs.tolist())
         for source, target, dataID in zip(sources,targets, dataIDs):
             eType.eDict[(source, target)] = dataID
@@ -545,7 +487,7 @@ class BaseGraph():
         This function is testing the base graph class
         Not complete 
         """
-        NT1 = self.initNodeType('A',
+        NT1 = self._initNodeType('A',
                           10000, 
                           [('f1', np.float32,4),
                            ('i2', np.int32,1),
@@ -590,7 +532,7 @@ class ABMGraph(BaseGraph):
         self.class2NodeType[AgentClass]       = nodeTypeIdx
         self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
         
-        self.initNodeType(typeStr, staticProperties + dynamicProperties)
+        self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
     def addEdgeType(self , edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
         """ Create edge type description"""
@@ -598,7 +540,7 @@ class ABMGraph(BaseGraph):
         self.edgeTypes[edgeTypeIdx] = edgeType
         self.node2EdgeType[nodeType1, nodeType2] = edgeTypeIdx
         self.edge2NodeType[edgeTypeIdx] = nodeType1, nodeType2
-        self.initEdgeType(typeStr, staticProperties + dynamicProperties)
+        self._initEdgeType(typeStr, staticProperties + dynamicProperties)
 
 
     def getDTypeOfNodeType(self, nodeType, kind):
@@ -698,7 +640,7 @@ if __name__ == "__main__":
     bg = ABMGraph(world, int(1e6), int(1e6))
 
     #%% nodes
-    LOC = bg.initNodeType('location', 
+    LOC = bg._initNodeType('location', 
                           [('gnID', np.int16, 1),
                            ('pos', np.float64,2),
                            ('population', np.int16,1)])
@@ -716,7 +658,7 @@ if __name__ == "__main__":
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges
-    LOCLOC = bg.initEdgeType('loc-loc', 
+    LOCLOC = bg._initEdgeType('loc-loc', 
                                   [('weig', np.float64, 1)])
     
     
@@ -749,10 +691,10 @@ if __name__ == "__main__":
     if bigTest:
         from tqdm import tqdm
         nAgents = int(1e5)
-        AGENT = bg.initNodeType('agent', 
+        AGENT = bg._initNodeType('agent', 
                                 [('gnID', np.int16, 1),
                                  ('preferences', np.float64,4),])
-        AGAG = bg.initEdgeType('ag_ag', 
+        AGAG = bg._initEdgeType('ag_ag', 
                                   [('weig', np.float64, 1)])
         agArray = np.zeros(nAgents, dtype=np.int32)
         randAttr = np.random.random([nAgents,4])

@@ -259,11 +259,11 @@ class Earth(World):
             
             
         for cell in self.iterEntRandom(CELL, random=False):
-            regionID = str(int(cell.getValue('regionId')))
-            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.getValue('carsInCell')) * self.para['reductionFactor'])
-            self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.getValue('electricConsumption')))
-            self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell.getValue('emissions')))
-            self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell.getValue('chargStat')))
+            regionID = str(int(cell.get('regionId')))
+            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.get('carsInCell')) * self.para['reductionFactor'])
+            self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.get('electricConsumption')))
+            self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell.get('emissions')))
+            self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell.get('chargStat')))
                 
         # move values to global data class
         for re in self.para['regionIDList']:
@@ -1232,9 +1232,9 @@ class Person(Agent):
 
     
     def weightFriendExperience(self, world, commUtilPeers, weights):        
-        friendUtil = commUtilPeers[:,self.getValue('mobType')]
+        friendUtil = commUtilPeers[:,self.get('mobType')]
         nFriends   = friendUtil.shape[0]
-        ownUtil    = self.getValue('util')
+        ownUtil    = self.get('util')
         
 
         prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
@@ -1340,8 +1340,8 @@ class Person(Agent):
 
         contactList = list()
         connList   = list()
-        ownPref    = self.getValue('preferences')
-        ownIncome  = self.hh.getValue('income')
+        ownPref    = self.get('preferences')
+        ownIncome  = self.hh.get('income')
 
 
         #get spatial weights to all connected cells
@@ -1402,8 +1402,8 @@ class Person(Agent):
         weightData[:,0] = weightData[:,0] / np.sum(weightData[:,0],axis=0)
 
         if np.sum(weightData[:,0]>0) < nContacts:
-            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
-            lg.info( "population = " + str(self.loc.getValue('population')) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',CON_LL)[0])))
+            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
+            lg.info( "population = " + str(self.loc.get('population')) + " surrounding population: " +str(np.sum(self.loc.getPeerValues('population',CON_LL)[0])))
 
             nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
 
@@ -1437,7 +1437,7 @@ class Person(Agent):
     def computeCommunityUtility(self,earth, weights, commUtilPeers):
         #get weights from friends
         #weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
-        commUtil = self.getValue('commUtil') # old value
+        commUtil = self.get('commUtil') # old value
         
         # compute weighted mean of all friends
         if earth.para['weightConnections']:
@@ -1445,35 +1445,35 @@ class Person(Agent):
         else:
             commUtil += np.mean(commUtilPeers,axis=0)
 
-        mobType  = self.getValue('mobType')
+        mobType  = self.get('mobType')
         
         
         # adding weighted selfUtil selftrust
-        commUtil[mobType] += self.getValue('selfUtil')[mobType] * earth.para['selfTrust']
+        commUtil[mobType] += self.get('selfUtil')[mobType] * earth.para['selfTrust']
         # stf: die teilerei hier finde ich komisch, warum werden z.B. für alle mobTypes / 2 geteilt?
         # ich hätte einfach eine Zeile mit "commUtil[mobType] /= 2" erwartet
         commUtil /= 2.
         commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
 
-        if len(self.getValue('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:       ##OPTPRODUCTION
+        if len(self.get('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:       ##OPTPRODUCTION
             print('nID: ' + str(self.nID))                                       ##OPTPRODUCTION
             print('error: ')                                                     ##OPTPRODUCTION
             print('communityUtil: ' + str(commUtil))                             ##OPTPRODUCTION
-            print('selfUtil: ' + str(self.getValue('selfUtil')))                 ##OPTPRODUCTION
+            print('selfUtil: ' + str(self.get('selfUtil')))                 ##OPTPRODUCTION
             print('nEdges: ' + str(len(weights)))                                  ##OPTPRODUCTION
 
             return                                                              ##OPTPRODUCTION
         
-        self.setValue('commUtil', commUtil)
+        self.set('commUtil', commUtil)
 
         
         
 
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
-        if self.getValue('preferences')[INNO] > .15 and random.random() > .98:
-            self.imitation = [np.random.choice(self.getValue('commUtil').shape[0])]
+        if self.get('preferences')[INNO] > .15 and random.random() > .98:
+            self.imitation = [np.random.choice(self.get('commUtil').shape[0])]
         else:
 
             if np.sum(~np.isfinite(utilPeers)) > 0:
@@ -1518,7 +1518,7 @@ class Person(Agent):
         
         
         
-        if earth.para['weightConnections'] and random.random() > self.getValue('util'): 
+        if earth.para['weightConnections'] and random.random() > self.get('util'): 
             # weight friends
             self.weightFriendExperience(earth, commUtilPeers, weights)
 
@@ -1537,9 +1537,9 @@ class Person(Agent):
         else:
             self.imitation = [-1]
         
-        if self.getValue('mobType')>1:
-            good = earth.market.goods[self.getValue('mobType')]
-            self.setValue('prop',[good.properties['costs'], good.properties['costs']])
+        if self.get('mobType')>1:
+            good = earth.market.goods[self.get('mobType')]
+            self.set('prop',[good.properties['costs'], good.properties['costs']])
             
         # socialize
 #        if ESSR < 0.1 and np.random.rand() >0.99:
@@ -1665,20 +1665,20 @@ class Household(Agent):
         hhUtility = 0
         for adult in self.adults:
 
-            utility = self.utilFunc(adult.getValue('consequences'), adult.getValue('preferences'))
+            utility = self.utilFunc(adult.get('consequences'), adult.get('preferences'))
             #assert not( np.isnan(utility) or np.isinf(utility)), utility ##OPTPRODUCTION
 
             #adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
-            adult.setValue('util', utility)
+            adult.set('util', utility)
 
 
             if actionTaken:
                 # self-util is only saved if an action is taken
-                adult.data('selfUtil')[0, adult.getValue('mobType')] = utility
+                adult.data('selfUtil')[0, adult.get('mobType')] = utility
 
             hhUtility += utility
 
-        self.setValue('util', hhUtility)
+        self.set('util', hhUtility)
 
         return hhUtility
 
@@ -1693,10 +1693,10 @@ class Household(Agent):
                 adult.computeCommunityUtility(earth)
                 actionIds = [-1] + list(range(earth.para['nMobTypes']))
 
-                eUtils = [adult.getValue('util')] + adult.getValue('commUtil')
+                eUtils = [adult.get('util')] + adult.get('commUtil')
 
             else:
-                actionIds, eUtils = [-1], [adult.getValue('util')]
+                actionIds, eUtils = [-1], [adult.get('util')]
 #
             actionIdsList.append(actionIds)
             eUtilsList.append(eUtils)
@@ -1714,7 +1714,7 @@ class Household(Agent):
             while len([x for x in actionIdsList if x == [-1]]) < minNoAction:
                 randIdx = np.random.randint(len(actionIdsList))
                 actionIdsList[randIdx] = [-1]
-                eUtilsList[randIdx] =  [adult.getValue('util')]#[ eUtilsList[randIdx][0] ]
+                eUtilsList[randIdx] =  [adult.get('util')]#[ eUtilsList[randIdx][0] ]
             #print 'large Household'
 
         combActions = core.cartesian(actionIdsList)
@@ -1736,13 +1736,13 @@ class Household(Agent):
             properties = earth.market.buyCar(actionIdx)
             self.loc.addToTraffic(actionIdx)
 
-            person.setValue('mobType', int(actionIdx))
+            person.set('mobType', int(actionIdx))
 
-            person.setValue('prop', properties)
+            person.set('prop', properties)
             if earth.time <  earth.para['omniscientBurnIn']:
-                person.setValue('lastAction', random.randint(0, int(1.5*earth.para['mobNewPeriod'])))
+                person.set('lastAction', random.randint(0, int(1.5*earth.para['mobNewPeriod'])))
             else:
-                person.setValue('lastAction', 0)
+                person.set('lastAction', 0)
             # add cost of mobility to the expenses
             self.addValue('expenses', properties[0])
 
@@ -1752,11 +1752,11 @@ class Household(Agent):
         Method to undo actions
         """
         for adult in persons:
-            mobType = adult.getValue('mobType')
+            mobType = adult.get('mobType')
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.addValue('expenses', -adult.getValue('prop')[0])
+            self.addValue('expenses', -adult.get('prop')[0])
             world.market.sellCar(mobType)
 
     def testConsequences(self, earth, actionIds):
@@ -1767,8 +1767,8 @@ class Household(Agent):
         
         hhCarBonus = 0.2
         mobProperties = earth.market.currMobProps
-        convCell      = self.loc.getValue('convenience')
-        income        = self.getValue('income')
+        convCell      = self.loc.get('convenience')
+        income        = self.get('income')
         
         for ix, actions in enumerate(actionIds):
             
@@ -1800,8 +1800,8 @@ class Household(Agent):
 #        mobProperties = earth.market.getMobProps()
 #        experience    = earth.market.getCurrentExperience()
 #        sumExperience = sum(experience)
-#        convCell      = self.loc.getValue('convenience')
-#        income        = self.getValue('income')
+#        convCell      = self.loc.get('convenience')
+#        income        = self.get('income')
 #        
 #        for ix, actions in enumerate(actionIds):
 #            
@@ -1828,11 +1828,11 @@ class Household(Agent):
         carInHh = False
         # at least one car in househould?
         # stf: !=2 ist unschön. Was ist in der neuen Version mit Car sharing?
-        if any([adult.getValue('mobType') !=2 for adult in self.adults]):
+        if any([adult.get('mobType') !=2 for adult in self.adults]):
             carInHh = True
 
         # calculate money consequence
-        money = min(1., max(1e-5, 1 - self.getValue('expenses') / self.getValue('income')))
+        money = min(1., max(1e-5, 1 - self.get('expenses') / self.get('income')))
 
         emissions  = np.zeros(market.__nMobTypes__)
         hhLocation = self.loc
@@ -1841,16 +1841,16 @@ class Household(Agent):
             hhCarBonus = 0.
             #get action of the person
 
-            actionIdx = adult.getValue('mobType')
-            mobProps  = adult.getValue('prop')
+            actionIdx = adult.get('mobType')
+            mobProps  = adult.get('prop')
 
 #            if (actionIdx != 2):
-#                decay = 1- (1/(1+math.exp(-0.1*(adult.getValue('lastAction')-market.para['mobNewPeriod']))))
+#                decay = 1- (1/(1+math.exp(-0.1*(adult.get('lastAction')-market.para['mobNewPeriod']))))
 #            else:
 #                decay = 1.
             
             #calculate emissions per cell
-            nJourneys = adult.getValue('nJourneys')
+            nJourneys = adult.get('nJourneys')
             emissionsPerKm = mobProps[EMISSIONS] * market.para['reductionFactor']# in kg/km
             
             
@@ -1868,7 +1868,7 @@ class Household(Agent):
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
-            convenience = hhLocation.getValue('convenience')[actionIdx] + hhCarBonus
+            convenience = hhLocation.get('convenience')[actionIdx] + hhCarBonus
 
             if convenience > 1.:##OPTPRODUCTION
                 convenience = 1. ##OPTPRODUCTION
@@ -1910,11 +1910,11 @@ class Household(Agent):
             oldProp = list()
             oldLastAction = list()
             for adult in self.adults:
-                oldMobType.append(adult.getValue('mobType'))
-                oldProp.append(adult.getValue('prop'))
-                oldLastAction.append(adult.getValue('lastAction'))
-            oldExpenses = self.getValue('expenses')
-            oldUtil = copy.copy(self.getValue('util'))
+                oldMobType.append(adult.get('mobType'))
+                oldProp.append(adult.get('prop'))
+                oldLastAction.append(adult.get('lastAction'))
+            oldExpenses = self.get('expenses')
+            oldUtil = copy.copy(self.get('util'))
 
 
             # try all mobility combinations
@@ -1922,17 +1922,17 @@ class Household(Agent):
                 self._node['expenses'] = 0
                 for adultIdx, adult in enumerate(self.adults):
                     if combinedActions[combinationIdx][adultIdx] == -1:     # no action taken
-                        adult.setValue('mobType', oldMobType[adultIdx])
-                        adult.setValue('prop', oldProp[adultIdx])
-                        adult.setValue('lastAction', oldLastAction[adultIdx])
+                        adult.set('mobType', oldMobType[adultIdx])
+                        adult.set('prop', oldProp[adultIdx])
+                        adult.set('lastAction', oldLastAction[adultIdx])
                     else:
-                        adult.setValue('mobType', combinedActions[combinationIdx][adultIdx])
-                        adult.setValue('prop', market.goods[adult.getValue('mobType')].getProperties())
+                        adult.set('mobType', combinedActions[combinationIdx][adultIdx])
+                        adult.set('prop', market.goods[adult.get('mobType')].getProperties())
                         if earth.time <  earth.para['burnIn']:
-                            adult.setValue('lastAction', random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
+                            adult.set('lastAction', random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
                         else:
-                            adult.setValue('lastAction', 0)
-                    self.setValue('expenses', adult.getValue('prop')[0])
+                            adult.set('lastAction', 0)
+                    self.set('expenses', adult.get('prop')[0])
 
                 self.calculateConsequences(market)
                 utility = self.evalUtility(earth)
@@ -1950,10 +1950,10 @@ class Household(Agent):
 
             # reset old node values
             for adultIdx, adult in enumerate(self.adults):
-                adult.setValue('mobType', oldMobType[adultIdx])
-                adult.setValue('prop', oldProp[adultIdx])
-                adult.setValue('lastAction', oldLastAction[adultIdx])
-            self.setValue('expenses', oldExpenses)
+                adult.set('mobType', oldMobType[adultIdx])
+                adult.set('prop', oldProp[adultIdx])
+                adult.set('lastAction', oldLastAction[adultIdx])
+            self.set('expenses', oldExpenses)
 
             # get best combination
             bestUtilIdx = np.argmax(utilities)
@@ -1979,10 +1979,10 @@ class Household(Agent):
                              + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))                     ##OPTPRODUCTION
                     lg.debug('possible utilitties: ' + str(utilities))                                          ##OPTPRODUCTION                
                     lg.debug(self._node)                                                                        ##OPTPRODUCTION
-                    lg.debug('properties: ' + str([adult.getValue('prop') for adult in self.adults]))           ##OPTPRODUCTION
-                    lg.debug('consequence: '+ str([adult.getValue('consequences') for adult in self.adults]))   ##OPTPRODUCTION
-                    lg.debug('preferences: '+ str([adult.getValue('preferences') for adult in self.adults]))    ##OPTPRODUCTION
-                    lg.debug('utility: ' +    str([adult.getValue('util')  for adult in self.adults]))          ##OPTPRODUCTION
+                    lg.debug('properties: ' + str([adult.get('prop') for adult in self.adults]))           ##OPTPRODUCTION
+                    lg.debug('consequence: '+ str([adult.get('consequences') for adult in self.adults]))   ##OPTPRODUCTION
+                    lg.debug('preferences: '+ str([adult.get('preferences') for adult in self.adults]))    ##OPTPRODUCTION
+                    lg.debug('utility: ' +    str([adult.get('util')  for adult in self.adults]))          ##OPTPRODUCTION
         else:
             actionTaken = False
 
@@ -2088,7 +2088,7 @@ class Household(Agent):
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
         
-        if np.max(utilities) > self.getValue('util') * earth.para['hhAcceptFactor']:
+        if np.max(utilities) > self.get('util') * earth.para['hhAcceptFactor']:
             return bestOpt, np.max(utilities), actorIds
         else:
             return None, None, None
@@ -2314,7 +2314,7 @@ class Cell(Location):
         """
         convAll = list()
 
-        popDensity = np.float(self.getValue('popDensity'))
+        popDensity = np.float(self.get('popDensity'))
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
             
@@ -2368,7 +2368,7 @@ class Cell(Location):
         
         # overall convenience is product og both 
         eConv = statMinRequ * useConv
-#        if self.getValue('chargStat') == 26:
+#        if self.get('chargStat') == 26:
 #            import pdb
 #            pdb.set_trace()
         assert (eConv >= 0) and (eConv <= 1) ##OPTPRODUCTION
@@ -2387,9 +2387,9 @@ class Cell(Location):
                 # elecric car is used -> compute estimate of power consumption
                 # for the current model 0.6 kg / kWh
                 electricConsumption = emissionsPers[idx].sum() / 0.6
-                self.setValue('electricConsumption', electricConsumption)
+                self.set('electricConsumption', electricConsumption)
         
-        self.setValue('emissions', emissionsCell) 
+        self.set('emissions', emissionsCell) 
         
     def step(self, parameters, currentMaturity):
         """
@@ -2397,7 +2397,7 @@ class Cell(Location):
         """
         self._node['convenience'] *= 0.
         self._node['emissions'] *= 0.
-        self.setValue('electricConsumption', 0.)
+        self.set('electricConsumption', 0.)
         convAll = self.calculateConveniences(parameters,currentMaturity)
         self._node['convenience'][:] =  convAll
 

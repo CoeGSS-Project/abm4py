@@ -176,14 +176,14 @@ for x in range(procPerDim):
     
 connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
-earth.initSpatialLayer(parameters['landLayer'],
+earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
                            CELL,
                            LocClassObject=LIB.Location,
                            GhstLocClassObject=LIB.GhostLocation)
 
 for cell in earth.iterEntRandom(CELL, random=False):
-    cell.setValue('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
+    cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
 earth.mpi.updateGhostNodes([CELL],['agentsPerCell'])
@@ -198,7 +198,7 @@ for cell in earth.iterEntRandom(CELL, ghosts=True):
 locDict = earth.getLocationDict()
 for x, y in list(locDict.keys()):
     loc         = earth.getEntity(locDict[x, y].nID)
-    nAgentsCell = loc.getValue('agentsPerCell')
+    nAgentsCell = loc.get('agentsPerCell')
     
     for iAgent in range(nAgentsCell):
         agent = LIB.Agent(earth,
@@ -228,8 +228,8 @@ globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
 for agent in earth.iterEntRandom(AGENT):
-    contactList, connList, weigList = agent.getSpatiallyCloseEntities(earth, 
-                                                                      nFriends, 
+    contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
+                                                                      nContacts=nFriends, 
                                                                       nodeType=AGENT,
                                                                       addYourself=False)
     #connList = [(agent.nID, peerID) for peerID in np.random.choice(earth.nodeDict[AGENT],nFriends)]
@@ -273,7 +273,7 @@ def stepFunction(earth):
         #print peerAverage
         if peerAverage < 0.5:
             
-            agent.setValue('prop_B', np.random.random())
+            agent.set('prop_B', np.random.random())
     
     earth.compTime[earth.timeStep] += time.time() - tt
     

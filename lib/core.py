@@ -416,7 +416,7 @@ class Spatial():
         weightData /= np.sum(weightData,axis=0)
 
         if np.sum(weightData>0) < nContacts:
-            lg.info( "nID: " + str(agent.nID) + ": Reducting the number of friends at " + str(self.loc.getValue('pos')))
+            lg.info( "nID: " + str(agent.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
             nContacts = min(np.sum(weightData>0)-1,nContacts)
 
         if nContacts < 1:                                                       ##OPTPRODUCTION
@@ -1235,7 +1235,7 @@ class PAPI():
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             #print owner
-            x,y   = ghLoc.getValue('pos')
+            x,y   = ghLoc.get('pos')
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
                 self.mpiRecvIDList[(locNodeType, owner)] = list()
