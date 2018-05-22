@@ -67,7 +67,7 @@ if mpiRank == 0:
     print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
     init.writeSummary(earth, parameters)
 
-    os.chdir('./dakota')
+    os.chdir(dakotadir)
     execfile(dakotaParams['calcResultsScript'])
     # the script executed contains the calcResults function
     calcResults(dakotaResults)
