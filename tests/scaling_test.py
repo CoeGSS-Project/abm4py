@@ -127,8 +127,8 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
-log_file   =  open('output/out' + str(earth.mpi.rank) + '.txt', 'w')
-err_file   =  open('output/err' + str(earth.mpi.rank) + '.txt', 'w')
+log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
+err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
 sys.stdout = log_file
 sys.stderr = err_file
 #%% Init of entity types
@@ -182,15 +182,15 @@ earth.spatial.initSpatialLayer(parameters['landLayer'],
                            LocClassObject=LIB.Location,
                            GhstLocClassObject=LIB.GhostLocation)
 
-for cell in earth.iterEntRandom(CELL, random=False):
+for cell in earth.random.iterEntity(CELL):
     cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
-earth.mpi.updateGhostNodes([CELL],['agentsPerCell'])
+earth.papi.updateGhostNodes([CELL],['agentsPerCell'])
 if mpiRank == 0:
     print('spatial layer initialized')
 
-for cell in earth.iterEntRandom(CELL, ghosts=True):
+for cell in earth.random.iterEntity(CELL, ghosts=True):
     cell.peList = list()
     
     
@@ -209,12 +209,12 @@ for x, y in list(locDict.keys()):
         agent.loc.peList.append(agent.nID)
 
 
-earth.mpi.transferGhostNodes(earth) 
+earth.papi.transferGhostNodes(earth) 
 
     
 #for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
 #    ghostCell.updatePeList(earth.graph, AGENT)
-for ghostAgent in earth.iterEntRandom(AGENT, ghosts = True, random=False)    :
+for ghostAgent in earth.iterEntity(AGENT, ghosts = True):
     ghostAgent.loc.peList.append(ghostAgent.nID)
     
     
@@ -227,7 +227,7 @@ if mpiRank == 0:
 globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
-for agent in earth.iterEntRandom(AGENT):
+for agent in earth.random.iterEntity(AGENT):
     contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
                                                                       nContacts=nFriends, 
                                                                       nodeType=AGENT,
@@ -243,7 +243,7 @@ del  globalSourceList, globalTargetList
 if mpiRank == 0:
     print('Agents connections created')    
 #%% register of global records
-earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+earth.papi.updateGhostNodes([AGENT],['prop_B'])
 
 earth.registerRecord('average_prop_B',
                      'sumation test for agents',
@@ -266,7 +266,7 @@ def stepFunction(earth):
     
     
     tt = time.time()    
-    for agent in earth.iterEntRandom(AGENT):
+    for agent in earth.random.iterEntity(AGENT):
         
         peerValues = np.asarray(agent.getPeerValues('prop_B',CON_AA))
         peerAverage = np.sum(peerValues / len(peerValues))
@@ -279,7 +279,7 @@ def stepFunction(earth):
     
     
     tt = time.time()
-    earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+    earth.papi.updateGhostNodes([AGENT],['prop_B'])
     earth.syncTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
@@ -287,7 +287,7 @@ def stepFunction(earth):
     earth.ioTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
-    earth.mpi.comm.Barrier()
+    earth.papi.comm.Barrier()
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
