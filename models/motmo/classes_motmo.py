@@ -1429,7 +1429,7 @@ class Person(Agent):
             for peId in contactList:                                                    ##OPTPRODUCTION
                 if isinstance(world.entDict[peId], GhostPerson):                        ##OPTPRODUCTION
                     nGhosts += 1                                                        ##OPTPRODUCTION
-        lg.debug('At location ' + str(self.loc.data['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
+        #lg.debug('At location ' + str(self.loc.data['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
         
         return contactList, connList, weigList
 

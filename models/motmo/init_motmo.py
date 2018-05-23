@@ -650,12 +650,12 @@ def initTypes(earth):
     parameters = earth.getParameter()
     global CELL
     CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
-                               staticProperies  = [('gID', np.int32, 1),
+                               staticProperties  = [('gID', np.int32, 1),
                                                    ('pos', np.int16, 2),
                                                    ('regionId', np.int16, 1),
                                                    ('popDensity', np.float64, 1),
                                                    ('population', np.int16, 1)],
-                               dynamicProperies = [('convenience', np.float64, 5),
+                               dynamicProperties = [('convenience', np.float64, 5),
                                                    ('carsInCell', np.int32, 5),
                                                    ('chargStat', np.int32, 1),
                                                    ('emissions', np.float64, 5),
@@ -665,25 +665,25 @@ def initTypes(earth):
     HH = earth.registerNodeType('hh', 
                                 AgentClass=Household, 
                                 GhostAgentClass=GhostHousehold,
-                                staticProperies  = [('gID', np.int32, 1),
+                                staticProperties  = [('gID', np.int32, 1),
                                                     ('pos', np.int16, 2),
                                                     ('hhSize', np.int8,1),
                                                     ('nKids', np.int8, 1),
                                                     ('hhType', np.int8, 1)],
-                                dynamicProperies = [('income', np.float64, 1),
+                                dynamicProperties = [('income', np.float64, 1),
                                                     ('expUtil', np.float64, 1),
                                                     ('util', np.float64, 1),
                                                     ('expenses', np.float64, 1)])
 
     global PERS
     PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
-                                staticProperies = [('gID', np.int32, 1),
+                                staticProperties = [('gID', np.int32, 1),
                                                    ('hhID', np.int32, 1),
                                                    ('preferences', np.float64, 4),
                                                    ('gender', np.int8, 1),
                                                    ('nJourneys', np.int16, 5),
                                                    ('hhType', np.int8, 1)],
-                               dynamicProperies = [('age', np.int8, 1),
+                               dynamicProperties = [('age', np.int8, 1),
                                                    ('util', np.float64, 1),     # current utility
                                                    ('commUtil', np.float64, 5), # comunity utility
                                                    ('selfUtil', np.float64, 5), # own utility at time of action

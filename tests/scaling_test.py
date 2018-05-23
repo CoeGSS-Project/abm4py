@@ -60,7 +60,7 @@ sys.path.append('../lib/')
 import numpy as np
 
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core
+import core as core
 
 import logging as lg
 import matplotlib.pylab as plt
@@ -76,11 +76,8 @@ mpiSize = mpiComm.Get_size()
 
 showFigures = 0
 
-simNo, baseOutputPath = core.getEnvironment(mpiComm, getSimNo=True)
-outputPath = core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(mpiComm)
 
-#simNo = 0
-#outputPath = '.'
 
 if not os.path.isfile(outputPath + '/run_times.csv'):
     fid = open(outputPath + '/run_times.csv','w')
@@ -89,21 +86,15 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
 
   
 #%% Setup of log file
+if mpiComm.size > 1:
+    core.configureLogging(outputPath, debug=False)
 
-if debug:
-    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.DEBUG)
-else:
-    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.INFO)
-
-  
+    log_file   = open('output/out' + str(mpiComm.rank) + '.txt', 'w')
+    err_file   = open('output/err' + str(mpiComm.rank) + '.txt', 'w')
+    sys.stdout = log_file
+    sys.stderr = err_file
+    
+    
 if mpiRank == 0:
     print('log files created')
         
@@ -127,21 +118,19 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
-log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
-err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
-sys.stdout = log_file
-sys.stderr = err_file
+
+
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('agentsPerCell', np.int16,1)])
+                                     staticProperties  = [('gID', np.int32, 1),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('agentsPerCell', np.int16, 1)])
 
 AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('prop_A', np.float32,1),
-                                                         ('prop_B', np.float32,1)])
+                                     staticProperties  = [('gID', np.int32),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('prop_A'),
+                                                         ('prop_B', np.float32, 1)])
 
 #%% Init of edge types
 CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float32, 1)])
@@ -206,22 +195,14 @@ for x, y in list(locDict.keys()):
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
         agent.register(earth, parentEntity=loc, edgeType=CON_AC)
-        agent.loc.peList.append(agent.nID)
+#        agent.loc.peList.append(agent.nID)
 
 
 earth.papi.transferGhostNodes(earth) 
 
-    
-#for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
-#    ghostCell.updatePeList(earth.graph, AGENT)
-for ghostAgent in earth.iterEntity(AGENT, ghosts = True):
-    ghostAgent.loc.peList.append(ghostAgent.nID)
-    
-    
 if mpiRank == 0:
     print('Agents created')
     
-#earth.view('test2.png')
     
 #%% connectin agents
 globalSourceList = list()
@@ -232,7 +213,6 @@ for agent in earth.random.iterEntity(AGENT):
                                                                       nContacts=nFriends, 
                                                                       nodeType=AGENT,
                                                                       addYourself=False)
-    #connList = [(agent.nID, peerID) for peerID in np.random.choice(earth.nodeDict[AGENT],nFriends)]
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
     
@@ -258,9 +238,7 @@ earth.waitTime    = np.zeros(nSteps)
 earth.ioTime      = np.zeros(nSteps)
 #%% init agent file 
 earth.io.initNodeFile(earth, [CELL, AGENT])
-#earth.io.gatherNodeData(0)
-#earth.io.writeDataToFile(0)
-#from tqdm import tqdm
+
 
 def stepFunction(earth):
     

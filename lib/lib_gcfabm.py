@@ -419,22 +419,25 @@ class World:
                  simNo,
                  outPath,
                  spatial=True,
-                 nSteps= 1,
-                 maxNodes = 1e6,
-                 maxEdges = 1e6,
-                 debug = False,
+                 nSteps=1,
+                 maxNodes=1e6,
+                 maxEdges=1e6,
+                 debug=False,
                  mpiComm=None):
 
-        self.simNo    = simNo
-        self.timeStep = 0
-        self.para     = dict()
+        self.simNo     = simNo
+        self.timeStep  = 0
+        self.para      = dict()
         
-        self.maxNodes = int(maxNodes)
+        self.maxNodes  = int(maxNodes)
         self.globIDGen = self._globIDGen()
-        self.nSteps   = nSteps
-        self.debug    = debug
-
-        self.para     = dict()
+        self.nSteps    = nSteps
+        self.debug     = debug
+        
+        if mpiComm is None:
+            self.parallized = False
+        else:
+            self.parallized = mpiComm.size > 1
 
         # GRAPH
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
@@ -450,6 +453,7 @@ class World:
         
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self, mpiComm=mpiComm)
+            
         
         lg.debug('Init MPI done')##OPTPRODUCTION
         if self.papi.comm.rank == 0:
@@ -617,7 +621,7 @@ class World:
         return  [self.entDict[i] for i in nodeDict]
 
 
-    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = [], dynamicProperies = []):
+    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
         - Registers the properties of each nodeType for other purposes, e.g. I/O
@@ -632,16 +636,19 @@ class World:
         """
         
         # type is an required property
-        #assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
-
+        #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
+        
+        staticProperties = core.formatPropertyDefinition(staticProperties)
+        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
+                
         nodeTypeIdx = len(self.graph.nodeTypes)+1
 
         self.graph.addNodeType(nodeTypeIdx, 
                                typeStr, 
                                AgentClass,
                                GhostAgentClass,
-                               staticProperies, 
-                               dynamicProperies)
+                               staticProperties, 
+                               dynamicProperties)
         self.nodeDict[nodeTypeIdx]      = list()
         self.dataDict[nodeTypeIdx]      = list()
         self.ghostNodeDict[nodeTypeIdx] = list()
@@ -650,7 +657,7 @@ class World:
         return nodeTypeIdx
 
 
-    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperies = [], dynamicProperies=[]):
+    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperties = [], dynamicProperties=[]):
         """
         Method to register a edge type:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
@@ -660,11 +667,12 @@ class World:
             - edge2NodeType
         - update of enumerations
         """
-        
-        #assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
+        staticProperties = core.formatPropertyDefinition(staticProperties)
+        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
+        #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)+1
-        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
+        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2)
         self.enums[typeStr] = edgeTypeIdx
 
         return  edgeTypeIdx
@@ -905,15 +913,15 @@ if __name__ == '__main__':
     connList = core.computeConnectionList(1.5)
     #print connList
     CELL    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation,
-                                      staticProperies = [('gID', np.int32, 1),
+                                      staticProperties = [('gID', np.int32, 1),
                                                          ('pos', np.int16, 2)],
-                                      dynamicProperies = [('value', np.float32, 1),
+                                      dynamicProperties = [('value', np.float32, 1),
                                                           ('value2', np.float32, 1)])
 
     AG      = earth.registerNodeType('agent', AgentClass=Agent   , GhostAgentClass= GhostAgent,
-                                      staticProperies   = [('gID', np.int32, 1),
+                                      staticProperties   = [('gID', np.int32, 1),
                                                            ('pos', np.int16, 2)],
-                                      dynamicProperies  = [('value3', np.float32, 1)])
+                                      dynamicProperties  = [('value3', np.float32, 1)])
 
     C_LOLO = earth.registerEdgeType('cellCell', CELL, CELL, [('weig', np.float32, 1)])
     C_LOAG = earth.registerEdgeType('cellAgent', CELL, AG)

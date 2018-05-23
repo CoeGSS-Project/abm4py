@@ -530,7 +530,8 @@ class ABMGraph(BaseGraph):
         # same nodeType for ghost and non-ghost
         self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
         self.class2NodeType[AgentClass]       = nodeTypeIdx
-        self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
+        if GhostAgentClass is not None:
+            self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
         
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 

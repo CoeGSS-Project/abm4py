@@ -18,8 +18,8 @@ mpiRank = comm.Get_rank()
 
 overallTime = time.time()
 
-simNo, baseOutputPath = core.getEnvironment(comm, getSimNo=True)
-outputPath = core.createOutputDirectory(comm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(comm)
+
 dirPath = os.path.dirname(os.path.realpath(__file__))
 fileName = sys.argv[1]
 
