@@ -47,7 +47,7 @@ from mpi4py import MPI
 import h5py
 import logging as lg
 from numba import njit
-
+from collections import OrderedDict
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
@@ -104,27 +104,28 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
         simNo    = None
         baseOutputPath = None
 
+    
+    
+    if (mpiComm is not None) and mpiComm.size > 1:
+        # parallel communication
+        simNo = mpiComm.bcast(simNo, root=0)
+        baseOutputPath = mpiComm.bcast(baseOutputPath, root=0)
     outputPath = createOutputDirectory(mpiComm, baseOutputPath, simNo)
     
-    if mpiComm.size > 1:
-        # parallel communication
-        simNo = comm.bcast(simNo, root=0)
-        outputPath = comm.bcast(outputPath, root=0)
-        
     return simNo, outputPath
 
-def createOutputDirectory(comm, baseOutputPath, simNo):
+def createOutputDirectory(mpiComm, baseOutputPath, simNo):
 
         dirPath  = baseOutputPath + 'sim' + str(simNo).zfill(4)
 
-        if comm.rank ==0:
+        if (mpiComm is None) or mpiComm.rank ==0:
             import os
 
             if not os.path.isdir(dirPath):
                 os.mkdir(dirPath)
-
-        comm.Barrier()
-        if comm.rank ==0:
+        if (mpiComm is not None):
+            mpiComm.Barrier()
+        if (mpiComm is None) or mpiComm.rank ==0:
             print('output directory created')
 
         return dirPath
@@ -167,8 +168,6 @@ def formatPropertyDefinition(propertyList):
         assert isinstance(propertyList[iProp][1],type)
         assert isinstance(propertyList[iProp][2],int)
         
-        
-    print(propertyList)
     return propertyList
 
 @njit
@@ -280,6 +279,24 @@ def loadObj(name ):
         return pickle.load(f)
 
 
+def initLogger(debug, outputPath):
+    """
+    Configuration of the logging library. Input is the debug level as 0 or 1
+    and the outputpath
+    """
+    lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
+                   filemode='w',
+                   format='%(levelname)7s %(asctime)s : %(message)s',
+                   datefmt='%m/%d/%y-%H:%M:%S',
+                   level=lg.DEBUG if debug else lg.INFO)
+
+    lg.info('Log file of process ' + str(MPI.COMM_WORLD.rank) + ' of ' + str(MPI.COMM_WORLD.size))
+
+    # wait for all processes - debug only for poznan to debug segmentation fault
+    MPI.COMM_WORLD.Barrier()
+    if MPI.COMM_WORLD.rank == 0:
+        print('log files created')
+
 class Spatial():
 
     def __init__(self, world):
@@ -321,7 +338,7 @@ class Spatial():
 
         if self.world.parallized:
             # create ghost location nodes
-            for (x,y), loc in list(self.world.locDict.items()):
+            for (x,y), loc in list(self.world.getLocationDict().items()):
     
                 srcID = loc.nID
                 for (dx,dy,weight) in connList:
@@ -351,7 +368,7 @@ class Spatial():
         #nConnection  = list()
         #print 'rank: ' +  str(self.world.locDict)
 
-        for (x,y), loc in list(self.world.locDict.items()):
+        for (x,y), loc in list(self.world.getLocationDict().items()):
 
             srcID = loc.nID
             
@@ -405,6 +422,12 @@ class Spatial():
             self.world.papi.initCommunicationViaLocations(ghostLocationList, nodeType)
             lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
             
+    def getLocation(self, x,y):
+        
+        #get nID of the location
+        nID = self.world.getLocationDict()[x,y].nID
+        return self.world.getEntity(nodeID=nID)
+
 
     def getNCloseEntities(self, 
                            agent, 
@@ -563,7 +586,7 @@ class Globals():
         self.comm  = world.papi.comm
 
         # simple reductions
-        self.reduceDict = dict()
+        self.reduceDict = OrderedDict()
         
         # MPI operations
         self.operations         = dict()
@@ -573,11 +596,11 @@ class Globals():
         self.operations['max']  = MPI.MAX
 
         #staticical reductions/aggregations
-        self.statsDict       = dict()
-        self.localValues     = dict()
-        self.globalValue     = dict()
-        self.nValues         = dict()
-        self.updated         = dict()
+        self.statsDict       = OrderedDict()
+        self.localValues     = OrderedDict()
+        self.globalValue     = OrderedDict()
+        self.nValues         = OrderedDict()
+        self.updated         = OrderedDict()
 
         # self implemented operations
         statOperations         = dict()
@@ -653,17 +676,19 @@ class Globals():
             if redType == 'mean':
 
                 for globName in self.statsDict[redType]:
-                    
+                    lg.debug(globName)
                     # enforce that data is updated
                     assert  self.updated[globName] is True    ##OPTPRODUCTION
                     
                     # sending data list  of (local mean, size)
-                    tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-
+                    inpComm = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
+                    lg.debug(inpComm)
+                    outComm = self.comm.alltoall(inpComm)
                     # communication between all proceees
-                    tmp = np.asarray(self.comm.alltoall(tmp))
+                    tmp = np.asarray(outComm)
 
                     lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
+                    lg.debug(outComm)
                     lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
                     # calculation of global mean
                     globValue = np.sum(np.prod(tmp,axis=1)) # means * size
@@ -674,14 +699,17 @@ class Globals():
                     
             elif redType == 'std':
                 for globName in self.statsDict[redType]:
-
+                    lg.debug(globName)
                     # enforce that data is updated
                     assert  self.updated[globName] is True    ##OPTPRODUCTION
                     
                     # local calulation
-                    print(self.localValues[globName].shape)
+                    
                     locSTD = [np.std(self.localValues[globName])] * self.comm.size
-                    locSTD = np.asarray(self.comm.alltoall(locSTD))
+                    lg.debug(locSTD)
+                    outComm = self.comm.alltoall(locSTD)
+                    lg.debug(outComm)
+                    locSTD = np.asarray(outComm)
                     lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
                     lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
 
@@ -715,7 +743,7 @@ class Globals():
                     
             elif redType == 'var':
                 for globName in self.statsDict[redType]:
-
+                    lg.debug(globName)
                     # enforce that data is updated
                     assert  self.updated[globName] is True    ##OPTPRODUCTION
                     
@@ -726,7 +754,8 @@ class Globals():
 
                     # out data list  of (local mean, size)
                     tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-                    tmp = np.asarray(self.comm.alltoall(tmp))
+                    outComm = self.comm.alltoall(tmp)
+                    tmp = np.asarray(outComm)
 
                     locMean = tmp[:,0]
                     #print 'loc mean: ', locMean
@@ -889,7 +918,14 @@ class IO():
 
         So far, only integer and float are supported
         """
-        def __init__(self, nAgents, agIds, nAgentsGlob, loc2GlobIdx, nodeType, timeStepMag):
+        def __init__(self, 
+                     nAgents, 
+                     agIds, 
+                     nAgentsGlob, 
+                     loc2GlobIdx, 
+                     nodeType, 
+                     timeStepMag):
+            
             self.ag2FileIdx = agIds
             self.nAgents = nAgents
             self.nAttr = 0
@@ -972,7 +1008,7 @@ class IO():
             lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
 
-            nAgents = len(world.nodeDict[nodeType])
+            nAgents = len(world.getEntity(nodeType=nodeType))
             self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
 
             self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)
@@ -991,9 +1027,10 @@ class IO():
             tt = time.time()
 
 
+            dataIDS = world.getDataIDs(nodeType)
             # static data
             staticRec  = self.Record(nAgents, 
-                                     world.dataDict[nodeType], 
+                                     dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
                                      nodeType, 
@@ -1027,9 +1064,10 @@ class IO():
             self.staticData[nodeType] = staticRec
             lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
+            dataIDS = world.getDataIDs(nodeType)
             # dynamic data
             dynamicRec = self.Record(nAgents, 
-                                     world.dataDict[nodeType], 
+                                     dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
                                      nodeType, 
@@ -1323,7 +1361,7 @@ class PAPI():
             
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
-            for entity in [self.world.entDict[i] for i in lnIDList]:
+            for entity in [self.world.getEntity(nodeID=i) for i in lnIDList]:
                 entity.mpiPeers.append(mpiDest)
 
             # send requested global IDs
@@ -1352,8 +1390,8 @@ class PAPI():
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
             for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
                 #print nID, gID
-                self.world._glob2loc[gID] = nID
-                self.world._loc2glob[nID] = gID
+                self.world.setGlob2Loc(gID, nID)
+                self.world.setLoc2Glob(nID, gID)
             #self.world.papi.comm.Barrier()
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
@@ -1418,7 +1456,7 @@ class PAPI():
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
-                    parentEntity = world.entDict[world._glob2loc[gID]]
+                    parentEntity = world.getEntity(world.glob2Loc(gID))
                     edgeType = world.graph.node2EdgeType[parentEntity.nodeType, nodeType]
 
                     agent.register(world, parentEntity, edgeType)
@@ -1427,8 +1465,10 @@ class PAPI():
         lg.info('################## Ratio of ghost agents ################################################')
         for nodeTypeIdx in list(world.graph.nodeTypes.keys()):
             nodeType = world.graph.nodeTypes[nodeTypeIdx].typeStr
-            if len(world.nodeDict[nodeTypeIdx]) > 0:
-                nGhostsRatio = float(len(world.ghostNodeDict[nodeTypeIdx])) / float(len(world.nodeDict[nodeTypeIdx]))
+            nAgents = len(world.getEntity(nodeType=nodeTypeIdx))
+            if nAgents > 0:
+                nGhosts = float(len(world.getEntity(nodeType=nodeTypeIdx, ghosts=True)))
+                nGhostsRatio = nGhosts / nAgents
                 lg.info('Ratio of ghost agents for type "' + nodeType + '" is: ' + str(nGhostsRatio))
         lg.info('#########################################################################################')
 
@@ -1527,11 +1567,11 @@ class Random():
         if ghosts:
             nodeDict = self.world.ghostNodeDict[nodeType]
         else:
-            nodeDict = self.world.nodeDict[nodeType]
+            nodeDict = self.world.getEntity(nodeType=nodeType)
 
         shuffled_list = sorted(nodeDict, key=lambda x: random.random())
-        for i in shuffled_list:
-            yield self.world.entDict[i]
+        for nodeID in shuffled_list:
+            yield self.world.getEntity(nodeID=nodeID)
             
 
 class AttrDict(dict):

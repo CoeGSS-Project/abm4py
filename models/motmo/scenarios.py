@@ -174,7 +174,9 @@ def scenarioTestMedium(parameterInput, dirPath):
                                       [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
                                       [2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
                                       [3, 4, 1, 1, 2, 1, 1, 0, 0, 0, 0 , 0, 1],
-                                      [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]]) / setup.cellSizeMap
+                                      [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]]) 
+    setup.roadKmPerCell[setup.roadKmPerCell==0] = 1
+    setup.roadKmPerCell = setup.landLayer / setup.roadKmPerCell 
 
     a = 60000.
     b = 45000.

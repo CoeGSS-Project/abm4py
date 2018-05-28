@@ -139,6 +139,9 @@ class BaseGraph():
                 
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
 
+
+    def get_lnID(self, nTypeID):
+        return self.nodes[nTypeID].nodeList
     
     def addNode(self, nTypeID, attributes=None, **kwProp):
         
