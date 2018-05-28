@@ -68,6 +68,7 @@ import core
 
 def assertUpdate(graph, prop, nodeType):
     
+
     # if is serial
     if not(graph.isParallel):##OPTPRODUCTION
         return##OPTPRODUCTION
@@ -82,6 +83,7 @@ def assertUpdate(graph, prop, nodeType):
     
     raise('Error while accessing non-updated property')##OPTPRODUCTION
     pass
+
 
 
 

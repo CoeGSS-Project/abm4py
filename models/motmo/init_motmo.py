@@ -121,9 +121,6 @@ _month = 1
 _year  = 2
 
 
-# %% Setup functions
-
-
 # Mobility setup setup
 def mobilitySetup(earth):
     parameters = earth.getParameter()
@@ -185,8 +182,9 @@ def mobilitySetup(earth):
     
     # register brown:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceBrown'] #, parameters['initPriceBrown']/10.
-    propDict['emissions'] = parameters['initEmBrown'] #, 120. # init, lim
+    propDict['emissions']      = parameters['initEmBrown'] 
+    propDict['fixedCosts']     = parameters['initPriceBrown']
+    propDict['operatingCosts'] = parameters['initOperatingCostsBrown']
     
     earth.registerGood('brown',                                # name
                     propDict,                                  # (emissions, TCO)
@@ -201,8 +199,10 @@ def mobilitySetup(earth):
 
     # register green:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceGreen']#, parameters['initPriceGreen']/10.
-    propDict['emissions'] = parameters['initEmGreen']#, 70. # init, lim    
+    propDict['emissions']      = parameters['initEmGreen'] 
+    propDict['fixedCosts']     = parameters['initPriceGreen']
+    propDict['operatingCosts'] = parameters['initOperatingCostsGreen']    
+  
     earth.registerGood('green',                                #name
                     propDict,                                  # (emissions, TCO)
                     convenienceGreen,                          # convenience function
@@ -220,8 +220,10 @@ def mobilitySetup(earth):
         convFuncPublic = conveniencePublicLeuphana
     else:
         convFuncPublic = conveniencePublic
-    propDict['costs']     = parameters['initPricePublic']#, parameters['initPricePublic']/10.
-    propDict['emissions'] = parameters['initEmPublic']#, 30. # init, lim   
+    propDict['emissions']      = parameters['initEmPublic'] 
+    propDict['fixedCosts']     = parameters['initPricePublic']
+    propDict['operatingCosts'] = parameters['initOperatingCostsPublic']
+ 
     earth.registerGood('public',  #name
                     propDict,   #(emissions, TCO)
                     convFuncPublic,
@@ -233,8 +235,10 @@ def mobilitySetup(earth):
                     
     # register shared:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceShared']#,  parameters['initPriceShared']/10.
-    propDict['emissions'] = parameters['initEmShared']#, 50. # init, lim    
+    propDict['emissions']      = parameters['initEmShared']
+    propDict['fixedCosts']     = parameters['initPriceShared']
+    propDict['operatingCosts'] = parameters['initOperatingCostsShared']
+   
     earth.registerGood('shared', # name
                     propDict,    # (emissions, TCO)
                     convenienceShared,
@@ -244,8 +248,10 @@ def mobilitySetup(earth):
                     initMaturity = parameters['initMaturityS']) # initital maturity
     # register none:    
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceNone']#,  parameters['initPriceNone']/10.
-    propDict['emissions'] = parameters['initEmNone']#, 1.0 # init, lim
+    propDict['emissions']      = parameters['initEmNone'] 
+    propDict['fixedCosts']     = parameters['initPriceNone']
+    propDict['operatingCosts'] = parameters['initOperatingCostsNone']
+
     earth.registerGood('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
@@ -546,8 +552,10 @@ def initScenario(earth, parameters):
                                  2: 'money',
                                  3: 'imitation'})
 
+
     earth.setEnum('properties', {1: 'emissions',
-                                 2: 'TCO'})
+                                 2: 'fixedCosts',
+                                 3: 'operatingCosts'})
 
     earth.setEnum('nodeTypes', {1: 'cell',
                                 2: 'household',
@@ -631,10 +639,11 @@ def initTypes(earth):
                                                    ('commUtil', np.float64, 5), # comunity utility
                                                    ('selfUtil', np.float64, 5), # own utility at time of action
                                                    ('mobType', np.int8, 1),
-                                                   ('prop', np.float64, 2),
+                                                   ('prop', np.float64, 3),
                                                    ('consequences', np.float64, 4),
                                                    ('lastAction', np.int16, 1),
-                                                   ('emissions', np.float64, 1)])
+                                                   ('emissions', np.float64, 1),
+                                                   ('costs', np.float64, 1)])
 
     global CON_CC
     CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float64, 1)])
@@ -846,7 +855,7 @@ def initGlobalRecords(earth):
     earth.registerRecord('maturities', 'Technological maturity of mobility types',
                          ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
     earth.registerRecord('globEmmAndPrice', 'Properties',
-                         ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
+                         ['meanEmm','stdEmm','meanFiC','stdFiC','meanOpC','stdOpC'], style='plot')
 
     if mpiRank == 0:
         print('Setup of global records done')

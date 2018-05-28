@@ -111,7 +111,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -226,7 +226,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -324,7 +324,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -455,7 +455,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -578,7 +578,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -685,7 +685,7 @@ def scenarioTest(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
