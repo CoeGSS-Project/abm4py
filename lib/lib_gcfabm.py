@@ -372,9 +372,9 @@ class Cache():
         self.__checkPeerCache__(edgeType)
         
         nodeType = self.graph.edge2NodeType[edgeType][1]
-        assert self.isSerial or \                                    ##OPTPRODUCTION
-               prop in self.graph.ghostTypeUpdated[nodeType] or \    ##OPTPRODUCTION
-               prop in self.graph.nodeTypes[nodeType].staProp        ##OPTPRODUCTION
+#        assert self.isSerial or \                                    ##OPTPRODUCTION
+#               prop in self.graph.ghostTypeUpdated[nodeType] or \    ##OPTPRODUCTION
+#               prop in self.graph.nodeTypes[nodeType].staProp        ##OPTPRODUCTION
        
         if edgeType is None:
 
@@ -1130,8 +1130,12 @@ class World:
                     if len(self.attrIdx[attr]) == 1:
                         self.data[:,self.attrIdx[attr]] = np.expand_dims(graph.vs[self.ag2FileIdx][attr],1)
                     else:
-                        self.data[:,self.attrIdx[attr]] = graph.vs[self.ag2FileIdx][attr]
-
+                        try:
+                            self.data[:,self.attrIdx[attr]] = graph.vs[self.ag2FileIdx][attr]
+                        except:
+                            import pdb
+                            pdb.set_trace()
+                            
             def writeData(self, h5File, folderName=None):
                 #print self.header
                 if folderName is None:

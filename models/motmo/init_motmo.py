@@ -202,7 +202,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -326,7 +326,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -428,7 +428,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -561,7 +561,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -682,7 +682,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -792,7 +792,7 @@ def scenarioTest(parameterInput, dirPath):
     setup.writeCSV      = 0
 
     #cars and infrastructure
-    setup.properties    = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     #agents
     setup.randomAgents     = False
@@ -921,8 +921,9 @@ def mobilitySetup(earth):
     
     # register brown:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceBrown'] #, parameters['initPriceBrown']/10.
-    propDict['emissions'] = parameters['initEmBrown'] #, 120. # init, lim
+    propDict['emissions']      = parameters['initEmBrown'] 
+    propDict['fixedCosts']     = parameters['initPriceBrown']
+    propDict['operatingCosts'] = parameters['initOperatingCostsBrown']
     
     earth.registerGood('brown',                                # name
                     propDict,                                  # (emissions, TCO)
@@ -939,8 +940,10 @@ def mobilitySetup(earth):
 
     # register green:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceGreen']#, parameters['initPriceGreen']/10.
-    propDict['emissions'] = parameters['initEmGreen']#, 70. # init, lim    
+    propDict['emissions']      = parameters['initEmGreen'] 
+    propDict['fixedCosts']     = parameters['initPriceGreen']
+    propDict['operatingCosts'] = parameters['initOperatingCostsGreen']    
+  
     earth.registerGood('green',                                #name
                     propDict,                                  # (emissions, TCO)
                     convenienceGreen,                          # convenience function
@@ -960,8 +963,10 @@ def mobilitySetup(earth):
         convFuncPublic = conveniencePublicLeuphana
     else:
         convFuncPublic = conveniencePublic
-    propDict['costs']     = parameters['initPricePublic']#, parameters['initPricePublic']/10.
-    propDict['emissions'] = parameters['initEmPublic']#, 30. # init, lim   
+    propDict['emissions']      = parameters['initEmPublic'] 
+    propDict['fixedCosts']     = parameters['initPricePublic']
+    propDict['operatingCosts'] = parameters['initOperatingCostsPublic']
+ 
     earth.registerGood('public',  #name
                     propDict,   #(emissions, TCO)
                     convFuncPublic,
@@ -976,8 +981,10 @@ def mobilitySetup(earth):
                     
     # register shared:
     propDict = OrderedDict()
-    propDict['costs']     = parameters['initPriceShared']#,  parameters['initPriceShared']/10.
-    propDict['emissions'] = parameters['initEmShared']#, 50. # init, lim    
+    propDict['emissions']      = parameters['initEmShared']
+    propDict['fixedCosts']     = parameters['initPriceShared']
+    propDict['operatingCosts'] = parameters['initOperatingCostsShared']
+   
     earth.registerGood('shared', # name
                     propDict,    # (emissions, TCO)
                     convenienceShared,
@@ -990,8 +997,10 @@ def mobilitySetup(earth):
                     initMaturity = parameters['initMaturityS']) # initital maturity
     # register none:    
     propDict = OrderedDict()
-    propDict['costs']    = parameters['initPriceNone']#,  parameters['initPriceNone']/10.
-    propDict['emissions'] = parameters['initEmNone']#, 1.0 # init, lim
+    propDict['emissions']      = parameters['initEmNone'] 
+    propDict['fixedCosts']     = parameters['initPriceNone']
+    propDict['operatingCosts'] = parameters['initOperatingCostsNone']
+
     earth.registerGood('none',  #name
                     propDict,   #(emissions, TCO)
                     convenienceNone,
@@ -1294,7 +1303,8 @@ def initEarth(simNo,
 
     earth.enums['properties']    = dict()
     earth.enums['properties'][1] = 'emissions'
-    earth.enums['properties'][2] = 'TCO'
+    earth.enums['properties'][2] = 'fixedCosts'
+    earth.enums['properties'][3] = 'operatingCosts'
 
     earth.enums['nodeTypes']    = dict()
     earth.enums['nodeTypes'][1] = 'cell'
@@ -1573,7 +1583,7 @@ def initGlobalRecords(earth):
     earth.registerRecord('maturities', 'Technological maturity of mobility types',
                          ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
     earth.registerRecord('globEmmAndPrice', 'Properties',
-                         ['meanEmm','stdEmm','meanPrc','stdPrc'], style='plot')
+                         ['meanEmm','stdEmm','meanFiC','stdFiC','meanOpC','stdOpC'], style='plot')
 
     if mpiRank == 0:
         print'Setup of global records done'
