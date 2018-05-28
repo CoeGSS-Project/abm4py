@@ -9,9 +9,8 @@ import socket
 import init_motmo as init
 import core
 
-
-debug = 0
-showFigures = 0
+debug = True
+showFigures = False
 
 comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
@@ -28,6 +27,7 @@ core.initLogger(debug, outputPath)
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
+parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
 
