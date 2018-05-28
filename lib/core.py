@@ -132,13 +132,13 @@ def createOutputDirectory(mpiComm, baseOutputPath, simNo):
 
 def configureLogging(outputPath, debug=False):
     if debug:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+        lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
                         filemode='w',
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
                         level=lg.DEBUG)
     else:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
+        lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
                         filemode='w',
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
@@ -1564,10 +1564,7 @@ class Random():
         if isinstance(nodeType,str):
             nodeType = self.world.types.index(nodeType)
 
-        if ghosts:
-            nodeDict = self.world.ghostNodeDict[nodeType]
-        else:
-            nodeDict = self.world.getEntity(nodeType=nodeType)
+        nodeDict = self.world.getEntity(nodeType=nodeType, ghosts=ghosts)
 
         shuffled_list = sorted(nodeDict, key=lambda x: random.random())
         for nodeID in shuffled_list:

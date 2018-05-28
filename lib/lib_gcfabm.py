@@ -491,8 +491,7 @@ class World:
         self.__loc2glob = dict()  # reference from local IDs to global IDs
 
         # inactive is used to virtually remove nodes
-        #self.registerNodeType('inactiv', None, None)
-        #self.registerEdgeType('inactiv', None, None)
+        
         class GetEntityBy():
             def __init__ (self, world):
                 self.locID = world._entByLocID
@@ -710,7 +709,7 @@ class World:
             - edge2NodeType
         - update of enumerations
         """
-        staticProperties = core.formatPropertyDefinition(staticProperties)
+        staticProperties  = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
@@ -810,7 +809,7 @@ class World:
 
             
             # saving enumerations
-            core.saveObj(self.enums, self.para['outPath'] + '/enumerations')
+            core.saveObj(self.__enums, self.para['outPath'] + '/enumerations')
 
 
             # saving enumerations

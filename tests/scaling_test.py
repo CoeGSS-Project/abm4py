@@ -146,11 +146,7 @@ if weakScaling:
     layerShape = [procPerDim*factor,  procPerDim*factor]
     parameters['landLayer'] = np.zeros(layerShape)
 
-
-
 else:
-    
-    
     procPerDim = int(np.sqrt(mpiSize))
     factor = int(layerShape[0] / procPerDim)
     parameters['landLayer'] = np.zeros(layerShape)
@@ -270,7 +266,7 @@ def stepFunction(earth):
 
     tt = time.time()
     #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeValues('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', np.asarray(earth.graph.nodes[AGENT][earth.dataDict[AGENT]]['prop_B']))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeValues('prop_B', nodeType=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])
