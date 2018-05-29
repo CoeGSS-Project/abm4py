@@ -1,5 +1,7 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
+print('before import')
+
 import logging as lg
 import time
 import sys
@@ -9,7 +11,7 @@ import socket
 import init_motmo as init
 import core
 
-debug = True
+debug = False
 showFigures = False
 
 comm = core.MPI.COMM_WORLD
@@ -30,6 +32,9 @@ parameters = init.createAndReadParameters(fileName, dirPath)
 parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
+
+print('before initEarth')
+
 
 global earth
 earth = init.initEarth(simNo,

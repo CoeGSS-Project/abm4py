@@ -50,6 +50,7 @@ def publicTransportSetup(setup):
 
 # %% Scenario definition without calibraton parameters
 def scenarioTestSmall(parameterInput, dirPath):
+    print('in scenarioTestSmall')
     setup = core.AttrDict()
 
     # general
@@ -82,8 +83,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer = setup.population.copy().astype(float)
     setup.landLayer[setup.landLayer == 0.] = np.nan
     setup.landLayer = (setup.landLayer * 0.) + 1.
-    setup.landLayer[0,:] = 0.
     setup.cellSizeMap = setup.landLayer * 15.
+    setup.landLayer[0,:] = 0.
     setup.roadKmPerCell = np.asarray([[1, 5, 3, 0, 0],
                                       [1, 4, 4, 0, 1],
                                       [0, 1, 1, 1, 1]]) / setup.cellSizeMap

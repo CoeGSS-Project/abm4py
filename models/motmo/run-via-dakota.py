@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import logging as lg
 import time
@@ -12,7 +12,8 @@ dirPath = os.path.dirname(os.path.realpath(__file__))
 os.chdir('..')
 
 import init_motmo as init
-from classes_motmo import aux, MPI
+import core
+from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
@@ -31,11 +32,10 @@ showFigures = 0
 
 overallTime = time.time()
 
-simNo, baseOutputPath = aux.getEnvironment(comm, getSimNo=True)
-outputPath = aux.createOutputDirectory(comm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(comm)
 print(outputPath)
 print(dirPath)
-init.initLogger(False, outputPath)
+core.initLogger(False, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
 
@@ -47,16 +47,17 @@ if mpiRank == 0:
 
 parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
-parameters.showFigures = showFigures
+parameters['showFigures'] = showFigures
 
 earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
+                       maxEdges=5000000,
                        debug=False,
-                       mpiComm=comm,
-                       caching=True,
-                       queuing=True)
+                       mpiComm=comm)
+
+init.initScenario(earth, parameters)
 
 init.runModel(earth, parameters)
 
