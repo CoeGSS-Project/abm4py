@@ -433,12 +433,7 @@ class World:
         
         self.maxNodes  = int(maxNodes)
         self.globIDGen = self._globIDGen()
-<<<<<<< HEAD
-        self.nSteps   = nSteps
-        self.debug    = debug
 
-        self.para     = dict() #steht schon da, TODO delete
-=======
         self.nSteps    = nSteps
         self.debug     = debug
         
@@ -446,7 +441,6 @@ class World:
             self.parallized = False
         else:
             self.parallized = mpiComm.size > 1
->>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
 
         # GRAPH
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
@@ -624,13 +618,11 @@ class World:
   
     def getEntity(self, nodeID=None, globID=None, nodeType=None, ghosts=False):
         """
-<<<<<<< HEAD
+
         Method to retrieve a certain instance of an entity by the nodeID
-=======
-        Methode to retrieve a certain instance of an entity by the nodeID
         Selections can be done by the local nodeID, global ID and the nodetype
         and the flag ghost
->>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
+
         """
         if nodeID is not None:
             return self.__entDict[nodeID]
