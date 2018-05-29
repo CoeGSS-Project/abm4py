@@ -85,6 +85,7 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
                 fid.writelines(baseOutputPath)
                 fid.close()
         except:
+
             import os
             if not os.path.exists('output/'):
                 os.makedirs('output/')
@@ -92,7 +93,8 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
             fid.writelines('0\n')
             fid.writelines('output/')
             fid.close()
-            print('Envirionment file is set up')
+            print('Environment file is set up')
+
             print('')
             print('A new environment was created usning the following template')
             print('#################################################')
@@ -302,9 +304,11 @@ class Spatial():
     def __init__(self, world):
         self.world = world # make world availabel in class random
 
+
     def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject=None):
+
         """
-        Auiliary function to contruct a simple connected layer of spatial locations.
+        Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """

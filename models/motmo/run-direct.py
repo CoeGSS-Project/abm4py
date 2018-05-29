@@ -1,5 +1,7 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
+print('before import')
+
 import logging as lg
 import time
 import sys
@@ -9,9 +11,8 @@ import socket
 import init_motmo as init
 import core
 
-
-debug = 0
-showFigures = 0
+debug = False
+showFigures = False
 
 comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
@@ -28,8 +29,12 @@ core.initLogger(debug, outputPath)
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
+parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
+
+print('before initEarth')
+
 
 global earth
 earth = init.initEarth(simNo,

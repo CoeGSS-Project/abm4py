@@ -287,7 +287,9 @@ def createAndReadParameters(fileName, dirPath):
         parameters = randomizeParameters(parameters)
     else:
         parameters = None
+    return parameters
 
+def exchangeParameters(parameters):
     parameters = comm.bcast(parameters, root=0)
 
     if mpiRank == 0:
@@ -295,7 +297,6 @@ def createAndReadParameters(fileName, dirPath):
     lg.info('Parameter exchange done')
 
     return parameters
-
 
 def householdSetup(earth, calibration=False):
     

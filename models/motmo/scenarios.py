@@ -50,6 +50,7 @@ def publicTransportSetup(setup):
 
 # %% Scenario definition without calibraton parameters
 def scenarioTestSmall(parameterInput, dirPath):
+    print('in scenarioTestSmall')
     setup = core.AttrDict()
 
     # general
@@ -82,8 +83,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer = setup.population.copy().astype(float)
     setup.landLayer[setup.landLayer == 0.] = np.nan
     setup.landLayer = (setup.landLayer * 0.) + 1.
-    setup.landLayer[0,:] = 0.
     setup.cellSizeMap = setup.landLayer * 15.
+    setup.landLayer[0,:] = 0.
     setup.roadKmPerCell = np.asarray([[1, 5, 3, 0, 0],
                                       [1, 4, 4, 0, 1],
                                       [0, 1, 1, 1, 1]]) / setup.cellSizeMap
@@ -135,11 +136,6 @@ def scenarioTestSmall(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
     lg.info("####################################")
 
     return setup
@@ -239,12 +235,6 @@ def scenarioTestMedium(parameterInput, dirPath):
     for paName in ['techExpBrown', 'techExpGreen', 'techExpPublic', 'techExpShared', 'techExpNone',
                    'population']:
         setup[paName] /= setup['reductionFactor']
-
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
 
     return setup
 
@@ -352,12 +342,6 @@ def scenarioNBH(parameterInput, dirPath):
     for paName in ['techExpBrown', 'techExpGreen',
                    'techExpOther', 'population']:
         setup[paName] /= setup['reductionFactor']
-
-    pp.pprint( "Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
 
     return setup
 
@@ -475,10 +459,6 @@ def scenarioGer(parameterInput, dirPath):
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
@@ -607,10 +587,6 @@ def scenarioLueneburg(parameterInput, dirPath):
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
 
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
-
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
 
@@ -693,10 +669,6 @@ def scenarioTest(parameterInput, dirPath):
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')

@@ -118,8 +118,15 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
+<<<<<<< HEAD
+log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
+err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
+sys.stdout = log_file
+sys.stderr = err_file
+=======
 
 
+>>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
                                      staticProperties  = [('gID', np.int32, 1),
