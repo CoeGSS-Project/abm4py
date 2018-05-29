@@ -1870,15 +1870,17 @@ class Household(Agent):
                         adult.set('prop', oldProp[adultIdx])
                         adult.set('lastAction', oldLastAction[adultIdx])
                         mobilityProperties = oldProp[adultIdx]
+                        print(mobilityProperties)
                     else:
                         adult.set('mobType', mobChoice)
                         mobilityProperties = market.goods[adult.get('mobType')].getProperties()
+                        
                         adult.set('prop', mobilityProperties)
                         if earth.time <  earth.para['burnIn']:
                             adult.set('lastAction', random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
                         else:
                             adult.set('lastAction', 0)
-                    operatingCosts = averDist*sum1D(mobilityProperties[mobChoice,OPERATINGCOSTS])    
+                    operatingCosts = averDist*mobilityProperties[OPERATINGCOSTS]
                     fixedCosts     = mobilityProperties[FIXEDCOSTS]
                     self.addTo('expenses', operatingCosts + fixedCosts) #TODO running costs
 
