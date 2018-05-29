@@ -4,7 +4,7 @@ Created on Thu Apr 27 12:23:00 2017
 
 @author: gcf
 """
-from lib_gcfabm import Location
+from lib_gcfabm import Location, GhostLocation
 from class_iteratedStagHunt import Community, Hunter, Village
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,6 +30,7 @@ vHare      = 1.
 
 pT = 2*vHare/vStag
 
+outputPath = "./" # core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
     
 # Raster Data
 #landLayer  = np.asarray([[0, 0, 0, 1], [0,1,1, 0], [0,1,0,0], [1,1,0,0]])
@@ -38,9 +39,9 @@ landLayer  = np.asarray([[1,1,0,0,0,0], [1,1,0,0,1,0], [0,0,1,0,0,1], [0,0,0,1,1
 
 #%% ######################### Initialisation ##########################   
     
-community = Community(nSteps, spatial, vStag, vHare)
+community = Community(nSteps, spatial, outputPath, vStag, vHare)
 connList= community.computeConnections(connRadius)
-community.initSpatialLayerNew(landLayer, connList, Village)
+community.spatial.initSpatialLayer(landLayer, connList, Village, Location, GhostLocation)
 
 
 nVillages = len(community.nodeList[_village])
@@ -90,7 +91,7 @@ def plotHuntersResults(hunters):
 
 
 nPlots = len(community.nodeList[1])
-print len(community.nodeList[1])
+print(len(community.nodeList[1]))
 
 plt.clf()
 """

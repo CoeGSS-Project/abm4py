@@ -127,8 +127,8 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
-log_file   =  open('output/out' + str(earth.mpi.rank) + '.txt', 'w')
-err_file   =  open('output/err' + str(earth.mpi.rank) + '.txt', 'w')
+log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
+err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
 sys.stdout = log_file
 sys.stderr = err_file
 #%% Init of entity types

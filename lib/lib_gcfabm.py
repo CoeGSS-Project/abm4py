@@ -25,10 +25,10 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 Philosophy:
 
-Classes are only the hull of methods around an graph node with its connections.
-Entities can only alter out-connections by themselves (out egbes belong to the source node)
-Entities should therefore by fully defined by their global ID and local ID and
-the underlying graph that contains all properties
+Classes are only the hull of methods around a graph node with its connections.
+Entities can only alter out-connections by themselves (out-edges belong to the source node).
+Entities should therefore be fully defined by their global ID and local ID and
+the underlying graph that contains all properties.
 
 Thus, as far as possible save any property of all entities in the graph
 
@@ -186,7 +186,7 @@ class Entity():
 
     def getEdgeValues(self, prop, edgeType):
         """
-        privat function to access the values of  edges
+        private function to access the values of  edges
         """
         (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, edgeType)
 
@@ -200,7 +200,7 @@ class Entity():
 
     def setEdgeValues(self, prop, values, edgeType=None):
         """
-        privat function to access the values of  edges
+        private function to access the values of  edges
         """
         (eTypeID, dataID), _  = self._graph.outgoing(self.nID, edgeType)
         
@@ -211,7 +211,7 @@ class Entity():
 
     def getEdgeIDs(self, edgeType=None):
         """
-        privat function to access the values of  edges
+        private function to access the values of  edges
         """
         eList, _  = self._graph.outgoing(self.nID, edgeType)
         return eList
@@ -434,11 +434,11 @@ class World:
         self.nSteps   = nSteps
         self.debug    = debug
 
-        self.para     = dict()
+        self.para     = dict() #steht schon da, TODO delete
 
         # GRAPH
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
-        self.para['outPath'] = outPath
+        self.para['outPath'] = outPath # is not graph, move to para
 
         self.globalRecord = dict() # storage of global data
 
@@ -593,7 +593,7 @@ class World:
   
     def getEntity(self, nodeID=None, globID=None):
         """
-        Methode to retrieve a certain instance of an entity by the nodeID
+        Method to retrieve a certain instance of an entity by the nodeID
         """
         if nodeID is not None:
             return self.entDict[nodeID]
@@ -669,7 +669,7 @@ class World:
 
         return  edgeTypeIdx
 
-    def registerNode(self, agent, typ, ghost=False):
+    def registerNode(self, agent, typ, ghost=False): #TODO rename agent to entity?
         """
         Method to register instances of nodes
         -> update of:

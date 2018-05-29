@@ -81,7 +81,7 @@ def getEnvironment(comm, getSimNo=True):
                 fid.writelines(baseOutputPath)
                 fid.close()
         except:
-            print('ERROR Envirionment file is not set up')
+            print('ERROR Environment file is not set up')
             print('')
             print('Please create file "environment" which contains the simulation')
             print('and the baseOutputPath')
@@ -243,9 +243,9 @@ class Spatial():
     def __init__(self, world):
         self.world = world # make world availabel in class random
 
-    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject):
+    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject): #TODO rename nodeType to class?
         """
-        Auiliary function to contruct a simple connected layer of spatial locations.
+        Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
