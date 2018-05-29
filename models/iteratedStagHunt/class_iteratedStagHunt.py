@@ -6,7 +6,7 @@ Created on Thu Apr 27 09:47:51 2017
 """
 
 from lib_gcfabm import World, Agent, Location
-import igraph as ig
+#import igraph as ig
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -24,8 +24,8 @@ import os
 # -------------------------------- Community --------------------------------
 class Community(World):
   
-    def __init__(self, nSteps, spatial, vStag, vHare):
-        World.__init__(self, spatial)
+    def __init__(self, nSteps, spatial, outputPath, vStag, vHare):
+        World.__init__(self, spatial, outputPath)
         self.nSteps     = nSteps
         self.vStag      = vStag
         self.vHare      = vHare
