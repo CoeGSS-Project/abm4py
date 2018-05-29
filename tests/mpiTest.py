@@ -27,7 +27,7 @@ MPI.COMM_WORLD.alltoall(tmp)
 
 MPI.COMM_WORLD.Barrier()
 if iproc == 0:
-    print('test successful')
+    print('mpi4p interface test successful')
 
 
 MPI.Finalize()

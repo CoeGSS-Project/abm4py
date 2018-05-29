@@ -60,7 +60,7 @@ sys.path.append('../lib/')
 import numpy as np
 
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core
+import core as core
 
 import logging as lg
 import matplotlib.pylab as plt
@@ -76,11 +76,8 @@ mpiSize = mpiComm.Get_size()
 
 showFigures = 0
 
-simNo, baseOutputPath = core.getEnvironment(mpiComm, getSimNo=True)
-outputPath = core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(mpiComm)
 
-#simNo = 0
-#outputPath = '.'
 
 if not os.path.isfile(outputPath + '/run_times.csv'):
     fid = open(outputPath + '/run_times.csv','w')
@@ -89,21 +86,15 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
 
   
 #%% Setup of log file
+if mpiComm.size > 1:
+    core.configureLogging(outputPath, debug=False)
 
-if debug:
-    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.DEBUG)
-else:
-    lg.basicConfig(filename=outputPath + 'log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.INFO)
-
-  
+    log_file   = open('output/out' + str(mpiComm.rank) + '.txt', 'w')
+    err_file   = open('output/err' + str(mpiComm.rank) + '.txt', 'w')
+    sys.stdout = log_file
+    sys.stderr = err_file
+    
+    
 if mpiRank == 0:
     print('log files created')
         
@@ -127,21 +118,26 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
+<<<<<<< HEAD
 log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
 err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
 sys.stdout = log_file
 sys.stderr = err_file
+=======
+
+
+>>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('agentsPerCell', np.int16,1)])
+                                     staticProperties  = [('gID', np.int32, 1),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('agentsPerCell', np.int16, 1)])
 
 AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('prop_A', np.float32,1),
-                                                         ('prop_B', np.float32,1)])
+                                     staticProperties  = [('gID', np.int32),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('prop_A'),
+                                                         ('prop_B', np.float32, 1)])
 
 #%% Init of edge types
 CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float32, 1)])
@@ -157,11 +153,7 @@ if weakScaling:
     layerShape = [procPerDim*factor,  procPerDim*factor]
     parameters['landLayer'] = np.zeros(layerShape)
 
-
-
 else:
-    
-    
     procPerDim = int(np.sqrt(mpiSize))
     factor = int(layerShape[0] / procPerDim)
     parameters['landLayer'] = np.zeros(layerShape)
@@ -182,15 +174,15 @@ earth.spatial.initSpatialLayer(parameters['landLayer'],
                            LocClassObject=LIB.Location,
                            GhstLocClassObject=LIB.GhostLocation)
 
-for cell in earth.iterEntRandom(CELL, random=False):
+for cell in earth.random.iterEntity(CELL):
     cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
-earth.mpi.updateGhostNodes([CELL],['agentsPerCell'])
+earth.papi.updateGhostNodes([CELL],['agentsPerCell'])
 if mpiRank == 0:
     print('spatial layer initialized')
 
-for cell in earth.iterEntRandom(CELL, ghosts=True):
+for cell in earth.random.iterEntity(CELL, ghosts=True):
     cell.peList = list()
     
     
@@ -206,33 +198,24 @@ for x, y in list(locDict.keys()):
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
         agent.register(earth, parentEntity=loc, edgeType=CON_AC)
-        agent.loc.peList.append(agent.nID)
+#        agent.loc.peList.append(agent.nID)
 
 
-earth.mpi.transferGhostNodes(earth) 
+earth.papi.transferGhostNodes(earth) 
 
-    
-#for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
-#    ghostCell.updatePeList(earth.graph, AGENT)
-for ghostAgent in earth.iterEntRandom(AGENT, ghosts = True, random=False)    :
-    ghostAgent.loc.peList.append(ghostAgent.nID)
-    
-    
 if mpiRank == 0:
     print('Agents created')
     
-#earth.view('test2.png')
     
 #%% connectin agents
 globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
-for agent in earth.iterEntRandom(AGENT):
+for agent in earth.random.iterEntity(AGENT):
     contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
                                                                       nContacts=nFriends, 
                                                                       nodeType=AGENT,
                                                                       addYourself=False)
-    #connList = [(agent.nID, peerID) for peerID in np.random.choice(earth.nodeDict[AGENT],nFriends)]
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
     
@@ -243,7 +226,7 @@ del  globalSourceList, globalTargetList
 if mpiRank == 0:
     print('Agents connections created')    
 #%% register of global records
-earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+earth.papi.updateGhostNodes([AGENT],['prop_B'])
 
 earth.registerRecord('average_prop_B',
                      'sumation test for agents',
@@ -258,15 +241,13 @@ earth.waitTime    = np.zeros(nSteps)
 earth.ioTime      = np.zeros(nSteps)
 #%% init agent file 
 earth.io.initNodeFile(earth, [CELL, AGENT])
-#earth.io.gatherNodeData(0)
-#earth.io.writeDataToFile(0)
-#from tqdm import tqdm
+
 
 def stepFunction(earth):
     
     
     tt = time.time()    
-    for agent in earth.iterEntRandom(AGENT):
+    for agent in earth.random.iterEntity(AGENT):
         
         peerValues = np.asarray(agent.getPeerValues('prop_B',CON_AA))
         peerAverage = np.sum(peerValues / len(peerValues))
@@ -279,7 +260,7 @@ def stepFunction(earth):
     
     
     tt = time.time()
-    earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+    earth.papi.updateGhostNodes([AGENT],['prop_B'])
     earth.syncTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
@@ -287,12 +268,12 @@ def stepFunction(earth):
     earth.ioTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
-    earth.mpi.comm.Barrier()
+    earth.papi.comm.Barrier()
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
     #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeValues('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', np.asarray(earth.graph.nodes[AGENT][earth.dataDict[AGENT]]['prop_B']))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeValues('prop_B', nodeType=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])

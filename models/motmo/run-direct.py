@@ -10,7 +10,7 @@ import init_motmo as init
 import core
 
 
-debug = 1
+debug = 0
 showFigures = 0
 
 comm = core.MPI.COMM_WORLD
@@ -18,12 +18,12 @@ mpiRank = comm.Get_rank()
 
 overallTime = time.time()
 
-simNo, baseOutputPath = core.getEnvironment(comm, getSimNo=True)
-outputPath = core.createOutputDirectory(comm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(comm)
+
 dirPath = os.path.dirname(os.path.realpath(__file__))
 fileName = sys.argv[1]
 
-init.initLogger(debug, outputPath)
+core.initLogger(debug, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
 
@@ -36,6 +36,7 @@ earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
+                       maxEdges=5000000,
                        debug=debug,
                        mpiComm=comm)
 

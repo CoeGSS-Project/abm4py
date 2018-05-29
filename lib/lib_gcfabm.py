@@ -68,6 +68,7 @@ import core
 
 def assertUpdate(graph, prop, nodeType):
     
+
     # if is serial
     if not(graph.isParallel):##OPTPRODUCTION
         return##OPTPRODUCTION
@@ -82,6 +83,7 @@ def assertUpdate(graph, prop, nodeType):
     
     raise('Error while accessing non-updated property')##OPTPRODUCTION
     pass
+
 
 
 
@@ -419,22 +421,32 @@ class World:
                  simNo,
                  outPath,
                  spatial=True,
-                 nSteps= 1,
-                 maxNodes = 1e6,
-                 maxEdges = 1e6,
-                 debug = False,
+                 nSteps=1,
+                 maxNodes=1e6,
+                 maxEdges=1e6,
+                 debug=False,
                  mpiComm=None):
 
-        self.simNo    = simNo
-        self.timeStep = 0
-        self.para     = dict()
+        self.simNo     = simNo
+        self.timeStep  = 0
+        self.para      = dict()
         
-        self.maxNodes = int(maxNodes)
+        self.maxNodes  = int(maxNodes)
         self.globIDGen = self._globIDGen()
+<<<<<<< HEAD
         self.nSteps   = nSteps
         self.debug    = debug
 
         self.para     = dict() #steht schon da, TODO delete
+=======
+        self.nSteps    = nSteps
+        self.debug     = debug
+        
+        if mpiComm is None:
+            self.parallized = False
+        else:
+            self.parallized = mpiComm.size > 1
+>>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
 
         # GRAPH
         self.graph    = ABMGraph(self, maxNodes, maxEdges)
@@ -450,6 +462,7 @@ class World:
         
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self, mpiComm=mpiComm)
+            
         
         lg.debug('Init MPI done')##OPTPRODUCTION
         if self.papi.comm.rank == 0:
@@ -469,27 +482,31 @@ class World:
             self.spatial  = core.Spatial(self)
         
         # enumerations
-        self.enums = dict()
+        self.__enums = dict()
 
         # node lists and dicts
-        self.nodeDict       = dict()
-        self.ghostNodeDict  = dict()
+        self.__nodeDict       = dict()
+        self.__ghostNodeDict  = dict()
         
         # dict of list that provides the storage place for each agent per nodeType
-        self.dataDict       = dict()
-        self.ghostDataDict  = dict()
+        self.__dataDict       = dict()
+        self.__ghostDataDict  = dict()
 
-        self.entList   = list()
-        self.entDict   = dict()
-        self.locDict   = dict()
+        self.__entList   = list()
+        self.__entDict   = dict()
+        self.__locDict   = dict()
 
-        self._glob2loc = dict()  # reference from global IDs to local IDs
-        self._loc2glob = dict()  # reference from local IDs to global IDs
+        self.__glob2loc = dict()  # reference from global IDs to local IDs
+        self.__loc2glob = dict()  # reference from local IDs to global IDs
 
         # inactive is used to virtually remove nodes
-        #self.registerNodeType('inactiv', None, None)
-        #self.registerEdgeType('inactiv', None, None)
-
+        
+        class GetEntityBy():
+            def __init__ (self, world):
+                self.locID = world._entByLocID
+                self.globID = world._entByGlobID
+                self.location = world.spatial.getLocation
+        self.getEntityBy = GetEntityBy(self)
 
     def _globIDGen(self):
         i = -1
@@ -499,25 +516,39 @@ class World:
 
 # GENERAL FUNCTIONS
 
-    def glob2loc(self, idx):
-        return self._glob2loc[idx]
+    def _entByGlobID(self, globID):
+        return self.__entDict[self.__glob2loc[globID]]
+        
+    def _entByLocID(self, locID):
+        return self.__entDict[locID]
+        
+    def getDataIDs(self, nodeType):
+        return self.__dataDict[nodeType]
 
-    def loc2glob(self, idx):
-        return self._loc2glob[idx]
- 
+    def glob2Loc(self, globIdx):
+        return self.__glob2loc[globIdx]
+
+    def setGlob2Loc(self, globIdx, locIdx):
+        self.__glob2loc[globIdx] = locIdx
+
+    def loc2Glob(self, locIdx):
+        return self.__loc2glob[locIdx]
+
+    def setLoc2Glob(self, globIdx, locIdx):
+        self.__loc2glob[locIdx] = globIdx 
 
     def getLocationDict(self):
         """
         The locationDict contains all instances of locations that are
         accessed by (x,y) coordinates
         """
-        return self.locDict
+        return self.__locDict
 
     def getNodeDict(self, nodeType):
         """
         The nodeDict contains all instances of different entity types
         """
-        return self.nodeDict[nodeType]
+        return self.__nodeDict[nodeType]
 
     def getParameter(self,paraName=None):
         """
@@ -554,7 +585,7 @@ class World:
         
         elif nodeType:           
             assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.nodeDict[nodeType])
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.__nodeDict[nodeType])
         
     def setNodeValues(self, label, valueList, localNodeIDList=None, nodeType=None):
         """
@@ -567,7 +598,7 @@ class World:
         
         elif nodeType:
             assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.nodeDict[nodeType])
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[nodeType])
 
     def getEdgeValues(self, label, valueList, localEdgeIDList=None, edgeType=None):
         if localEdgeIDList:   
@@ -591,15 +622,27 @@ class World:
             self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.edgeDict[edgeType])
     
   
-    def getEntity(self, nodeID=None, globID=None):
+    def getEntity(self, nodeID=None, globID=None, nodeType=None, ghosts=False):
         """
+<<<<<<< HEAD
         Method to retrieve a certain instance of an entity by the nodeID
+=======
+        Methode to retrieve a certain instance of an entity by the nodeID
+        Selections can be done by the local nodeID, global ID and the nodetype
+        and the flag ghost
+>>>>>>> 638c97642daa40fc9b710df2be87c283129ced56
         """
         if nodeID is not None:
-            return self.entDict[nodeID]
-        if globID is not None:
-            return self.entDict[self._glob2loc[globID]]
+            return self.__entDict[nodeID]
+        elif globID is not None:
+            return self.__entDict[self.__glob2loc[globID]]
+        elif nodeType is not None:
+            if ghosts:
+                return self.__ghostNodeDict[nodeType]
+            else:
+                return self.__nodeDict[nodeType]
 
+    
 
     def iterEntity(self,nodeType, ghosts = False):
         """
@@ -610,14 +653,30 @@ class World:
             nodeType = self.types.index(nodeType)
 
         if ghosts:
-            nodeDict = self.ghostNodeDict[nodeType]
+            nodeDict = self.__ghostNodeDict[nodeType]
         else:
-            nodeDict = self.nodeDict[nodeType]
+            nodeDict = self.__nodeDict[nodeType]
 
-        return  [self.entDict[i] for i in nodeDict]
+        return  [self.__entDict[i] for i in nodeDict]
 
 
-    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass, staticProperies = [], dynamicProperies = []):
+    def setEnum(self, enumName, enumDict):
+        """
+        Method to add enumertations
+        Dict should have integers as keys an strings as values
+        """
+        self.__enums[enumName] = enumDict
+         
+    def getEnum(self, enumName=None):
+        """ 
+        Returns a specified enumeration dict
+        """         
+        if enumName is None:
+            return self.__enums.keys()
+        else:
+            return self.__enums[enumName]
+
+    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
         - Registers the properties of each nodeType for other purposes, e.g. I/O
@@ -632,25 +691,28 @@ class World:
         """
         
         # type is an required property
-        #assert 'type' and 'gID' in staticProperies              ##OPTPRODUCTION
-
+        #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
+        
+        staticProperties = core.formatPropertyDefinition(staticProperties)
+        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
+                
         nodeTypeIdx = len(self.graph.nodeTypes)+1
 
         self.graph.addNodeType(nodeTypeIdx, 
                                typeStr, 
                                AgentClass,
                                GhostAgentClass,
-                               staticProperies, 
-                               dynamicProperies)
-        self.nodeDict[nodeTypeIdx]      = list()
-        self.dataDict[nodeTypeIdx]      = list()
-        self.ghostNodeDict[nodeTypeIdx] = list()
-        self.ghostDataDict[nodeTypeIdx] = list()
-        self.enums[typeStr] = nodeTypeIdx
+                               staticProperties, 
+                               dynamicProperties)
+        self.__nodeDict[nodeTypeIdx]      = list()
+        self.__dataDict[nodeTypeIdx]      = list()
+        self.__ghostNodeDict[nodeTypeIdx] = list()
+        self.__ghostDataDict[nodeTypeIdx] = list()
+
         return nodeTypeIdx
 
 
-    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperies = [], dynamicProperies=[]):
+    def registerEdgeType(self, typeStr,  nodeType1, nodeType2, staticProperties = [], dynamicProperties=[]):
         """
         Method to register a edge type:
         - Registers the properties of each edgeType for other purposes, e.g. I/O
@@ -660,12 +722,13 @@ class World:
             - edge2NodeType
         - update of enumerations
         """
-        
-        #assert 'type' in staticProperies # type is an required property             ##OPTPRODUCTION
+        staticProperties  = core.formatPropertyDefinition(staticProperties)
+        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
+        #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         edgeTypeIdx = len(self.graph.edgeTypes)+1
-        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperies, dynamicProperies, nodeType1, nodeType2)
-        self.enums[typeStr] = edgeTypeIdx
+        self.graph.addEdgeType(edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2)
+        
 
         return  edgeTypeIdx
 
@@ -675,23 +738,23 @@ class World:
         -> update of:
             - entList
             - endDict
-            - _glob2loc
+            - __glob2loc
             - _loc2glob
         """
-        #print 'assert' + str((len(self.entList), agent.nID))
-        #assert len(self.entList) == agent.nID                                  ##OPTPRODUCTION
-        self.entList.append(agent)
-        self.entDict[agent.nID] = agent
-        self._glob2loc[agent.gID] = agent.nID
-        self._loc2glob[agent.nID] = agent.gID
+        #print 'assert' + str((len(self.__entList), agent.nID))
+        #assert len(self.__entList) == agent.nID                                  ##OPTPRODUCTION
+        self.__entList.append(agent)
+        self.__entDict[agent.nID] = agent
+        self.__glob2loc[agent.gID] = agent.nID
+        self.__loc2glob[agent.nID] = agent.gID
 
         if ghost:
-            self.ghostNodeDict[typ].append(agent.nID)
-            self.ghostDataDict[typ].append(agent.dataID)
+            self.__ghostNodeDict[typ].append(agent.nID)
+            self.__ghostDataDict[typ].append(agent.dataID)
         
         else:
-            self.nodeDict[typ].append(agent.nID)
-            self.dataDict[typ].append(agent.dataID)
+            self.__nodeDict[typ].append(agent.nID)
+            self.__dataDict[typ].append(agent.dataID)
 
     def deRegisterNode(self):
         """
@@ -699,17 +762,17 @@ class World:
         -> update of:
             - entList
             - endDict
-            - _glob2loc
+            - __glob2loc
             - _loc2glob
         """
-        self.entList[agent.nID] = None
-        del self.entDict[agent.nID]
-        del self._glob2loc[agent.gID]
-        del self._loc2glob[agent.gID]
+        self.__entList[agent.nID] = None
+        del self.__entDict[agent.nID]
+        del self.__glob2loc[agent.gID]
+        del self.__loc2glob[agent.gID]
             
         
-        self.nodeDict[self.nodeType].remove(agent.nID)
-        self.dataDict[self.nodeType].remove(agent.dataID)
+        self.__nodeDict[self.nodeType].remove(agent.nID)
+        self.__dataDict[self.nodeType].remove(agent.dataID)
 
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
@@ -725,7 +788,7 @@ class World:
             
     def registerLocation(self, location, x, y):
 
-        self.locDict[x,y] = location
+        self.__locDict[x,y] = location
 
 
     def returnApiComm(self):
@@ -759,7 +822,7 @@ class World:
 
             
             # saving enumerations
-            core.saveObj(self.enums, self.para['outPath'] + '/enumerations')
+            core.saveObj(self.__enums, self.para['outPath'] + '/enumerations')
 
 
             # saving enumerations
@@ -905,15 +968,15 @@ if __name__ == '__main__':
     connList = core.computeConnectionList(1.5)
     #print connList
     CELL    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation,
-                                      staticProperies = [('gID', np.int32, 1),
+                                      staticProperties = [('gID', np.int32, 1),
                                                          ('pos', np.int16, 2)],
-                                      dynamicProperies = [('value', np.float32, 1),
+                                      dynamicProperties = [('value', np.float32, 1),
                                                           ('value2', np.float32, 1)])
 
     AG      = earth.registerNodeType('agent', AgentClass=Agent   , GhostAgentClass= GhostAgent,
-                                      staticProperies   = [('gID', np.int32, 1),
+                                      staticProperties   = [('gID', np.int32, 1),
                                                            ('pos', np.int16, 2)],
-                                      dynamicProperies  = [('value3', np.float32, 1)])
+                                      dynamicProperties  = [('value3', np.float32, 1)])
 
     C_LOLO = earth.registerEdgeType('cellCell', CELL, CELL, [('weig', np.float32, 1)])
     C_LOAG = earth.registerEdgeType('cellAgent', CELL, AG)
@@ -949,7 +1012,7 @@ if __name__ == '__main__':
 
     print(earth.graph.getPropOfNodeType(AG, 'names'))
 
-    print(str(earth.papi.rank) + ' ' + str(earth.nodeDict[AG]))
+    print(str(earth.papi.rank) + ' ' + str(earth.__nodeDict[AG]))
 
     print(str(earth.papi.rank) + ' SendQueue ' + str(earth.papi.ghostNodeQueue))
 
@@ -992,7 +1055,7 @@ if __name__ == '__main__':
     assert all(readValues == writeValues)
     print('Edge values write/read successful')
     
-    friendID = earth.nodeDict[AG][0]
+    friendID = earth.__nodeDict[AG][0]
     agent.addConnection(friendID, C_AGAG, weig=.51)
     assert earth.graph.isConnected(agent.nID, friendID, C_AGAG)
     readValue, _, _ = agent.getEdgeValues('weig',C_AGAG)
@@ -1011,9 +1074,9 @@ if __name__ == '__main__':
     #%%
     pos = (0,4)
     cellID = earth.graph.IDArray[pos]
-    cell40 = earth.entDict[cellID]
+    cell40 = earth.__entDict[cellID]
     agentID = cell40.getPeerIDs(edgeType=C_LOAG, mode='out')
-    connAgent = earth.entDict[agentID[0]]
+    connAgent = earth.__entDict[agentID[0]]
     assert np.all(cell40.data['pos'] == connAgent.data['pos'])
     
     if earth.papi.rank == 1:
