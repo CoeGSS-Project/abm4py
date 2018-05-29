@@ -5,7 +5,7 @@ import pprint as pp
 import numpy as np
 import matplotlib.pylab as plt
 from scipy import signal
-from bunch import Bunch
+import core
 
 from init_motmo import mpiSize
 import init_motmo as init
@@ -50,7 +50,8 @@ def publicTransportSetup(setup):
 
 # %% Scenario definition without calibraton parameters
 def scenarioTestSmall(parameterInput, dirPath):
-    setup = Bunch()
+    print('in scenarioTestSmall')
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources/'
@@ -59,7 +60,7 @@ def scenarioTestSmall(parameterInput, dirPath):
 
     # time
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
 
     a = 60000.
     b = 45000.
@@ -82,8 +83,8 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.landLayer = setup.population.copy().astype(float)
     setup.landLayer[setup.landLayer == 0.] = np.nan
     setup.landLayer = (setup.landLayer * 0.) + 1.
-    setup.landLayer[0,:] = 0.
     setup.cellSizeMap = setup.landLayer * 15.
+    setup.landLayer[0,:] = 0.
     setup.roadKmPerCell = np.asarray([[1, 5, 3, 0, 0],
                                       [1, 4, 4, 0, 1],
                                       [0, 1, 1, 1, 1]]) / setup.cellSizeMap
@@ -111,7 +112,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -135,18 +136,13 @@ def scenarioTestSmall(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
     lg.info("####################################")
 
     return setup
 
 
 def scenarioTestMedium(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources/'
@@ -155,7 +151,7 @@ def scenarioTestMedium(parameterInput, dirPath):
 
     # time
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
 
     # spatial
     setup.isSpatial = True
@@ -174,7 +170,9 @@ def scenarioTestMedium(parameterInput, dirPath):
                                       [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 , 0, 0],
                                       [2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0 , 0, 0],
                                       [3, 4, 1, 1, 2, 1, 1, 0, 0, 0, 0 , 0, 1],
-                                      [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]]) / setup.cellSizeMap
+                                      [6, 5, 2, 3, 2, 0, 1, 0, 0, 0, 0 , 1, 2]]) 
+    setup.roadKmPerCell[setup.roadKmPerCell==0] = 1
+    setup.roadKmPerCell = setup.landLayer / setup.roadKmPerCell 
 
     a = 60000.
     b = 45000.
@@ -224,7 +222,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -238,17 +236,11 @@ def scenarioTestMedium(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
 
-    pp.pprint("Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
-
     return setup
 
 
 def scenarioNBH(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_NBH/'
@@ -259,7 +251,7 @@ def scenarioNBH(parameterInput, dirPath):
     # time
     setup.nSteps = 340     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10  # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -322,7 +314,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -351,16 +343,10 @@ def scenarioNBH(parameterInput, dirPath):
                    'techExpOther', 'population']:
         setup[paName] /= setup['reductionFactor']
 
-    pp.pprint( "Final setting of the parameters")
-    pp.pprint(setup.toDict())
-    lg.info("Final setting of the parameters")
-    lg.info(setup.toDict())
-    lg.info("####################################")
-
     return setup
 
 def scenarioGer(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_ger/'
@@ -371,7 +357,7 @@ def scenarioGer(parameterInput, dirPath):
     # time
     setup.nSteps = 340  # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10  # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -438,8 +424,8 @@ def scenarioGer(parameterInput, dirPath):
             plt.colorbar()
         except:
             pass
-    print setup.landLayer.shape
-    print setup.population.shape    
+    print(setup.landLayer.shape)
+    print(setup.population.shape)    
     setup.landLayer[np.isnan(setup.population)] = np.nan
 
 
@@ -453,7 +439,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -468,15 +454,11 @@ def scenarioGer(parameterInput, dirPath):
                    'population']:
         setup[paName] /= setup['reductionFactor']
     for p in range(0, 105, 5):
-        print 'p' + str(p) + ': ' + str(
-            np.nanpercentile(setup.population[setup.population != 0], p))
+        print('p' + str(p) + ': ' + str(
+            np.nanpercentile(setup.population[setup.population != 0], p)))
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
@@ -485,7 +467,7 @@ def scenarioGer(parameterInput, dirPath):
 
 
 def scenarioLueneburg(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = dirPath + '/resources_luen/'
@@ -495,7 +477,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     # time
     setup.nSteps = 340     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 100
     setup.omniscientBurnIn = 10       # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
 
@@ -576,7 +558,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -599,15 +581,11 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup['population'] /= setup['reductionFactor']
 
     for p in range(0, 105, 5):
-        print 'p' + str(p) + ': ' + str(
-            np.nanpercentile(setup.population[setup.population != 0], p))
+        print('p' + str(p) + ': ' + str(
+            np.nanpercentile(setup.population[setup.population != 0], p)))
 
     # print 'max population' + str(np.nanmax(setup.population))
     # calculate dependent parameters
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')
@@ -615,7 +593,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     return setup
 
 def scenarioTest(parameterInput, dirPath):
-    setup = Bunch()
+    setup = core.AttrDict()
 
     # general
     setup.resourcePath = None
@@ -625,7 +603,7 @@ def scenarioTest(parameterInput, dirPath):
     # time
     setup.nSteps = 10     # number of simulation steps
     setup.timeUnit = init._month  # unit of time per step
-    setup.startDate = [01, 2005]
+    setup.startDate = [1, 2005]
     setup.burnIn = 0
     # no. of first steps of burn-in phase with omniscient agents, max. =burnIn
     setup.omniscientBurnIn = 0
@@ -636,8 +614,8 @@ def scenarioTest(parameterInput, dirPath):
     # setup.reductionFactor = parameterInput['reductionFactor']
 
     setup.landLayer = np.zeros([2, mpiSize])
-    setup.landLayer[0, :] = np.asarray(range(mpiSize))
-    setup.landLayer[1, :] = np.asarray(range(mpiSize))
+    setup.landLayer[0, :] = np.asarray(list(range(mpiSize)))
+    setup.landLayer[1, :] = np.asarray(list(range(mpiSize)))
 
     #setup.population        = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_186x219.tiff')
     setup.population = setup.landLayer * 5
@@ -683,7 +661,7 @@ def scenarioTest(parameterInput, dirPath):
     setup.writeCSV = 0
 
     # cars and infrastructure
-    setup.properties = ['costs', 'emissions']
+    setup.properties    = ['emissions', 'fixedCosts', 'operatingCosts']
 
     # agents
     setup.randomAgents = False
@@ -691,10 +669,6 @@ def scenarioTest(parameterInput, dirPath):
 
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
-
-    lg.info("Final setting of the parameters")
-    lg.info(parameterInput)
-    lg.info("####################################")
 
     nAgents = np.nansum(setup.population)
     lg.info('Running with ' + str(nAgents) + ' agents')

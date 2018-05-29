@@ -27,8 +27,13 @@ if weakScaling == False:
 
 
 
+
+#import sys, mpi4py
+#sys_excepthook = sys.excepthook
+#def mpi_excepthook(v, t, tb):
+#    sys_excepthook(v, t, tb)
+#    mpi4py.MPI.COMM_WORLD.Abort(1)
 import mpi4py
-mpi4py.rc.threads = False
 import sys, os
 import socket
 import time
@@ -38,29 +43,29 @@ from os.path import expanduser
 home = expanduser("~")
 
 sys.path.append('../lib/')
-sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+#sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
 
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-    sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-
-else:
-    
-    import matplotlib
-    matplotlib.use('Agg')
+#dir_path = os.path.dirname(os.path.realpath(__file__))
+#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+#    sys.path = ['../h5py/build/lib.linux-x86_64-2.7'] + sys.path
+#    sys.path = ['../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
+#
+#else:
+#    
+#    import matplotlib
+#    matplotlib.use('Agg')
 
 
 import numpy as np
 
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core
+import core as core
 
 import logging as lg
 import matplotlib.pylab as plt
 
-print 'import done'
+print('import done')
 
 
 
@@ -69,39 +74,29 @@ mpiComm = core.MPI.COMM_WORLD
 mpiRank = mpiComm.Get_rank()
 mpiSize = mpiComm.Get_size()
 
-
 showFigures = 0
 
-simNo, baseOutputPath = core.getEnvironment(mpiComm, getSimNo=True)
-outputPath = core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(mpiComm)
 
-#simNo = 0
-#outputPath = '.'
 
 if not os.path.isfile(outputPath + '/run_times.csv'):
     fid = open(outputPath + '/run_times.csv','w')
     fid.write(', '.join([number  for number in ['mpiSize', 'tInit', 'tComp', 'tSync', 'tWait', 'tIO', 'tAveragePerStep', 'tOverall']]) + '\n')
     fid.close()
-    
+
+  
 #%% Setup of log file
+if mpiComm.size > 1:
+    core.configureLogging(outputPath, debug=False)
 
-if debug:
-    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.DEBUG)
-else:
-    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.INFO)
-
-mpiComm.Barrier()
-
+    log_file   = open('output/out' + str(mpiComm.rank) + '.txt', 'w')
+    err_file   = open('output/err' + str(mpiComm.rank) + '.txt', 'w')
+    sys.stdout = log_file
+    sys.stderr = err_file
+    
+    
 if mpiRank == 0:
-    print 'log files created'
+    print('log files created')
         
 lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
 
@@ -109,6 +104,7 @@ parameters = dict()
 parameters['nSteps'] = nSteps
 parameters['showFigures'] = 0
 
+mpiComm.Barrier()
 
 ttInit = time.time()
 #%% Init of world
@@ -122,19 +118,24 @@ earth = LIB.World(simNo,
               mpiComm=mpiComm)
 
 earth.setParameters(parameters)
-log_file   =  open('out' + str(earth.mpi.rank) + '.txt', 'w')
-sys.stdout = log_file
+
+if mpiSize > 1:
+    log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
+    err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
+    sys.stdout = log_file
+    sys.stderr = err_file
+
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('agentsPerCell', np.int16,1)])
+                                     staticProperties  = [('gID', np.int32, 1),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('agentsPerCell', np.int16, 1)])
 
 AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
-                                     staticProperies  = [('gID', np.int32,1),
-                                                         ('pos', np.int16,2)],
-                                     dynamicProperies = [('prop_A', np.float32,1),
-                                                         ('prop_B', np.float32,1)])
+                                     staticProperties  = [('gID', np.int32),
+                                                         ('pos', np.int16, 2)],
+                                     dynamicProperties = [('prop_A'),
+                                                         ('prop_B', np.float32, 1)])
 
 #%% Init of edge types
 CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float32, 1)])
@@ -150,47 +151,44 @@ if weakScaling:
     layerShape = [procPerDim*factor,  procPerDim*factor]
     parameters['landLayer'] = np.zeros(layerShape)
 
-
-
 else:
-    
-    
     procPerDim = int(np.sqrt(mpiSize))
-    factor = layerShape[0] / procPerDim
+    factor = int(layerShape[0] / procPerDim)
     parameters['landLayer'] = np.zeros(layerShape)
     
 iProcess = 0
 for x in range(procPerDim):     
     for y in range(procPerDim):
-        
+        print(x, y)
+        print(factor)
         parameters['landLayer'][x*factor:(x+1)*factor,y*factor:(y+1)*factor] = iProcess
         iProcess +=1    
     
 connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
-earth.initSpatialLayer(parameters['landLayer'],
+earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
                            CELL,
                            LocClassObject=LIB.Location,
                            GhstLocClassObject=LIB.GhostLocation)
 
-for cell in earth.iterEntRandom(CELL, random=False):
-    cell.setValue('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
+for cell in earth.random.iterEntity(CELL):
+    cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
-earth.mpi.updateGhostNodes([CELL],['agentsPerCell'])
+earth.papi.updateGhostNodes([CELL],['agentsPerCell'])
 if mpiRank == 0:
-    print 'spatial layer initialized'
+    print('spatial layer initialized')
 
-for cell in earth.iterEntRandom(CELL, ghosts=True):
+for cell in earth.random.iterEntity(CELL, ghosts=True):
     cell.peList = list()
     
     
 # creation of agents
 locDict = earth.getLocationDict()
-for x, y in locDict.keys():
+for x, y in list(locDict.keys()):
     loc         = earth.getEntity(locDict[x, y].nID)
-    nAgentsCell = loc.getValue('agentsPerCell')
+    nAgentsCell = loc.get('agentsPerCell')
     
     for iAgent in range(nAgentsCell):
         agent = LIB.Agent(earth,
@@ -198,33 +196,24 @@ for x, y in locDict.keys():
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
         agent.register(earth, parentEntity=loc, edgeType=CON_AC)
-        agent.loc.peList.append(agent.nID)
+#        agent.loc.peList.append(agent.nID)
 
 
-earth.mpi.transferGhostNodes(earth) 
+earth.papi.transferGhostNodes(earth) 
 
-    
-#for ghostCell in earth.iterEntRandom(CELL, ghosts = True, random=False):
-#    ghostCell.updatePeList(earth.graph, AGENT)
-for ghostAgent in earth.iterEntRandom(AGENT, ghosts = True, random=False)    :
-    ghostAgent.loc.peList.append(ghostAgent.nID)
-    
-    
 if mpiRank == 0:
-    print 'Agents created'
+    print('Agents created')
     
-#earth.view('test2.png')
     
 #%% connectin agents
 globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
-for agent in earth.iterEntRandom(AGENT):
-    contactList, connList, weigList = agent.getNClosePeers(earth, 
-                                                           nFriends, 
-                                                           edgeType=CON_AC,
-                                                           addYourself=False)
-    #connList = [(agent.nID, peerID) for peerID in np.random.choice(earth.nodeDict[AGENT],nFriends)]
+for agent in earth.random.iterEntity(AGENT):
+    contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
+                                                                      nContacts=nFriends, 
+                                                                      nodeType=AGENT,
+                                                                      addYourself=False)
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
     
@@ -233,9 +222,9 @@ earth.addEdges(CON_AA, globalSourceList, globalTargetList)
 del  globalSourceList, globalTargetList
    
 if mpiRank == 0:
-    print 'Agents connections created'    
+    print('Agents connections created')    
 #%% register of global records
-earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+earth.papi.updateGhostNodes([AGENT],['prop_B'])
 
 earth.registerRecord('average_prop_B',
                      'sumation test for agents',
@@ -250,28 +239,26 @@ earth.waitTime    = np.zeros(nSteps)
 earth.ioTime      = np.zeros(nSteps)
 #%% init agent file 
 earth.io.initNodeFile(earth, [CELL, AGENT])
-#earth.io.gatherNodeData(0)
-#earth.io.writeDataToFile(0)
-#from tqdm import tqdm
+
 
 def stepFunction(earth):
     
     
     tt = time.time()    
-    for agent in earth.iterEntRandom(AGENT):
+    for agent in earth.random.iterEntity(AGENT):
         
         peerValues = np.asarray(agent.getPeerValues('prop_B',CON_AA))
         peerAverage = np.sum(peerValues / len(peerValues))
         #print peerAverage
         if peerAverage < 0.5:
             
-            agent.setValue('prop_B', np.random.random())
+            agent.set('prop_B', np.random.random())
     
     earth.compTime[earth.timeStep] += time.time() - tt
     
     
     tt = time.time()
-    earth.mpi.updateGhostNodes([AGENT],['prop_B'])
+    earth.papi.updateGhostNodes([AGENT],['prop_B'])
     earth.syncTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
@@ -279,15 +266,15 @@ def stepFunction(earth):
     earth.ioTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
-    earth.mpi.comm.Barrier()
+    earth.papi.comm.Barrier()
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
     #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeValues('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', np.asarray(earth.graph.nodes[AGENT][earth.dataDict[AGENT]]['prop_B']))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeValues('prop_B', nodeType=AGENT))
         
     earth.graph.glob.sync()
-    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob['average_prop_B'])
+    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])
     earth.syncTime[earth.timeStep] += time.time()-tt
     
     
@@ -304,7 +291,7 @@ times = np.zeros(parameters['nSteps'])
 
 if mpiRank == 0:
     tInit = time.time() - ttInit
-    print 'Time for model initialization: ' + str(tInit) + ' s'
+    print('Time for model initialization: ' + str(tInit) + ' s')
 
 
 
@@ -320,31 +307,31 @@ earth.finalize()
 
 if mpiRank==0: 
     tAveragePerStep = times.mean()
-    print 'average time per step: ' + str(tAveragePerStep)
+    print('average time per step: ' + str(tAveragePerStep))
     tOverall = time.time() - ttInit
-    print 'overall time: ' + str(tOverall)    
+    print('overall time: ' + str(tOverall))    
     
 if mpiRank==0:
     plt.figure('average_prop_B')
     plt.plot(earth.globalRecord['average_prop_B'].rec)
-    plt.savefig(outputPath + '/test.png')
+    plt.savefig(outputPath + 'test.png')
     
     plt.figure('times')
     plt.plot(times)
-    plt.savefig(outputPath + '/times.png')
+    plt.savefig(outputPath + 'times.png')
 
 gatherData= np.asarray([earth.compTime, earth.syncTime, earth.waitTime, earth.ioTime])
 gatherData = np.asarray(mpiComm.gather(gatherData, root=0))
 
 
 if mpiRank==0: 
-    print np.asarray(gatherData).shape
+    print(np.asarray(gatherData).shape)
     gatherData = gatherData.mean(axis=2).mean(axis=0)
     tComp = gatherData[0]
     tSync = gatherData[1]
     tWait = gatherData[2]
     tIO   = gatherData[3]
-    fid = open(outputPath + '/run_times.csv','a')
+    fid = open(outputPath + 'run_times.csv','a')
     fid.write(', '.join(["{:10.6f}".format(number)  for number in [mpiSize, tInit, tComp, tSync, tWait, tIO, tAveragePerStep, tOverall]]) + '\n')
     fid.close()
     
@@ -359,7 +346,7 @@ if False:
     import pandas as pd
 
     plt.clf()
-    dfTimes = pd.read_csv('run_times.csv')
+    dfTimes = pd.read_csv('output/run_times.csv')
     nRuns = 4
     
     colList = ['r', 'g', 'b', 'm']

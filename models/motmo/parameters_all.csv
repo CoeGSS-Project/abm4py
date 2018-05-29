@@ -10,6 +10,7 @@ techExpNone,3e9,                # inertial experience of other
 ################# BROWN          ############################,,
 initEmBrown,206.7,              # initial emissions of combustion engine car
 initPriceBrown,450.0,           # initial price of combution engine car
+initOperatingCostsBrown, 0.1,   # operating costs for brown cars
 priceReductionB,-3.45960751,    # price reduction through experience (brown)
 priceRedBCorrection,0.15,       # correction due to weight and comfort       
 emReductionB,-0.894311327388,   # emission reduction through experience (brown)
@@ -24,6 +25,7 @@ muConvB,0,                      # argument value for conventience maximum
 ################# GREEN          ############################,,
 initEmGreen,183.5,              # initial emissions of green cars
 initPriceGreen,1600.0,          # initial price of green engine car
+initOperatingCostsGreen, 0.06,  #operating costs for green cars
 priceReductionG,-0.20919615,    # price reduction through experience (green)
 priceRedGCorrection,0.9,        # correction due to weight and comfort       
 emReductionG,-0.20919615,       # emission reduction through experience (green)
@@ -42,6 +44,7 @@ muConvG,2600.0,	         	# argument value for convenience maximum of e-cars
 ################# PUBLIC          ############################,,
 initEmPublic,81.0,             # initial emissions of other mobi
 initPricePublic,120.0,          # initial price of other mobility
+initOperatingCostsPublic, 0.25, # operating costs for public transport
 pt2030,0.8,			# reduction factor for public transport emissions in 2030 (compared to 2012)
 ptLimit,0.5, 			# reduction factor for public transport emissions limit (compared to 2012) 
 #### Infrastructure PUBLIC,,
@@ -53,6 +56,7 @@ muConvP,4000.0,		        # argument value for convenience maximum of public tran
 ################# SHARED          ############################,,
 initEmShared,186.0,             # initial emissions of other mobi
 initPriceShared,350.0,          # initial price of other mobility
+initOperatingCostsShared, .45,  # opertation costs for car sharing
 initEmShared,186.0,             # initial emissions of other mobi
 weightS, 1400, 	        	# average weight of shared cars 
 #### Infrastructure SHARED,,
@@ -66,6 +70,7 @@ initMaturityS, 0.3,             # # initial maturity of shared
 ################# NONE          ############################,,
 initEmNone,0.1,                # initial emissions of other none motorized
 initPriceNone,60.0,             # initial price of other mobility
+initOperatingCostsNone, 0.001,  # operating costs for none motorized
 initMaturityN, 0.4,             # initial maturity of none motorized
 #### Infrastructure None,,
 minConvN,0.01,			# minimal convenience of non-motorized transport

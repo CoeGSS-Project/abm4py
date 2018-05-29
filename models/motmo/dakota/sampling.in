@@ -4,26 +4,30 @@ environment
 method
     sampling
         sample_type random
-        samples = 10
+        samples = 5
         seed = 1
 
 variables
     uniform_uncertain = 2
+        descriptor      'innoPriority' 'mobIncomeShare'
         lower_bounds    0.0              0.1            
         upper_bounds    0.5              0.4            
-        descriptor      'innoPriority' 'mobIncomeShare'
+    discrete_state_set 
+        string = 2
+            descriptors 'scenarioFileName'     'calcResultsScript'
+            elements 'parameters_small.csv'    'calc-error.py'
 
 interface
     fork                                                        
-        analysis_drivers = 'run-dakota.py'
+        analysis_drivers = '../run-via-dakota.py'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
- #       file_tag
- #       file_save
-#       aprepro
+        file_tag
+        file_save
 
-responses               
-    response_functions = 1
+responses
+    response_functions = 2
+    descriptors 'relativeError' 'absoluteError'
     no_gradients
     no_hessians
 

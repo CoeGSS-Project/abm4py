@@ -1,5 +1,7 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
+print('before import')
+
 import logging as lg
 import time
 import sys
@@ -8,34 +10,38 @@ import socket
 
 import init_motmo as init
 import core
-import plots
 
-debug = 1
-showFigures = 0
+debug = False
+showFigures = False
 
 comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 
 overallTime = time.time()
 
-simNo, baseOutputPath = core.getEnvironment(comm, getSimNo=True)
-outputPath = core.createOutputDirectory(comm, baseOutputPath, simNo)
+simNo, outputPath = core.setupSimulationEnvironment(comm)
+
 dirPath = os.path.dirname(os.path.realpath(__file__))
 fileName = sys.argv[1]
 
-init.initLogger(debug, outputPath)
+core.initLogger(debug, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
+parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
-parameters.showFigures = showFigures
+parameters['showFigures'] = showFigures
+
+print('before initEarth')
+
 
 global earth
 earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
+                       maxEdges=5000000,
                        debug=debug,
                        mpiComm=comm)
 
@@ -51,10 +57,11 @@ lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
 if earth.isRoot:
-    print 'Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s'
+    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
     init.writeSummary(earth, parameters)
 
 if showFigures:
+    import plots
     init.onlinePostProcessing(earth)
 
-plots.computingTimes(earth)
+    plots.computingTimes(earth)

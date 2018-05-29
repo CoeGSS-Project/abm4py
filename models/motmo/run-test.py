@@ -1,4 +1,4 @@
-execfile('init_motmo.py')
+exec(compile(open('init_motmo.py').read(), 'init_motmo.py', 'exec'))
 
 debug = 1 
 showFigures = 0
@@ -29,7 +29,7 @@ lg.info('Log file of process '+ str(mpiRank) + ' of ' + str(mpiSize))
 # wait for all processes - debug only for poznan to debug segmentation fault
 comm.Barrier()
 if comm.rank == 0:
-    print 'log files created'
+    print('log files created')
 
 lg.info('on node: ' + socket.gethostname())
 dirPath = os.path.dirname(os.path.realpath(__file__))
@@ -53,5 +53,5 @@ initSpatialLayer(earth)
 initInfrastructure(earth)
 
 earth.mpi.comm.Barrier()
-print "test finished"
+print("test finished")
 exit()

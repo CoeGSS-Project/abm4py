@@ -19,8 +19,9 @@ fileNames = list()
 fileNames.append('init_motmo.py')
 fileNames.append('classes_motmo.py')
 fileNames.append('../../lib/lib_gcfabm.py')
-fileNames.append('../../lib/class_auxiliary.py')
-
+fileNames.append('../../lib/core.py')
+fileNames.append('run-direct.py')
+fileNames.append('scenarios.py')
 for fileName in fileNames:
     outLineList = []
     fidOut = open(fileName[:-3] + '_prod.py','w')
@@ -32,8 +33,10 @@ for fileName in fileNames:
             line = fp.readline()
             cnt += 1
             line = line.replace('lib_gcfabm', 'lib_gcfabm_prod')
+            line = line.replace('init_motmo', 'init_motmo_prod')
             line = line.replace('classes_motmo', 'classes_motmo_prod')
-            line = line.replace('class_auxiliary', 'class_auxiliary_prod')
+            line = line.replace('core', 'core_prod')
+            line = line.replace('scenarios', 'scenarios_prod')
             if not useNumba:
                 line = line.replace('@jit', '#ljit')
                 line = line.replace('@njit', '#njit')
