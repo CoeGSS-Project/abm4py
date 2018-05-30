@@ -980,13 +980,21 @@ class IO():
 
         self.outputPath  = outputPath
         self._graph      = world.graph
-        #self.timeStep   = world.timeStep
-        self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+        
+        if world.papi.comm.size ==1:
+        
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+                                         'w')
+        else:
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                      'w',
                                      driver='mpio',
                                      comm=world.papi.comm)
                                      #libver='latest',
                                      #info = world.papi.info)
+        
+                                     
+            
         self.comm        = world.papi.comm
         self.dynamicData = dict()
         self.staticData  = dict() # only saved once at timestep == 0
@@ -1162,8 +1170,8 @@ class IO():
 
 class PAPI():
     """
-    Parallel agent passing interface
-    MPI communication module that controles all communcation between
+    Parallel Agent Passing Interface
+    MPI-based communication module that controles all communcation between
     different processes.
     ToDo: change to communication using numpy
     """
@@ -1552,14 +1560,19 @@ class PAPI():
 class Random():
     
     
-    def __init__(self, world, nodeDict, ghostNodeDict):
+    def __init__(self, world, nodeDict, ghostNodeDict, entDict):
         self.__world = world # make world availabel in class random
         self.nodeDict = nodeDict
         self.ghostNodeDict = ghostNodeDict
+        self.entDict = entDict
         
 
-    def entity(self, nChoice, entType):
-        return random.sample(self.nodeDict[entType],nChoice)
+    def entity(self, entType, nChoice=1):
+        IDs = random.sample(self.nodeDict[entType],nChoice)
+        if len(IDs) == 1:
+            return self.entDict[IDs[0]]
+        else:
+            return [self.entDict[nodeID] for nodeID in IDs]
     
     def location(self, nChoice):
         return random.sample(self.locDict.items(), nChoice)

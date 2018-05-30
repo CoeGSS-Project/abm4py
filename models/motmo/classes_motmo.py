@@ -1233,14 +1233,6 @@ class Person(Agent):
 
     def socialize(self, world):
 
-#        drop 10% of old connections
-#        print 'ID:', self.nID,
-#        print "prior",
-#        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
-#        print 'sum of weights', np.sum(weights)
-#        for weig, idx in zip(weights, edges.indices):
-#            print '(',weig, idx,')',
-#        print ' '
         weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
         nContacts = len(weights)
         nDrops    = int(nContacts/10)
@@ -1506,8 +1498,8 @@ class Person(Agent):
             self.set('prop',[good.properties['emissions'],good.properties['fixedCosts'], good.properties['operatingCosts']])
 
         # socialize
-#        if ESSR < 0.1 and np.random.rand() >0.99:
-#            self.socialize(world)
+        if np.random.rand() >0.99:
+            self.socialize(world)
 
 
 
@@ -1870,7 +1862,7 @@ class Household(Agent):
                         adult.set('prop', oldProp[adultIdx])
                         adult.set('lastAction', oldLastAction[adultIdx])
                         mobilityProperties = oldProp[adultIdx]
-                        print(mobilityProperties)
+                        #print(mobilityProperties)
                     else:
                         adult.set('mobType', mobChoice)
                         mobilityProperties = market.goods[adult.get('mobType')].getProperties()

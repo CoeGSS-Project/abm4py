@@ -153,7 +153,7 @@ class Entity():
         
         if edgeType is None:
             
-            edgeType = earth.graph.node2EdgeType[self.nodeType, nodeType]
+            edgeType = self._graph.node2EdgeType[self.nodeType, nodeType]
         else:
             assert nodeType is None
         #print edgeType
@@ -490,7 +490,7 @@ class World:
         self.__glob2loc = dict()  # reference from global IDs to local IDs
         self.__loc2glob = dict()  # reference from local IDs to global IDs
 
-        self.random = core.Random(self, self.__nodeDict, self.__ghostNodeDict)
+        self.random = core.Random(self, self.__nodeDict, self.__ghostNodeDict, self.__entDict)
 
 
         # inactive is used to virtually remove nodes
