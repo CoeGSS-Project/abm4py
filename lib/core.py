@@ -71,7 +71,7 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
     Reads an existng or creates a new environment file
     Returns simulation number and outputPath
     """
-    if (mpiComm is None) or (mpiComm.rank == 0) :
+    if (mpiComm is None) or (mpiComm.rank == 0):
         # get simulation number from file
         try:
             fid = open("environment","r")
@@ -85,21 +85,23 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
                 fid.writelines(baseOutputPath)
                 fid.close()
         except:
-
+            print('Environment file is not set up')
             import os
-            if not os.path.exists('output/'):
-                os.makedirs('output/')
+            
+            baseOutputPath  = 'output/'
+            simNo           = 0
+            if not os.path.exists(baseOutputPath):
+                os.makedirs(baseOutputPath)
             fid = open("environment","w")
-            fid.writelines('0\n')
-            fid.writelines('output/')
+            fid.writelines(str(simNo+1)+ '\n')
+            fid.writelines(baseOutputPath)
             fid.close()
-            print('Environment file is set up')
+            
 
-            print('')
             print('A new environment was created usning the following template')
             print('#################################################')
             print("0")
-            print('basepath/')
+            print('output/')
             print('#################################################')
             
     else:
@@ -1550,29 +1552,28 @@ class PAPI():
 class Random():
     
     
-    def __init__(self, world):
-        self.world = world # make world availabel in class random
-
-#    def entity2(self, nChoice, entType):
-#        ids = np.random.choice(self.world.nodeDict[entType],nChoice,replace=False)
-#        return [self.world.entDict[idx] for idx in ids]
+    def __init__(self, world, nodeDict, ghostNodeDict):
+        self.__world = world # make world availabel in class random
+        self.nodeDict = nodeDict
+        self.ghostNodeDict = ghostNodeDict
+        
 
     def entity(self, nChoice, entType):
-        return random.sample(self.world.nodeDict[entType],nChoice)
+        return random.sample(self.nodeDict[entType],nChoice)
     
     def location(self, nChoice):
-        return random.sample(self.world.locDict.items(), nChoice)
+        return random.sample(self.locDict.items(), nChoice)
     
     def iterEntity(self, nodeType, ghosts=False):
         # a generator that yields items instead of returning a list
         if isinstance(nodeType,str):
-            nodeType = self.world.types.index(nodeType)
+            nodeType = self.__world.types.index(nodeType)
 
-        nodeDict = self.world.getEntity(nodeType=nodeType, ghosts=ghosts)
+        nodes = self.__world.getEntity(nodeType=nodeType, ghosts=ghosts)
 
-        shuffled_list = sorted(nodeDict, key=lambda x: random.random())
+        shuffled_list = sorted(nodes, key=lambda x: random.random())
         for nodeID in shuffled_list:
-            yield self.world.getEntity(nodeID=nodeID)
+            yield self.__world.getEntity(nodeID=nodeID)
             
 
 class AttrDict(dict):

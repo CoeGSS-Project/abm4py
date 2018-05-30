@@ -275,10 +275,7 @@ class Entity():
             self.mpiPeers = parentEntity.registerChild(world, self, edgeType)
 
 
-
 class Agent(Entity):
-
-
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in list(kwProperties.keys()):
@@ -471,7 +468,7 @@ class World:
         self.graph.glob     = core.Globals(self)
         lg.debug('Init Globals done')##OPTPRODUCTION
 
-        self.random = core.Random(self)
+        
         if spatial:
             self.spatial  = core.Spatial(self)
         
@@ -492,6 +489,9 @@ class World:
 
         self.__glob2loc = dict()  # reference from global IDs to local IDs
         self.__loc2glob = dict()  # reference from local IDs to global IDs
+
+        self.random = core.Random(self, self.__nodeDict, self.__ghostNodeDict)
+
 
         # inactive is used to virtually remove nodes
         
