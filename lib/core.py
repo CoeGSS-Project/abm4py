@@ -148,6 +148,17 @@ def configureLogging(outputPath, debug=False):
                         datefmt='%m/%d/%y-%H:%M:%S',
                         level=lg.INFO)
 
+def configureSTD(outputPath, out2File=True, err2File=True):
+    import sys
+
+    if out2File:    
+        log_file   =  open(outputPath + '/out' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        sys.stdout = log_file    
+    
+    if out2File:
+        err_file   =  open(outputPath + '/err' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        sys.stderr = err_file
+
 def formatPropertyDefinition(propertyList):
     """
     Checks and completes the property definition for entities and edges
@@ -307,13 +318,15 @@ class Spatial():
         self.world = world # make world availabel in class random
 
 
-    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject=None):
+    def initSpatialLayer(self, rankArray, connList, LocClassObject):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
+        nodeType = self.world.graph.class2NodeType(LocClassObject)
+        GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
         nodeArray = ((rankArray * 0) +1)
         #print rankArray
         IDArray = nodeArray * np.nan
@@ -992,8 +1005,6 @@ class IO():
                                      comm=world.papi.comm)
                                      #libver='latest',
                                      #info = world.papi.info)
-        
-                                     
             
         self.comm        = world.papi.comm
         self.dynamicData = dict()
@@ -1466,7 +1477,7 @@ class PAPI():
                 # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
                 for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsParents):
 
-                    GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+                    GhostAgentClass = world.graph.nodeType2Class(nodeType)[1]
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 

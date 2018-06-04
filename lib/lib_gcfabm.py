@@ -111,7 +111,8 @@ class Entity():
         if world is None:
             return
         
-        nodeType =  world.graph.class2NodeType[self.__class__]
+        
+        nodeType =  world.graph.class2NodeType(self.__class__)
         
         if not hasattr(self, '_graph'):
             self._setGraph(world.graph)
@@ -134,7 +135,7 @@ class Entity():
         # redireciton of internal functionality:
         self.get = firstElementDeco(self.data.__getitem__)
         self.set = self.data.__setitem__
-        
+        self.__getEntity = world.getEntity
     
     @classmethod
     def _setGraph(cls, graph):
@@ -148,7 +149,12 @@ class Entity():
         else:
             return self.data[0,key].view()
 
-
+    def getPeer(self, peerID):
+        return self.__getEntity(nodeID=peerID)
+    
+    def getPeers(self, peerIDs):
+        return [self.__getEntity(nodeID=peerID) for peerID in peerIDs]
+    
     def getPeerIDs(self, edgeType=None, nodeType=None, mode='out'):
         
         if edgeType is None:
@@ -180,8 +186,8 @@ class Entity():
         if not force:
             raise Exception
         else:
-            import warnings
-            warnings.warn('This is violating the current rules and data get lost')
+            #import warnings
+            #warnings.warn('This is violating the current rules and data get lost')
 
             self._graph.setOutNodeValues(self.nID, edgeType, prop, values)
                                    
@@ -226,7 +232,6 @@ class Entity():
         """
         self._graph.addEdge(edgeType, self.nID, friendID, attributes = tuple(kwpropDict.values()))
 
-
     def remConnection(self, friendID=None, edgeType=None):
         """
         Removing a connection to another node
@@ -268,7 +273,7 @@ class Entity():
 
 
     def register(self, world, parentEntity=None, edgeType=None, ghost=False):
-        nodeType = world.graph.class2NodeType[self.__class__]
+        nodeType = world.graph.class2NodeType(self.__class__)
         world.registerNode(self, nodeType, ghost)
 
         if parentEntity is not None:
@@ -297,7 +302,7 @@ class Agent(Entity):
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
-                nodeType = world.graph.class2NodeType[entity.__class__]
+                nodeType = world.graph.class2NodeType(entity.__class__)
                 world.papi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
@@ -367,7 +372,7 @@ class Location(Entity):
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
-                nodeType = world.graph.class2NodeType[entity.__class__]
+                nodeType = world.graph.class2NodeType(entity.__class__)
                 world.papi.queueSendGhostNode( mpiPeer, nodeType, entity, self)
 
         return self.mpiPeers
@@ -618,7 +623,6 @@ class World:
   
     def getEntity(self, nodeID=None, globID=None, nodeType=None, ghosts=False):
         """
-
         Method to retrieve a certain instance of an entity by the nodeID
         Selections can be done by the local nodeID, global ID and the nodetype
         and the flag ghost
@@ -905,184 +909,5 @@ class easyUI():
         
 if __name__ == '__main__':
     
-    # MINIMAL FUNCTION TEST
-    import mpi4py
-    mpiComm = mpi4py.MPI.COMM_WORLD
-    mpiRank = mpiComm.Get_rank()
-    mpiSize = mpiComm.Get_size()
+    pass
     
-    lg.basicConfig(filename='log_R' + str(mpiRank),
-                filemode='w',
-                format='%(levelname)7s %(asctime)s : %(message)s',
-                datefmt='%m/%d/%y-%H:%M:%S',
-                level=lg.DEBUG)    
-    
-    outputPath = '.'
-    simNo= 0
-    earth = World(simNo,
-                  outputPath,
-                  nSteps=10,
-                  maxNodes=1e4,
-                  maxEdges=1e4,
-                  debug=True,
-                  mpiComm=mpiComm)
-
-
-    #earth = World(0, '.', maxNodes = 1e2, nSteps = 10)
-    print(earth.papi.comm.rank)
-    if mpiComm.size > 1:
-        log_file  = open('out' + str(earth.papi.rank) + '.txt', 'w')
-        sys.stdout = log_file
-    earth.graph.glob.registerValue('test' , np.asarray([earth.papi.comm.rank]),'max')
-
-    earth.graph.glob.registerStat('meantest', np.random.randint(5,size=3).astype(float),'mean')
-    earth.graph.glob.registerStat('stdtest', np.random.randint(5,size=2).astype(float),'std')
-    print(earth.graph.glob.globalValue['test'])
-    print(earth.graph.glob.globalValue['meantest'])
-    print('mean of values: ',earth.graph.glob.localValues['meantest'],'-> local mean: ',earth.graph.glob.globalValue['meantest'])
-    print('std od values:  ',earth.graph.glob.localValues['stdtest'],'-> local std: ',earth.graph.glob.globalValue['stdtest'])
-
-    earth.graph.glob.sync()
-    print(earth.graph.glob.globalValue['test'])
-    print('global mean: ', earth.graph.glob.globalValue['meantest'])
-    print('global std: ', earth.graph.glob.globalValue['stdtest'])
-
-
-
-    import sys
-
-    mpiRankLayer   = np.asarray([[0, 0, 0, 0, 1],
-                              [np.nan, np.nan, np.nan, 1, 1]])
-    if mpiComm.size == 1:
-        mpiRankLayer = mpiRankLayer * 0
-    
-    #landLayer = np.load('rankMap.npy')
-    connList = core.computeConnectionList(1.5)
-    #print connList
-    CELL    = earth.registerNodeType('cell' , AgentClass=Location, GhostAgentClass= GhostLocation,
-                                      staticProperties = [('gID', np.int32, 1),
-                                                         ('pos', np.int16, 2)],
-                                      dynamicProperties = [('value', np.float32, 1),
-                                                          ('value2', np.float32, 1)])
-
-    AG      = earth.registerNodeType('agent', AgentClass=Agent   , GhostAgentClass= GhostAgent,
-                                      staticProperties   = [('gID', np.int32, 1),
-                                                           ('pos', np.int16, 2)],
-                                      dynamicProperties  = [('value3', np.float32, 1)])
-
-    C_LOLO = earth.registerEdgeType('cellCell', CELL, CELL, [('weig', np.float32, 1)])
-    C_LOAG = earth.registerEdgeType('cellAgent', CELL, AG)
-    C_AGAG = earth.registerEdgeType('AgAg', AG, AG, [('weig', np.float32, 1)])
-
-    earth.spatial.initSpatialLayer(mpiRankLayer, connList, CELL, Location, GhostLocation)
-    #earth.papi.initCommunicationViaLocations(ghostLocationList)
-
-    for cell in earth.random.iterEntity(CELL):
-        cell.data['value'] = earth.papi.rank
-        cell.data['value2'] = earth.papi.rank+2
-
-        if cell.get('pos')[0] == 0:
-            x,y = cell.get('pos')
-            agent = Agent(earth, value3=np.random.randn(),pos=(x,  y))
-            #print 'agent.nID' + str(agent.nID)
-            agent.register(earth, cell, C_LOAG)
-            #cell.registerEntityAtLocation(earth, agent,_cLocAg)
-
-    #earth.queue.dequeueVertices(earth)
-    #earth.queue.dequeueEdges(earth)
-#            if agent.node['nID'] == 10:
-#                agent.addConnection(8,_cAgAg)
-
-    #earth.papi.syncNodes(CELL,['value', 'value2'])
-    earth.papi.updateGhostNodes([CELL])
-    print(earth.graph.getPropOfNodeType(CELL, 'names'))
-    print(str(earth.papi.rank) + ' values' + str(earth.graph.nodes[CELL]['value']))
-    print(str(earth.papi.rank) + ' values2: ' + str(earth.graph.nodes[CELL]['value2']))
-
-    #print earth.papi.ghostNodeRecv
-    #print earth.papi.ghostNodeSend
-
-    print(earth.graph.getPropOfNodeType(AG, 'names'))
-
-    print(str(earth.papi.rank) + ' ' + str(earth.__nodeDict[AG]))
-
-    print(str(earth.papi.rank) + ' SendQueue ' + str(earth.papi.ghostNodeQueue))
-
-    earth.papi.transferGhostNodes(earth)
-    #earth.papi.recvGhostNodes(earth)
-
-    #earth.queue.dequeueVertices(earth)
-    #earth.queue.dequeueEdges(earth)
-
-    cell.getPeerIDs(nodeType=CELL, mode='out')
-    #earth.view(str(earth.papi.rank) + '.png', layout=ig.Layout(earth.graph.nodes[CELL]['pos'].tolist()))
-
-    print(str(earth.papi.rank) + ' ' + str(earth.graph.nodes[AG].indices))
-    print(str(earth.papi.rank) + ' ' + str(earth.graph.nodes[AG]['value3']))
-
-    for agent in earth.random.iterEntity(AG):
-        agent.data['value3'] = earth.papi.rank+ agent.nID
-        assert agent.get('value3') == earth.papi.rank+ agent.nID
-
-    earth.papi.updateGhostNodes([AG])
-
-    earth.io.initNodeFile(earth, [CELL, AG])
-
-    earth.io.writeDataToFile(0, [CELL, AG])
-
-    print(str(earth.papi.rank) + ' ' + str(earth.graph.nodes[AG]['value3']))
-
-    #%% testing agent methods 
-    peerList = cell.getPeerIDs(C_LOLO)
-    writeValues = np.asarray(list(range(len(peerList)))).astype(np.float32)
-    cell.setPeerValues('value', writeValues, C_LOLO , force=True)
-    readValues = cell.getPeerValues('value', C_LOLO)
-    assert all(readValues == writeValues)
-    assert all(earth.graph.getNodeSeqAttr('value', peerList,) == writeValues)
-    print('Peer values write/read successful')
-    edgeList = cell.getEdgeIDs(C_LOLO)
-    writeValues = np.random.random(len(edgeList[1])).astype(np.float32)
-    cell.setEdgeValues('weig',writeValues, C_LOLO)
-    readValues, _, _  = cell.getEdgeValues('weig',C_LOLO)
-    assert all(readValues == writeValues)
-    print('Edge values write/read successful')
-    
-    friendID = earth.__nodeDict[AG][0]
-    agent.addConnection(friendID, C_AGAG, weig=.51)
-    assert earth.graph.isConnected(agent.nID, friendID, C_AGAG)
-    readValue, _, _ = agent.getEdgeValues('weig',C_AGAG)
-    assert readValue[0] == np.float32(0.51)
-    
-    agent.remConnection(friendID, C_AGAG)
-    assert not(earth.graph.isConnected(agent.nID, friendID, C_AGAG))
-    print('Adding/removing connection successfull')
-    
-    value = agent.data['value3'].copy()
-    agent.data['value3'] +=1
-    assert agent.data['value3'] == value +1
-    assert earth.graph.getNodeAttr('value3', agent.nID) == value +1
-    print('Value access and increment sucessful')
-    
-    #%%
-    pos = (0,4)
-    cellID = earth.graph.IDArray[pos]
-    cell40 = earth.__entDict[cellID]
-    agentID = cell40.getPeerIDs(edgeType=C_LOAG, mode='out')
-    connAgent = earth.__entDict[agentID[0]]
-    assert np.all(cell40.data['pos'] == connAgent.data['pos'])
-    
-    if earth.papi.rank == 1:
-        cell40.data['value'] = 32.0
-        connAgent.data['value3'] = 43.2
-    earth.papi.updateGhostNodes([CELL])
-    earth.papi.updateGhostNodes([AG],['value3'])
-    
-    
-    buff =  earth.papi.all2all(cell40.data['value'][0])
-    assert buff[0] == buff[1]
-    print('ghost update of cells successful (all attributes) ')
-    
-    buff =  earth.papi.all2all(connAgent.data['value3'])
-    assert buff[0] == buff[1]
-    print('ghost update of agents successful (specific attribute)')
-

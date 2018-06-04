@@ -29,7 +29,7 @@ def publicTransportSetup(setup):
     busMap = np.load(setup.resourcePath + 'nBusStations.npy')
     trainMap = np.load(setup.resourcePath + 'nTrainStations.npy')
 
-# density proxi
+    # density proxi
     convMat = convolutionMatrix(5, 2)
     bus_station_density = signal.convolve2d(
         busMap, convMat, boundary='symm', mode='same')  # / sumConv
@@ -89,6 +89,7 @@ def scenarioTestSmall(parameterInput, dirPath):
                                       [1, 4, 4, 0, 1],
                                       [0, 1, 1, 1, 1]]) / setup.cellSizeMap
 
+    setup.roadKmPerCell[np.isnan(setup.roadKmPerCell)] = 0.
     setup.regionIdRaster = ((setup.landLayer * 0) + 1) * 6321
     # setup.regionIdRaster[0:,0:2]    = ((setup.landLayer[0:,0:2]*0)+1) *1519
     if mpiSize == 1:
@@ -120,17 +121,6 @@ def scenarioTestSmall(parameterInput, dirPath):
 
     # redefinition of setup parameters used for automatic calibration
     setup.update(parameterInput.toDict())
-
-    # calculate dependent parameters
-    # maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    # minCarConvenience = 1 + setup.kappa
-    # setup.convB =  minCarConvenience / (maxDeviation)
-
-    # only for packing with care
-    # dummy   = gt.load_array_from_tiff(setup.resourcePath + 'land_layer_62x118.tiff')
-    # dummy   = gt.load_array_from_tiff(setup.resourcePath + 'pop_counts_ww_2005_62x118.tiff') / setup.reductionFactor
-    # dummy   = gt.load_array_from_tiff(setup.resourcePath + 'subRegionRaster_62x118.tiff')
-    # del dummy
 
     for paName in ['techExpBrown', 'techExpGreen', 'techExpPublic', 'techExpShared', 'techExpNone',
                    'population']:
@@ -191,11 +181,6 @@ def scenarioTestMedium(parameterInput, dirPath):
                                    [a, a, c, c, d, f, f, 0, 0, 0, i, i, g]])
     del a, b, c, d, e, f, g, h, i
 
-    # convMat = np.asarray([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
-    # setup.population = setup.landLayer* signal.convolve2d(setup.landLayer,convMat,boundary='symm',mode='same')
-    # setup.population = 30 * setup.population + setup.landLayer* np.random.randint(0,40,setup.landLayer.shape)*2
-    # setup.population = 50 * setup.population
-
     setup.landLayer = setup.landLayer.astype(float)
     setup.landLayer[setup.landLayer == 0] = np.nan
 
@@ -208,9 +193,6 @@ def scenarioTestMedium(parameterInput, dirPath):
         setup.regionIdRaster[~np.isnan(setup.regionIdRaster)]).astype(int)
 
     setup.landLayer[:, :5] = setup.landLayer[:, :5] * 0
-    # setup.landLayer[:,:1] = setup.landLayer[:,:1]*0
-    # setup.landLayer[:,4:5] = setup.landLayer[:,4:5]*2
-    # setup.landLayer[:,6:] = setup.landLayer[:,6:]*3
 
     # social
     setup.addYourself = True     # have the agent herself as a friend (have own observation)
@@ -257,8 +239,6 @@ def scenarioNBH(parameterInput, dirPath):
 
     # spatial
     setup.isSpatial = True
-    # setup.connRadius = 3.5      # radíus of cells that get an connection
-    # setup.reductionFactor = parameterInput['reductionFactor']
 
     if hasattr(parameterInput, "reductionFactor"):
         # overwrite the standart parameter
@@ -323,21 +303,6 @@ def scenarioNBH(parameterInput, dirPath):
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
 
-    # Correciton of population depend parameter by the reduction factor
-    # setup['initialGreen'] /= setup['reductionFactor']
-    # setup['initialBrown'] /= setup['reductionFactor']
-    # setup['initialOther'] /= setup['reductionFactor']
-
-    # setup['population']     /= setup['reductionFactor']
-    # setup['urbanThreshold'] /= setup['reductionFactor']
-    # setup['urbanCritical']  /= setup['reductionFactor']
-    # setup['publicTransBonus']  /= setup['reductionFactor']
-    # setup.convD /= setup['reductionFactor']
-
-    # calculate dependent parameters
-    # maxDeviation = (setup.urbanCritical - setup.urbanThreshold)**2
-    # minCarConvenience = 1 + setup.kappa
-    # setup.convB =  minCarConvenience / (maxDeviation)
 
     for paName in ['techExpBrown', 'techExpGreen',
                    'techExpOther', 'population']:
@@ -364,8 +329,6 @@ def scenarioGer(parameterInput, dirPath):
     # spatial
     setup.isSpatial = True
     setup.spatialRedFactor = 1.
-    # setup.connRadius    = 3.5      # radíus of cells that get an connection
-    # setup.reductionFactor = parameterInput['reductionFactor']
 
     if hasattr(parameterInput, "reductionFactor"):
         # overwrite the standart parameter
@@ -522,18 +485,6 @@ def scenarioLueneburg(parameterInput, dirPath):
     # correction of ID map
     xList, yList = np.where(np.logical_xor(
         np.isnan(setup.population), np.isnan(setup.regionIdRaster)))
-
-#    for x, y in zip(xList,yList):
-#        reList = []
-#        for dx in [-1, 0, 1]:
-#            for dy in [-1, 0, 1]:
-#                if not np.isnan(setup.regionIdRaster[x+dx,y+dy]):
-#                    reList.append(setup.regionIdRaster[x+dx,y+dy])
-#        if len(np.unique(reList)) == 1:
-#            setup.regionIdRaster[x, y] = np.unique(reList)[0]
-#
-#    assert np.sum(np.logical_xor(np.isnan(setup.population), np.isnan(setup.regionIdRaster))) == 0 ##OPTPRODUCTION
-
     setup.regionIdRaster[np.isnan(setup.regionIdRaster)] = 0
     setup.regionIdRaster = setup.regionIdRaster.astype(int)
 
@@ -569,8 +520,6 @@ def scenarioLueneburg(parameterInput, dirPath):
     # redefinition of setup parameters from file
     setup.update(parameterInput.toDict())
 
-    # setup.population = (setup.population ** .5) * 100
-    # Correciton of population depend parameter by the reduction factor
     for paName in ['techExpBrown',
                    'techExpGreen',
                    'techExpPublic',
@@ -674,7 +623,6 @@ def scenarioTest(parameterInput, dirPath):
     lg.info('Running with ' + str(nAgents) + ' agents')
 
     return setup
-
 
 scenarioDict = {
     0: scenarioTestSmall,

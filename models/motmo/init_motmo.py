@@ -667,9 +667,7 @@ def initSpatialLayer(earth):
     connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
-                           CELL,
-                           LocClassObject=Cell,
-                           GhstLocClassObject=GhostCell)
+                           LocClassObject=Cell)
     
     convMat = np.asarray([[0., 1, 0.],[1., 1., 1.],[0., 1., 0.]])
     tmp = parameters['population']*parameters['reductionFactor']

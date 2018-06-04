@@ -615,7 +615,10 @@ class Good():
         self.addToOverallExperience(self.lastGlobalSales[self.goodID])  
         
         # use last step global sales for update of the growth rate and technical progress
-        self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.globalStock[self.goodID])
+        if self.globalStock[self.goodID] > 0:
+            self.currGrowthRate = 1 + (self.lastGlobalSales[self.goodID]) / float(self.globalStock[self.goodID])
+        else:
+            self.currGrowthRate = 0
         self.progress *= 1 + (self.lastGlobalSales[self.goodID]) / float(self.experience + self.initExperience)
         
         
@@ -902,10 +905,6 @@ class Market():
             ecology = 1. / (1.+math.exp((emissions-self.mean['emissions'])/self.std['emissions']))
         except:
             ecology = 0.
-#        if self.std['emissions'] == 0:
-#            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/1.))
-#        else:
-#            ecology = 1. / (1+np.exp((emissions-self.mean['emissions'])/self.std['emissions']))
         return ecology
 
 
@@ -1167,8 +1166,9 @@ class Infrastructure():
             propability = propability / np.sum(propability)
             
       
-        
-        
+        if np.sum(np.isnan(propability)) >0:
+            import pdb
+            pdb.set_trace()
         randIdx = np.random.choice(list(range(len(currNumStations))), int(nNewStations), p=propability)
         
         uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
@@ -1231,36 +1231,37 @@ class Person(Agent):
             #return weights, self.data['ESSR']
 
 
-    def socialize(self, world):
+    def socialize(self):
 
-        weights, edges = self.getEdgeValues('weig', edgeType=CON_PP)
+        weights, edgesRef, friendIDs = self.getEdgeValues('weig', edgeType=CON_PP)
         nContacts = len(weights)
-        nDrops    = int(nContacts/10)
-        dropIds = np.asarray(edges.indices)[np.argsort(weights)[:nDrops].tolist()].tolist()
-
-        if world.queuing:
-            world.queue.edgeDeleteList.extend(dropIds)
+        nDrops    = int(nContacts/5)
+        
+        if np.sum(weights < 0.001) >nDrops:
+            dropIds = np.asarray(friendIDs)[np.argsort(weights)[:nDrops].tolist()].tolist()
         else:
-            world.graph.delete_edges(dropIds)
-
+             dropIds = np.asarray(friendIDs)[weights < 0.001]
+         
+        if len(dropIds)> 0:
+            self.remConnections(friendIDs=dropIds, edgeType=CON_PP)
+        
         # add t new connections
         currContacts = self.getPeerIDs(CON_PP)
 
-        frList, edgeList           = self.getRandomNewContacts(world, nDrops, currContacts)
+        frList, edgeList           = self.getRandomNewContacts(nDrops, currContacts)
 
         if len(edgeList) > 0:
         # update edges
             lg.debug('adding contact edges')
-            world.addEdges(edgeList, type=CON_PP, weig=1.0/nContacts)
+            
+            for friendID in frList:
+                self.addConnection(friendID, edgeType=CON_PP, weig=1.0/nContacts)
 
-        if world.caching:
-            self.resetEdgeCache(edgeType=CON_PP)
-            self.resetPeerCache(edgeType=CON_PP)
 
-    def getRandomNewContacts(self, world, nContacts, currentContacts):
-        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
-
-        cell = world.entDict[np.random.choice(cellIds)]
+    def getRandomNewContacts(self, nContacts, currentContacts):
+        
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnectedCells()
+        cell = self.getPeer(np.random.choice(cellIds))
         personIds = cell.getPersons()
 
         if len(personIds) > nContacts:
@@ -1300,7 +1301,7 @@ class Person(Agent):
 
 
         #get spatial weights to all connected cells
-        cellConnWeights, edgeIds, cellIds = self.loc.getConnCellsPlus()
+        cellConnWeights, edgeIds, cellIds = self.loc.getConnectedCells()
         personIdsAll = list()
         nPers = list()
         cellWeigList = list()
@@ -1382,7 +1383,7 @@ class Person(Agent):
         nGhosts = 0
         if world.debug:                                                                 ##OPTPRODUCTION
             for peId in contactList:                                                    ##OPTPRODUCTION
-                if isinstance(world.entDict[peId], GhostPerson):                        ##OPTPRODUCTION
+                if isinstance(world.getEntity(peId), GhostPerson):                        ##OPTPRODUCTION
                     nGhosts += 1                                                        ##OPTPRODUCTION
         #lg.debug('At location ' + str(self.loc.data['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
         
@@ -1457,6 +1458,7 @@ class Person(Agent):
         peerIDs         = self.getPeerIDs(edgeType=CON_PP)
         
         nPeers          = len(peerIDs)
+        
         commUtilPeers   = Person.cacheCommUtil[:nPeers,:]
         commUtilPeers[:]= self.getPeerValues('commUtil', CON_PP)
         utilPeers       = Person.cacheUtil[:nPeers]
@@ -1466,10 +1468,6 @@ class Person(Agent):
         weights         = Person.cacheWeights[:nPeers]
         weights[:], _, _= self.getEdgeValues('weig', CON_PP)
 
-#        commUtilPeers  = np.asarray(peers['commUtil'])
-#        utilPeers       = np.asarray(peers['util'])
-#        mobTypePeers    = np.asarray(peers['mobType'])
-#        weights         = np.asarray(edges['weig'])
         
         
         
@@ -1499,7 +1497,7 @@ class Person(Agent):
 
         # socialize
         if np.random.rand() >0.99:
-            self.socialize(world)
+            self.socialize()
 
 
 
@@ -2173,21 +2171,13 @@ class Cell(Location):
         self.obsMemory   = core.Memory(memeLabels)
 
 
-    def getConnCellsPlus(self):
+    def getConnectedCells(self):
         """ 
         ToDo: check if not deprecated 
         """
         self.weights, edgesReferences, connectedNodes = self.getEdgeValues('weig',edgeType=CON_LL)
-        #self.connNodeDict   = [edge.target for edge in edges ]
         return self.weights, edgesReferences, connectedNodes
 
-    def _getConnCellsPlusOld(self):
-        """
-        depreciated
-        """
-        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=CON_LL)
-        self.connnodeDict = [self._graph.es[x].target for x in self.eIDs ]
-        return self.weights, self.eIDs, self.connnodeDict
 
 
     def getHHs(self):
