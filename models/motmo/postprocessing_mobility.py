@@ -30,7 +30,7 @@ if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
     memmap = False
 else:
     sys.path.append(home + '/python/modules/folium/')
-    memmap = True
+    memmap = False
 
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
@@ -117,7 +117,13 @@ print('omniscient Agents: ' + str(simParas['omniscientAgents']))
 print('burn-in phase: ' + str(nBurnIn))
 print('of which omniscient burn-in: ' + str(simParas['omniscientBurnIn']))
 
+global NSTEPS 
+NSTEPS = simParas['nSteps']
+global NMOBTYPES 
+NMOBTYPES = simParas['nMobTypes']
 
+PLOTYEARS = plotYears
+WITHOUTBURNIN = WITHOUTBURNIN
 
 #%% DATA LOADING FILES
 
@@ -1810,13 +1816,7 @@ if __name__ == "__main__":
     enums['mobilityTitles'][4] = 'None motorized'
     
     
-    global NSTEPS 
-    NSTEPS = parameters['nSteps']
-    global NMOBTYPES 
-    NMOBTYPES = parameters['nMobTypes']
-    
-    PLOTYEARS plotYears
-    WITHOUTBURNIN = WITHOUTBURNIN
+
     
     print('loading done in ' + str(time.time() - tt) + ' s')
 
