@@ -2,6 +2,7 @@ name,value, comment
 scenario,1,			# selection of the scenario setup
 nSteps,460,              	# number of simulation steps
 burnIn,100,            		# number of burn in time steps
+ioSteps, 12, #number of steps after when the IO writen to file
 burnInTimeFactor,1,            # time scaling in burnIn
 omniscientBurnIn,0,   		# number of omiscient agent time steps 
 connRadius,3.5,        		# radius within which location cell get connected
