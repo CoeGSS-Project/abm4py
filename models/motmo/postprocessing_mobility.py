@@ -35,7 +35,7 @@ else:
 #sys.path.append('/home/geiges/database/')
 sys.path.append('modules/')
 import seaborn as sns; sns.set()
-import core as core
+import core_prod as core
 
 #sns.set_color_codes("dark")
 #sns.color_palette("Paired")
@@ -43,7 +43,6 @@ import core as core
 percentile = 0.1
 
 plotFunc = list()
-
 
 #memmap = True
 

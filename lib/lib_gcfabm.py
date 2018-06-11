@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8-*-
 """
-
-
 Copyright (c) 2017
 Global Climate Forum e.V.
 http://www.globalclimateforum.org
@@ -63,11 +61,7 @@ import numpy as np
 from class_graph import ABMGraph
 import core
 
-
-
-
 def assertUpdate(graph, prop, nodeType):
-    
 
     # if is serial
     if not(graph.isParallel):##OPTPRODUCTION
@@ -83,9 +77,6 @@ def assertUpdate(graph, prop, nodeType):
     
     raise('Error while accessing non-updated property')##OPTPRODUCTION
     pass
-
-
-
 
 ################ ENTITY CLASS #########################################
 # general ABM entity class for objects connected with the graph
@@ -110,8 +101,7 @@ class Entity():
     def __init__(self, world, nID = -1, **kwProperties):
         if world is None:
             return
-        
-        
+                
         nodeType =  world.graph.class2NodeType(self.__class__)
         
         if not hasattr(self, '_graph'):
@@ -122,8 +112,6 @@ class Entity():
 
         # create instance from existing node
         if nID is not -1:
-
-
             self.nID = nID
             self.data, self.dataID = self._graph.getNodeView(nID)
             self.gID = self.data['gID'][0]

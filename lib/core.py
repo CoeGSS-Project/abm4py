@@ -967,7 +967,7 @@ class IO():
 
         def initStorage(self, dtype):
             #print dtype
-            self.data = np.zeros([self.nAgents,self.nAttr ], dtype=dtype)
+            self.data = np.zeros([self.nAgents, self.nAttr ], dtype=dtype)
 
         def addData(self, timeStep, nodeData):
             self.timeStep = timeStep
