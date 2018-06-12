@@ -91,7 +91,7 @@ import numpy as np
 #import h5py
 
 from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion
-import core  
+import core
 comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 mpiSize = comm.Get_size()
@@ -119,6 +119,8 @@ PERS   = 3
 #time spans
 _month = 1
 _year  = 2
+
+global earth
 
 
 # Mobility setup setup
@@ -517,7 +519,7 @@ def initEarth(simNo,
               mpiComm=None):
     tt = time.time()
     
-    global earth
+    
     earth = Earth(simNo,
                   outPath,
                   parameters,
@@ -526,7 +528,9 @@ def initEarth(simNo,
                   debug=debug,
                   mpiComm=mpiComm)
 
-
+    #global assignment
+    core.earth = earth
+    
     lg.info('Init finished after -- ' + str( time.time() - tt) + ' s')
     if mpiRank == 0:
         print('Earth init done')
@@ -937,8 +941,6 @@ def randomizeParameters(parameters):
         parameters['minFriends'] = minFriendsRand
     parameters['mobIncomeShare'] * randDeviation(5)
     parameters['charIncome'] * randDeviation(5)
-    parameters['innoPriority'] * randDeviation(5)
-    parameters['individualPrio'] * randDeviation(10)
     parameters['priceRedBCorrection'] * randDeviation(3, -3, 3)
     parameters['priceRedGCorrection'] * randDeviation(3, -3, 3)
     
@@ -962,7 +964,7 @@ def runModel(earth, parameters):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
-            adult.set('lastAction', int(np.random.rand() * float(earth.para['mobNewPeriod'])))
+            adult.set('lastAction', np.int(np.random.rand() * np.float(earth.para['mobNewPeriod'])))
 
     lg.info('Initial actions done')
 
@@ -1039,9 +1041,9 @@ def writeSummary(earth, parameters):
     if parameters.scenario == 2:
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) != 2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 0))
+        nCars      = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) != 2))
+        nGreenCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 1))
+        nBrownCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 0))
 
         lg.info('Number of agents: ' + str(nPeople))
         lg.info('Number of agents: ' + str(nCars))
@@ -1056,9 +1058,9 @@ def writeSummary(earth, parameters):
 
         nPeople = np.nansum(parameters.population)
 
-        nCars      = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])!=2))
-        nGreenCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==1))
-        nBrownCars = float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==0))
+        nCars      = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])!=2))
+        nGreenCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==1))
+        nBrownCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==0))
 
         lg.info( 'Number of agents: ' + str(nPeople))
         lg.info( 'Number of agents: ' + str(nCars))
@@ -1136,8 +1138,8 @@ def onlinePostProcessing(earth):
         plt.ylabel('connections weight')
 
         plt.show()
-        x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(float)
-        y = np.asarray(earth.graph.es['weig'])[idx].astype(float)
+        x = np.asarray(earth.graph.es['prefDiff'])[idx].astype(np.float)
+        y = np.asarray(earth.graph.es['weig'])[idx].astype(np.float)
         lg.info( np.corrcoef(x,y))
 
 

@@ -25,16 +25,13 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import core  # Record, Memory, Writer, cartesian
+import core
 
 from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation
 
 #import pdb
 #import igraph as ig
 import numpy as np
-#import pandas as pd
-#import seaborn as sns
-#import matplotlib.pyplot as plt
 import time
 import os
 import math
@@ -74,7 +71,6 @@ SHARED  = 3
 NONE   = 4
 
 MEAN_KM_PER_TRIP = [.25, 3., 7.5, 30., 75. ]
-
 
 #%% --- Global classes ---
 from numba import njit
@@ -430,10 +426,13 @@ class Earth(World):
         self.waitTime[self.time] += time.time()-ttWait
 
         # I/O
-        ttIO = time.time()
-        self.io.writeDataToFile(self.time, [CELL, HH, PERS])
-        self.ioTime[self.time] = time.time()-ttIO
-
+        ioStep = self.getParameter("ioSteps")
+        if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
+            ttIO = time.time()
+            self.io.writeDataToFile(self.time, [CELL, HH, PERS])
+            self.ioTime[self.time] = time.time()-ttIO
+        else: 
+            self.ioTime[self.time] = 0
 
         lg.info(('Times: tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+
               ' - tSync: '+ '{:10.5f}'.format(self.syncTime[self.time])+
@@ -1231,18 +1230,18 @@ class Person(Agent):
             #return weights, self.data['ESSR']
 
 
-    def socialize(self):
+    def socialize(self, weights, friendIDs):
 
-        weights, edgesRef, friendIDs = self.getEdgeValues('weig', edgeType=CON_PP)
+#        weights, edgesRef, friendIDs = self.getEdgeValues('weig', edgeType=CON_PP)
         nContacts = len(weights)
         nDrops    = int(nContacts/5)
         
-        if np.sum(weights < 0.001) >nDrops:
+        if np.sum(weights < 0.001) > nDrops:
             dropIds = np.asarray(friendIDs)[np.argsort(weights)[:nDrops].tolist()].tolist()
         else:
              dropIds = np.asarray(friendIDs)[weights < 0.001]
-         
-        if len(dropIds)> 0:
+        nDrops =  len(dropIds)
+        if nDrops > 0:
             self.remConnections(friendIDs=dropIds, edgeType=CON_PP)
         
         # add t new connections
@@ -1453,7 +1452,7 @@ class Person(Agent):
         
 
     def step(self, earth):
-        
+#        earth = core.earth
         #load data
         peerIDs         = self.getPeerIDs(edgeType=CON_PP)
         
@@ -1466,7 +1465,7 @@ class Person(Agent):
         mobTypePeers    = Person.cacheMobType[:nPeers]
         mobTypePeers[:] = self.getPeerValues('mobType', CON_PP)
         weights         = Person.cacheWeights[:nPeers]
-        weights[:], _, _= self.getEdgeValues('weig', CON_PP)
+        weights[:], _, friendIDs= self.getEdgeValues('weig', CON_PP)
 
         
         
@@ -1496,8 +1495,8 @@ class Person(Agent):
             self.set('prop',[good.properties['emissions'],good.properties['fixedCosts'], good.properties['operatingCosts']])
 
         # socialize
-        if np.random.rand() >0.99:
-            self.socialize()
+#        if np.random.rand() >0.99:
+#            self.socialize(weights, friendIDs)
 
 
 
@@ -2036,28 +2035,19 @@ class Household(Agent):
         #print 'imiate: ' +str(time.time() -tt)
         #tt2 = time.time()
         bestOpt, bestUtil, actorIds = self.householdOptimization(earth, bestIndividualActionsIds)
-        #print 'opt: ' +str(time.time() -tt2)
-        #tt3 = time.time()
         
         if actorIds is not None:
-#            self.undoActions(earth, self.adults)
-#            self.takeActions(earth, self.adults, bestOpt)
-#        else:
             self.undoActions(earth, [self.adults[idx] for idx in actorIds])
             self.takeActions(earth, [self.adults[idx] for idx in actorIds], bestOpt)
         
         self.calculateConsequences(earth.market)
         
         self.evalUtility(earth, actionTaken=True)
-        
-        #print 'eval: ' +str(time.time() -tt3)
-        #print str(bestUtil) + ' -> ' + str(util)
-
-
             
         self.computeTime += time.time() - tt
 
     def step(self, earth):
+        
         tt = time.time()
 
         actionTaken = False

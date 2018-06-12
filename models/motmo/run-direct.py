@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-print('before import')
 
 import logging as lg
 import time
@@ -11,7 +10,7 @@ import socket
 import init_motmo as init
 import core
 
-debug = False
+debug = True
 showFigures = False
 
 comm = core.MPI.COMM_WORLD
@@ -33,10 +32,7 @@ parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
 
-print('before initEarth')
 
-
-global earth
 earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
@@ -56,9 +52,9 @@ init.runModel(earth, parameters)
 lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
-if earth.isRoot:
-    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
-    init.writeSummary(earth, parameters)
+#if earth.isRoot:
+#    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
+#    init.writeSummary(earth, parameters)
 
 if showFigures:
     import plots
