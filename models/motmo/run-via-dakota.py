@@ -6,6 +6,7 @@ import sys
 import os
 import socket
 import dakota.interfacing as di
+import random
 
 dakotadir = os.getcwd()
 dirPath = os.path.dirname(os.path.realpath(__file__))
@@ -13,26 +14,27 @@ os.chdir('..')
 
 import init_motmo as init
 import core
-from mpi4py import MPI
 
-comm = MPI.COMM_WORLD
+comm = core.MPI.COMM_WORLD
 mpiRank = comm.Get_rank()
 
 # I don't want to polute the model directory with dakota files, but the
 # dakota.interfacing library uses relativ file names, so I start with the
 # dakota subdirectory, changes to the model diretory after reading the dakota
 # input file and switch back to the dakota dir before writing the output file
-if mpiRank == 0:
-    os.chdir(dakotadir)
-    dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
-    os.chdir('..')
-
+os.chdir(dakotadir)
+dakotaParams, dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+os.chdir('..')
 
 showFigures = 0
 
 overallTime = time.time()
 
-simNo, outputPath = core.setupSimulationEnvironment(comm)
+# derive the simulation number from the parameter file name (it's important that
+# file_tag attribute is set in the interface section of the dakota input file)
+dakotaRunNo = random.randrange(2 ** 63)
+print('runNo' + str(dakotaRunNo))
+simNo, outputPath = core.setupSimulationEnvironment(comm, dakotaRunNo)
 print(outputPath)
 print(dirPath)
 core.initLogger(False, outputPath)
@@ -69,6 +71,6 @@ if mpiRank == 0:
     init.writeSummary(earth, parameters)
 
     os.chdir(dakotadir)
-    execfile(dakotaParams['calcResultsScript'])
+    exec(open(dakotaParams['calcResultsScript']).read())
     # the script executed contains the calcResults function
     calcResults(dakotaResults)
