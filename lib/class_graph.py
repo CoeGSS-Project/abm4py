@@ -413,6 +413,9 @@ class BaseGraph():
         eType.edgesIn[target].remove(dataID)
         eType.edgesOut[source].remove(dataID)
         
+        eType.nodesOut[source].remove(target)
+        eType.nodesIn[target].remove(source)
+        
     def setEdgeAttr(self, leID, label, value, eTypeID=None):
         
         eTypeID, dataID = self.getEdgeDataRef(leID)
@@ -516,8 +519,9 @@ class ABMGraph(BaseGraph):
         self.edge2NodeType = dict()
 
         # dict of classes to init node automatically
-        self.nodeType2Class = dict()
-        self.class2NodeType = dict()
+        self.__nodeType2Class = dict()
+        self.__class2NodeType = dict()
+        self.__ghostOfAgentClass   = dict()
         
     def addNodeType(self, 
                     nodeTypeIdx, 
@@ -531,11 +535,11 @@ class ABMGraph(BaseGraph):
         nodeType = TypeDescription(nodeTypeIdx, typeStr, staticProperties, dynamicProperties)
         self.nodeTypes[nodeTypeIdx] = nodeType
         # same nodeType for ghost and non-ghost
-        self.nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
-        self.class2NodeType[AgentClass]       = nodeTypeIdx
+        self.__nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
+        self.__class2NodeType[AgentClass]       = nodeTypeIdx
         if GhostAgentClass is not None:
-            self.class2NodeType[GhostAgentClass]  = nodeTypeIdx
-        
+            self.__class2NodeType[GhostAgentClass]  = nodeTypeIdx
+            self.__ghostOfAgentClass[AgentClass]         = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
     def addEdgeType(self , edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
@@ -634,6 +638,15 @@ class ABMGraph(BaseGraph):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         return self.nodes[nTypeID][dataID:dataID+1].view(), dataID
 
+    def nodeType2Class(self, nodeTypeID):
+        return self.__nodeType2Class[nodeTypeID]
+    
+    def class2NodeType(self, agentClass):
+        return self.__class2NodeType[agentClass]
+    
+    def ghostOfAgentClass(self, agentClass):
+        return self.__ghostOfAgentClass[agentClass]
+        
 
 if __name__ == "__main__":
 

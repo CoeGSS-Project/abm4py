@@ -71,7 +71,7 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
     Reads an existng or creates a new environment file
     Returns simulation number and outputPath
     """
-    if (mpiComm is None) or (mpiComm.rank == 0) :
+    if (mpiComm is None) or (mpiComm.rank == 0):
         # get simulation number from file
         try:
             fid = open("environment","r")
@@ -85,21 +85,23 @@ def setupSimulationEnvironment(mpiComm, simNo=None):
                 fid.writelines(baseOutputPath)
                 fid.close()
         except:
-
+            print('Environment file is not set up')
             import os
-            if not os.path.exists('output/'):
-                os.makedirs('output/')
+            
+            baseOutputPath  = 'output/'
+            simNo           = 0
+            if not os.path.exists(baseOutputPath):
+                os.makedirs(baseOutputPath)
             fid = open("environment","w")
-            fid.writelines('0\n')
-            fid.writelines('output/')
+            fid.writelines(str(simNo+1)+ '\n')
+            fid.writelines(baseOutputPath)
             fid.close()
-            print('Environment file is set up')
+            
 
-            print('')
             print('A new environment was created usning the following template')
             print('#################################################')
             print("0")
-            print('basepath/')
+            print('output/')
             print('#################################################')
             
     else:
@@ -145,6 +147,17 @@ def configureLogging(outputPath, debug=False):
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
                         level=lg.INFO)
+
+def configureSTD(outputPath, out2File=True, err2File=True):
+    import sys
+
+    if out2File:    
+        log_file   =  open(outputPath + '/out' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        sys.stdout = log_file    
+    
+    if out2File:
+        err_file   =  open(outputPath + '/err' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        sys.stderr = err_file
 
 def formatPropertyDefinition(propertyList):
     """
@@ -305,13 +318,15 @@ class Spatial():
         self.world = world # make world availabel in class random
 
 
-    def initSpatialLayer(self, rankArray, connList, nodeType, LocClassObject, GhstLocClassObject=None):
+    def initSpatialLayer(self, rankArray, connList, LocClassObject):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
+        nodeType = self.world.graph.class2NodeType(LocClassObject)
+        GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
         nodeArray = ((rankArray * 0) +1)
         #print rankArray
         IDArray = nodeArray * np.nan
@@ -978,13 +993,19 @@ class IO():
 
         self.outputPath  = outputPath
         self._graph      = world.graph
-        #self.timeStep   = world.timeStep
-        self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+        
+        if world.papi.comm.size ==1:
+        
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+                                         'w')
+        else:
+            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                      'w',
                                      driver='mpio',
                                      comm=world.papi.comm)
                                      #libver='latest',
                                      #info = world.papi.info)
+            
         self.comm        = world.papi.comm
         self.dynamicData = dict()
         self.staticData  = dict() # only saved once at timestep == 0
@@ -1160,8 +1181,8 @@ class IO():
 
 class PAPI():
     """
-    Parallel agent passing interface
-    MPI communication module that controles all communcation between
+    Parallel Agent Passing Interface
+    MPI-based communication module that controles all communcation between
     different processes.
     ToDo: change to communication using numpy
     """
@@ -1456,7 +1477,7 @@ class PAPI():
                 # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
                 for nID, gID in zip(self.mpiRecvIDList[(nodeType, mpiPeer)], gIDsParents):
 
-                    GhostAgentClass = world.graph.nodeType2Class[nodeType][1]
+                    GhostAgentClass = world.graph.nodeType2Class(nodeType)[1]
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
@@ -1550,29 +1571,33 @@ class PAPI():
 class Random():
     
     
-    def __init__(self, world):
-        self.world = world # make world availabel in class random
+    def __init__(self, world, nodeDict, ghostNodeDict, entDict):
+        self.__world = world # make world availabel in class random
+        self.nodeDict = nodeDict
+        self.ghostNodeDict = ghostNodeDict
+        self.entDict = entDict
+        
 
-#    def entity2(self, nChoice, entType):
-#        ids = np.random.choice(self.world.nodeDict[entType],nChoice,replace=False)
-#        return [self.world.entDict[idx] for idx in ids]
-
-    def entity(self, nChoice, entType):
-        return random.sample(self.world.nodeDict[entType],nChoice)
+    def entity(self, entType, nChoice=1):
+        IDs = random.sample(self.nodeDict[entType],nChoice)
+        if len(IDs) == 1:
+            return self.entDict[IDs[0]]
+        else:
+            return [self.entDict[nodeID] for nodeID in IDs]
     
     def location(self, nChoice):
-        return random.sample(self.world.locDict.items(), nChoice)
+        return random.sample(self.locDict.items(), nChoice)
     
     def iterEntity(self, nodeType, ghosts=False):
         # a generator that yields items instead of returning a list
         if isinstance(nodeType,str):
-            nodeType = self.world.types.index(nodeType)
+            nodeType = self.__world.types.index(nodeType)
 
-        nodeDict = self.world.getEntity(nodeType=nodeType, ghosts=ghosts)
+        nodes = self.__world.getEntity(nodeType=nodeType, ghosts=ghosts)
 
-        shuffled_list = sorted(nodeDict, key=lambda x: random.random())
+        shuffled_list = sorted(nodes, key=lambda x: random.random())
         for nodeID in shuffled_list:
-            yield self.world.getEntity(nodeID=nodeID)
+            yield self.__world.getEntity(nodeID=nodeID)
             
 
 class AttrDict(dict):
