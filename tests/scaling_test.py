@@ -16,7 +16,7 @@ nFriends = 50        # number of interconnections per agents -> increase computa
 factor = 25          # spatial extend per process (factor x factor)
 nSteps = 10          # number of model steps that are run
 radius = 5           # spatial interaction radius -> increases of communication
-weakScaling = False  # testin weak scaling
+weakScaling = True  # testin weak scaling
 
 debug = True
 if weakScaling == False:
@@ -60,7 +60,7 @@ sys.path.append('../lib/')
 import numpy as np
 
 import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core as core
+import core
 
 import logging as lg
 import matplotlib.pylab as plt
@@ -88,11 +88,7 @@ if not os.path.isfile(outputPath + '/run_times.csv'):
 #%% Setup of log file
 if mpiComm.size > 1:
     core.configureLogging(outputPath, debug=False)
-
-    log_file   = open('output/out' + str(mpiComm.rank) + '.txt', 'w')
-    err_file   = open('output/err' + str(mpiComm.rank) + '.txt', 'w')
-    sys.stdout = log_file
-    sys.stderr = err_file
+    core.configureSTD(outputPath)
     
     
 if mpiRank == 0:
@@ -119,11 +115,6 @@ earth = LIB.World(simNo,
 
 earth.setParameters(parameters)
 
-if mpiSize > 1:
-    log_file   =  open('output/out' + str(earth.papi.rank) + '.txt', 'w')
-    err_file   =  open('output/err' + str(earth.papi.rank) + '.txt', 'w')
-    sys.stdout = log_file
-    sys.stderr = err_file
 
 #%% Init of entity types
 CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
@@ -143,7 +134,6 @@ CON_AC = earth.registerEdgeType('cell-ag', CELL, AGENT)
 CON_AA = earth.registerEdgeType('ag-ag', AGENT,AGENT)
 
 parameters['connRadius'] = radius
-
 
 
 if weakScaling:
@@ -168,9 +158,7 @@ connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 
 earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
-                           CELL,
-                           LocClassObject=LIB.Location,
-                           GhstLocClassObject=LIB.GhostLocation)
+                           LocClassObject=LIB.Location)
 
 for cell in earth.random.iterEntity(CELL):
     cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
@@ -318,7 +306,7 @@ if mpiRank==0:
     
     plt.figure('times')
     plt.plot(times)
-    plt.savefig(outputPath + 'times.png')
+    plt.savefig(outputPath + '/times.png')
 
 gatherData= np.asarray([earth.compTime, earth.syncTime, earth.waitTime, earth.ioTime])
 gatherData = np.asarray(mpiComm.gather(gatherData, root=0))
@@ -331,7 +319,7 @@ if mpiRank==0:
     tSync = gatherData[1]
     tWait = gatherData[2]
     tIO   = gatherData[3]
-    fid = open(outputPath + 'run_times.csv','a')
+    fid = open(outputPath + '/run_times.csv','a')
     fid.write(', '.join(["{:10.6f}".format(number)  for number in [mpiSize, tInit, tComp, tSync, tWait, tIO, tAveragePerStep, tOverall]]) + '\n')
     fid.close()
     

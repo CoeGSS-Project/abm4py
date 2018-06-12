@@ -426,7 +426,8 @@ class Earth(World):
         self.waitTime[self.time] += time.time()-ttWait
 
         # I/O
-        if self.timeStep%self.getParameter("ioSteps") == 0 or self.timeStep == self.getParameter('nSteps'):
+        ioStep = self.getParameter("ioSteps")
+        if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
             ttIO = time.time()
             self.io.writeDataToFile(self.time, [CELL, HH, PERS])
             self.ioTime[self.time] = time.time()-ttIO

@@ -1171,6 +1171,9 @@ class IO():
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
+        self.comm.Barrier()
+        self.h5File.flush()
+        self.comm.Barrier()
 
         self.h5File.close()
         lg.info( 'Agent file closed')
