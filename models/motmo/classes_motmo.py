@@ -443,6 +443,8 @@ class Earth(World):
         if self.isRoot:
             print('Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
 
+    def year2step(self, year):
+        return 12 * (year - self.para['startDate'][1]) + self.para['burnIn']
 
 
 # ToDo
