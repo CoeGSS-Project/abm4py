@@ -4,7 +4,7 @@ environment
 method
     sampling
         sample_type random
-        samples = 5
+        samples = 4
         seed = 1
 
 variables
@@ -15,19 +15,19 @@ variables
     discrete_state_set 
         string = 2
             descriptors 'scenarioFileName'     'calcResultsScript'
-            elements 'parameters_small.csv'    'calc-error.py'
+            elements 'parameters_med.csv'    'calc-error.py'
 
 interface
-    fork                                                        
-        analysis_drivers = '../run-via-dakota.py'
+    system asynchronous evaluation_concurrency = 2
+        analysis_drivers = 'run-simulation.sh'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
         file_tag
         file_save
 
 responses
-    response_functions = 2
-    descriptors 'relativeError' 'absoluteError'
+    response_functions = 1
+    descriptors 'relativeError' # 'absoluteError'
     no_gradients
     no_hessians
 

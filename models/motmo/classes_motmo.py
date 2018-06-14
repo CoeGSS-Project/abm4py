@@ -162,10 +162,6 @@ class Earth(World):
         if self.para['omniscientBurnIn']>self.para['burnIn']:
             self.para['omniscientBurnIn']=self.para['burnIn']
 
-        if not os.path.isdir('output'):
-            os.mkdir('output')
-
-
     def nPriorities(self):
         return len(self.getEnum('priorities'))
 
