@@ -427,12 +427,13 @@ class Earth(World):
 
         # I/O
         ioStep = self.getParameter("ioSteps")
-        if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
-            ttIO = time.time()
-            self.io.writeDataToFile(self.time, [CELL, HH, PERS])
-            self.ioTime[self.time] = time.time()-ttIO
-        else: 
-            self.ioTime[self.time] = 0
+        if self.getParameter('writeAgentFile'):
+            if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
+                ttIO = time.time()
+                self.io.writeDataToFile(self.time, [CELL, HH, PERS])
+                self.ioTime[self.time] = time.time()-ttIO
+            else: 
+                self.ioTime[self.time] = 0
 
         lg.info(('Times: tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+
               ' - tSync: '+ '{:10.5f}'.format(self.syncTime[self.time])+
@@ -440,12 +441,12 @@ class Earth(World):
               ' - tIO: '+ '{:10.5f}'.format(self.ioTime[self.time]) ))
 
         if self.getParameter('omniscientAgents'):
-            lg.info( 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            lg.info( 'Omincent step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
         else:
-            lg.info( 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            lg.info( 'Step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
         if self.isRoot:
-            print('Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            print('Step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s --', end='')
 
 
 

@@ -25,30 +25,6 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 
 
-TODOs
-
-short-term:
-    - utility test center
-    - realistic physical values
-    - test learning niches
-    - utility potential for omnicent knowledge
-    - MCMC evolution of the synthetic population
-        - add/remove households and draw acceptance accourding to available statistics
-        - what about if no data is available ??? -> extrapolation of statistics
-
-    - entropy on networks (distribution of weights)
-        - entire network
-        - per agent
-    - save connections + properties to output
-    - synthetic poplulations of bremen and hamburg
-    - add price incentive (4000 euro in 2017)
-
-long-term:
-    - cut connections with near-zero weights
-    - replace removed connections with new ones
-        - rebuffering of sequences of nodes and edges
-    - add advertising to experience
-
 """
 # %%
 # TODO
@@ -538,7 +514,7 @@ def initEarth(simNo,
 
 def initScenario(earth, parameters):
 
-    tt = time.time()
+    ttt = time.time()
     earth.initMarket(earth,
                      parameters.properties,
                      parameters.randomCarPropDeviationSTD,
@@ -595,15 +571,16 @@ def initScenario(earth, parameters):
     
     initMobilityTypes(earth)
     
-    initAgentOutput(earth)
+    if parameters['writeAgentFile']:
+        initAgentOutput(earth)
     
-    lg.info('Init of scenario finished after -- ' + str( time.time() - tt) + ' s')
+    lg.info('Init of scenario finished after -- ' + "{:2.4f}".format((time.time()-ttt)) + ' s')
     if mpiRank == 0:
-        print('Scenario init done')
+        print('Scenario init done in ' + "{:2.4f}".format((time.time()-ttt)) + ' s')
     return earth   
 
 def initTypes(earth):
-
+    tt = time.time()
     global CELL
     CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
                                staticProperties  = [('gID', np.int32, 1),
@@ -662,11 +639,12 @@ def initTypes(earth):
     CON_PP = earth.registerEdgeType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
 
     if mpiRank == 0:
-        print('Initialization of types done')
+        print('Initialization of types done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
     return CELL, HH, PERS
 
 def initSpatialLayer(earth):
+    tt = time.time()
     parameters = earth.getParameter()
     connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.spatial.initSpatialLayer(parameters['landLayer'],
@@ -702,14 +680,15 @@ def initSpatialLayer(earth):
     earth.papi.updateGhostNodes([CELL],['chargStat'])
 
     if mpiRank == 0:
-        print('Setup of the spatial layer done')
+        print('Setup of the spatial layer done in'  + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 def initInfrastructure(earth):
+    tt = time.time()
     # infrastructure
     earth.initChargInfrastructure()
     
     if mpiRank == 0:
-        print('Infrastructure setup done')
+        print('Infrastructure setup done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 #%% cell convenience test
 def cellTest(earth):
@@ -776,6 +755,7 @@ def cellTest(earth):
         
 # %% Generate Network
 def generateNetwork(earth):
+    tt = time.time()
     parameters = earth.getParameter()
     
     tt = time.time()
@@ -786,10 +766,11 @@ def generateNetwork(earth):
     if parameters['scenario'] == 0 and earth.para['showFigures']:
         earth.view(str(earth.papi.rank) + '.png')
     if mpiRank == 0:
-        print('Social network setup done')
+        print('Social network setup done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 
 def initMobilityTypes(earth):
+    tt = time.time()
     earth.market.initialCarInit()
     earth.market.setInitialStatistics([1000.,2.,350., 100.,50.])
     for goodKey in list(earth.market.goods.keys()):##OPTPRODUCTION
@@ -798,10 +779,11 @@ def initMobilityTypes(earth):
         assert list(earth.market.goods[goodKey].properties.keys()) == earth.market.properties ##OPTPRODUCTION
     
     if mpiRank == 0:
-        print('Setup of mobility types done')
+        print('Setup of mobility types done in '  + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 
 def initGlobalRecords(earth):
+    tt = time.time()
     parameters = earth.getParameter()
 
     calDataDfCV = pd.read_csv(parameters['resourcePath'] + 'calDataCV.csv', index_col=0, header=1)
@@ -861,9 +843,10 @@ def initGlobalRecords(earth):
                          ['meanEmm','stdEmm','meanFiC','stdFiC','meanOpC','stdOpC'], style='plot')
 
     if mpiRank == 0:
-        print('Setup of global records done')
+        print('Setup of global records done in '  + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 def initAgentOutput(earth):
+    tt = time.time()
     #%% Init of agent file
     tt = time.time()
     earth.papi.comm.Barrier()
@@ -878,10 +861,11 @@ def initAgentOutput(earth):
     lg.info( 'Agent file initialized in ' + str( time.time() - tt) + ' s')
 
     if mpiRank == 0:
-        print('Setup of agent output done')
+        print('Setup of agent output done in '  +str(time.time()-tt) + 's')
 
 
 def initCacheArrays(earth):
+    
     maxFriends = earth.para['maxFriends']
     persZero = earth.getEntity(nodeID=earth.getEntity(nodeType=PERS)[0])
     
@@ -901,26 +885,6 @@ def initExogeneousExperience(parameters):
     experienceGerGreen                  = inputFromGlobal['expGerGreen'].values
     parameters['experienceGerGreen']    = experienceGerGreen
     parameters['experienceGerBrown']    = [experienceGer[i]-experienceGerGreen[i] for i in range(len(experienceGer))]
-    
-    #fake model
-#    def func(year):
-#        a = -654.47792283470665
-#        b = 0.33129306614034293
-#        stockGlE = np.exp(b * year+a)
-#        return stockGlE
-#    
-#    years = range(2005, 2036)
-#    
-#    correctedData = [func(year) for year in years]
-#    
-#    fig = plt.figure()
-#    plt.clf()
-#    ax = fig.add_subplot(1, 1, 1)
-#    plt.plot(years, parameters['experienceWorldGreen'])
-#    plt.plot(years, parameters['experienceWorldGreen']/10)
-#    plt.plot(years, correctedData)
-#    plt.legend(['old', 'old/10', 'corrected'])
-#    ax.set_yscale('log')
     
     return parameters
 
@@ -1009,33 +973,35 @@ def runModel(earth, parameters):
 
     #%% Finishing the simulation
     lg.info( "Finalizing the simulation (No." + str(earth.simNo) +"):")
-    if parameters.writeOutput:
+    if parameters.writeAgentFile:
         earth.io.finalizeAgentFile()
     earth.finalize()
 
 def writeSummary(earth, parameters):
-
-    fid = open(earth.para['outPath'] + '/summary.out','w')
-
-    fid.writelines('Parameters:')
-
-    errorTot = 0
-    for re in earth.para['regionIDList']:
-        error = earth.globalRecord['stock_' + str(re)].evaluateRelativeError()
-        fid.writelines('Error - ' + str(re) + ': ' + str(error) + '\n')
-        errorTot += error
-    #fid = open('summary.out','w')
-
-
-    #fid.writelines('Bremen: ' + str(errBremen))
-    #fid.writelines('Niedersachsen: ' + str(errNiedersachsen))
-
-    fid.writelines('Total error:' + str(errorTot))
-    #fid.writelines(str(errorTot))
-    fid.close()
-    #lg.info( 'Calibration Run: ' + str(calRunId))
-    #lg.info( paraDf)
-    lg.info( 'The simulation error is: ' + str(errorTot) )
+    if earth.papi.rank == 0:
+        fid = open(earth.para['outPath'] + '/summary.out','w')
+    
+        fid.writelines('Parameters:')
+    
+        errorTot = 0
+        for re in earth.para['regionIDList']:
+            error = earth.globalRecord['stock_' + str(re)].evaluateRelativeError()
+            fid.writelines('Error - ' + str(re) + ': ' + str(error) + '\n')
+            errorTot += error
+    
+        fid.writelines('Total relative error:' + str(errorTot))
+    
+        errorTot = np.zeros(earth.para['nMobTypes'])
+        for re in earth.para['regionIDList']:
+            error = earth.globalRecord['stock_' + str(re)].evaluateNormalizedError()
+            fid.writelines('Error - ' + str(re) + ': ' + str(error) + '\n')
+            errorTot += error
+    
+        fid.writelines('Total relative error:' + str(errorTot))
+        
+        fid.close()
+    
+        lg.info( 'The simulation error is: ' + str(errorTot) )
 
 
     if parameters.scenario == 2:

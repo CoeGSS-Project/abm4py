@@ -20,6 +20,9 @@ overallTime = time.time()
 
 simNo, outputPath = core.setupSimulationEnvironment(comm)
 
+print ('Current simulation number is: ' + str(simNo))
+print ('Current ouputPath number is: ' + outputPath)
+
 dirPath = os.path.dirname(os.path.realpath(__file__))
 fileName = sys.argv[1]
 
@@ -52,9 +55,9 @@ init.runModel(earth, parameters)
 lg.info('Simulation ' + str(earth.simNo) + ' finished after -- ' +
         str(time.time() - overallTime) + ' s')
 
-#if earth.isRoot:
-#    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
-#    init.writeSummary(earth, parameters)
+if earth.isRoot:
+    print('Simulation ' + str(earth.simNo) + ' finished after -- ' + str(time.time() - overallTime) + ' s')
+    init.writeSummary(earth, parameters)
 
 if showFigures:
     import plots
