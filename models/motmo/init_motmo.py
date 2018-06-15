@@ -278,6 +278,7 @@ def exchangeParameters(parameters):
 
 def householdSetup(earth, calibration=False):
     
+    tt = time.time()
     #enumerations for h5File - second dimension
     H5NPERS  = 0
     H5AGE    = 1
@@ -465,7 +466,7 @@ def householdSetup(earth, calibration=False):
                 pdb.set_trace()
             if nAgentsCell <= 0:
                 break
-    lg.info('All agents initialized')
+    lg.info('All agents initialized in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
 
     earth.papi.transferGhostNodes(earth)
