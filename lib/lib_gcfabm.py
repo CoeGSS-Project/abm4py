@@ -490,6 +490,12 @@ class World:
         
     def _entByLocID(self, locID):
         return self.__entDict[locID]
+
+    def nAgents(self, nodeType=None):
+        return self.graph.nCount(nTypeID=nodeType)
+        
+    def nConnections(self, nodeType):
+       return self.graph.eCount(nTypeID=nodeType)  
         
     def getDataIDs(self, nodeType):
         return self.__dataDict[nodeType]

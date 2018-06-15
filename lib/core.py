@@ -66,7 +66,7 @@ def writeAdjFile(graph,fileName):
     fid.close()
 
 
-def setupSimulationEnvironment(mpiComm, simNo=None):
+def setupSimulationEnvironment(mpiComm=None, simNo=None):
     """
     Reads an existng or creates a new environment file
     Returns simulation number and outputPath
