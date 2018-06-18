@@ -1,0 +1,33 @@
+environment
+    tabular_data
+
+method
+    sampling
+        sample_type random
+        samples = 8
+        seed = 1
+
+variables
+    uniform_uncertain = %NUM_UNIFORM%
+        descriptor      %UNIFORM_DESCRIPTORS%
+        lower_bounds    %UNIFORM_LOWERBOUNDS%           
+        upper_bounds    %UNIFORM_UPPERBOUNDS%           
+    discrete_state_set 
+        string = 2
+            descriptors 'scenarioFileName'     'calcResultsScript'
+            elements %SCENARIO_FILENAME%       %RESULT_SCRIPT%
+
+interface
+    system asynchronous evaluation_concurrency = 8
+        analysis_drivers = 'run-simulation.sh'
+        parameters_file = 'd-params.in'
+        results_file = 'd-results.out'
+        file_tag
+        file_save
+
+responses
+    response_functions = %NUM_RESPONSES%
+    descriptors %RESPONSE_DESCRIPTORS%
+    no_gradients
+    no_hessians
+

@@ -37,3 +37,14 @@ test_old*
 doe/*
 tests/output*
 tests/test_env*
+/models/motmo/dakota/err.csv
+/MoTMo-in-a-nutshell.org
+/MoTMo-in-a-nutshell.tex
+.idea/
+/h5py/
+/models/motmo/err.csv
+/models/motmo/lg
+/models/motmo/time
+/mpi4py/
+*.out.*
+/notes_steffen.org

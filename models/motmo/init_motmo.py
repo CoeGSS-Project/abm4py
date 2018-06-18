@@ -821,12 +821,13 @@ def initGlobalRecords(earth):
         values   = list()
 
         for column in calDataDfCV.columns[1:]:
-            value = [np.nan]*earth.para['nMobTypes']
-            year = int(column)
-            timeIdx = 12* (year - parameters['startDate'][1]) + parameters['burnIn']
-            value[0] = (calDataDfCV[column]['re_' + str(re)] ) #/ parameters['reductionFactor']
+            value = [np.nan]*earth.para['nMobTypes'] # value[0]: combustion cars, value[1]: electric cars
+            timeIdx = earth.year2step(int(column))            
+            value[0] = (calDataDfCV[column]['re_' + str(re)] ) 
+            # for electric cars we have data for less years then for the combustion cars, so we can
+            # use the columns loop of the combustion cars
             if column in calDataDfEV.columns[1:]:
-                value[1] = (calDataDfEV[column]['re_' + str(re)] ) #/ parameters['reductionFactor']
+                value[1] = (calDataDfEV[column]['re_' + str(re)] ) 
 
 
             timeIdxs.append(timeIdx)
