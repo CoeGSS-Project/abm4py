@@ -114,7 +114,7 @@ while True:
         break
     
     
-    for agent, randNum in zip(world.iterEntity(AGENT), np.random.random(N_AGENTS)*1000):
+    for agent, randNum in zip(world.iterNodes(AGENT), np.random.random(N_AGENTS)*1000):
         
         if agent.attr['switch'] == 0:
             if randNum < INNOVATION + ( IMITATION * (switchFraction )):
