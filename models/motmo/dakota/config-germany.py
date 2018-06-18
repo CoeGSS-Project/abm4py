@@ -11,7 +11,10 @@ resultScript = 'multi-objective-intervals.py'
 
 outputValues = ['o_numCombCars', 'o_numElecCars']
 
-uniformVariables = [
-    ('innoPriority', 0.0, 0.5),
-    ('mobIncomeShare', 0.1, 0.4)
+continuousVariables = [
+    ('innoPriority', 0.2, 0.0, 0.5),
+    ('mobIncomeShare', 0.2, 0.1, 0.4)
 ]
+
+def calcWeight(var, region, year):
+    return 1

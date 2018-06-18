@@ -20,11 +20,11 @@ def calcResults(dakotaResults):
             dakotaResults['o_numElecCars_' + r + '_' + y].function = stocksRec.rec[step, 1]
             dakotaResults['o_dataCombCars_' + r + '_' + y].function = stocksData[step][0]
             dakotaResults['o_dataElecCars_' + r + '_' + y].function = stocksData[step][1]
-            dakotaResults['o_inIntervalComb_' + r + '_' + y].function = inInterval(stocksData[step][0],
+            dakotaResults['o_inIntervalComb_' + r + '_' + y].function = inInterval(stocksData[step][0] / 10,
                                                                                    stocksRec.rec[step, 0],
                                                                                    0.8,
                                                                                    1.2)
-            dakotaResults['o_inIntervalElec_' + r + '_' + y].function = inInterval(stocksData[step][1],
+            dakotaResults['o_inIntervalElec_' + r + '_' + y].function = inInterval(stocksData[step][1] * 3,
                                                                                    stocksRec.rec[step, 1],
                                                                                    0.8,
                                                                                    1.2)
