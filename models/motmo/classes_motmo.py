@@ -1323,11 +1323,12 @@ class Person(Agent):
         #import pdb
         #pdb.set_trace()
         
-        MAX_FRIEND_CANDIDATES = 1000.
+        MAX_FRIEND_CANDIDATES = 200.
         if np.sum(nPers) > MAX_FRIEND_CANDIDATES:
             persWeig = np.asarray(nPers)
-            persWeig = persWeig/ np.sum(persWeig)
             persWeig = persWeig*cellConnWeights
+            persWeig = persWeig/ np.sum(persWeig)
+            
             nPers = (persWeig*MAX_FRIEND_CANDIDATES).astype(np.int32)
             personIds = list()
             for nP, subList in zip(nPers, personIdsAll):
