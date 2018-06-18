@@ -48,3 +48,4 @@ tests/test_env*
 /mpi4py/
 *.out.*
 /notes_steffen.org
+/models/motmo/dakota/dakota.in
