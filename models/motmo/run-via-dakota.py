@@ -36,7 +36,6 @@ dakotaRunNo = random.randrange(2 ** 63)
 print('runNo' + str(dakotaRunNo))
 simNo, outputPath = core.setupSimulationEnvironment(comm, dakotaRunNo)
 print(outputPath)
-print(dirPath)
 core.initLogger(False, outputPath)
 
 lg.info('on node: ' + socket.gethostname())
