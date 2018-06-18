@@ -34,24 +34,6 @@ Communication is managed via the spatial location
 
 Thus, the function "location.registerEntity" does initialize ghost copies
 
-TODOs:
-
-sooner:
-    - IO of connections and their attributes
-    - MPI communication with numpy arrays (seems much faster)
-    - DOCUMENTATION
-    - re-think communication model (access restrictions)
-        - documentation of it
-    - re-think role of edge types and strong connection with connected
-      node types
-
-later:
-    - movement of agents between processes
-    - implement mpi communication of string attributes
-    - implement output of string attributes
-    - reach usage of 1000 parallell processes (960) -> how to do with only 3800 Locations??
-        - other resolution available!
-        - share locatons between processes
 """
 
 import logging as lg
@@ -508,6 +490,12 @@ class World:
         
     def _entByLocID(self, locID):
         return self.__entDict[locID]
+
+    def nAgents(self, nodeType=None):
+        return self.graph.nCount(nTypeID=nodeType)
+        
+    def nConnections(self, nodeType):
+       return self.graph.eCount(nTypeID=nodeType)  
         
     def getDataIDs(self, nodeType):
         return self.__dataDict[nodeType]

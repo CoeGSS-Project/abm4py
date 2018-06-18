@@ -66,7 +66,7 @@ def writeAdjFile(graph,fileName):
     fid.close()
 
 
-def setupSimulationEnvironment(mpiComm, simNo=None):
+def setupSimulationEnvironment(mpiComm=None, simNo=None):
     """
     Reads an existng or creates a new environment file
     Returns simulation number and outputPath
@@ -814,11 +814,13 @@ class GlobalRecord():
         self.nSteps = nSteps
         self.title  = title
 
-    def addCalibrationData(self, timeIdxs, values):
+    def addCalibrationData(self, timeIds, values):
         self.calDataDict = dict()
-        for idx, value in zip(timeIdxs, values):
+        for idx, value in zip(timeIds, values):
             self.calDataDict[idx] = value
-
+        
+        self.calcDataArray = np.asarray(values)
+        self.timeIds       = timeIds
 
     def updateLocalValues(self, timeStep):
         self.glob.updateLocalValues(self.name, self.rec[timeStep,:])
@@ -903,7 +905,20 @@ class GlobalRecord():
             dset = h5File.create_dataset('calData/' + self.name, tmp.shape, dtype='f8')
             dset[:] = tmp
         h5File.close()
-    
+
+    def evaluateAbsoluteError(self):
+        if hasattr(self,'calDataDict'):
+
+            err = 0
+            for timeIdx ,calValues in self.calDataDict.items():
+
+                for i, calValue in enumerate(calValues):
+                   if not np.isnan(calValue):
+                       err += np.abs(calValue - self.rec[timeIdx,i]) 
+            return err
+
+        else:
+            return None    
 
     def evaluateRelativeError(self):
         if hasattr(self,'calDataDict'):
@@ -914,11 +929,22 @@ class GlobalRecord():
                 for i, calValue in enumerate(calValues):
                    if not np.isnan(calValue):
                        err += np.abs(calValue - self.rec[timeIdx,i]) / calValue
-            fid = open('err.csv','w')
-            fid.write(str(err))
-            fid.close()
             return err
+        else:
+            return None
 
+    def evaluateNormalizedError(self):
+        if hasattr(self,'calDataDict'):
+            
+            err = []
+            dim = self.calcDataArray.shape
+            for iSeq in range(dim[1]):
+                
+                sequenceMean = np.nanmean(self.calcDataArray[:,iSeq])
+                error = np.nansum(np.abs(self.calcDataArray[:,iSeq] - self.rec[self.timeIds,iSeq]) / sequenceMean)
+                err.append(error)
+
+            return np.asarray(err)
         else:
             return None
 
@@ -1171,9 +1197,9 @@ class IO():
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
-        self.comm.Barrier()
-        self.h5File.flush()
-        self.comm.Barrier()
+#        self.comm.Barrier()
+#        self.h5File.flush()
+#        self.comm.Barrier()
 
         self.h5File.close()
         lg.info( 'Agent file closed')

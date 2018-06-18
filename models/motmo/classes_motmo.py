@@ -148,7 +148,6 @@ class Earth(World):
         self.timeUnit   = parameters.timeUnit
 
         self.reporter   = list()
-        self.nAgents    = 0
         self.brandDict  = dict()
         self.brands     = list()
 
@@ -211,16 +210,20 @@ class Earth(World):
         for agent in self.random.iterEntity(nodeType):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
-            
+            ttx = time.time()
             frList, edges, weights = agent.generateContactNetwork(self, nContacts)
-
+            
             sourceList += [agent.nID] * len(frList)
             targetList += frList
             weigList += weights
             populationList.append(agent.loc.data['population'])
-
+        
+        timePerAgent =  (time.time() - tt ) / self.nAgents(nodeType)
+        print('Average generation time per agent: {:3.4f}'.format(timePerAgent))
+        
+        ttx = time.time()
         self.addEdges(eTypeID=edgeType, sources=sourceList, targets=targetList, weig=weigList)
-        lg.info( 'Connections queued in -- ' + str( time.time() - tt) + ' s')
+        lg.info( 'Connections added in -- ' + str( time.time() - ttx) + ' s')
 
         lg.info( 'Social network created in -- ' + str( time.time() - tt) + ' s')
         lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.eCount()))
@@ -423,12 +426,13 @@ class Earth(World):
 
         # I/O
         ioStep = self.getParameter("ioSteps")
-        if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
-            ttIO = time.time()
-            self.io.writeDataToFile(self.time, [CELL, HH, PERS])
-            self.ioTime[self.time] = time.time()-ttIO
-        else: 
-            self.ioTime[self.time] = 0
+        if self.getParameter('writeAgentFile'):
+            if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
+                ttIO = time.time()
+                self.io.writeDataToFile(self.time, [CELL, HH, PERS])
+                self.ioTime[self.time] = time.time()-ttIO
+            else: 
+                self.ioTime[self.time] = 0
 
         lg.info(('Times: tComp: '+ '{:10.5f}'.format(self.computeTime[self.time])+
               ' - tSync: '+ '{:10.5f}'.format(self.syncTime[self.time])+
@@ -436,12 +440,12 @@ class Earth(World):
               ' - tIO: '+ '{:10.5f}'.format(self.ioTime[self.time]) ))
 
         if self.getParameter('omniscientAgents'):
-            lg.info( 'Omincent step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            lg.info( 'Omincent step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
         else:
-            lg.info( 'Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            lg.info( 'Step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
         if self.isRoot:
-            print('Step ' + str(self.time) + ' done in ' +  str(time.time()-tt) + ' s')
+            print('Step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s --', end='')
 
     def year2step(self, year):
         return 12 * (year - self.para['startDate'][1]) + self.para['burnIn']
@@ -483,7 +487,7 @@ class Good():
         Method to update the class variable lastGlobalSales
         """
         if mpiRank == 0:
-            print(('new global stock is : ' + str(newStock)))
+            print((' Current global stock: ' + str(newStock)))
         cls.globalStock = newStock
 
     @classmethod
@@ -1307,7 +1311,7 @@ class Person(Agent):
             cellWeigList.append(cellWeight)
             personIds = world.getEntity(cellIdx).getPersons()
 
-            personIdsAll.extend(personIds)
+            personIdsAll.append(personIds)
             nPers.append(len(personIds))
 
         # return nothing if too few candidates
@@ -1315,6 +1319,23 @@ class Person(Agent):
             lg.info('ID: ' + str(self.nID) + ' failed to generate friend')
             return [],[],[]
 
+        
+        #import pdb
+        #pdb.set_trace()
+        
+        MAX_FRIEND_CANDIDATES = 1000.
+        if np.sum(nPers) > MAX_FRIEND_CANDIDATES:
+            persWeig = np.asarray(nPers)
+            persWeig = persWeig/ np.sum(persWeig)
+            persWeig = persWeig*cellConnWeights
+            nPers = (persWeig*MAX_FRIEND_CANDIDATES).astype(np.int32)
+            personIds = list()
+            for nP, subList in zip(nPers, personIdsAll):
+                personIds.extend(np.random.choice(subList, nP))
+                
+        else:
+            personIds = [item for sublist in personIdsAll for item in sublist]
+        personIdsAll =  personIds   
         #setup of indices of columes:
         idxColSp = 0
         idxColIn = 1

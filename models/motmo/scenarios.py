@@ -108,7 +108,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -199,7 +199,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 0
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -289,7 +289,7 @@ def scenarioNBH(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -397,7 +397,7 @@ def scenarioGer(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -504,7 +504,7 @@ def scenarioLueneburg(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -605,7 +605,7 @@ def scenarioTest(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeOutput = 1
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
