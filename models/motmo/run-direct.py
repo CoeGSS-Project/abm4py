@@ -40,7 +40,7 @@ earth = init.initEarth(simNo,
                        outputPath,
                        parameters,
                        maxNodes=1000000,
-                       maxEdges=5000000,
+                       maxLinks=5000000,
                        debug=debug,
                        mpiComm=comm)
 

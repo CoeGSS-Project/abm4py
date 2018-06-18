@@ -18,7 +18,7 @@ import time
 
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
-sys.path.append('../lib/')
+sys.path.append('../../lib/')
 
 import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
 import core_prod as core
@@ -53,7 +53,7 @@ AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
                                dynamicProperties = [('switch', np.int16, 1),
                                                     ('color', np.float16,4)])
 #%% Init of edge types
-CON_AA = world.registerEdgeType('ag-ag', AGENT,AGENT)
+CON_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
 
 for iAgent in range(N_AGENTS):
     
@@ -94,19 +94,19 @@ class PlotClass():
         self.fig.canvas.flush_events()
     
     
-positions = world.getNodeValues('pos',nodeType=AGENT)
+positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
 
 
 #%% Scheduler
 iStep = 0
 fracList = list()
-switched = world.getNodeValues('switch',nodeType=AGENT)
+switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
 
 ploting = PlotClass(positions)
 while True:
     tt =time.time()
     iStep+=1
-    switched = world.getNodeValues('switch',nodeType=AGENT)
+    switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
     switchFraction = np.sum(switched) / N_AGENTS
     fracList.append(switchFraction)
     
@@ -116,12 +116,12 @@ while True:
     
     for agent, randNum in zip(world.iterEntity(AGENT), np.random.random(N_AGENTS)*1000):
         
-        if agent.data['switch'] == 0:
+        if agent.attr['switch'] == 0:
             if randNum < INNOVATION + ( IMITATION * (switchFraction )):
-                agent.data['switch'] = 1
-                agent.data['color'] = RED
+                agent.attr['switch'] = 1
+                agent.attr['color'] = RED
             
     if iStep%10 == 0:
-        ploting.update(iStep, fracList, world.getNodeValues('color',nodeType=AGENT))
+        ploting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
     #time.sleep(.1)
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

@@ -147,21 +147,21 @@ def loadMisc(path):
     return parameters, enums
 
 
-def loadData(path, parameters, data,  filters, nodeType):
+def loadData(path, parameters, data,  filters, nodeTypeID):
 
     h5file = ta.open_file(path + 'nodeOutput.hdf5', mode = "r")
 
-    def getData(parameters, nodeType,timeStep):
+    def getData(parameters, nodeTypeID,timeStep):
 
-        dataPath = '/' + str(nodeType)+ '/' + str(timeStep).zfill(parameters['timeStepMag'])
+        dataPath = '/' + str(nodeTypeID)+ '/' + str(timeStep).zfill(parameters['timeStepMag'])
         node = h5file.get_node(dataPath)
         array = node.read()
         
         return array
     
-    def getStaticData(parameters, nodeType):
+    def getStaticData(parameters, nodeTypeID):
 
-        dataPath = '/' + str(nodeType)+ '/static' 
+        dataPath = '/' + str(nodeTypeID)+ '/static' 
         node = h5file.get_node(dataPath)
         array = node.read()
         
@@ -169,7 +169,7 @@ def loadData(path, parameters, data,  filters, nodeType):
     
     
    
-    if nodeType == 0:
+    if nodeTypeID == 0:
         filters.ce      = core.AttrDict()
         #propDict.ce     = core.loadObj(path + 'attributeList_type1')
         
@@ -196,7 +196,7 @@ def loadData(path, parameters, data,  filters, nodeType):
         data.ceSta = getStaticData(parameters,1)
         
 
-    if nodeType == 1:
+    if nodeTypeID == 1:
         filters.hh      = core.AttrDict()
         hhStep          = getData(parameters,2,0)
 
@@ -223,7 +223,7 @@ def loadData(path, parameters, data,  filters, nodeType):
 
         data.hhSta = getStaticData(parameters,2)
         
-    if nodeType ==2:
+    if nodeTypeID ==2:
         filters.pe      = core.AttrDict()
         #propDict.pe     = loadObj(path + 'attributeList_type3')
         #propDict.peSta, propDict.pe    = getAttributes(parameters, 3)
@@ -1760,7 +1760,7 @@ if __name__ == "__main__":
     filters     = core.AttrDict()
     if doTry:
 #        try:
-        data,  filters = loadData(path, parameters, data,  filters, nodeType=0)
+        data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=0)
 #        except Exception as e:
 #            print("failed to load cell data")
 #            print(e)
@@ -1768,7 +1768,7 @@ if __name__ == "__main__":
 #            traceback.print_exc()
         
         try:
-            data,  filters = loadData(path, parameters, data,  filters, nodeType=1)
+            data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=1)
         except Exception as e:
             print("failed to load household data")
             print(e)
@@ -1776,7 +1776,7 @@ if __name__ == "__main__":
             traceback.print_exc()
         
         try:
-            data,  filters = loadData(path, parameters, data,  filters, nodeType=2)
+            data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=2)
         except Exception as e:
             print("failed to load people data")
             print(e)
@@ -1801,9 +1801,9 @@ if __name__ == "__main__":
             
 
     else:
-        data,  filters = loadData(path, parameters, data,  filters, nodeType=0)
-        data,  filters = loadData(path, parameters, data,  filters, nodeType=1)
-        data,  filters = loadData(path, parameters, data,  filters, nodeType=2)
+        data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=0)
+        data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=1)
+        data,  filters = loadData(path, parameters, data,  filters, nodeTypeID=2)
         filters = filter_PrefTypes(data,  parameters, enums, filters)
         filters = filter_householdIDsPerMobType(data,  parameters, enums, filters)
         

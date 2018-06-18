@@ -419,7 +419,7 @@ def householdSetup(earth, calibration=False):
                            hhType=hhType)
 
             hh.adults = list()
-            hh.register(earth, parentEntity=loc, edgeType=CON_LH)
+            hh.register(earth, parentEntity=loc, linkTypeID=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
             hh.loc.set('population', hh.loc.get('population') + nPers)
@@ -454,7 +454,7 @@ def householdSetup(earth, calibration=False):
                               emissions   = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
-                pers.register(earth, parentEntity=hh, edgeType=CON_HP)
+                pers.register(earth, parentEntity=hh, linkTypeID=CON_HP)
                 
                 successFlag = True
             
@@ -491,7 +491,7 @@ def initEarth(simNo,
               outPath,
               parameters,
               maxNodes,
-              maxEdges,
+              maxLinks,
               debug,
               mpiComm=None):
     tt = time.time()
@@ -501,7 +501,7 @@ def initEarth(simNo,
                   outPath,
                   parameters,
                   maxNodes=maxNodes,
-                  maxEdges=maxEdges,
+                  maxLinks=maxLinks,
                   debug=debug,
                   mpiComm=mpiComm)
 
@@ -539,7 +539,7 @@ def initScenario(earth, parameters):
                                  2: 'fixedCosts',
                                  3: 'operatingCosts'})
 
-    earth.setEnum('nodeTypes', {1: 'cell',
+    earth.setEnum('nodeTypeIDs', {1: 'cell',
                                 2: 'household',
                                 3: 'pers'})
 
@@ -629,15 +629,15 @@ def initTypes(earth):
                                                    ('costs', np.float64, 1)])
 
     global CON_CC
-    CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float64, 1)])
+    CON_CC = earth.registerLinkType('cell-cell', CELL, CELL, [('weig', np.float64, 1)])
     global CON_CH
-    CON_CH = earth.registerEdgeType('cell-hh', CELL, HH)
+    CON_CH = earth.registerLinkType('cell-hh', CELL, HH)
     global CON_HH
-    CON_HH = earth.registerEdgeType('hh-hh', HH,HH)
+    CON_HH = earth.registerLinkType('hh-hh', HH,HH)
     global CON_HP
-    CON_HP = earth.registerEdgeType('hh-pers', HH, PERS)
+    CON_HP = earth.registerLinkType('hh-pers', HH, PERS)
     global CON_PP
-    CON_PP = earth.registerEdgeType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
+    CON_PP = earth.registerLinkType('pers-pers', PERS, PERS, [('weig', np.float64,1)])
 
     if mpiRank == 0:
         print('Initialization of types done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
@@ -868,7 +868,7 @@ def initAgentOutput(earth):
 def initCacheArrays(earth):
     
     maxFriends = earth.para['maxFriends']
-    persZero = earth.getEntity(nodeID=earth.getEntity(nodeType=PERS)[0])
+    persZero = earth.getEntity(nodeID=earth.getEntity(nodeTypeID=PERS)[0])
     
     nUtil = persZero.get('commUtil').shape[0]
     Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
@@ -1078,7 +1078,7 @@ def onlinePostProcessing(earth):
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
     for agent in earth.random.iterEntity(HH):
-        friendList = agent.getPeerIDs(edgeType=CON_HH)
+        friendList = agent.getPeerIDs(linkTypeID=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values
@@ -1094,9 +1094,9 @@ def onlinePostProcessing(earth):
         pref = np.zeros([earth.graph.vcount(), 4])
         pref[earth.nodeDict[PERS],:] = np.array(earth.graph.vs[earth.nodeDict[PERS]]['preferences'])
         idx = list()
-        for edge in earth.iterEdges(CON_PP):
-            edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
-            idx.append(edge.index)
+        for link in earth.iterLinks(CON_PP):
+            link['prefDiff'] = np.sum(np.abs(pref[link.target, :] - pref[link.source,:]))
+            idx.append(link.index)
 
 
         plt.figure()
