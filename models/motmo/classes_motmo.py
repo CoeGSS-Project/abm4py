@@ -183,7 +183,7 @@ class Earth(World):
         goodID = self.market.initGood(initTimeStep, label, propDict, **kwProperties)
 
         # TODO: move convenience Function from a instance variable to a class variable            
-        for cell in self.random.iterEntity(CELL):
+        for cell in self.random.iterNodes(CELL):
             cell.convFunctions.append(convFunction)
 
         if 'brands' not in list(self.getEnum()):
@@ -207,7 +207,7 @@ class Earth(World):
         targetList = list()
         weigList  = list()
         populationList = list()
-        for agent in self.random.iterEntity(nodeTypeID):
+        for agent in self.random.iterNodes(nodeTypeID):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
             ttx = time.time()
@@ -246,7 +246,7 @@ class Earth(World):
             self.globalRecord['nChargStations_' + str(re)].set(self.time,0)
             
             
-        for cell in self.iterEntity(CELL):
+        for cell in self.iterNodes(CELL):
             regionID = str(int(cell.get('regionId')))
             self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.get('carsInCell')) * self.para['reductionFactor'])
             self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.get('electricConsumption')))
@@ -382,7 +382,7 @@ class Earth(World):
         
         ###### Cell loop ######
         ttCell = time.time()
-        for cell in self.random.iterEntity(CELL):
+        for cell in self.random.iterNodes(CELL):
             cell.step(self.para, self.market.getCurrentMaturity())
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')##OPTPRODUCTION
 
@@ -390,7 +390,7 @@ class Earth(World):
 
         ###### Person loop ######
         ttComp = time.time()
-        for person in self.random.iterEntity(PERS):
+        for person in self.random.iterNodes(PERS):
             person.step(self)
         lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')##OPTPRODUCTION
    
@@ -399,10 +399,10 @@ class Earth(World):
         ###### Household loop ######
         tthh = time.time()
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
-            for household in self.random.iterEntity(HH):
+            for household in self.random.iterNodes(HH):
                 household.stepOmniscient(self)
         else:
-            for household in self.random.iterEntity(HH):
+            for household in self.random.iterNodes(HH):
 
                 if random.random()<1e-4:
                     household.stepOmniscient(self)
@@ -410,7 +410,7 @@ class Earth(World):
                     household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')##OPTPRODUCTION
 
-        for cell in self.iterEntity(CELL):
+        for cell in self.iterNodes(CELL):
             cell.aggregateEmission(self)
 
                
@@ -1307,7 +1307,7 @@ class Person(Agent):
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)
-            personIds = world.getEntity(cellIdx).getPersons()
+            personIds = world.getNode(cellIdx).getPersons()
 
             personIdsAll.append(personIds)
             nPers.append(len(personIds))
@@ -1399,7 +1399,7 @@ class Person(Agent):
         nGhosts = 0
         if world.debug:                                                                 ##OPTPRODUCTION
             for peId in contactList:                                                    ##OPTPRODUCTION
-                if isinstance(world.getEntity(peId), GhostPerson):                        ##OPTPRODUCTION
+                if isinstance(world.getNode(peId), GhostPerson):                        ##OPTPRODUCTION
                     nGhosts += 1                                                        ##OPTPRODUCTION
         #lg.debug('At location ' + str(self.loc.attr['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
         

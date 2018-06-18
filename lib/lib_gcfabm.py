@@ -99,13 +99,13 @@ class Entity():
             self.gID = self.data['gID'][0]
         
         else:
-            self.nID, self.dataID, self.data = world.addVertex(nodeTypeID,  **kwProperties)
+            self.nID, self.dataID, self.attr = world.addNode(nodeTypeID,  **kwProperties)
             
         self.nodeTypeID = nodeTypeID
         # redireciton of internal functionality:
-        self.get = firstElementDeco(self.data.__getitem__)
+        self.get = firstElementDeco(self.attr.__getitem__)
         self.set = self.attr.__setitem__
-        self.__getEntity = world.getEntity
+        self.__getNode = world.getNode
     
     @classmethod
     def _setGraph(cls, graph):
@@ -120,10 +120,10 @@ class Entity():
             return self.attr[0,key].view()
 
     def getPeer(self, peerID):
-        return self.__getEntity(nodeID=peerID)
+        return self.__getNode(nodeID=peerID)
     
     def getPeers(self, peerIDs):
-        return [self.__getEntity(nodeID=peerID) for peerID in peerIDs]
+        return [self.__getNode(nodeID=peerID) for peerID in peerIDs]
     
     def getPeerIDs(self, linkTypeID=None, nodeTypeID=None, mode='out'):
         
@@ -425,6 +425,9 @@ class World:
         self.addLinks       = self.graph.addLinks
         self.delLinks       = self.graph.delete_edges
 
+        self.addNode     = self.graph.addNode
+        self.addNodes    = self.graph.addNodes
+
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self, mpiComm=mpiComm)
             
@@ -474,7 +477,7 @@ class World:
                 self.locID = world._entByLocID
                 self.globID = world._entByGlobID
                 self.location = world.spatial.getLocation
-        self.getEntityBy = GetEntityBy(self)
+        self.getNodeBy = GetEntityBy(self)
 
     def _globIDGen(self):
         i = -1
@@ -574,6 +577,12 @@ class World:
             assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
             self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[nodeTypeID])
 
+    def getNodeIDs(self, nodeTypeID):
+        """ 
+        Method to return all local node IDs for a given nodeType
+        """
+        return self.__nodeDict[nodeTypeID]
+
     def getLinkAttr(self, label, valueList, localLinkIDList=None, linkTypeID=None):
         if localLinkIDList:   
             assert linkTypeID is None # avoid wrong usage ##OPTPRODUCTION
@@ -596,7 +605,7 @@ class World:
             self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[linkTypeID])
     
   
-    def getEntity(self, nodeID=None, globID=None, nodeTypeID=None, ghosts=False):
+    def getNode(self, nodeID=None, globID=None, nodeTypeID=None, ghosts=False):
         """
         Method to retrieve a certain instance of an entity by the nodeID
         Selections can be done by the local nodeID, global ID and the nodetype
@@ -615,7 +624,7 @@ class World:
 
     
 
-    def iterEntity(self,nodeTypeID, ghosts = False):
+    def iterNodes(self, nodeTypeID, ghosts = False):
         """
         Iteration over entities of specified type. Default returns
         non-ghosts in random order.

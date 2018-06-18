@@ -24,6 +24,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import os
 import numpy as np
 import itertools
 import pandas as pd
@@ -119,14 +120,16 @@ def setupSimulationEnvironment(mpiComm=None, simNo=None):
     return simNo, outputPath
 
 def createOutputDirectory(mpiComm, baseOutputPath, simNo):
-
+    
+        if not os.path.isdir(baseOutputPath):
+            os.makedirs(baseOutputPath)
         dirPath  = baseOutputPath + 'sim' + str(simNo).zfill(4)
 
         if (mpiComm is None) or mpiComm.rank ==0:
-            import os
+            
 
             if not os.path.isdir(dirPath):
-                os.mkdir(dirPath)
+                os.makedirs(dirPath)
         if (mpiComm is not None):
             mpiComm.Barrier()
         if (mpiComm is None) or mpiComm.rank ==0:
@@ -445,7 +448,7 @@ class Spatial():
         
         #get nID of the location
         nID = self.world.getLocationDict()[x,y].nID
-        return self.world.getEntity(nodeID=nID)
+        return self.world.getNode(nodeID=nID)
 
 
     def getNCloseEntities(self, 
@@ -480,7 +483,7 @@ class Spatial():
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)           
-            personIds = self.world.getEntity(cellIdx).getPeerIDs(linkTypeID)
+            personIds = self.world.getNode(cellIdx).getPeerIDs(linkTypeID)
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -1059,7 +1062,7 @@ class IO():
             lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
 
-            nAgents = len(world.getEntity(nodeTypeID=nodeTypeID))
+            nAgents = len(world.getNode(nodeTypeID=nodeTypeID))
             self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
 
             self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)
@@ -1415,7 +1418,7 @@ class PAPI():
             
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
-            for entity in [self.world.getEntity(nodeID=i) for i in lnIDList]:
+            for entity in [self.world.getNode(nodeID=i) for i in lnIDList]:
                 entity.mpiPeers.append(mpiDest)
 
             # send requested global IDs
@@ -1510,7 +1513,7 @@ class PAPI():
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
-                    parentEntity = world.getEntity(world.glob2Loc(gID))
+                    parentEntity = world.getNode(world.glob2Loc(gID))
                     linkTypeID = world.graph.node2EdgeType[parentEntity.nodeTypeID, nodeTypeID]
 
                     agent.register(world, parentEntity, linkTypeID)
@@ -1519,9 +1522,9 @@ class PAPI():
         lg.info('################## Ratio of ghost agents ################################################')
         for nodeTypeIDIdx in list(world.graph.nodeTypeIDs.keys()):
             nodeTypeID = world.graph.nodeTypeIDs[nodeTypeIDIdx].typeStr
-            nAgents = len(world.getEntity(nodeTypeID=nodeTypeIDIdx))
+            nAgents = len(world.getNode(nodeTypeID=nodeTypeIDIdx))
             if nAgents > 0:
-                nGhosts = float(len(world.getEntity(nodeTypeID=nodeTypeIDIdx, ghosts=True)))
+                nGhosts = float(len(world.getNode(nodeTypeID=nodeTypeIDIdx, ghosts=True)))
                 nGhostsRatio = nGhosts / nAgents
                 lg.info('Ratio of ghost agents for type "' + nodeTypeID + '" is: ' + str(nGhostsRatio))
         lg.info('#########################################################################################')
@@ -1617,16 +1620,16 @@ class Random():
     def location(self, nChoice):
         return random.sample(self.locDict.items(), nChoice)
     
-    def iterEntity(self, nodeTypeID, ghosts=False):
+    def iterNodes(self, nodeTypeID, ghosts=False):
         # a generator that yields items instead of returning a list
         if isinstance(nodeTypeID,str):
             nodeTypeID = self.__world.types.index(nodeTypeID)
 
-        nodes = self.__world.getEntity(nodeTypeID=nodeTypeID, ghosts=ghosts)
+        nodes = self.__world.getNode(nodeTypeID=nodeTypeID, ghosts=ghosts)
 
         shuffled_list = sorted(nodes, key=lambda x: random.random())
         for nodeID in shuffled_list:
-            yield self.__world.getEntity(nodeID=nodeID)
+            yield self.__world.getNode(nodeID=nodeID)
             
 
 class AttrDict(dict):
