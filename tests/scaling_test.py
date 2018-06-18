@@ -129,9 +129,9 @@ AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass
                                                          ('prop_B', np.float32, 1)])
 
 #%% Init of edge types
-CON_CC = earth.registerEdgeType('cell-cell', CELL, CELL, [('weig', np.float32, 1)])
-CON_AC = earth.registerEdgeType('cell-ag', CELL, AGENT)
-CON_AA = earth.registerEdgeType('ag-ag', AGENT,AGENT)
+CON_CC = earth.registerLinkType('cell-cell', CELL, CELL, [('weig', np.float32, 1)])
+CON_AC = earth.registerLinkType('cell-ag', CELL, AGENT)
+CON_AA = earth.registerLinkType('ag-ag', AGENT,AGENT)
 
 parameters['connRadius'] = radius
 
@@ -160,7 +160,7 @@ earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
                            LocClassObject=LIB.Location)
 
-for cell in earth.random.iterEntity(CELL):
+for cell in earth.random.iterNodes(CELL):
     cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
@@ -168,14 +168,14 @@ earth.papi.updateGhostNodes([CELL],['agentsPerCell'])
 if mpiRank == 0:
     print('spatial layer initialized')
 
-for cell in earth.random.iterEntity(CELL, ghosts=True):
+for cell in earth.random.iterNodes(CELL, ghosts=True):
     cell.peList = list()
     
     
 # creation of agents
 locDict = earth.getLocationDict()
 for x, y in list(locDict.keys()):
-    loc         = earth.getEntity(locDict[x, y].nID)
+    loc         = earth.getNode(locDict[x, y].nID)
     nAgentsCell = loc.get('agentsPerCell')
     
     for iAgent in range(nAgentsCell):
@@ -183,7 +183,7 @@ for x, y in list(locDict.keys()):
                           pos=(x, y),
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
-        agent.register(earth, parentEntity=loc, edgeType=CON_AC)
+        agent.register(earth, parentEntity=loc, linkTypeID=CON_AC)
 #        agent.loc.peList.append(agent.nID)
 
 
@@ -197,15 +197,15 @@ if mpiRank == 0:
 globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
-for agent in earth.random.iterEntity(AGENT):
+for agent in earth.random.iterNodes(AGENT):
     contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
                                                                       nContacts=nFriends, 
-                                                                      nodeType=AGENT,
+                                                                      nodeTypeID=AGENT,
                                                                       addYourself=False)
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
     
-earth.addEdges(CON_AA, globalSourceList, globalTargetList)
+earth.addLinks(CON_AA, globalSourceList, globalTargetList)
 
 del  globalSourceList, globalTargetList
    
@@ -233,9 +233,9 @@ def stepFunction(earth):
     
     
     tt = time.time()    
-    for agent in earth.random.iterEntity(AGENT):
+    for agent in earth.random.iterNodes(AGENT):
         
-        peerValues = np.asarray(agent.getPeerValues('prop_B',CON_AA))
+        peerValues = np.asarray(agent.getPeerAttr('prop_B',CON_AA))
         peerAverage = np.sum(peerValues / len(peerValues))
         #print peerAverage
         if peerAverage < 0.5:
@@ -258,8 +258,8 @@ def stepFunction(earth):
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
-    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeValues('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeValues('prop_B', nodeType=AGENT))
+    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeAttr('prop_B',AGENT))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeAttr('prop_B', nodeTypeID=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])

@@ -15,6 +15,7 @@ import os
 import numpy as np
 import logging as lg
 import time
+import random
 
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
@@ -24,12 +25,14 @@ import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
 import core as core
 
 #%% CONFIG
-N_AGENTS   = 200
+N_AGENTS   = 500
 N_STEPS    = 1000
 MAX_EXTEND = 50
 
-IMITATION = 10
+IMITATION = 25
 INNOVATION = .1
+
+N_FRIENDS  = 10
 
 DEBUG = True
 
@@ -49,19 +52,29 @@ world = LIB.World(simNo,
 
 AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
                                staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.float32, 2)],
+                                                    ('pos', np.float32, 2)
+                                                    ('sector', np.int16, 1)],
                                dynamicProperties = [('switch', np.int16, 1),
                                                     ('color', np.float16,4)])
 #%% Init of edge types
 LI_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
 
+origins = [np.asarray(x) for x in [[25,25], [75,25], [25,75], [75,75]]]
+individualDeltas  = np.clip(np.random.randn(2, N_AGENTS)*10, -25, 25)
+
 for iAgent in range(N_AGENTS):
     
-    x,y = np.random.randint(0, MAX_EXTEND, 2)
+    sector = random.choice([1,2,3,4])
+    
+    origin = origins[sector]
+    x,y = origin + individualDeltas[:,iAgent]
+    
+    
     agent = LIB.Agent(world,
                       pos=(x, y),
                       switch = 0,
-                      color = BLUE)
+                      color = BLUE,
+                      sector = sector)
     agent.register(world)
 
 
@@ -69,14 +82,14 @@ for iAgent in range(N_AGENTS):
     
 positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
 agIDList  = world.getNodeIDs(AGENT)
-nFriends  = 10
+
 
 for agent in world.iterNodes(AGENT):
     weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
     weig = weig / np.sum(weig)
     
-    friendIDs = np.random.choice(agIDList, nFriends, replace=False, p=weig)
+    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
     
     [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
     
@@ -123,6 +136,8 @@ positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
 #%% Scheduler
 iStep = 0
 fracList = list()
+fracPerSector = {1:[], 2:[], 3:[],4:[]}
+
 switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
 
 ploting = PlotClass(positions, world)
@@ -141,7 +156,8 @@ while True:
         
         if agent.attr['switch'] == 0:
             
-            if randNum < INNOVATION + ( IMITATION * (switchFraction )):
+            switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+            if randNum < INNOVATION + ( IMITATION * ( switchFraction)):
                 agent.attr['switch'] = 1
                 agent.attr['color'] = RED
             

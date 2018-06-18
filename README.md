@@ -1,26 +1,54 @@
-# README #
+# Project Title
+
+Agent-based modeling framework
+
+## Getting Started
+
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
+See deployment for notes on how to deploy the project on a live system.
+
+### Prerequisites
+
+What things you need to install the software and how to install them
+
+```
+python > 3.x
+
+numpy
+pandas 
+mpi4py for parallel execution
+h5py
+matplotlib
+```
+
+### Installing
+
+ToDo...
+
+## Running the tests
+
+...
+sh tests/run_test.sh
+
+```
+
+## Deployment
+
+ToDo...
 
 
-* CGF-ABM
-* version 0.2
+## Contributing
 
-### Dependencies ###
+ToDo..
 
-- igpraph (tested with 0.7.1)
-  e.g. conda install -c marufr python-igraph=0.7.1.post6
-- numpy (tested with 1.11.3)
-- tqdm
-- pandas (tested with 0.19.1)
-- matplotlib (tested with 1.5.1)
-- seaborn (tested with 0.7.1)
-- sklearn
+## Authors
 
-optional (for scenario 2)
-- osgeo
-   
+ToDo...
 
-### Contribution guidelines ###
+## License
 
-* Writing tests ;)
-* Code review ;)
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
+## Acknowledgments
+
+The world.
