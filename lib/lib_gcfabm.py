@@ -660,23 +660,26 @@ class World:
             
         lnIDs = np.where(boolArr)[0] + self.maxNodes
         
-        #return agent instances
-        return [self.__entDict[i] for i in lnIDs]
+        return lnIDs
+        
 
-    def iterNodes(self, nodeTypeID, ghosts = False):
+    def iterNodes(self, nodeTypeID=None, localIDs=None, ghosts = False):
         """
         Iteration over entities of specified type. Default returns
         non-ghosts in random order.
         """
-        if isinstance(nodeTypeID,str):
-            nodeTypeID = self.types.index(nodeTypeID)
+        if nodeTypeID is None:
+            nodeList = localIDs
+        elif localIDs is None:
+            if isinstance(nodeTypeID,str):
+                nodeTypeID = self.types.index(nodeTypeID)
+    
+            if ghosts:
+                nodeList = self.__ghostNodeDict[nodeTypeID]
+            else:
+                nodeList = self.__nodeDict[nodeTypeID]
 
-        if ghosts:
-            nodeDict = self.__ghostNodeDict[nodeTypeID]
-        else:
-            nodeDict = self.__nodeDict[nodeTypeID]
-
-        return  [self.__entDict[i] for i in nodeDict]
+        return  [self.__entDict[i] for i in nodeList]
 
 
     def setEnum(self, enumName, enumDict):
