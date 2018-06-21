@@ -93,7 +93,7 @@ for agent in world.iterNodes(AGENT):
     #opt1
     #weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
     #opt2
-    weig = np.abs((innovationVal - agent.attr['inno'])**2)
+    weig = np.abs((innovationVal - agent.attr['inno'])**20)
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
     weig = weig / np.sum(weig)
     
@@ -132,7 +132,7 @@ while True:
     
     nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
-    for agent, randNum in zip(nodesToIter,randValues) :
+    for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
         
         if agent.attr['switch'] == 0:
             
@@ -147,4 +147,4 @@ while True:
     if DO_PLOT and iStep%10 == 0:
         plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
     #time.sleep(.1)
-    print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
+    #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
