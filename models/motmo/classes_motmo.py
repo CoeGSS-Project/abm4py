@@ -218,7 +218,7 @@ class Earth(World):
             weigList += weights
             populationList.append(agent.loc.attr['population'])
         
-        timePerAgent =  (time.time() - tt ) / self.nAgents(nodeTypeID)
+        timePerAgent =  (time.time() - tt ) / self.nNodes(nodeTypeID)
         print('Average generation time per agent: {:3.4f}'.format(timePerAgent))
         
         ttx = time.time()

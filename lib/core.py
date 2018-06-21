@@ -1491,7 +1491,7 @@ class PAPI():
                 nNodes   = dataPackage['nNodes']
                 nodeTypeID = dataPackage['nTypeID']
                 #
-                IDsList = world.addVertices(nodeTypeID, nNodes)
+                IDsList = world.addNodes(nodeTypeID, nNodes)
                 # setting up ghostIn communicator
                 self.mpiRecvIDList[(nodeTypeID, mpiPeer)] = IDsList
 

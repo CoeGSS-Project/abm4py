@@ -96,7 +96,7 @@ class Entity():
         if nID is not -1:
             self.nID = nID
             self.attr, self.dataID = self._graph.getNodeView(nID)
-            self.gID = self.data['gID'][0]
+            self.gID = self.attr['gID'][0]
         
         else:
             self.nID, self.dataID, self.attr = world.addNode(nodeTypeID,  **kwProperties)
@@ -396,7 +396,7 @@ class World:
                  spatial=True,
                  nSteps=1,
                  maxNodes=1e6,
-                 maxEdges=1e6,
+                 maxLinks=1e6,
                  debug=False,
                  mpiComm=None):
 
@@ -416,7 +416,7 @@ class World:
             self.parallized = mpiComm.size > 1
 
         # GRAPH
-        self.graph    = ABMGraph(self, maxNodes, maxEdges)
+        self.graph    = ABMGraph(self, maxNodes, maxLinks)
         self.para['outPath'] = outPath # is not graph, move to para
 
         self.globalRecord = dict() # storage of global data
