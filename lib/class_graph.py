@@ -104,11 +104,11 @@ class BaseGraph():
         self.getEdgeTypeID = itertools.count(1).__next__
         
         #persistent nodeattributes
-        self.persNodeAttr =[('active', np.bool_,1)]
+        self.persNodeAttr = [('active', np.bool_,1)]
         #persistent edge attributes
-        self.persEdgeAttr =[('active', np.bool_, 1),
-                            ('source', np.int32, 1), 
-                            ('target', np.int32, 1)]
+        self.persEdgeAttr = [('active', np.bool_, 1),
+                             ('source', np.int32, 1), 
+                             ('target', np.int32, 1)]
         
     #%% NODES
     def _initNodeType(self, nodeName, attrDescriptor):

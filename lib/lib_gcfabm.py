@@ -622,7 +622,46 @@ class World:
             else:
                 return self.__nodeDict[nodeTypeID]
 
-    
+    def filterNodes(self, nodeTypeID, attr, operator, value = None, compareAttr=None):
+        """
+        Method for quick filtering nodes according to comparison of attributes
+        allowed operators are:
+            "lt" :'less than <
+            "elt" :'less or equal than <=
+            "gt" : 'greater than >
+            "egt" : 'greater or equal than >=
+            "eq" : 'equal ==
+        Comparison can be made to values or another attribute
+        """
+        
+        # get comparison value
+        if compareAttr is None:
+            compareValue = value
+        elif value is None:
+            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[nodeTypeID])
+        
+        # get values of all nodes
+        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[nodeTypeID])
+        
+        if operator=='lt':
+            boolArr = values < compareValue    
+            
+        elif operator=='gt':
+            boolArr = values > compareValue    
+            
+        elif operator=='eq':
+            boolArr = values == compareValue    
+            
+        elif operator=='elt':
+            boolArr = values <= compareValue    
+            
+        elif operator=='egt':
+            boolArr = values >= compareValue    
+            
+        lnIDs = np.where(boolArr)[0] + self.maxNodes
+        
+        #return agent instances
+        return [self.__entDict[i] for i in lnIDs]
 
     def iterNodes(self, nodeTypeID, ghosts = False):
         """
