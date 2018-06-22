@@ -704,13 +704,13 @@ class Globals():
                     
                     # sending data list  of (local mean, size)
                     inpComm = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-                    lg.debug(inpComm)
+                    #lg.debug(inpComm)
                     outComm = self.comm.alltoall(inpComm)
                     # communication between all proceees
                     tmp = np.asarray(outComm)
 
                     lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
-                    lg.debug(outComm)
+                    #lg.debug(outComm)
                     lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
                     # calculation of global mean
                     globValue = np.sum(np.prod(tmp,axis=1)) # means * size
@@ -731,7 +731,7 @@ class Globals():
                     lg.debug(locSTD)
                     outComm = self.comm.alltoall(locSTD)
                     lg.debug(outComm)
-                    locSTD = np.asarray(outComm)
+                    #locSTD = np.asarray(outComm)
                     lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
                     lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
 
