@@ -102,15 +102,22 @@ positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
 agIDList  = world.getNodeIDs(AGENT)
 innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 
-for agent in world.iterNodes(AGENT):
-    #opt1
-    #weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
-    #opt2
-    weig = np.abs((innovationVal - agent.attr['inno'])**3)
+def network_creation(agent, world):
+    
+    # first basic network idea
+    weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
     weig = weig / np.sum(weig)
     
-    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
+    # better networks
+    ...
+    
+    
+for agent in world.iterNodes(AGENT):
+    
+    weights = network_creation(agent, world)
+    
+    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
     
     [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
     
