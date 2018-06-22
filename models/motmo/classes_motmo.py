@@ -389,7 +389,7 @@ class Earth(World):
 
 
         ###### Person loop ######
-        ttComp = time.time()
+
         for person in self.random.iterNodes(PERS):
             person.step(self)
         lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')##OPTPRODUCTION
@@ -404,10 +404,10 @@ class Earth(World):
         else:
             for household in self.random.iterNodes(HH):
 
-                if random.random()<1e-4:
-                    household.stepOmniscient(self)
-                else:
-                    household.evolutionaryStep(self)
+#                if random.random()<1e-4:
+#                    household.stepOmniscient(self)
+#                else:
+                household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')##OPTPRODUCTION
 
         for cell in self.iterNodes(CELL):
@@ -1201,7 +1201,7 @@ class Person(Agent):
     
     def weightFriendExperience(self, world, commUtilPeers, weights):        
         friendUtil = commUtilPeers[:,self.get('mobType')]
-        ownUtil    = self.get('util')
+        ownUtil    = self.attr['util'][0]
 
         prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
         prior = normalize(weights)
@@ -1324,8 +1324,8 @@ class Person(Agent):
         MAX_FRIEND_CANDIDATES = 1000.
         if np.sum(nPers) > MAX_FRIEND_CANDIDATES:
             persWeig = np.asarray(nPers)
-            persWeig = persWeig/ np.sum(persWeig)
             persWeig = persWeig*cellConnWeights
+            persWeig = persWeig/ np.sum(persWeig)
             nPers = (persWeig*MAX_FRIEND_CANDIDATES).astype(np.int32)
             personIds = list()
             for nP, subList in zip(nPers, personIdsAll):
@@ -1409,26 +1409,26 @@ class Person(Agent):
     def computeCommunityUtility(self,earth, weights, commUtilPeers):
         #get weights from friends
         #weights, links = self.getLinkAttr('weig', linkTypeID=CON_PP)
-        commUtil = self.get('commUtil') # old value
-        
+        commUtil = self.attr['commUtil'][0] # old value
+        selfUtil = self.attr['selfUtil'][0]
         # compute weighted mean of all friends
         if earth.para['weightConnections']:
             commUtil += np.dot(weights, commUtilPeers)
         else:
             commUtil += np.mean(commUtilPeers,axis=0)
 
-        mobType  = self.get('mobType')
+        mobType  = self.attr['mobType'][0]
         
         
         # adding weighted selfUtil selftrust
-        commUtil[mobType] += self.get('selfUtil')[mobType] * earth.para['selfTrust']
+        commUtil[mobType] += selfUtil[mobType] * earth.para['selfTrust']
         # stf: die teilerei hier finde ich komisch, warum werden z.B. für alle mobTypes / 2 geteilt?
         # ich hätte einfach eine Zeile mit "commUtil[mobType] /= 2" erwartet
         commUtil /= 2.
         commUtil[mobType] /= (earth.para['selfTrust']+2)/2.
 
 
-        if len(self.get('selfUtil')) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:       ##OPTPRODUCTION
+        if len(selfUtil) != earth.para['nMobTypes'] or len(commUtil.shape) == 0 or commUtil.shape[0] != earth.para['nMobTypes']:       ##OPTPRODUCTION
             print('nID: ' + str(self.nID))                                       ##OPTPRODUCTION
             print('error: ')                                                     ##OPTPRODUCTION
             print('communityUtil: ' + str(commUtil))                             ##OPTPRODUCTION
@@ -1661,11 +1661,11 @@ class Household(Agent):
                 adult.computeCommunityUtility(earth)
                 actionIds = [-1] + list(range(earth.para['nMobTypes']))
 
-                eUtils = [adult.get('util')] + adult.get('commUtil')
+                eUtils = [adult.attr['util'][0]] + adult.attr['commUtil'][0]
 
             else:
-                actionIds, eUtils = [-1], [adult.get('util')]
-#
+                actionIds, eUtils = [-1], [adult.attr['util'][0]]
+
             actionIdsList.append(actionIds)
             eUtilsList.append(eUtils)
 

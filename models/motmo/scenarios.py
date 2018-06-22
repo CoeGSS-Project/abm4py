@@ -1,5 +1,28 @@
 # -*- coding: utf-8 -*-
+"""
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://wwww.globalclimateforum.org
 
+---- MoTMo ----
+MOBILITY TRANSIOn MODEL
+-- Scenario file --
+
+This file is part on GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+"""
 import logging as lg
 import pprint as pp
 import numpy as np
@@ -199,7 +222,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeAgentFile = 0
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 

@@ -3,12 +3,13 @@
 """
 Copyright (c) 2017
 Global Climate Forum e.V.
-http://www.globalclimateforum.org
+http://wwww.globalclimateforum.org
 
-CAR INNOVATION MARKET MODEL
--- AUXILIARIES CLASS FILE --
+---- MoTMo ----
+MOBILITY TRANSIOn MODEL
+-- core functionality file --
 
-This file is part of GCFABM.
+This file is part on GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
 import os
@@ -320,8 +321,11 @@ class Spatial():
     def __init__(self, world):
         self.world = world # make world availabel in class random
 
+    def computeConnectionList(self, radius=1, weightingFunc = weightingFunc, ownWeight =2):
+        
+        return computeConnectionList(radius, weightingFunc, ownWeight)
 
-    def initSpatialLayer(self, rankArray, connList, LocClassObject):
+    def initSpatialLayer(self, rankArray, connList, LocClassObject, linkTypeID):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
@@ -329,7 +333,8 @@ class Spatial():
 
         """
         nodeTypeID = self.world.graph.class2NodeType(LocClassObject)
-        GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
+        if self.world.parallized:
+            GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
         nodeArray = ((rankArray * 0) +1)
         #print rankArray
         IDArray = nodeArray * np.nan
@@ -384,12 +389,22 @@ class Spatial():
                             ghostLocationList.append(loc)
         self.world.graph.IDArray = IDArray
 
-        fullSourceList      = list()
-        fullTargetList      = list()
-        fullWeightList          = list()
+
         #nConnection  = list()
         #print 'rank: ' +  str(self.world.locDict)
 
+        self.connectLocations(IDArray, connList, linkTypeID)
+
+    def connectLocations(self, IDArray, connList, linkTypeID):
+        xOrg = 0
+        yOrg = 0
+        xMax = IDArray.shape[0]
+        yMax = IDArray.shape[1]
+
+        fullSourceList      = list()
+        fullTargetList      = list()
+        fullWeightList      = list()
+        
         for (x,y), loc in list(self.world.getLocationDict().items()):
 
             srcID = loc.nID
@@ -428,7 +443,7 @@ class Spatial():
 
             
         #eStart = self.world.graph.ecount()
-        self.world.graph.addLinks(1, fullSourceList, fullTargetList, weig=fullWeightList)
+        self.world.graph.addLinks(linkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
 #        eStart = 0
@@ -731,7 +746,7 @@ class Globals():
                     lg.debug(locSTD)
                     outComm = self.comm.alltoall(locSTD)
                     lg.debug(outComm)
-                    #locSTD = np.asarray(outComm)
+                    locSTD = np.asarray(outComm)
                     lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
                     lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
 

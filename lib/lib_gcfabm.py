@@ -496,8 +496,8 @@ class World:
     def nNodes(self, nodeTypeID=None):
         return self.graph.nCount(nTypeID=nodeTypeID)
         
-    def nLinks(self, nodeTypeID):
-       return self.graph.eCount(nTypeID=nodeTypeID)  
+    def nLinks(self, linkTypeID):
+       return self.graph.eCount(eTypeID=linkTypeID)  
         
     def getDataIDs(self, nodeTypeID):
         return self.__dataDict[nodeTypeID]
@@ -658,7 +658,7 @@ class World:
         elif operator=='egt':
             boolArr = values >= compareValue    
             
-        lnIDs = np.where(boolArr)[0] + self.maxNodes
+        lnIDs = np.where(boolArr)[0] + (self.maxNodes * nodeTypeID)
         
         return lnIDs
         

@@ -1,9 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep 15 10:31:00 2017
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://wwww.globalclimateforum.org
 
-@author: Andreas Geiges, Global Climate Forum e.V.
+---- MoTMo ----
+MOBILITY TRANSIOn MODEL
+-- Class graph --
+
+This file is part on GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
 import logging as lg
@@ -539,7 +558,7 @@ class ABMGraph(BaseGraph):
         self.__class2NodeType[AgentClass]       = nodeTypeIDIdx
         if GhostAgentClass is not None:
             self.__class2NodeType[GhostAgentClass]  = nodeTypeIDIdx
-            self.__ghostOfAgentClass[AgentClass]         = GhostAgentClass
+            self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
     def addLinkType(self , linkTypeIDIdx, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2):
