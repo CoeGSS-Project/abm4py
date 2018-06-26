@@ -17,7 +17,10 @@ outputValues = [
 
 continuousVariables = [
     ( 'innoPriority', 0.2, 0.0, 0.5 ),
-    ( 'mobIncomeShare', 0.2, 0.1, 0.4 )
+    ( 'mobIncomeShare', 0.2, 0.1, 0.4 ),
+    ( 'memoryTime', 15, 2, 20),
+    ( 'connRadius', 3.5, 1, 5.0),
+    ( 'selfTrust', 2, 0.5, 4)
 ]
 
 def calcWeight(var, region, year):

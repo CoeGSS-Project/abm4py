@@ -5,7 +5,7 @@ def calcResults(dakotaResults):
     def inInterval(data, real, lowFactor, highFactor):
         dataL = data * lowFactor
         dataH = data * highFactor
-        return dataL < real < dataH
+        return (dataL < real < dataH) * -1
     
     for year in years:
         for regionId in regionIds:

@@ -1,6 +1,5 @@
 #!/bin/bash
 
 rm *.out
-rm *.rst
 rm *.in.*
 rm *.out.*

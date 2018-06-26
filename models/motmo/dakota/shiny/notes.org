@@ -1,0 +1,10 @@
+* Table format
+** Time series
+id variable* year region responseName responseValue
+** Calibration Info
+id variable* fitnessTyp fitness
+(fitnessTyp: absoluteError, relativError, notMatchedIntervals)
+
+ 
+
+
