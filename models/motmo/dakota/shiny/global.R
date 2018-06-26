@@ -63,34 +63,30 @@ createTimeSeriesTable <- function(df) { ##//{
         select(-key)
 } ##//}
 
-calcInterval <- function(df, ts, data, response, lowerFactor, upperFactor) { ##//{
-    forSingleId <- function(theId) {
-        dataVec <- (ts %>% filter(id == theId, responseDesc == data))$value 
-        simuVec <- (ts %>% filter(id == theId, responseDesc == response))$value
+calcInterval <- function(ts, data, response, lowerFactor, upperFactor) { ##//{
+    isInInterval <- function(real, sim, lowerFactor = 0.8, upperFactor = 1.2) {
         ## the == instead of && is intentional, and uses the fact, that
         ## not both bools can be false for a single id. The problem with &&
         ## is, that it accumulate the boolean values of the vector, but we
         ## need a vector 
-        sum((dataVec * lowerFactor < simuVec) == (simuVec < dataVec * upperFactor))
+        (real * lowerFactor < sim) == (sim < real * upperFactor)
     }
 
-    ts %>% group_by(id)
+    sim <- ts %>% filter(responseDesc == data) %>% select(id, sim = value)
+    real <- ts %>% filter(responseDesc == response) %>% select(id, real = value)
+    both <- real %>% add_column(sim = sim$sim)
+    inInterval <- both %>% group_by(id) %>% summarize(inInterval = sum(isInInterval(sim, real)))
 
-    vecSize <- df %>% select(contains(data)) %>% length
+    vecSize <- dim(both)[1] / dim(inInterval)[1]
 
-    matched <- Map(forSingleId, df$id) %>% as.integer()
-
-    vecSize - matched
+    vecSize - inInterval$inInterval
 } ##//}
 
-calcAbsError <- function(df, ts, data, response, region, adjustData = 1) { ##//{
-    forSingleId <- function(theId) {
-        dataVec <- (ts %>% filter(id == theId, responseDesc == data, region == region))$value * adjustData
-        simuVec <- (ts %>% filter(id == theId, responseDesc == response, region == region))$value
-        sqrt(sum((dataVec - simuVec) ** 2))
-    }
-
-    Map(forSingleId, df$id) %>% as.numeric()
+calcAbsError <- function(ts, data, response, region) { ##//{
+    sim <- ts %>% filter(responseDesc == data) %>% select(id, sim = value)
+    real <- ts %>% filter(responseDesc == response) %>% select(id, real = value)
+    both <- real %>% add_column(sim = sim$sim)
+    (both %>% group_by(id) %>% summarize(error = sqrt(sum((sim - real) ** 2))))$error
 } ##//}
 
 createCalibrationTable <- function(df, ts) { ##//{
@@ -101,11 +97,11 @@ createCalibrationTable <- function(df, ts) { ##//{
 
     df %>%
         select(1:numVarsInclId) %>%
-        mutate(c_intervalElec = calcInterval(df, ts, 'dataElecCars', 'numElecCars', 0.8, 1.2, ADJUST_ELECDATA),
-               c_intervalComb = calcInterval(df, ts, 'dataCombCars', 'numCombCars', 0.8, 1.2, ADJUST_COMBDATA)) %>%
+        mutate(c_intervalElec = calcInterval(ts, 'dataElecCars', 'numElecCars', 0.8, 1.2),
+               c_intervalComb = calcInterval(ts, 'dataCombCars', 'numCombCars', 0.8, 1.2)) %>%
         mutate(c_intervalSum = c_intervalElec + c_intervalComb) %>%
-        mutate(c_absErrorElec = calcAbsError(df, ts, 'dataElecCars', 'numElecCars', '6321', ADJUST_ELECDATA),
-               c_absErrorComb = calcAbsError(df, ts, 'dataCombCars', 'numCombCars', '6321', ADJUST_COMBDATA)) %>%
+        mutate(c_absErrorElec = calcAbsError(ts, 'dataElecCars', 'numElecCars', '6321'),
+               c_absErrorComb = calcAbsError(ts, 'dataCombCars', 'numCombCars', '6321')) %>%
         mutate(c_absErrorSum = c_absErrorElec + c_absErrorComb,
                c_absErrorSumWeighted = c_absErrorElec / numDataElecCars + c_absErrorComb / numDataCombCars)
 } ##//}
