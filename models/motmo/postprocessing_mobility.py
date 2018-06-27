@@ -118,6 +118,7 @@ print('of which omniscient burn-in: ' + str(simParas['omniscientBurnIn']))
 
 global NSTEPS 
 NSTEPS = simParas['nSteps']
+STEP_DELTA = simParas['ioSteps']
 global NMOBTYPES 
 NMOBTYPES = simParas['nMobTypes']
 
@@ -191,7 +192,7 @@ def loadData(path, parameters, data,  filters, nodeTypeID):
                 data.ce     = np.memmap(filename, dtype='float32', mode='r+', shape=(NSTEPS, ceStep.shape[0], ceStep.shape[1]))
         else:
             data.ce     = np.zeros([NSTEPS, ceStep.shape[0]], dtype=ceStep.dtype)
-            for step in range(NSTEPS):
+            for step in range(0,NSTEPS,STEP_DELTA):
                 data.ce[step,:] = getData(parameters,1,step)
         data.ceSta = getStaticData(parameters,1)
         

@@ -288,6 +288,10 @@ def scenarioNBH(parameterInput, dirPath):
 
     setup.cellSizeMap = np.load(setup.resourcePath + 'cell_area_62x118.npy')
 
+    setup.roadKmPerCell = np.load(
+        setup.resourcePath + 'road_km_per_cell_62x118.npy') / setup.cellSizeMap
+
+
     assert np.sum(np.logical_xor(np.isnan(setup.population),
                                  np.isnan(setup.regionIdRaster))) == 0  # OPTPRODUCTION
     setup.regionIDList = np.unique(
@@ -327,10 +331,11 @@ def scenarioNBH(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
 
-    for paName in ['techExpBrown', 'techExpGreen',
-                   'techExpOther', 'population']:
+    for paName in ['techExpBrown', 'techExpGreen', 'techExpPublic', 'techExpShared', 'techExpNone',
+                   'population']:
         setup[paName] /= setup['reductionFactor']
 
+    return setup
     return setup
 
 def scenarioGer(parameterInput, dirPath):
