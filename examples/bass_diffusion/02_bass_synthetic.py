@@ -34,8 +34,8 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
 
-import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core as core
+import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
+import core_prod as core
 import tools
 #%% CONFIG
 N_AGENTS   = 1000
@@ -43,7 +43,7 @@ N_STEPS    = 1000
 MAX_EXTEND = 50
 
 IMITATION = 15
-INNOVATION = .2
+INNOVATION = .05
 
 N_FRIENDS  = 10
 
@@ -112,7 +112,9 @@ for x in range(populationMap.shape[0]):
 connBluePrint = world.spatial.computeConnectionList(radius=2.5)
 world.spatial.connectLocations(IDArray, connBluePrint, LI_CC)
 
-tools.plotGraph(world, CELL, LI_CC)
+if True:
+    #%%
+    tools.plotGraph(world, CELL, LI_CC, 'nAgents')
 #%%
 
 h5File = h5py.File('italians.hdf5', 'r')
@@ -126,6 +128,21 @@ H5_HHTYPE = 4
 
 locDict = world.getLocationDict()
 currIdx = 0
+
+
+##############################################
+# change the propertyToPreference funciton so 
+# that is relies on the properties
+
+def propertyToPreference(age, gender, income, hhType):
+    
+    inno = random.random() * INNOVATION
+    imit = random.normalvariate(IMITATION,2 ) 
+    
+    return inno, imit
+
+##############################################
+
 for xLoc, yLoc in list(locDict.keys()):  
     loc = world.getNodeBy.location(xLoc, yLoc)
     
@@ -133,15 +150,15 @@ for xLoc, yLoc in list(locDict.keys()):
     for iAgent in range(loc.get('nAgents')):
         x = random.normalvariate(xLoc,.25)
         y = random.normalvariate(yLoc,.25)
-        nPers   = int(personData[currIdx, H5_NPERS])
         
+        nPers   = int(personData[currIdx, H5_NPERS])        
         age    = personData[currIdx, H5_AGE]
         gender = personData[currIdx, H5_GENDER]
         income  = personData[currIdx, H5_INCOME]
         hhType  = personData[currIdx, H5_HHTYPE]
     
-        inno = random.random() * INNOVATION
-        imit = random.normalvariate(IMITATION,2 ) 
+        inno, imit = propertyToPreference(age, gender, income, hhType)
+        
         agent = LIB.Agent(world,
                           pos=(x, y),
                           switch = 0,
@@ -163,58 +180,76 @@ agIDList  = world.getNodeIDs(AGENT)
 innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 
 for agent in world.iterNodes(AGENT):
-    #opt1
-    weig1 = np.sum((positions - agent.attr['pos'])**4,axis=1)
+    ##############################################
+    # create a new creation rule 
+    
+    # spatial weight
+    weig1 = np.sum((positions - agent.attr['pos'])**2,axis=1)
     weig1 = np.divide(1.,weig1, out=np.zeros_like(weig1), where=weig1!=0)
-    #opt2
+    
+    # preference weight
     weig2 = np.abs((innovationVal - agent.attr['inno'])**2)
     weig2 = np.divide(1.,weig2, out=np.zeros_like(weig2), where=weig2!=0)
+    
+    # merging of weights
     weig = weig1 * weig2
     weig = weig / np.sum(weig)
+
+    ##############################################
+    
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
     
     [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
     
 
-    
+        
     
 positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
-#positions[:,0] = world.getNodeAttr('inno',nodeTypeID=AGENT)
-#positions[:,1] = world.getNodeAttr('imit',nodeTypeID=AGENT)
 
-#%%
-plt.figure('statistics')
-plt.subplot(2,2,1)
-data = world.getNodeAttr('age',nodeTypeID=AGENT)
-plt.hist(data)
-plt.title('age distribution')
-plt.subplot(2,2,2)
-data = world.getNodeAttr('income',nodeTypeID=AGENT)
-plt.hist(data)
-plt.title('income distribution')
-plt.subplot(2,2,3)
-data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
-plt.hist(data)
-plt.title('household size')
-plt.subplot(2,2,4)
-data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
-plt.scatter(world.getNodeAttr('income',nodeTypeID=AGENT), world.getNodeAttr('age',nodeTypeID=AGENT))
+##############################################
+# exchange the position of spatial space (x,y) with the properties (inno, imit)
 
-plt.title('relation income to age')
-plt.draw()
+#positions[:,0] = 
+
+##############################################
+
+
+if False:
+    #%%
+    plt.figure('statistics')
+    plt.subplot(2,2,1)
+    data = world.getNodeAttr('age',nodeTypeID=AGENT)
+    plt.hist(data)
+    plt.title('age distribution')
+    plt.subplot(2,2,2)
+    data = world.getNodeAttr('income',nodeTypeID=AGENT)
+    plt.hist(data)
+    plt.title('income distribution')
+    plt.subplot(2,2,3)
+    data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
+    plt.hist(data)
+    plt.title('household size')
+    plt.subplot(2,2,4)
+    data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
+    plt.scatter(world.getNodeAttr('income',nodeTypeID=AGENT), world.getNodeAttr('age',nodeTypeID=AGENT))
+    
+    plt.title('relation income to age')
+    plt.draw()
 
 #%% Scheduler
 iStep = 0
 fracList = list()
-fracPerSector = {1:[], 2:[], 3:[],4:[]}
-
-switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
-
 
 
 if DO_PLOT:
     plotting = tools.PlotClass(positions, world, AGENT, LI_AA)
+
+yData = [0.0233236, 0.0291545, 0.0612245 ,0.116618 ,0.157434 ,0.204082 ,0.282799,0.379009,
+0.489796 ,0.600583 ,0.64431 ,0.644315,0.6559]
+xData = [6*x for x in range(12,len(yData)*12+1,12)]
+
+plotting.add_data(xData,yData)
 while True:
     tt =time.time()
     iStep+=1
@@ -232,17 +267,15 @@ while True:
     
     for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
         
-        if agent.attr['switch'] == 0:
+        # dynamic of the agent
+        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        inno, imit = agent.attr[['inno','imit']][0]
+        
+        if randNum < inno + ( imit * ( switchFraction)):
+            agent.attr['switch'] = 1
+            agent.attr['color']  = RED
+            plotting.add(iStep,inno)
             
-            switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
-            inno, imit = agent.attr[['inno','imit']][0]
-            
-            if randNum < inno + ( imit * ( switchFraction)):
-                agent.attr['switch'] = 1
-                agent.attr['color']  = RED
-                plotting.add(iStep,inno)
-            
-    if DO_PLOT and iStep%10 == 0:
+    if DO_PLOT and iStep%50 == 0:
         plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
-    #time.sleep(.1)
-    #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
+    

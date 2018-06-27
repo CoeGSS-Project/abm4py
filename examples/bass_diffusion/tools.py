@@ -38,7 +38,7 @@ over90 = False
 class PlotClass():
     
         
-    def __init__(self, positions, world, AGENT, LI_AA):
+    def __init__(self, positions, world, AGENT, LI_AA=None):
 
         tt = time.time()
         plt.ion()
@@ -58,28 +58,33 @@ class PlotClass():
         #self.ax2.plot([0,0],'x')
         plt.cla()
         ax = plt.subplot(1,2,2)
-        linesToDraw = list()
-        plt.cla()
-        for agent in world.iterNodes(AGENT):
-            pos = agent.attr['pos'][0]
-            pos = positions[agent.dataID]
-            
-            peerDataIDs     = np.asarray(agent.getPeerIDs(LI_AA)) - (world.maxNodes * AGENT)
-            peerPositions = positions[peerDataIDs]
-            for peerPos in peerPositions:
+        
+        if LI_AA is not None:
+            linesToDraw = list()
+            plt.cla()
+            for agent in world.iterNodes(AGENT):
+                pos = agent.attr['pos'][0]
+                pos = positions[agent.dataID]
                 
-                linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
-        lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
-
-        ax.add_collection(lc)
-        ax.autoscale()
-        ax.margins(0.1)
+                peerDataIDs     = np.asarray(agent.getPeerIDs(LI_AA)) - (world.maxNodes * AGENT)
+                peerPositions = positions[peerDataIDs]
+                for peerPos in peerPositions:
+                    
+                    linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
+            lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
+    
+            ax.add_collection(lc)
+            ax.autoscale()
+            ax.margins(0.1)
         
         
         self.h_scatter = plt.scatter(positions[:,0], positions[:,1], s = 15, c = np.zeros(positions.shape[0]),zorder=2)
         plt.tight_layout()
         print ('Init plot done in ' + str(time.time()-tt) + ' s')
 
+    def add_data(self, x, y):
+        plt.subplot(2,2,1)
+        plt.plot(x,y, 'o')
 
     def update(self, istep, plotDataList, scatterColorList):
         self.h_plot.set_data(range(istep),plotDataList)
@@ -107,11 +112,11 @@ def printfractionExceed(switchFraction, iStep):
         over90 = True        
         
         
-def plotGraph(world, agentTypeID, linkTypeID):
+def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
     linesToDraw = list()
     positions = world.getNodeAttr('pos', nodeTypeID=agentTypeID)
-    nAgents = world.getNodeAttr('nAgents', nodeTypeID=agentTypeID)
-    print(nAgents)
+    
+    #print(nAgents)
     plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
@@ -119,18 +124,26 @@ def plotGraph(world, agentTypeID, linkTypeID):
         pos = agent.attr['pos'][0]
         
         
-        peerDataIDs   = np.asarray(agent.getPeerIDs(linkTypeID)) - world.maxNodes
         
-        peerPositions = positions[peerDataIDs]
-        for peerPos in peerPositions:
-            
-            linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
+        
+        
+        peerDataIDs   = np.asarray(agent.getPeerIDs(linkTypeID)) - world.maxNodes
+        if len(peerDataIDs)> 0:
+            peerPositions = positions[peerDataIDs]
+            for peerPos in peerPositions:
+                
+                linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
-
-    plt.scatter(positions[:,0], positions[:,1], s = 15, c = nAgents,zorder=2)
+    if attrLabel is not None:
+        values = world.getNodeAttr(attrLabel, nodeTypeID=agentTypeID)
+        values = values / np.max(values)
+        #print(values)
+        plt.scatter(positions[:,0], positions[:,1], s = 15, c = values,zorder=2)
+    else:
+        plt.scatter(positions[:,0], positions[:,1], s = 15, zorder=2)
     ax.add_collection(lc)
     ax.autoscale()
     ax.margins(0.1)      
     plt.tight_layout()  
-    plt.colorbar()
+    #plt.colorbar()
     plt.draw()

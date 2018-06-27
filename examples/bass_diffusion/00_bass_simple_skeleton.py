@@ -31,13 +31,14 @@ import time
 
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
-sys.path.append('../lib/')
+sys.path.append('../../lib/')
 
 import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
 import core_prod as core
+import tools
 
 #%% CONFIG
-N_AGENTS   = 2000
+N_AGENTS   = 500
 N_STEPS    = 1000
 MAX_EXTEND = 50
 
@@ -46,73 +47,92 @@ INNOVATION = .1
 
 DEBUG = True
 
-BLUE = plt.get_cmap('Blues')(.5)
-RED  = plt.get_cmap('RdPu_r')(1)
+BLUE = [0,0,1,1]
+RED  = [1,0,0,1]
 
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
 
-world = ...
+world = LIB.World(simNo,
+              outputPath,
+              spatial=True,
+              nSteps=N_STEPS,
+              maxNodes=1e4,
+              maxLinks=1e5,
+              debug=DEBUG)
 
-AGENT = ...
-
-
-#%% init of agents
+AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
+                               staticProperties  = [('gID', np.int32,1),
+                                                    ('pos', np.int16, 2)],
+                               dynamicProperties = [('switch', np.int16, 1),
+                                                    ('color', np.float16,4)])
+# %%
 
 for iAgent in range(N_AGENTS):
     
-    ...
-#%% Plotting
-class PlotClass():
+    x,y = np.random.randint(0, MAX_EXTEND, 2)
     
-        
-    def __init__(self, positions):
-        
-        plt.ion()
-        self.fig = plt.figure(1)
-        plt.clf()
-    
-    
-    
-        
-        
-        plt.subplot(1,2,1)
-        self.h_plot = plt.plot([0,1],[1,1])[0]
-        plt.xlim([0,1000])
-        plt.ylim([0,1])
-        plt.subplot(1,2,2)
-        self.h_scatter = plt.scatter(positions[:,0], positions[:,1], s = 25, c = np.zeros(positions.shape[0]))
+    ##############################################
+    #create all agent with tree properties
+    # - pos = x,y
+    # - switch 
+    # - color = BLUE
     
 
-
-    def update(self, istep, plotDataList, scatterColorList):
-        self.h_plot.set_data(range(istep),plotDataList)
-        self.h_scatter.set_facecolor(scatterColorList)
-        plt.draw()
-        self.fig.canvas.flush_events()
+    agent =
     
+    ##############################################
+    agent.register(world)
     
-
-
 
 #%% Scheduler
 iStep = 0
-ploting = PlotClass(...)
+fracList = list()
+
+##############################################
+# get position of all agents for plotting
+
+positions = 
+
+##############################################
+
+
+ploting = tools.PlotClass(positions, world,AGENT)
 
 while True:
     tt =time.time()
     iStep+=1
-    # Stop condition
     
-    ...
     
-    # % Step dynamic
+    ##############################################
+    #calculate the fraction of agents that already switched
     
-    ...
+    switchFraction = 
     
-
-    # Plotting        
-    if iStep%10 == 0:
-        ploting.update(iStep, ..., ...)
+    ##############################################
+    
+    fracList.append(switchFraction)
+    
+    if switchFraction == 1 or iStep == N_STEPS:
+        break
+    
+    
+    for agent, randNum in zip(world.iterNodes(AGENT), np.random.random(N_AGENTS)*1000):
+        
+        if agent.attr['switch'] == 0:
+            
+            ##############################################
+            # implemnent the condition of agents to switch
+            
+            condition = 
+            
+            ##############################################
+            
+            if randNum < condition:
+                agent.attr['switch'] = 1
+                agent.attr['color'] = RED
+            
+    if iStep%50 == 0:
+        ploting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
     
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

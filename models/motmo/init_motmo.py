@@ -293,7 +293,7 @@ def householdSetup(earth, calibration=False):
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
     nHH     = 0
-    overheadAgents = 1000 # additional agents that are loaded 
+    overheadAgents = 2000 # additional agents that are loaded 
     tmp = np.unique(parameters['regionIdRaster'])
     tmp = tmp[~np.isnan(tmp)]
     regionIdxList = tmp[tmp>0]
@@ -650,7 +650,8 @@ def initSpatialLayer(earth):
     connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
-                           LocClassObject=Cell)
+                           LocClassObject=Cell,
+                           linkTypeID=CON_CC)
     
     convMat = np.asarray([[0., 1, 0.],[1., 1., 1.],[0., 1., 0.]])
     tmp = parameters['population']*parameters['reductionFactor']

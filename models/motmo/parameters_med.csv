@@ -2,7 +2,7 @@ name,value, comment
 scenario,1,			# selection of the scenario setup
 nSteps,460,              	# number of simulation steps
 burnIn,100,            		# number of burn in time steps
-ioSteps, 0, 			# number of steps after when the IO writen to file: 0=off, 1=every step,
+ioSteps, 12, 			# number of steps after when the IO writen to file: 0=off, 1=every step,
 burnInTimeFactor,1,             # time scaling in burnIn
 omniscientBurnIn,0,   		# number of omiscient agent time steps 
 connRadius,3.5,        		# radius within which location cell get connected
@@ -24,6 +24,6 @@ charAge,10,            		# [0 10]
 radicality,1,          		# exponent of the preferences -> high values lead to extreme differences
 util,cobb,                      # [cobb ces]
 weightConnections,1,		# flag if connections to friends are weighted
-reductionFactor,2000,           # population reduction factor
+reductionFactor,1000,           # population reduction factor
 selfTrust,2, 			# how much more a agent values this own opinion
 

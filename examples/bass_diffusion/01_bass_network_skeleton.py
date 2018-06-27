@@ -34,11 +34,11 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
 
-import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core as core
+import lib_gcfabm_prod as LIB #, Agent, World,  h5py, MPI
+import core_prod as core
 import tools
 #%% CONFIG
-N_AGENTS   = 1000
+N_AGENTS   = 500
 N_STEPS    = 1000
 MAX_EXTEND = 50
 
@@ -51,8 +51,8 @@ DEBUG = True
 DO_PLOT  = True
 
 
-BLUE = plt.get_cmap('Blues')(.3)
-RED  = plt.get_cmap('RdPu_r')(.1)
+BLUE = [0,0,1,1]
+RED  = [1,0,0,1]
 
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
@@ -62,7 +62,7 @@ world = LIB.World(simNo,
               spatial=True,
               nSteps=N_STEPS,
               maxNodes=1e4,
-              maxEdges=1e5,
+              maxLinks=1e5,
               debug=DEBUG)
 
 AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
@@ -86,6 +86,7 @@ for iAgent in range(N_AGENTS):
     x,y = origin + individualDeltas[:,iAgent]
     inno = random.random() * INNOVATION
     imit = random.normalvariate(IMITATION,2 ) 
+    
     agent = LIB.Agent(world,
                       pos=(x, y),
                       switch = 0,
@@ -97,24 +98,30 @@ for iAgent in range(N_AGENTS):
 
 
 #%% creation of spatial proximity network
-    
+  
 positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
 agIDList  = world.getNodeIDs(AGENT)
 innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 
 def network_creation(agent, world):
     
-    # first basic network idea
+    # standard network inverse to spatial distance
     weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
+    ##############################################
+    # create a new creation rule for a network with the slowest possible diffusion
+    
+    
+    #weig = 
+    ##############################################
+    
+    
+    # normalizing
     weig = weig / np.sum(weig)
     
-    # better networks
-    ...
-    
+    return weig
     
 for agent in world.iterNodes(AGENT):
-    
     weights = network_creation(agent, world)
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
@@ -126,18 +133,19 @@ for agent in world.iterNodes(AGENT):
     
 positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
 
+##############################################
+# exchange the position of spatial space (x,y) with the properties (inno, imit)
+
+#positions[:,0] = 
+
+##############################################
 
 #%% Scheduler
 iStep = 0
 fracList = list()
-fracPerSector = {1:[], 2:[], 3:[],4:[]}
-
-switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
-
-
 
 if DO_PLOT:
-    ploting = tools.PlotClass(positions, world, AGENT, LI_AA)
+    plotting = tools.PlotClass(positions, world, AGENT, LI_AA)
 while True:
     tt =time.time()
     iStep+=1
@@ -150,19 +158,20 @@ while True:
         break
     tools.printfractionExceed(switchFraction, iStep)
     
-    for agent, randNum in zip(world.iterNodes(AGENT), np.random.random(N_AGENTS)*1000):
+    nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
+    randValues  = np.random.random(len(nodesToIter))*1000
+    
+    for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
+              
+        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        inno, imit = agent.attr[['inno','imit']][0]
         
-        if agent.attr['switch'] == 0:
+        if randNum < inno + ( imit * ( switchFraction)):
+            agent.attr['switch'] = 1
+            agent.attr['color']  = RED
+            plotting.add(iStep,inno)
             
-            switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
-            inno = agent.attr['inno']
-            imit  = agent.attr['imit']
-            if randNum < inno + ( imit * ( switchFraction)):
-                agent.attr['switch'] = 1
-                agent.attr['color'] = RED
-                ploting.add([iStep,inno[0]])
-            
-    if DO_PLOT and iStep%10 == 0:
-        ploting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
-    #time.sleep(.1)
-    #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
+    if DO_PLOT and iStep%50 == 0:
+        plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
+    
+    

@@ -34,11 +34,11 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
 
-import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core as core
+import lib_gcfabm_prod as LIB #, Agent, World,  h5py, MPI
+import core_prod as core
 import tools
 #%% CONFIG
-N_AGENTS   = 1000
+N_AGENTS   = 500
 N_STEPS    = 1000
 MAX_EXTEND = 50
 
@@ -51,8 +51,8 @@ DEBUG = True
 DO_PLOT  = True
 
 
-BLUE = plt.get_cmap('Blues')(.3)
-RED  = plt.get_cmap('RdPu_r')(.1)
+BLUE = [0,0,1,1]
+RED  = [1,0,0,1]
 
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
@@ -62,7 +62,7 @@ world = LIB.World(simNo,
               spatial=True,
               nSteps=N_STEPS,
               maxNodes=1e4,
-              maxEdges=1e5,
+              maxLinks=1e5,
               debug=DEBUG)
 
 AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
@@ -74,6 +74,7 @@ AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
                                                     ('color', np.float16,4)])
 #%% Init of edge types
 LI_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
+#%%
 
 origins = [np.asarray(x) for x in [[25,25], [75,25], [25,75], [75,75]]]
 individualDeltas  = np.clip(np.random.randn(2, N_AGENTS)*10, -25, 25)
@@ -102,15 +103,25 @@ positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
 agIDList  = world.getNodeIDs(AGENT)
 innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 
-for agent in world.iterNodes(AGENT):
+def network_creation(agent, world):
+    
     #opt1
     #weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
+    
     #opt2
-    weig = np.abs((innovationVal - agent.attr['inno'])**20)
+    weig = np.abs((innovationVal - agent.attr['inno'])**2)
+    
+    # normalizing
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
     weig = weig / np.sum(weig)
     
-    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
+    return weig
+    
+for agent in world.iterNodes(AGENT):
+    
+    weights = network_creation(agent, world)
+    
+    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
     
     [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
     
@@ -134,8 +145,11 @@ if DO_PLOT:
 while True:
     tt =time.time()
     iStep+=1
+    
     switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
     switchFraction = np.sum(switched) / N_AGENTS
+    
+    
     fracList.append(switchFraction)
     
     
@@ -147,18 +161,16 @@ while True:
     randValues  = np.random.random(len(nodesToIter))*1000
     
     for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
+              
+        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        inno, imit = agent.attr[['inno','imit']][0]
         
-        if agent.attr['switch'] == 0:
+        if randNum < inno + ( imit * ( switchFraction)):
+            agent.attr['switch'] = 1
+            agent.attr['color']  = RED
+            plotting.add(iStep,inno)
             
-            switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
-            inno, imit = agent.attr[['inno','imit']][0]
-            
-            if randNum < inno + ( imit * ( switchFraction)):
-                agent.attr['switch'] = 1
-                agent.attr['color']  = RED
-                plotting.add(iStep,inno)
-            
-    if DO_PLOT and iStep%10 == 0:
+    if DO_PLOT and iStep%50 == 0:
         plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
     #time.sleep(.1)
     #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
