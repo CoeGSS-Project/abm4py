@@ -684,7 +684,6 @@ class ABMGraph(BaseGraph):
                 targetList = [target - self.maxNodes for target in nodeList]
                 for target in targetList:
                     adjMatrix[source, target] = 1
-                    adjMatrix[target, source] = 1
         return adjMatrix
     
     def getAdjList(self, nodeTypeID):

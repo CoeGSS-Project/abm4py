@@ -1035,7 +1035,7 @@ class IO():
         
 
     #%% Init of the IO class
-    def __init__(self, world, nSteps, outputPath = ''): # of IO
+    def __init__(self, world, nSteps, outputPath = '.'): # of IO
 
         self.outputPath  = outputPath
         self._graph      = world.graph

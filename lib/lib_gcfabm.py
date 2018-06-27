@@ -391,15 +391,16 @@ class World:
 
     #%% INIT WORLD
     def __init__(self,
-                 simNo,
-                 outPath,
+                 simNo=None,
+                 outPath='.',
                  spatial=True,
                  nSteps=1,
-                 maxNodes=1e6,
-                 maxLinks=1e6,
+                 maxNodes=1e3,
+                 maxLinks=1e5,
                  debug=False,
-                 mpiComm=None):
-
+                 mpiComm=None,
+                 wAgentOutput=True):
+        self.writeOutput = wAgentOutput
         self.simNo     = simNo
         self.timeStep  = 0
         self.para      = dict()
@@ -439,8 +440,9 @@ class World:
             self.isRoot = False
 
         # IO
-        self.io = core.IO(self, nSteps, self.para['outPath'])
-        lg.debug('Init IO done')##OPTPRODUCTION
+        if self.writeOutput:
+            self.io = core.IO(self, nSteps, self.para['outPath'])
+            lg.debug('Init IO done')##OPTPRODUCTION
         # Globally synced variables
         self.graph.glob     = core.Globals(self)
         lg.debug('Init Globals done')##OPTPRODUCTION
