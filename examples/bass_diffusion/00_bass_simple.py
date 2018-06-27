@@ -33,13 +33,13 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
 
-import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
-import core_prod as core
+import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
+import core as core
 import tools
 
 #%% CONFIG
 N_AGENTS   = 500
-N_STEPS    = 1000
+N_STEPS    = 100
 MAX_EXTEND = 50
 
 IMITATION = 10

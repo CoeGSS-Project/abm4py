@@ -748,8 +748,12 @@ class World:
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
-        linkTypeIDIdx = len(self.graph.linkTypeIDs)+1
-        self.graph.addLinkType(linkTypeIDIdx, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2)
+        
+        linkTypeIDIdx = self.graph.addLinkType( typeStr, 
+                                               staticProperties, 
+                                               dynamicProperties, 
+                                               nodeTypeID1, 
+                                               nodeTypeID2)
         
 
         return  linkTypeIDIdx

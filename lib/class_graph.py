@@ -561,14 +561,16 @@ class ABMGraph(BaseGraph):
             self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
-    def addLinkType(self , linkTypeIDIdx, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2):
+    def addLinkType(self, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2):
         """ Create edge type description"""
+        linkTypeIDIdx = len(self.linkTypeIDs)+1
         linkTypeID = TypeDescription(linkTypeIDIdx, typeStr, staticProperties, dynamicProperties)
         self.linkTypeIDs[linkTypeIDIdx] = linkTypeID
         self.node2EdgeType[nodeTypeID1, nodeTypeID2] = linkTypeIDIdx
         self.edge2NodeType[linkTypeIDIdx] = nodeTypeID1, nodeTypeID2
         self._initEdgeType(typeStr, staticProperties + dynamicProperties)
 
+        return linkTypeIDIdx
 
     def getDTypeOfNodeType(self, nodeTypeID, kind):
         
@@ -667,6 +669,24 @@ class ABMGraph(BaseGraph):
         return self.__ghostOfAgentClass[agentClass]
         
 
+    def getAdjList(self, nodeTypeID):
+        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]
+        
+        nNodes = len(self.nodes[nodeTypeID].nodeList)
+        
+        adjMatrix = np.zeros([nNodes, nNodes])
+        
+        for key in self.edges[linkTypeID].nodesIn.keys():
+            nodeList = self.edges[linkTypeID].nodesIn[key]
+            
+            if len(nodeList)> 0:
+                source = key - self.maxNodes
+                targetList = [target - self.maxNodes for target in nodeList]
+                for target in targetList:
+                    adjMatrix[source, target] = 1
+                    adjMatrix[target, source] = 1
+        return adjMatrix
+    
 if __name__ == "__main__":
 
     world = dict()
@@ -694,9 +714,12 @@ if __name__ == "__main__":
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges
-    LOCLOC = bg._initEdgeType('loc-loc', 
-                                  [('weig', np.float64, 1)])
-    
+    LOCLOC = bg.addLinkType('loc-loc',  
+                            staticProperties=[],
+                            dynamicProperties=[('weig', np.float64, 1)],
+                            nodeTypeID1 = LOC,
+                            nodeTypeID2 = LOC)
+                            
     
     leID1, _, dataview4 = bg.addLink(LOCLOC, lnID1, lnID2, (.5,))
     leID2, _, dataview4 = bg.addLink(LOCLOC, lnID1, lnID3, (.4,))
@@ -721,8 +744,9 @@ if __name__ == "__main__":
     
     print(bg.eCount())
     
-    bg.addLinks(LOCLOC, [lnID1, lnID2], [lnID4, lnID4], weig=[-.1, -.112])
+    bg.addLinks(LOCLOC, [lnID1, lnID2, lnID1], [lnID4, lnID4, lnID2], weig=[-.1, -.112, 3])
     
+    x = bg.getAdjList(LOC)
     
     if bigTest:
         from tqdm import tqdm
