@@ -669,7 +669,7 @@ class ABMGraph(BaseGraph):
         return self.__ghostOfAgentClass[agentClass]
         
 
-    def getAdjList(self, nodeTypeID):
+    def getAdjMatrix(self, nodeTypeID):
         linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]
         
         nNodes = len(self.nodes[nodeTypeID].nodeList)
@@ -686,6 +686,21 @@ class ABMGraph(BaseGraph):
                     adjMatrix[source, target] = 1
                     adjMatrix[target, source] = 1
         return adjMatrix
+    
+    def getAdjList(self, nodeTypeID):
+        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]        
+        
+        eDict = self.edges[linkTypeID].nodesOut
+        adjList = []
+        nLinks = 0
+        for source in self.nodes[nodeTypeID].nodeList:
+            if source in eDict.keys():
+                targetList = [target - self.maxNodes for target in eDict[source] if target != source]
+                nLinks += len(targetList)
+                adjList.append(targetList)
+            else:
+                adjList.append([])
+        return adjList, nLinks
     
 if __name__ == "__main__":
 

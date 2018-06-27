@@ -56,16 +56,17 @@ ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 def writeAdjFile(world,fileName, nodeTypeID):
     #graph.to_undirected()
-    edgeTypeID = world.graph.node2EdgeType[nodeTypeID, nodeTypeID]
+    #edgeTypeID = world.graph.node2EdgeType[nodeTypeID, nodeTypeID]
+    adjList, nLinks = world.graph.getAdjList(nodeTypeID)
     fid = open(fileName,'w')
     fid.write('% Adjecency file created by gcfABM \n')
-    fid.write(str(world.nNodes(nodeTypeID)) + ' ' + str(world.nLinks(edgeTypeID)) + ' 010 \n' )
+    fid.write(str(world.nNodes(nodeTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
     fid.write('% Adjecencies of verteces \n')
-    adjList = world.graph.getAdjList(nodeTypeID)
+    
     popList = world.getNodeAttr('population', nodeTypeID=nodeTypeID).tolist()
 
     for adjline, popu in zip(adjList, popList):
-        fid.write(''.join([str(int(popu*100)) + ' '] + [str(x) + ' ' for x in adjline]) + '\n')
+        fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
     fid.close()
 
 
