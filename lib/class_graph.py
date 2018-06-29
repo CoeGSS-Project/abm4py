@@ -1,9 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep 15 10:31:00 2017
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://wwww.globalclimateforum.org
 
-@author: Andreas Geiges, Global Climate Forum e.V.
+---- MoTMo ----
+MOBILITY TRANSIOn MODEL
+-- Class graph --
+
+This file is part on GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
 import logging as lg
@@ -12,13 +31,13 @@ import itertools
 
 class TypeDescription():
 
-    def __init__(self, nodeTypeIdx, typeStr, staticProperties, dynamicProperties):
+    def __init__(self, nodeTypeIDIdx, typeStr, staticProperties, dynamicProperties):
 
         # list of properties per type
         
         self.staProp = staticProperties
         self.dynProp = dynamicProperties
-        self.typeIdx = nodeTypeIdx
+        self.typeIdx = nodeTypeIDIdx
         self.typeStr = typeStr
         
 
@@ -104,11 +123,11 @@ class BaseGraph():
         self.getEdgeTypeID = itertools.count(1).__next__
         
         #persistent nodeattributes
-        self.persNodeAttr =[('active', np.bool_,1)]
+        self.persNodeAttr = [('active', np.bool_,1)]
         #persistent edge attributes
-        self.persEdgeAttr =[('active', np.bool_, 1),
-                            ('source', np.int32, 1), 
-                            ('target', np.int32, 1)]
+        self.persEdgeAttr = [('active', np.bool_, 1),
+                             ('source', np.int32, 1), 
+                             ('target', np.int32, 1)]
         
     #%% NODES
     def _initNodeType(self, nodeName, attrDescriptor):
@@ -297,7 +316,7 @@ class BaseGraph():
     def get_leID(self, source, target, eTypeID):
         return self.eges[eTypeID].eDict[(source, target)]
 
-    def addEdge(self, eTypeID, source, target, attributes = None):
+    def addLink(self, eTypeID, source, target, attributes = None):
         """ 
         Adding a new connecting edge between source and target of
         the specified type
@@ -346,7 +365,7 @@ class BaseGraph():
          
         return leID, dataID, dataview
 
-    def addEdges(self, eTypeID, sources, targets, **kwAttr):
+    def addLinks(self, eTypeID, sources, targets, **kwAttr):
         """
         Method to create serveral edges at once
         Attribures are given as list or array per key word
@@ -477,14 +496,14 @@ class BaseGraph():
     def nCount(self, nTypeID=None):
         """Returns the number of nodes of all or a specific node type"""
         if nTypeID is None:
-            return sum([nodeType.nCount() for nodeType in self.nodes.values()])
+            return sum([nodeTypeID.nCount() for nodeTypeID in self.nodes.values()])
         else:
             return self.nodes[nTypeID].nCount()
 
     def eCount(self, eTypeID=None):
         """Returns the number of edges of all or a specific node type"""
         if eTypeID is None:
-            return sum([edgeType.eCount() for edgeType in self.edges.values()])
+            return sum([linkTypeID.eCount() for linkTypeID in self.edges.values()])
         else:
             return self.edges[eTypeID].eCount()
 
@@ -513,18 +532,18 @@ class ABMGraph(BaseGraph):
         self.queingMode = False
 
         # list of types
-        self.nodeTypes = dict()
-        self.edgeTypes = dict()
+        self.nodeTypeIDs = dict()
+        self.linkTypeIDs = dict()
         self.node2EdgeType = dict()
         self.edge2NodeType = dict()
 
         # dict of classes to init node automatically
-        self.__nodeType2Class = dict()
+        self.__nodeTypeID2Class = dict()
         self.__class2NodeType = dict()
         self.__ghostOfAgentClass   = dict()
         
     def addNodeType(self, 
-                    nodeTypeIdx, 
+                    nodeTypeIDIdx, 
                     typeStr, 
                     AgentClass, 
                     GhostAgentClass, 
@@ -532,38 +551,40 @@ class ABMGraph(BaseGraph):
                     dynamicProperties):
         """ Create node type description"""
         
-        nodeType = TypeDescription(nodeTypeIdx, typeStr, staticProperties, dynamicProperties)
-        self.nodeTypes[nodeTypeIdx] = nodeType
-        # same nodeType for ghost and non-ghost
-        self.__nodeType2Class[nodeTypeIdx]      = AgentClass, GhostAgentClass
-        self.__class2NodeType[AgentClass]       = nodeTypeIdx
+        nodeTypeID = TypeDescription(nodeTypeIDIdx, typeStr, staticProperties, dynamicProperties)
+        self.nodeTypeIDs[nodeTypeIDIdx] = nodeTypeID
+        # same nodeTypeID for ghost and non-ghost
+        self.__nodeTypeID2Class[nodeTypeIDIdx]      = AgentClass, GhostAgentClass
+        self.__class2NodeType[AgentClass]       = nodeTypeIDIdx
         if GhostAgentClass is not None:
-            self.__class2NodeType[GhostAgentClass]  = nodeTypeIdx
-            self.__ghostOfAgentClass[AgentClass]         = GhostAgentClass
+            self.__class2NodeType[GhostAgentClass]  = nodeTypeIDIdx
+            self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
-    def addEdgeType(self , edgeTypeIdx, typeStr, staticProperties, dynamicProperties, nodeType1, nodeType2):
+    def addLinkType(self, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2):
         """ Create edge type description"""
-        edgeType = TypeDescription(edgeTypeIdx, typeStr, staticProperties, dynamicProperties)
-        self.edgeTypes[edgeTypeIdx] = edgeType
-        self.node2EdgeType[nodeType1, nodeType2] = edgeTypeIdx
-        self.edge2NodeType[edgeTypeIdx] = nodeType1, nodeType2
+        linkTypeIDIdx = len(self.linkTypeIDs)+1
+        linkTypeID = TypeDescription(linkTypeIDIdx, typeStr, staticProperties, dynamicProperties)
+        self.linkTypeIDs[linkTypeIDIdx] = linkTypeID
+        self.node2EdgeType[nodeTypeID1, nodeTypeID2] = linkTypeIDIdx
+        self.edge2NodeType[linkTypeIDIdx] = nodeTypeID1, nodeTypeID2
         self._initEdgeType(typeStr, staticProperties + dynamicProperties)
 
+        return linkTypeIDIdx
 
-    def getDTypeOfNodeType(self, nodeType, kind):
+    def getDTypeOfNodeType(self, nodeTypeID, kind):
         
         if kind == 'sta':
-            dtype = self.nodeTypes[nodeType].staProp
+            dtype = self.nodeTypeIDs[nodeTypeID].staProp
         elif kind == 'dyn':
-            dtype = self.nodeTypes[nodeType].dynProp
+            dtype = self.nodeTypeIDs[nodeTypeID].dynProp
         else:
-            dtype = self.nodeTypes[nodeType].staProp + self.nodeTypes[nodeType].dynProp
+            dtype = self.nodeTypeIDs[nodeTypeID].staProp + self.nodeTypeIDs[nodeTypeID].dynProp
         return dtype
     
-    def getPropOfNodeType(self, nodeType, kind):
+    def getPropOfNodeType(self, nodeTypeID, kind):
         
-        dtype = self.getDTypeOfNodeType(nodeType, kind)
+        dtype = self.getDTypeOfNodeType(nodeTypeID, kind)
          
         info = dict()    
         info['names'] = []
@@ -638,8 +659,8 @@ class ABMGraph(BaseGraph):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         return self.nodes[nTypeID][dataID:dataID+1].view(), dataID
 
-    def nodeType2Class(self, nodeTypeID):
-        return self.__nodeType2Class[nodeTypeID]
+    def nodeTypeID2Class(self, nodeTypeIDID):
+        return self.__nodeTypeID2Class[nodeTypeIDID]
     
     def class2NodeType(self, agentClass):
         return self.__class2NodeType[agentClass]
@@ -648,6 +669,38 @@ class ABMGraph(BaseGraph):
         return self.__ghostOfAgentClass[agentClass]
         
 
+    def getAdjMatrix(self, nodeTypeID):
+        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]
+        
+        nNodes = len(self.nodes[nodeTypeID].nodeList)
+        
+        adjMatrix = np.zeros([nNodes, nNodes])
+        
+        for key in self.edges[linkTypeID].nodesIn.keys():
+            nodeList = self.edges[linkTypeID].nodesIn[key]
+            
+            if len(nodeList)> 0:
+                source = key - self.maxNodes
+                targetList = [target - self.maxNodes for target in nodeList]
+                for target in targetList:
+                    adjMatrix[source, target] = 1
+        return adjMatrix
+    
+    def getAdjList(self, nodeTypeID):
+        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]        
+        
+        eDict = self.edges[linkTypeID].nodesOut
+        adjList = []
+        nLinks = 0
+        for source in self.nodes[nodeTypeID].nodeList:
+            if source in eDict.keys():
+                targetList = [target - self.maxNodes for target in eDict[source] if target != source]
+                nLinks += len(targetList)
+                adjList.append(targetList)
+            else:
+                adjList.append([])
+        return adjList, nLinks
+    
 if __name__ == "__main__":
 
     world = dict()
@@ -675,12 +728,15 @@ if __name__ == "__main__":
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges
-    LOCLOC = bg._initEdgeType('loc-loc', 
-                                  [('weig', np.float64, 1)])
+    LOCLOC = bg.addLinkType('loc-loc',  
+                            staticProperties=[],
+                            dynamicProperties=[('weig', np.float64, 1)],
+                            nodeTypeID1 = LOC,
+                            nodeTypeID2 = LOC)
+                            
     
-    
-    leID1, _, dataview4 = bg.addEdge(LOCLOC, lnID1, lnID2, (.5,))
-    leID2, _, dataview4 = bg.addEdge(LOCLOC, lnID1, lnID3, (.4,))
+    leID1, _, dataview4 = bg.addLink(LOCLOC, lnID1, lnID2, (.5,))
+    leID2, _, dataview4 = bg.addLink(LOCLOC, lnID1, lnID3, (.4,))
     
     
     
@@ -702,8 +758,9 @@ if __name__ == "__main__":
     
     print(bg.eCount())
     
-    bg.addEdges(LOCLOC, [lnID1, lnID2], [lnID4, lnID4], weig=[-.1, -.112])
+    bg.addLinks(LOCLOC, [lnID1, lnID2, lnID1], [lnID4, lnID4, lnID2], weig=[-.1, -.112, 3])
     
+    x = bg.getAdjList(LOC)
     
     if bigTest:
         from tqdm import tqdm
@@ -725,7 +782,7 @@ if __name__ == "__main__":
         for i in tqdm(range(nConnections)):
             
             source, target = np.random.choice(agArray,2)
-            bg.addEdge(AGAG, source, target, attributes = (.5,))
+            bg.addLink(AGAG, source, target, attributes = (.5,))
         
         import time
         tt = time.time()
@@ -733,7 +790,7 @@ if __name__ == "__main__":
         sources = np.random.choice(agArray, nConnections)
         targets = np.random.choice(agArray, nConnections)
         
-        bg.addEdges(AGAG, sources, targets, weig=weights)
+        bg.addLinks(AGAG, sources, targets, weig=weights)
         print((str(time.time() - tt) + ' s'))
         
         print('checking if nodes are connected')

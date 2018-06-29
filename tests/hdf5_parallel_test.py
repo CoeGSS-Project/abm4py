@@ -55,7 +55,7 @@ if mpiRank == 0:
 h5File      = h5py.File('parallel_test.hdf5', 'r', driver='mpio', comm=comm)
 dset = h5File.get('/test')
 data = dset[mpiRank:mpiRank+1,]
-print(data)
+#print(data)
 assert data[0,0] == mpiRank
 
 h5File.close()
@@ -79,12 +79,44 @@ h5File.close()
 
 h5File      = h5py.File('parallel_test.hdf5', 'r', driver='mpio', comm=comm)
 dset = h5File.get('/test')
-print(dset)
+#print(dset)
 data = dset[mpiRank:mpiRank+1]
-print(data)
+#print(data)
 assert data['rank'] == mpiRank
 
 h5File.close()
 comm.Barrier()
 if mpiRank == 0:  
     print('h5py structured parallel write/read I/O successful')   
+    
+# creation of paths
+h5File = h5py.File('parallel_test.hdf5', 'w', driver='mpio', comm=comm,)
+
+path = '/parent'
+group = h5File.create_group(path)  
+
+#group.attrs.create('attribute1','here is some text'.encode('utf8'))  
+
+h5File.create_group(path + '/00')  
+dtype = np.dtype([('floatValue', np.float64, 100), ('rank', np.int32, 1)])
+dset = h5File.create_dataset('/parent/00/test', (mpiSize,), dtype=dtype)
+testValues =np.random.randn(100)
+dset[mpiRank,] = testValues, mpiRank
+h5File.flush()
+h5File.close()
+if mpiRank == 0:  
+    print('writing attributes and creation of tree successful')   
+ 
+h5File      = h5py.File('parallel_test.hdf5', 'r', driver='mpio', comm=comm)
+dset = h5File.get('/parent/00/test')
+#print(dset)
+data = dset[mpiRank:mpiRank+1]
+#print(data)
+assert data['rank'] == mpiRank
+group = h5File.get(path)
+#assert group.attrs['attribute1'] == 'here is some text'.encode('utf8')
+
+if mpiRank == 0:  
+    print('attribute and advances file tree test successful')   
+h5File.flush()
+h5File.close()    

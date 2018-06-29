@@ -146,9 +146,9 @@ else:
     para.simNo = None
 
 earth = Earth(para.nSteps, para.simNo, para.flgSpatial, para)
-earth.registerEdgeType('cell-cell')
-earth.registerEdgeType('cell-hh')
-earth.registerEdgeType('hh-hh')
+earth.registerLinkType('cell-cell')
+earth.registerLinkType('cell-hh')
+earth.registerLinkType('hh-hh')
 connList= earth.computeConnectionList(para.connRadius)
 earth.initSpatialLayerNew(landLayer, connList, Cell)
 
@@ -211,9 +211,9 @@ earth.enums['prefTypes'][3] = 'money'
 earth.nPref = len(earth.enums['prefTypes'])
 earth.nPrefTypes = [0]* earth.nPref
 
-earth.enums['nodeTypes'] = dict()
-earth.enums['nodeTypes'][1] = 'cell'
-earth.enums['nodeTypes'][2] = 'household'
+earth.enums['nodeTypeIDs'] = dict()
+earth.enums['nodeTypeIDs'][1] = 'cell'
+earth.enums['nodeTypeIDs'][2] = 'household'
 
 if para.randomAgents:
     idx = 0
@@ -489,7 +489,7 @@ weights = list()
 pref = np.zeros([earth.graph.vcount(), 4])
 pref[-earth.nAgents:,:] = np.array(earth.graph.vs[-earth.nAgents:]['preferences'])
 idx = list()
-for edge in earth.iterEdges(_thh):
+for edge in earth.iterLinks(_thh):
     edge['prefDiff'] = np.sum(np.abs(pref[edge.target, :] - pref[edge.source,:]))
     idx.append(edge.index)
     
