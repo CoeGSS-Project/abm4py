@@ -463,8 +463,8 @@ class OpinionGenerator():
 
 class Household(Agent):
 
-    def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
-        Agent.__init__(self, world, nodeType,  xPos, yPos)
+    def __init__(self, world, nodeTypeID = 'ag', xPos = np.nan, yPos = np.nan):
+        Agent.__init__(self, world, nodeTypeID,  xPos, yPos)
         self.obs  = dict()
         self.car  = dict()
         self.util = 0
@@ -534,7 +534,7 @@ class Household(Agent):
         
         weighted = True
         if weighted:
-            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh)    
+            weights, edges = self.getLinkAttrFast('weig', linkTypeID=_thh)    
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
@@ -570,7 +570,7 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getEdgeValuesFast('weig', edgeType=_thh) 
+            weights, edges = self.getLinkAttrFast('weig', linkTypeID=_thh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
@@ -585,9 +585,9 @@ class Household(Agent):
         return carIDs[maxid], avgUtil[maxid]
     
     def weightFriendExperience(self, world):
-        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeType= _hh)
-        carLabels, _        = self.getConnNodeValues( 'label' ,nodeType= _hh)
-        #friendID            = self.getOutNeighNodes(edgeType=_thh)
+        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeTypeID= _hh)
+        carLabels, _        = self.getConnNodeValues( 'label' ,nodeTypeID= _hh)
+        #friendID            = self.getOutNeighNodes(linkTypeID=_thh)
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
         
@@ -630,7 +630,7 @@ class Household(Agent):
             idxF = np.where(carLabels!=ownLabel)[0]
             #otherEdges = [ edgeIDs[x] for x in idxF]
        
-            prior = np.asarray(world.getEdgeValues(edgeIDs,'weig'))
+            prior = np.asarray(world.getLinkAttr(edgeIDs,'weig'))
             post = prior
             sumPrior = np.sum(prior)
             post[idxT] = prior[idxT] * prop 
@@ -638,7 +638,7 @@ class Household(Agent):
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
                 if np.sum(post) > 0:
-                    world.setEdgeValues(edgeIDs,'weig',post)
+                    world.setLinkAttr(edgeIDs,'weig',post)
                 else:
                     print 'updating failed, sum of weights are zero'
                     
@@ -674,7 +674,7 @@ class Household(Agent):
                 diff += abs(x-y)
                 
             if not newFrID == self.nID and diff < self.tolerance:
-                self.addConnection(newFrID,3)
+                self.addLink(newFrID,3)
                 return True
             else:
                 return False
@@ -763,7 +763,7 @@ class Household(Agent):
         if hasattr(world, 'globalRec'):
             world.globalRec['sales'].addIdx(world.time, 1 ,self.prefTyp) 
         carID, properties = world.market.buyCar(label, self.nID)
-        self.loc.addToTraffic(label)
+        self.loc.addToAttrTraffic(label)
         self.car['ID']    = carID
         self.car['prop']  = properties
         self.car['obsID'] = None
@@ -862,8 +862,8 @@ class Household(Agent):
 
 class Reporter(Household):
     
-    def __init__(self, world, nodeType = 'ag', xPos = np.nan, yPos = np.nan):
-        Household.__init__(self, world, nodeType , xPos, yPos)
+    def __init__(self, world, nodeTypeID = 'ag', xPos = np.nan, yPos = np.nan):
+        Household.__init__(self, world, nodeTypeID , xPos, yPos)
         self.writer = Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
     def evalUtility(self, world, props =None):
@@ -996,7 +996,7 @@ class Cell(Location):
         self.obsMemory   = Memory(memeLabels)
     
     def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getEdgeValues('weig',edgeType=_tll, mode='out')
+        self.weights, self.eIDs = self.getLinkAttr('weig',linkTypeID=_tll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         
         #remap function to only return the values 
@@ -1007,11 +1007,11 @@ class Cell(Location):
     #    return self.weights, self.eIDs, self.connNodeList
     
     def getAgents(self):
-        #return self.getAgentOfCell(edgeType=1)
+        #return self.getAgentOfCell(linkTypeID=1)
         return self.agList
     
-    def getConnLoc(self,edgeType=1):
-        return self.getAgentOfCell(edgeType=1)
+    def getConnLoc(self,linkTypeID=1):
+        return self.getAgentOfCell(linkTypeID=1)
     
     def returnCarPercentile(self):
         """ 
@@ -1040,7 +1040,7 @@ class Cell(Location):
         """
         self.traffic[label] -= 1
 
-    def addToTraffic(self,label):
+    def addToAttrTraffic(self,label):
         self.traffic[label] += 1
         
     def remFromTraffic(self,label):

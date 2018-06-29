@@ -21,6 +21,7 @@ resources_nie/
 resources_NBH/
 resources_ger/
 poznan_out/
+hlrs_out/
 tmpOut*
 *.gml
 *.hdf5

@@ -1,0 +1,27 @@
+name,value,doSweep,minRange,maxRange,comment
+scenario,6,,,,"# selection of the scenario setup"
+nSteps,460,,,,"# number of simulation steps"
+burnIn,100,,,,"# number of burn in time steps"
+ioSteps,12,,,,"#number of steps after when the IO writen to file"
+burnInTimeFactor,1,,,,"# time factor that increases time speed in"
+omniscientBurnIn,0,,,,"# number of omiscient agent time steps"
+utilObsError,50,,,,"# observation error to compare utilities"
+mobNewPeriod,60,,,,"# period within a choice is new and not challenged"
+randomCarPropDeviationSTD,0.01,,,,"# individual random deviation of car properities"
+reductionFactor,200,,,,"# population reduction factor"
+"################## Prioritiy generation #################",,,,,
+individualPrio,0.33,0,,,"# individual random component of priorities"
+charIncome,5000,1,2000,7000,"# [100 5000]"
+minIncomeEco,2500,1,1000,5000,"# [1000 5000]"
+charAge,10,1,8,12,"# [0 10]"
+"################## UTILITY ########################",,,,,
+util,cobb,,,,"# [cobb ces]"
+selfTrust,2,1,1,4,"# how much more a agent values this own opinion"
+radicality,2,1,1,4,"# exponent of the preferences -> high values lead to extreme differences"
+innoPriority,0.15,,,,"# weight of priority of innovation [0 0.5]"
+mobIncomeShare,0.15,1,0.1,0.3,"# [0.1 0.4]"
+"################## NETWORK ########################",,,,,
+connRadius,7,1,5,10,"# radius within which location cell get connected"
+minFriends,60,1,40,80,"# min number of friends per person"
+maxFriends,100,1,90,12,"# max number of friends per person"
+weightConnections,1,,,,"# flag if connections to friends are weighted"

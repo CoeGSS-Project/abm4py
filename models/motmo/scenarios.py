@@ -1,5 +1,28 @@
 # -*- coding: utf-8 -*-
+"""
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://wwww.globalclimateforum.org
 
+---- MoTMo ----
+MOBILITY TRANSIOn MODEL
+-- Scenario file --
+
+This file is part on GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+"""
 import logging as lg
 import pprint as pp
 import numpy as np
@@ -199,7 +222,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeAgentFile = 0
+    setup.writeAgentFile = 1
     setup.writeNPY = 1
     setup.writeCSV = 0
 
@@ -246,7 +269,7 @@ def scenarioNBH(parameterInput, dirPath):
 
     # setup.landLayer[np.isnan(setup.landLayer)] = 0
     if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+        setup.landLayer = np.load(setup.resourcePath + 'partition_map_' + str(mpiSize) + '.npy')
     else:
         setup.landLayer = np.load(setup.resourcePath + 'land_layer_62x118.npy')
         setup.landLayer = setup.landLayer * 0
@@ -264,6 +287,10 @@ def scenarioNBH(parameterInput, dirPath):
     setup.chargStat = np.load(setup.resourcePath + 'charge_stations_62x118.npy')
 
     setup.cellSizeMap = np.load(setup.resourcePath + 'cell_area_62x118.npy')
+
+    setup.roadKmPerCell = np.load(
+        setup.resourcePath + 'road_km_per_cell_62x118.npy') / setup.cellSizeMap
+
 
     assert np.sum(np.logical_xor(np.isnan(setup.population),
                                  np.isnan(setup.regionIdRaster))) == 0  # OPTPRODUCTION
@@ -304,10 +331,11 @@ def scenarioNBH(parameterInput, dirPath):
     setup.update(parameterInput.toDict())
 
 
-    for paName in ['techExpBrown', 'techExpGreen',
-                   'techExpOther', 'population']:
+    for paName in ['techExpBrown', 'techExpGreen', 'techExpPublic', 'techExpShared', 'techExpNone',
+                   'population']:
         setup[paName] /= setup['reductionFactor']
 
+    return setup
     return setup
 
 def scenarioGer(parameterInput, dirPath):

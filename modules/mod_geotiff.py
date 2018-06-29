@@ -4,7 +4,7 @@ Created on Tue Dec 15 09:40:01 2015
 
 @author: gcf
 """
-from __future__ import division
+
 import itertools
 
 def get_band_info( band_num, input_file ):
@@ -14,41 +14,41 @@ def get_band_info( band_num, input_file ):
     
     src_ds = gdal.Open( input_file )
     if src_ds is None:
-        print 'Unable to open %s' % src_filename
+        print('Unable to open %s' % src_filename)
         sys.exit(1)
 
     try:
         srcband = src_ds.GetRasterBand(band_num)
-    except RuntimeError, e:
-        print 'No band %i found' % band_num
-        print e
+    except RuntimeError as e:
+        print('No band %i found' % band_num)
+        print(e)
         
 
 
-    print "[ NO DATA VALUE ] = ", srcband.GetNoDataValue()
-    print "[ MIN ] = ", srcband.GetMinimum()
-    print "[ MAX ] = ", srcband.GetMaximum()
-    print "[ SCALE ] = ", srcband.GetScale()
-    print "[ UNIT TYPE ] = ", srcband.GetUnitType()
+    print("[ NO DATA VALUE ] = ", srcband.GetNoDataValue())
+    print("[ MIN ] = ", srcband.GetMinimum())
+    print("[ MAX ] = ", srcband.GetMaximum())
+    print("[ SCALE ] = ", srcband.GetScale())
+    print("[ UNIT TYPE ] = ", srcband.GetUnitType())
     ctable = srcband.GetColorTable()
 
     if ctable is None:
-        print 'No ColorTable found'
+        print('No ColorTable found')
         
     else:
-        print "[ COLOR TABLE COUNT ] = ", ctable.GetCount()
+        print("[ COLOR TABLE COUNT ] = ", ctable.GetCount())
         for i in range( 0, ctable.GetCount() ):
             entry = ctable.GetColorEntry( i )
             if not entry:
                 continue
-            print "[ COLOR ENTRY RGB ] = ", ctable.GetColorEntryAsRGB( i, entry )
+            print("[ COLOR ENTRY RGB ] = ", ctable.GetColorEntryAsRGB( i, entry ))
         
 def coord2ind(coord,geot_frmt):
     import numpy as np
     geot_frmt['rasterOrigin'][0]
     x_lon  = int(( coord[0] - geot_frmt['rasterOrigin'][0] )/ geot_frmt['s_pixel'][0]) #longitudianl angle
     y_lat = int((coord[1] - geot_frmt['rasterOrigin'][1]  )/ geot_frmt['s_pixel'][1]) # lateral angle
-    print (x_lon, y_lat)
+    print((x_lon, y_lat))
     if x_lon < 0 or x_lon > geot_frmt['n_pixel'][0] or \
        y_lat < 0 or y_lat > geot_frmt['n_pixel'][1]:
         (y_lat,x_lon) = (np.nan, np.nan)    
@@ -86,7 +86,7 @@ def save2tiff(filename,geot_frmt,array,band=1,compression ='DEFLATE'):
         file_out = gdal.Open(filename,gdal.GA_Update)
         file_transform = file_out.GetGeoTransform()
         if not(file_transform == (originX, pixelWidth, 0, originY, 0, pixelHeight)):
-            print 'Wrong geotransform of the file'
+            print('Wrong geotransform of the file')
             
 
     
@@ -103,7 +103,7 @@ def save2tiff(filename,geot_frmt,array,band=1,compression ='DEFLATE'):
     outband.ComputeRasterMinMax(0)
     outband  = None
     file_out = None
-    print 'writen: ' + filename
+    print('writen: ' + filename)
     
 def plot_non_zeros_area(array):
 
@@ -119,10 +119,10 @@ def red_raster(org_array,org_frmt,trg_array, meth='sum'):
     org_dim  = org_array.shape
     trg_dim  = trg_array.shape
     
-    print org_dim
+    print(org_dim)
     delta = tuple(map(lambda x, y: int(x / y), org_dim, trg_dim))
-    print trg_dim
-    print delta
+    print(trg_dim)
+    print(delta)
     ix = 0
     iy = 0
     for x in range(0,org_dim[0],delta[0]):
@@ -190,7 +190,7 @@ def load_partial_tiff(filename,xOff,yOff,xCount,yCount,band=1):
     
 def raster_conversion(filename,factor):
     ### Reduce the raster data by a fixed factor
-    print 'error old'
+    print('error old')
     return
     
     import geotiff_util as geou

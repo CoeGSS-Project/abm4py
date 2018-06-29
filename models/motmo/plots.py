@@ -14,7 +14,7 @@ def calGreenNeigbourhoodShareDist(earth):
     nPersons = len(earth.getNodeDict(PERS))
     relarsPerNeigborhood = np.zeros([nPersons, 3])
     for i, persId in enumerate(earth.getNodeDict(PERS)):
-        person = earth.getEntity(persId)
+        person = earth.getNode(persId)
         x, __ = person.getConnNodeValues('mobType', PERS)
         for mobType in range(3):
             relarsPerNeigborhood[i, mobType] = float(
