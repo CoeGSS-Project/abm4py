@@ -269,7 +269,7 @@ def scenarioNBH(parameterInput, dirPath):
 
     # setup.landLayer[np.isnan(setup.landLayer)] = 0
     if mpiSize > 1:
-        setup.landLayer = np.load(setup.resourcePath + 'rankMap_nClust' + str(mpiSize) + '.npy')
+        setup.landLayer = np.load(setup.resourcePath + 'partition_map_' + str(mpiSize) + '.npy')
     else:
         setup.landLayer = np.load(setup.resourcePath + 'land_layer_62x118.npy')
         setup.landLayer = setup.landLayer * 0
