@@ -51,7 +51,7 @@ scenarioDict[3] = sc.scenarioNBH
 scenarioDict[6] = sc.scenarioGer
 #%%
 parameters = scenarioDict[parameters.scenario] (parameters, dirPath)
-parameters['connRadius'] = 1.5
+parameters['connRadius'] = 1.5  
 simNo, outputPath = core.setupSimulationEnvironment(None, simNo=0)
 earth = init.initEarth(999, outputPath, parameters, maxNodes=1000000, maxLinks=1000000, debug =True)
 CELL, HH, PERS = init.initTypes(earth)
@@ -78,7 +78,9 @@ if parameters.scenario == 6:
     earth.graph.addLink(1,1001310,1000810)
     earth.graph.addLink(1,1000810,1001310)
     #aux.writeAdjFile(earth.graph,'resources_ger/outGraph.txt')
-    
+elif  parameters.scenario == 3:
+     earth.graph.addLink(1,1000461,1000309)
+     earth.graph.addLink(1,1000309,1000461)
 
 core.writeAdjFile(earth, parameters['resourcePath'] + 'outGraph.txt', nodeTypeID=1)
 
