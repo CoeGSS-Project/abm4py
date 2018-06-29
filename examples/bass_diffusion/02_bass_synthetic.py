@@ -38,19 +38,19 @@ import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
 import core_prod as core
 import tools
 #%% CONFIG
-N_AGENTS   = 1000
-N_STEPS    = 1000
-MAX_EXTEND = 50
+N_AGENTS   = 1000   # number of AGID that will be gernerated
+N_STEPS    = 1000   # number of steps performed
+MAX_EXTEND = 50     # spatial extend 
 
 IMITATION = 15
 INNOVATION = .05
 
-N_FRIENDS  = 10
+N_FRIENDS  = 10     # number of friends/connections an agent will have
 
 REDUCTION_FACTOR = 100000
 
 DEBUG = True
-DO_PLOT  = True
+DO_PLOT  = True     # decides whether to lateron plot the results or not
 
 
 BLUE = plt.get_cmap('Blues')(.3)
@@ -59,6 +59,7 @@ RED  = plt.get_cmap('RdPu_r')(.1)
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
 
+# initialization of the world instance, with no 
 world = LIB.World(simNo,
               outputPath,
               spatial=True,
@@ -67,6 +68,7 @@ world = LIB.World(simNo,
               maxLinks=1e5,
               debug=DEBUG)
 
+# register the first AGENT typ and save the numeric type ID as constant
 CELL = world.registerNodeType('cell' , AgentClass=LIB.Location,
                               staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
@@ -74,6 +76,7 @@ CELL = world.registerNodeType('cell' , AgentClass=LIB.Location,
                                                     ('nAgents', np.int16,1)],
                               dynamicProperties = [('fraction', np.int16, 1)])
 
+# register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
@@ -115,7 +118,7 @@ world.spatial.connectLocations(IDArray, connBluePrint, LI_CC)
 if True:
     #%%
     tools.plotGraph(world, CELL, LI_CC, 'nAgents')
-#%%
+#%% Agent creation
 
 h5File = h5py.File('italians.hdf5', 'r')
 dset = h5File.get('people')
@@ -131,7 +134,7 @@ currIdx = 0
 
 
 ##############################################
-# change the propertyToPreference funciton so 
+# change the propertyToPreference function so 
 # that is relies on the properties
 
 def propertyToPreference(age, gender, income, hhType):
@@ -159,6 +162,20 @@ for xLoc, yLoc in list(locDict.keys()):
     
         inno, imit = propertyToPreference(age, gender, income, hhType)
         
+        ##############################################
+        #create all agents with properties
+        # - pos = x,y
+        # - switch 
+        # - color = BLUE
+        # - imit 
+        # - inno
+        # - nPers
+        # - age
+        # - income
+        # - gender
+
+        # The init of LIB.Agent requires either the definition of all attributes 
+        # that are registered (above) or none.
         agent = LIB.Agent(world,
                           pos=(x, y),
                           switch = 0,
@@ -169,14 +186,26 @@ for xLoc, yLoc in list(locDict.keys()):
                           age = age,
                           income = income,
                           gender = gender)
-        
+        ##############################################
+    
+        # after the agent is created, it needs to register itself to the world
+        # in order to get listed within the iterators and other predefined structures
         agent.register(world)
         currIdx +=1
 
 #%% creation of spatial proximity network
-  
+
+# world.getNodeAttr is used to receive the position of all agents 
+# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# specifies the type of AGENT.  
 positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
+
+# This produces a list of all agents by their IDs
 agIDList  = world.getNodeIDs(AGENT)
+
+# world.getNodeAttr is used to receive the innovation value of all agents 
+# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# specifies the type of AGENT. The value is given as float.
 innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 
 for agent in world.iterNodes(AGENT):
@@ -241,7 +270,7 @@ if False:
 iStep = 0
 fracList = list()
 
-
+# If results shall be plotted:
 if DO_PLOT:
     plotting = tools.PlotClass(positions, world, AGENT, LI_AA)
 
@@ -250,32 +279,50 @@ yData = [0.0233236, 0.0291545, 0.0612245 ,0.116618 ,0.157434 ,0.204082 ,0.282799
 xData = [6*x for x in range(12,len(yData)*12+1,12)]
 
 plotting.add_data(xData,yData)
+
+# The loop runs until one of the end-conditions below is fulfilled
 while True:
     tt =time.time()
     iStep+=1
+    
+    # world.getNodeAttr is used to retrieve the attribute "switch" of all AGIDs
     switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
+    
+    # the sum of all agents that switched, devided by the total number of agents
+    # calculates the fraction of agents that already switched
     switchFraction = np.sum(switched) / world.nNodes(AGENT)
+    
+    # the fraction is appended to the list for recording and visualization
     fracList.append(switchFraction)
     
-    
+    # this implements the end-conditions for the loop. It stops after the 
+    # given amount of steps and also avoids running the model without any 
+    # active agents
     if switchFraction == 1 or iStep == N_STEPS:
         break
     tools.printfractionExceed(switchFraction, iStep)
     
+    # for a bit of speed up, we draw the required random numbers before 
+    # the actual loop over agents.
     nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
+    # instead of looping only over agents, we loop over packages of an agents
+    # and it dedicated random number that the agent will use.  
     for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
         
         # dynamic of the agent
         switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
         inno, imit = agent.attr[['inno','imit']][0]
         
+        # if the condition for an agent to switch is met, the agent attributes
+        # "switch" and "color" are altered
         if randNum < inno + ( imit * ( switchFraction)):
             agent.attr['switch'] = 1
             agent.attr['color']  = RED
             plotting.add(iStep,inno)
-            
+    
+    # each 50 steps, the visualization is updated               
     if DO_PLOT and iStep%50 == 0:
         plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
     
