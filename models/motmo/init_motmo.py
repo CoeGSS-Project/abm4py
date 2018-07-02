@@ -1006,65 +1006,6 @@ def writeSummary(earth, parameters):
     
         lg.info( 'The simulation error is: ' + str(errorTot) )
 
-
-    if parameters.scenario == 2:
-        nPeople = np.nansum(parameters.population)
-
-        nCars      = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) != 2))
-        nGreenCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 1))
-        nBrownCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType']) == 0))
-
-        lg.info('Number of agents: ' + str(nPeople))
-        lg.info('Number of agents: ' + str(nCars))
-        lg.info('cars per 1000 people: ' + str(nCars/nPeople*1000.))
-        lg.info('green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.))
-        lg.info('brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
-
-
-
-
-    elif parameters.scenario == 3:
-
-        nPeople = np.nansum(parameters.population)
-
-        nCars      = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])!=2))
-        nGreenCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==1))
-        nBrownCars = np.float(np.nansum(np.array(earth.graph.vs[earth.nodeDict[PERS]]['mobType'])==0))
-
-        lg.info( 'Number of agents: ' + str(nPeople))
-        lg.info( 'Number of agents: ' + str(nCars))
-        lg.info( 'cars per 1000 people: ' + str(nCars/nPeople*1000.))
-        lg.info( 'green cars per 1000 people: ' + str(nGreenCars/nPeople*1000.))
-        lg.info( 'brown cars per 1000 people: ' + str(nBrownCars/nPeople*1000.))
-
-
-        cellList       = earth.graph.vs[earth.nodeDict[CELL]]
-        cellListBremen = cellList.select(regionId_eq=1518)
-        cellListNieder = cellList.select(regionId_eq=6321)
-        cellListHamb   = cellList.select(regionId_eq=1520)
-
-        carsInBremen = np.asarray(cellListBremen['carsInCell'])
-        carsInNieder = np.asarray(cellListNieder['carsInCell'])
-        carsInHamb   = np.asarray(cellListHamb['carsInCell'])
-
-
-        nPeopleBremen = np.nansum(parameters.population[parameters.regionIdRaster==1518])
-        nPeopleNieder = np.nansum(parameters.population[parameters.regionIdRaster==6321])
-        nPeopleHamb   = np.nansum(parameters.population[parameters.regionIdRaster==1520])
-
-        lg.info('shape: ' + str(carsInBremen.shape))
-        lg.info( 'Bremem  - green cars per 1000 people: ' + str(np.sum(carsInBremen[:, 1])/np.sum(nPeopleBremen)*1000))
-        lg.info( 'Bremem  - brown cars per 1000 people: ' + str(np.sum(carsInBremen[:, 0])/np.sum(nPeopleBremen)*1000))
-
-
-        lg.info( 'Niedersachsen - green cars per 1000 people: ' + str(np.sum(carsInNieder[:, 1])/np.sum(nPeopleNieder)*1000))
-        lg.info( 'Niedersachsen - brown cars per 1000 people: ' + str(np.sum(carsInNieder[:, 0])/np.sum(nPeopleNieder)*1000))
-
-
-        lg.info( 'Hamburg       - green cars per 1000 people: ' + str(np.sum(carsInNieder[:, 1])/np.sum(nPeopleHamb)*1000))
-        lg.info( 'Hamburg -       brown cars per 1000 people: ' + str(np.sum(carsInHamb[:, 0])/np.sum(nPeopleHamb)*1000))
-
-
 def onlinePostProcessing(earth):
     # calculate the mean and standart deviation of priorities
     df = pd.DataFrame([],columns=['prCon','prEco','prMon','prImi'])

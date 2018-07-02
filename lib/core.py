@@ -395,9 +395,11 @@ class Spatial():
         #nConnection  = list()
         #print 'rank: ' +  str(self.world.locDict)
 
-        self.connectLocations(IDArray, connList, linkTypeID)
+        self.connectLocations(IDArray, connList, linkTypeID, ghostLocationList, LocClassObject)
 
-    def connectLocations(self, IDArray, connList, linkTypeID):
+    def connectLocations(self, IDArray, connList, linkTypeID, ghostLocationList, LocClassObject):
+        nodeTypeID = self.world.graph.class2NodeType(LocClassObject)
+
         xOrg = 0
         yOrg = 0
         xMax = IDArray.shape[0]
