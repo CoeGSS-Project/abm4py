@@ -30,8 +30,11 @@ import logging as lg
 import time
 
 import matplotlib.pyplot as plt
+
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
+
+
 
 #import the gcf abm library and core components
 import lib_gcfabm as LIB # basic interface
@@ -40,7 +43,7 @@ import tools
 
 #%% CONFIG
 N_AGENTS   = 500 # number of AGID that will be gernerated
-N_STEPS    = 100 # number of steps performed
+N_STEPS    = 1000 # number of steps performed
 MAX_EXTEND = 50  # spatial extend 
 
 IMITATION = 10
@@ -52,10 +55,10 @@ RED  = [1,0,0,1]
 #%% setup
 
 # initialization of the world instance, with no 
-world = LIB.World(wAGIDOutput=False)
+world = LIB.World(wAgentOutput=False)
 
 # register the first AGID typ and save the numeric type ID as constant
-AGID = world.registerNodeType('AGID' , AGIDClass=LIB.AGID,
+AGID = world.registerNodeType('Agent' , AgentClass=LIB.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('switch', np.int16, 1),
@@ -64,7 +67,7 @@ AGID = world.registerNodeType('AGID' , AGIDClass=LIB.AGID,
 #%% AGID creation
 
 # looping over the number of AGIDs set up
-for iAGID in range(N_AGENTS):
+for iAgent in range(N_AGENTS):
     
     # randomly draw and x,y position within the defined spatial extend
     x,y = np.random.randint(0, MAX_EXTEND, 2)
@@ -79,7 +82,7 @@ for iAGID in range(N_AGENTS):
     # be inherted from that one.
     # The init of LIB.AGIDs requires either the definition of all attributes 
     # that are registered (above) or none.
-    AGID = LIB.AGID(world,
+    agent = LIB.Agent(world,
                       pos=(x, y),
                       switch = 0,
                       color = BLUE)
@@ -87,7 +90,7 @@ for iAGID in range(N_AGENTS):
     
     # after the AGIDs is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures
-    AGID.register(world)
+    agent.register(world)
     
 
 #%% Scheduler
@@ -115,7 +118,7 @@ for iStep in range(N_STEPS):
     # calculates the fraction of agents that already switched
     switchFraction = np.sum(switched) / N_AGENTS
     # the fraction is appended to the list for recording and visualization
-    fracList.append(switchFraction)
+    fracList.append(float(switchFraction))
     
     # this implements an additional end-condition to avoid running the model
     # without any active agents
@@ -128,11 +131,11 @@ for iStep in range(N_STEPS):
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.
-    for AGID, randNum in zip(world.iterNodes(AGID), randomNumbers):
+    for agent, randNum in zip(world.iterNodes(AGID), randomNumbers):
         
         # if the agent did not switch yet, we compute the new probability
         # to swich this step
-        if AGID.attr['switch'] == 0:
+        if agent.attr['switch'] == 0:
             
             # implemnent the probability of AGIDs to switch (actually multiplied 
             # by a factor of 1000)
@@ -141,11 +144,11 @@ for iStep in range(N_STEPS):
             # if the condition is met, the agent attributes "switch" and "color"
             # are altered
             if randNum < probability:
-                AGID.attr['switch'] = 1
-                AGID.attr['color'] = RED
+                agent.attr['switch'] = 1
+                agent.attr['color'] = RED
     
     # each 50 steos, the visualization is updated        
     if iStep%50 == 0:
-        ploting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGID))
+        ploting.update(iStep+1, fracList, world.getNodeAttr('color',nodeTypeID=AGID))
     
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
