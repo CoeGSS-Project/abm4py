@@ -94,7 +94,7 @@ class PlotClass():
         self.yPos = list()
         plt.draw()
         self.fig.canvas.flush_events()
-        self.fig.canvas.draw()
+        #self.fig.canvas.draw()
     def add(self, xPos,yPos):
         self.xPos.append(xPos)
         self.yPos.append(yPos)
