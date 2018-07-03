@@ -1,6 +1,7 @@
 name,value,doSweep,minRange,maxRange,comment
 linearCharging,1,0,,,"# if set to 1 charging develops lineaer after 2020"
 hhAcceptFactor,1,0,,,
+homeChargConv,0.05,1,0.,.2, # convenience of home charging (with zero charging stations)
 techExpBrown,20000000000,1,18000000000,22000000000,"# inertial experience of brown"
 techExpGreen,300000000,1,270000000,330000000,"# inertial experience of green"
 techExpPublic,3000000000,1,2250000000,3750000000,"# inertial experience of other"
