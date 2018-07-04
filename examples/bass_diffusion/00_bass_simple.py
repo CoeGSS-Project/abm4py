@@ -22,23 +22,16 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
 #%% import of modules
-
 import sys 
 import os
 import numpy as np
-import logging as lg
 import time
 
-import matplotlib.pyplot as plt
-
 home = os.path.expanduser("~")
-sys.path.append('../../lib/')
-
-
+sys.path.append('../..')
 
 #import the gcf abm library and core components
-import lib_gcfabm as LIB # basic interface
-import core as core      # core components
+import lib as lib # basic interface
 import tools
 
 #%% CONFIG
@@ -55,10 +48,10 @@ RED  = [1,0,0,1]
 #%% setup
 
 # initialization of the world instance, with no 
-world = LIB.World(wAgentOutput=False)
+world = lib.World(wAgentOutput=False)
 
 # register the first AGID typ and save the numeric type ID as constant
-AGID = world.registerNodeType('Agent' , AgentClass=LIB.Agent,
+AGID = world.registerNodeType('Agent' , AgentClass=lib.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('switch', np.int16, 1),
@@ -82,7 +75,7 @@ for iAgent in range(N_AGENTS):
     # be inherted from that one.
     # The init of LIB.AGIDs requires either the definition of all attributes 
     # that are registered (above) or none.
-    agent = LIB.Agent(world,
+    agent = lib.Agent(world,
                       pos=(x, y),
                       switch = 0,
                       color = BLUE)

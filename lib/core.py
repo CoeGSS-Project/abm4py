@@ -32,20 +32,29 @@ import pandas as pd
 #import seaborn as sns
 import pickle
 import time
-import mpi4py
+
 import random
 
-mpi4py.rc.threads = False
-#import sys
+try:
+    import mpi4py
+    mpi4py.rc.threads = False
+    from mpi4py import MPI
+    comm = mpi4py.MPI.COMM_WORLD
+    mpiSize = comm.Get_size()
+    mpiRank = comm.Get_rank()
+    mpiBarrier = mpi4py.MPI.COMM_WORLD.Barrier
+    if mpiSize> 1:
+        print('mpi4py import successfull')
+except:
+    
+    comm = None
+    mpiSize = 1
+    mpiRank = 0
+    print('mpi4py failed - serial processing')
+    def barrier():
+        pass
+    mpiBarrier = barrier
 
-
-#sys_excepthook = sys.excepthook
-#def mpi_excepthook(v, t, tb):
-#    sys_excepthook(v, t, tb)
-#    mpi4py.MPI.COMM_WORLD.Abort(1)
-#sys.excepthook = mpi_excepthook
-
-from mpi4py import MPI
 import h5py
 import logging as lg
 from numba import njit
@@ -142,13 +151,13 @@ def createOutputDirectory(mpiComm, baseOutputPath, simNo):
 
 def configureLogging(outputPath, debug=False):
     if debug:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                         filemode='w',
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
                         level=lg.DEBUG)
     else:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
+        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                         filemode='w',
                         format='%(levelname)7s %(asctime)s : %(message)s',
                         datefmt='%m/%d/%y-%H:%M:%S',
@@ -158,11 +167,11 @@ def configureSTD(outputPath, out2File=True, err2File=True):
     import sys
 
     if out2File:    
-        log_file   =  open(outputPath + '/out' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        log_file   =  open(outputPath + '/out' + str(mpiRank) + '.txt', 'w')
         sys.stdout = log_file    
     
     if out2File:
-        err_file   =  open(outputPath + '/err' + str(MPI.COMM_WORLD.rank) + '.txt', 'w')
+        err_file   =  open(outputPath + '/err' + str(mpiRank) + '.txt', 'w')
         sys.stderr = err_file
 
 def formatPropertyDefinition(propertyList):
@@ -305,17 +314,17 @@ def initLogger(debug, outputPath):
     Configuration of the logging library. Input is the debug level as 0 or 1
     and the outputpath
     """
-    lg.basicConfig(filename=outputPath + '/log_R' + str(MPI.COMM_WORLD.rank),
+    lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                    filemode='w',
                    format='%(levelname)7s %(asctime)s : %(message)s',
                    datefmt='%m/%d/%y-%H:%M:%S',
                    level=lg.DEBUG if debug else lg.INFO)
 
-    lg.info('Log file of process ' + str(MPI.COMM_WORLD.rank) + ' of ' + str(MPI.COMM_WORLD.size))
+    lg.info('Log file of process ' + str(mpiRank) + ' of ' + str(mpiSize))
 
     # wait for all processes - debug only for poznan to debug segmentation fault
-    MPI.COMM_WORLD.Barrier()
-    if MPI.COMM_WORLD.rank == 0:
+    mpiBarrier()
+    if mpiRank == 0:
         print('log files created')
 
 class Spatial():
@@ -335,7 +344,7 @@ class Spatial():
 
         """
         nodeTypeID = self.world.graph.class2NodeType(LocClassObject)
-        if self.world.parallized:
+        if self.world.isParallel:
             GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
         nodeArray = ((rankArray * 0) +1)
         #print rankArray
@@ -349,14 +358,14 @@ class Spatial():
         ghostLocationList = list()
         lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
-        self.world.cellMapIds = np.where(rankArray == self.world.papi.rank)
+        self.world.cellMapIds = np.where(rankArray == mpiRank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):
             for y in range(nodeArray.shape[1]):
 
                 # only add an vertex if spatial location exist
-                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == self.world.papi.rank:
+                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == mpiRank:
 
                     loc = LocClassObject(self.world, pos = [x, y])
                     IDArray[x,y] = loc.nID
@@ -365,11 +374,11 @@ class Spatial():
                     #self.world.registerNode(loc,nodeTypeID)     # only for real cells
                     loc.register(self.world)
 
-        if self.world.parallized:
+        if self.world.isParallel:
             # create ghost location nodes
             for (x,y), loc in list(self.world.getLocationDict().items()):
     
-                srcID = loc.nID
+                
                 for (dx,dy,weight) in connList:
     
                     xDst = x + dx
@@ -379,10 +388,10 @@ class Spatial():
                     if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
     
     
-                        if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != self.world.papi.rank:  # location lives on another process
+                        if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != mpiRank:  # location lives on another process
                             
                             loc = GhstLocClassObject(self.world, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
-                            #print 'rank: ' +  str(self.world.papi.rank) + ' '  + str(loc.nID)
+                            #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
                             self.world.registerNode(loc,nodeTypeID,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
@@ -458,7 +467,7 @@ class Spatial():
 #            #assert loc._graph.es[loc._graph.incident(loc.nID,'out')].select(type_ne=0).indices == range(eStart,eStart + nConnection[ii])
 #            eStart += nConnection[ii]
 #            ii +=1
-        if self.world.parallized:    
+        if self.world.isParallel:    
             lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
             self.world.papi.initCommunicationViaLocations(ghostLocationList, nodeTypeID)
             lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
@@ -616,26 +625,30 @@ class Globals():
     #TODO
     - enforce the setting (and reading) of global stats
     - implement mean, deviation, std as reduce operators
-
-
     """
     
 
 
     def __init__(self, world):
         self.world = world
-        self.comm  = world.papi.comm
+        self.comm  = comm
 
         # simple reductions
         self.reduceDict = OrderedDict()
-        
-        # MPI operations
         self.operations         = dict()
-        self.operations['sum']  = MPI.SUM
-        self.operations['prod'] = MPI.PROD
-        self.operations['min']  = MPI.MIN
-        self.operations['max']  = MPI.MAX
-
+        
+        if comm is not None:        
+        # MPI operations
+            
+            self.operations['sum']  = MPI.SUM
+            self.operations['prod'] = MPI.PROD
+            self.operations['min']  = MPI.MIN
+            self.operations['max']  = MPI.MAX
+        else:
+            self.operations['sum']  = np.sum
+            self.operations['prod'] = np.prod
+            self.operations['min']  = np.min
+            self.operations['max']  = np.max
         #staticical reductions/aggregations
         self.statsDict       = OrderedDict()
         self.localValues     = OrderedDict()
@@ -675,7 +688,10 @@ class Globals():
                 assert  self.updated[globName] is True    ##OPTPRODUCTION
                 
                 # communication between all proceees
-                self.globalValue[globName] = self.comm.allreduce(self.localValues[globName],op)
+                if comm is None:
+                    self.globalValue[globName] = self.localValues[globName]
+                else:
+                    self.globalValue[globName] = self.comm.allreduce(self.localValues[globName],op)
                 self.updated[globName] = False
                 lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))##OPTPRODUCTION
                 lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self.globalValue[globName]))##OPTPRODUCTION
@@ -722,19 +738,23 @@ class Globals():
                     assert  self.updated[globName] is True    ##OPTPRODUCTION
                     
                     # sending data list  of (local mean, size)
-                    inpComm = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-                    #lg.debug(inpComm)
-                    outComm = self.comm.alltoall(inpComm)
-                    # communication between all proceees
-                    tmp = np.asarray(outComm)
-
-                    lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
-                    #lg.debug(outComm)
-                    lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
-                    # calculation of global mean
-                    globValue = np.sum(np.prod(tmp,axis=1)) # means * size
-                    globSize  = np.sum(tmp[:,1])             # sum(size)
-                    self.globalValue[globName] = globValue/ globSize    # glob mean
+                    
+                    
+                    if comm is None:
+                        self.globalValue[globName] = np.mean(self.localValues[globName])
+                    else:    
+                        inpComm = [(np.mean(self.localValues[globName]), self.nValues[globName])]* mpiSize 
+                        outComm = self.comm.alltoall(inpComm)
+                        # communication between all proceees
+                        tmp = np.asarray(outComm)
+    
+                        lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
+                        #lg.debug(outComm)
+                        lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
+                        # calculation of global mean
+                        globValue = np.sum(np.prod(tmp,axis=1)) # means * size
+                        globSize  = np.sum(tmp[:,1])             # sum(size)
+                        self.globalValue[globName] = globValue/ globSize    # glob mean
                     lg.debug('Global mean: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
                     self.updated[globName] = False
                     
@@ -746,39 +766,43 @@ class Globals():
                     
                     # local calulation
                     
-                    locSTD = [np.std(self.localValues[globName])] * self.comm.size
+                    locSTD = [np.std(self.localValues[globName])] * mpiSize
                     lg.debug(locSTD)
-                    outComm = self.comm.alltoall(locSTD)
-                    lg.debug(outComm)
-                    locSTD = np.asarray(outComm)
-                    lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
-                    lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
-
-                    # sending data list  of (local mean, size)
-                    tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-                    
-                    # communication between all proceees
-                    tmp = np.asarray(self.comm.alltoall(tmp))
-
-
-                    # calculation of the global std
-                    locMean = tmp[:,0]
-                    
-                    lg.debug('loc mean: ' + str(locMean))                     ##OPTPRODUCTION
-
-                    locNVar = tmp[:,1]
-                    lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
-
-                    globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  
-                    lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
-
-                    diffSqrMeans = (locMean - globMean)**2
-
-                    deviationOfMeans = np.sum(locNVar * diffSqrMeans)
-
-                    globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
-
-                    self.globalValue[globName] = np.sqrt(globVariance)
+                    if comm is None:
+                        self.globalValue[globName] = locSTD[0]
+                    else:
+                        
+                        outComm = self.comm.alltoall(locSTD)
+                        lg.debug(outComm)
+                        locSTD = np.asarray(outComm)
+                        lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
+    
+                        # sending data list  of (local mean, size)
+                        tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* mpiSize 
+                        
+                        # communication between all proceees
+                        tmp = np.asarray(self.comm.alltoall(tmp))
+    
+    
+                        # calculation of the global std
+                        locMean = tmp[:,0]
+                        
+                        lg.debug('loc mean: ' + str(locMean))                     ##OPTPRODUCTION
+    
+                        locNVar = tmp[:,1]
+                        lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
+    
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  
+                        lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
+    
+                        diffSqrMeans = (locMean - globMean)**2
+    
+                        deviationOfMeans = np.sum(locNVar * diffSqrMeans)
+    
+                        globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
+    
+                        self.globalValue[globName] = np.sqrt(globVariance)
                     lg.debug('Global STD: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
                     self.updated[globName] = False
                     
@@ -789,34 +813,41 @@ class Globals():
                     assert  self.updated[globName] is True    ##OPTPRODUCTION
                     
                     # calculation of local mean
-                    locSTD = [np.std(self.localValues[globName])] * self.comm.size
-                    locSTD = np.asarray(self.comm.alltoall(locSTD))
                     
-
-                    # out data list  of (local mean, size)
-                    tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* self.comm.size 
-                    outComm = self.comm.alltoall(tmp)
-                    tmp = np.asarray(outComm)
-
-                    locMean = tmp[:,0]
-                    #print 'loc mean: ', locMean
-
-                    lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
-                    lg.debug('loc mean: ' + str(locMean))               ##OPTPRODUCTION
-                    locNVar = tmp[:,1]
-                    #print 'loc number of var: ',locNVar
-
-                    globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
-                    #print 'global mean: ', globMean
-                    
-                    diffSqrMeans = (locMean - globMean)**2
-                    lg.debug('global mean: ' + str( globMean )) ##OPTPRODUCTION
-
-                    deviationOfMeans = np.sum(locNVar * diffSqrMeans)
-
-                    globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
-
-                    self.globalValue[globName] = globVariance
+                    if comm is None:
+                        self.globalValue[globName] = np.var(self.localValues[globName])
+                    else:
+                        
+                        locSTD = [np.std(self.localValues[globName])] * mpiSize
+                        locSTD = np.asarray(self.comm.alltoall(locSTD))
+                        
+    
+                        # out data list  of (local mean, size)
+                        tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* mpiSize 
+                        outComm = self.comm.alltoall(tmp)
+                        tmp = np.asarray(outComm)
+    
+                        locMean = tmp[:,0]
+                        #print 'loc mean: ', locMean
+    
+                        lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(locMean))               ##OPTPRODUCTION
+                        locNVar = tmp[:,1]
+                        #print 'loc number of var: ',locNVar
+    
+                        globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)
+                        #print 'global mean: ', globMean
+                        
+                        diffSqrMeans = (locMean - globMean)**2
+                        lg.debug('global mean: ' + str( globMean )) ##OPTPRODUCTION
+    
+                        deviationOfMeans = np.sum(locNVar * diffSqrMeans)
+    
+                        globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
+    
+                        self.globalValue[globName] = globVariance
+                        
+                        
                     lg.debug('Global variance: ' + str( self.globalValue[globName] ))  ##OPTPRODUCTION
                     self.updated[globName] = False
 
@@ -882,12 +913,12 @@ class GlobalRecord():
 
                 plt.plot(calData,'d')
 
-        elif self.style == 'stackedBar':
-            nCars = np.zeros(self.nSteps)
-            #colorPal =  sns.color_palette("Set3", n_colors=len(self.columns), desat=.8)
-            for i, brand in enumerate(self.columns):
-               plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color = colorPal[i], width=1)
-               nCars += self.rec[:,i]
+#        elif self.style == 'stackedBar':
+#            nCars = np.zeros(self.nSteps)
+#            colorPal =  plt.get_cmap('jet')
+#            for i, brand in enumerate(self.columns):
+#               plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color = colorPal[i], width=1)
+#               nCars += self.rec[:,i]
         
         elif self.style == 'yyplot':
             fig, ax1 = plt.subplots()
@@ -1042,7 +1073,7 @@ class IO():
         self.outputPath  = outputPath
         self._graph      = world.graph
         
-        if world.papi.comm.size ==1:
+        if mpiSize ==1:
         
             self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
                                          'w')
@@ -1054,7 +1085,7 @@ class IO():
                                      #libver='latest',
                                      #info = world.papi.info)
             
-        self.comm        = world.papi.comm
+        self.comm        = comm
         self.dynamicData = dict()
         self.staticData  = dict() # only saved once at timestep == 0
         self.timeStepMag = int(np.ceil(np.log10(nSteps)))
@@ -1067,7 +1098,7 @@ class IO():
         lg.info('start init of the node file')
 
         for nodeTypeID in nodeTypeIDs:
-            world.papi.comm.Barrier()
+            mpiBarrier()
             tt = time.time()
             lg.info(' NodeType: ' +str(nodeTypeID))
             group = self.h5File.create_group(str(nodeTypeID))
@@ -1082,9 +1113,12 @@ class IO():
             tt = time.time()
 
             nAgents = len(world.getNode(nodeTypeID=nodeTypeID))
-            self.nAgentsAll = np.empty(1*self.comm.size,dtype=np.int)
-
-            self.nAgentsAll = self.comm.alltoall([nAgents]*self.comm.size)
+            self.nAgentsAll = np.empty(1*mpiSize,dtype=np.int)
+            
+            if comm is not None:
+                self.nAgentsAll = self.comm.alltoall([nAgents]*mpiSize)
+            else:
+                self.nAgentsAll = [nAgents]
 
             lg.info( 'nAgents exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
@@ -1092,9 +1126,9 @@ class IO():
             lg.info('Number of all agents' + str( self.nAgentsAll ))
 
             nAgentsGlob = sum(self.nAgentsAll)
-            cumSumNAgents = np.zeros(self.comm.size+1).astype(int)
+            cumSumNAgents = np.zeros(mpiSize+1).astype(int)
             cumSumNAgents[1:] = np.cumsum(self.nAgentsAll)
-            loc2GlobIdx = (cumSumNAgents[self.comm.rank], cumSumNAgents[self.comm.rank+1])
+            loc2GlobIdx = (cumSumNAgents[mpiRank], cumSumNAgents[mpiRank+1])
 
             lg.info( 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
@@ -1238,16 +1272,14 @@ class PAPI():
     ToDo: change to communication using numpy
     """
 
-    def __init__(self, world, mpiComm=None):
+    def __init__(self, world,):
 
         self.world = world
-        if mpiComm is None:
-            self.comm = MPI.COMM_WORLD
-        else:
-            self.comm = mpiComm
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
+        self.comm = comm
 
+        self.rank = mpiRank
+        self.size = mpiSize
+        
         self.info = MPI.Info.Create()
         self.info.Set("romio_ds_write", "disable")
         self.info.Set("romio_ds_read", "disable")
@@ -1283,7 +1315,7 @@ class PAPI():
         Method to clear all2all buffer
         """
         self.a2aBuff = []
-        for x in range(self.comm.size):
+        for x in range(mpiSize):
             self.a2aBuff.append([])
 
 
@@ -1556,7 +1588,7 @@ class PAPI():
         Method to update ghost node data on all processes
         """
         
-        if self.comm.size == 1:
+        if mpiSize == 1:
             return None
         tt = time.time()
 
@@ -1606,16 +1638,16 @@ class PAPI():
 
         """
         if isinstance(value,int):
-            buff = np.empty(1*self.comm.size,dtype=np.int)
-            buff = self.comm.alltoall([value]*self.comm.size)
+            buff = np.empty(1*mpiSize,dtype=np.int)
+            buff = self.comm.alltoall([value]*mpiSize)
         elif isinstance(value,float):
-            buff = np.empty(1*self.comm.size,dtype=np.float)
-            buff = self.comm.alltoall([value]*self.comm.size)
+            buff = np.empty(1*mpiSize,dtype=np.float)
+            buff = self.comm.alltoall([value]*mpiSize)
         elif isinstance(value,str):
-            buff = np.empty(1*self.comm.size,dtype=np.str)
-            buff = self.comm.alltoall([value]*self.comm.size)
+            buff = np.empty(1*mpiSize,dtype=np.str)
+            buff = self.comm.alltoall([value]*mpiSize)
         else:
-            buff = self.comm.alltoall([value]*self.comm.size)
+            buff = self.comm.alltoall([value]*mpiSize)
 
         return buff
 
@@ -1660,28 +1692,4 @@ class AttrDict(dict):
         return dict( (k, v) for k,v in self.items() )
     
 if __name__ == '__main__':
-    import mpi4py
-    mpi4py.rc.threads = False
-    comm = MPI.COMM_WORLD
-    mpiRank = comm.Get_rank()
-    mpiSize = comm.Get_size()
-    debug = True
-    showFigures    = 1
-    
-    simNo, baseOutputPath = getEnvironment(comm, getSimNo=True)
-    outputPath = createOutputDirectory(comm, baseOutputPath, simNo)
-    
-    
-    
-    if debug:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                    filemode='w',
-                    format='%(levelname)7s %(asctime)s : %(message)s',
-                    datefmt='%m/%d/%y-%H:%M:%S',
-                    level=lg.DEBUG)
-    else:
-        lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
-                        filemode='w',
-                        format='%(levelname)7s %(asctime)s : %(message)s',
-                        datefmt='%m/%d/%y-%H:%M:%S',
-                        level=lg.INFO)
+    pass

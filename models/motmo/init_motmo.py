@@ -26,59 +26,38 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 
 
 """
-# %%
-# TODO
-# random iteration (even pairs of agents)
-#from __future__ import division
+#%% IMPORT 
 
 import sys, os, socket
 import matplotlib as plt
-dir_path = os.path.dirname(os.path.realpath(__file__))
-#if socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-#    sys.path = ['../../h5py/build/lib.linux-x86_64-2.7'] + sys.path
-#    sys.path = ['../../mpi4py/build/lib.linux-x86_64-2.7'] + sys.path
-#else:
-if not socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
-    plt.use('Agg')
-
-import mpi4py
-mpi4py.rc.threads = False
 import csv
 import time
-#import guppy
-from copy import copy
-from os.path import expanduser
-import pdb
 import pprint
 import logging as lg
-home = expanduser("~")
-
-sys.path.append('../../lib/')
-sys.path.append('../../modules/')
-
-
-
-#from deco_util import timing_function
 import numpy as np
-
-#import mod_geotiff as gt # not working in poznan
-
-#from mpi4py import  MPI
-#import h5py
-
-from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Reporter, Cell, GhostCell, Earth, Opinion
-import core
-comm = core.MPI.COMM_WORLD
-mpiRank = comm.Get_rank()
-mpiSize = comm.Get_size()
-
 import pandas as pd
-
 from scipy import signal
+
+
+sys.path.append('../..')
+from classes_motmo import Person, GhostPerson, Household, GhostHousehold, Cell, GhostCell, Earth, Opinion
+from lib import core
 import scenarios
 
 print('import done')
 
+#%%
+comm = core.comm
+mpiRank = core.mpiRank
+mpiSize = core.mpiSize
+
+
+
+
+
+
+if not socket.gethostname() in ['gcf-VirtualBox', 'ThinkStation-D30']:
+    plt.use('Agg')
 ###### Enums ################
 #connections
 CON_LL = 1 # loc - loc
@@ -300,7 +279,7 @@ def householdSetup(earth, calibration=False):
 
     nRegions = np.sum(tmp>0)
    
-    boolMask = parameters['landLayer']== comm.rank
+    boolMask = parameters['landLayer']== core.mpiRank
     nAgentsOnProcess = np.zeros(nRegions)
     for i, region in enumerate(regionIdxList):
         boolMask2 = parameters['regionIdRaster']== region
@@ -310,8 +289,10 @@ def householdSetup(earth, calibration=False):
             # calculate start in the agent file (20 overhead for complete households)
             nAgentsOnProcess[i] += overheadAgents
 
-
-    nAgentsPerProcess = earth.papi.all2all(nAgentsOnProcess)
+    if earth.isParallel:
+        nAgentsPerProcess = earth.papi.all2all(nAgentsOnProcess)
+    else:
+        nAgentsPerProcess = [nAgentsOnProcess]
     nAgentsOnProcess = np.array(nAgentsPerProcess)
     lg.info('Agents on process:' + str(nAgentsOnProcess))
     hhData = dict()
@@ -322,13 +303,14 @@ def householdSetup(earth, calibration=False):
         # all processes open all region files (not sure if necessary)
         lg.debug('opening file: ' + parameters['resourcePath'] + 'people' + str(int(region)) + 'new.hdf5')
         h5Files[i]      = h5py.File(parameters['resourcePath'] + 'people' + str(int(region)) + 'new.hdf5', 'r')
-    comm.Barrier()
+    
+    core.mpiBarrier()
 
     for i, region in enumerate(regionIdxList):
 
         offset = 0
-        agentStart = int(np.sum(nAgentsOnProcess[:comm.rank,i]))
-        agentEnd   = int(np.sum(nAgentsOnProcess[:comm.rank+1,i]))
+        agentStart = int(np.sum(nAgentsOnProcess[:core.mpiRank,i]))
+        agentEnd   = int(np.sum(nAgentsOnProcess[:core.mpiRank+1,i]))
 
         lg.info('Reading agents from ' + str(agentStart) + ' to ' + str(agentEnd) + ' for region ' + str(region))
         lg.debug('Vertex count: ' + str(earth.graph.nCount()))
@@ -342,10 +324,10 @@ def householdSetup(earth, calibration=False):
         hhData[i] = dset[offset + agentStart: offset + agentEnd,]
         #print hhData[i].shape
         
-        if nAgentsOnProcess[comm.rank, i] == 0:
+        if nAgentsOnProcess[core.mpiRank, i] == 0:
             continue
 
-        assert hhData[i].shape[0] >= nAgentsOnProcess[comm.rank,i] ##OPTPRODUCTION
+        assert hhData[i].shape[0] >= nAgentsOnProcess[core.mpiRank,i] ##OPTPRODUCTION
         
         idx = 0
         # find the correct possition in file
@@ -357,7 +339,7 @@ def householdSetup(earth, calibration=False):
         currIdx[i] = int(idx)
 
 
-    comm.Barrier() # all loading done
+    core.mpiBarrier() # all loading done
 
     for i, region in enumerate(regionIdxList):
         h5Files[i].close()
@@ -468,14 +450,14 @@ def householdSetup(earth, calibration=False):
                 break
     lg.info('All agents initialized in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
-
-    earth.papi.transferGhostNodes(earth)
+    if earth.isParallel:
+        earth.papi.transferGhostNodes(earth)
 
         
     for hh in earth.iterNodes(HH, ghosts = False):                  ##OPTPRODUCTION
         assert len(hh.adults) == hh.get('hhSize') - hh.get('nKids')  ##OPTPRODUCTION
         
-    earth.papi.comm.Barrier()
+    core.mpiBarrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
             ' Housholds created in -- ' + str(time.time() - tt) + ' s')
     
@@ -503,7 +485,8 @@ def initEarth(simNo,
                   maxNodes=maxNodes,
                   maxLinks=maxLinks,
                   debug=debug,
-                  mpiComm=mpiComm)
+                  mpiComm=mpiComm,
+                  agentOutput=parameters['writeAgentFile'])
 
     #global assignment
     core.earth = earth
@@ -678,8 +661,8 @@ def initSpatialLayer(earth):
             cell.set('electricConsumption', 0.)
             cell.cellSize = parameters['cellSizeMap'][tuple(cell.get('pos'))]
             cell.set('popDensity', popDensity[tuple(cell.get('pos'))])
-            
-    earth.papi.updateGhostNodes([CELL],['chargStat'])
+    if earth.isParallel:        
+        earth.papi.updateGhostNodes([CELL],['chargStat'])
 
     if mpiRank == 0:
         print('Setup of the spatial layer done in'  + "{:2.4f}".format((time.time()-tt)) + ' s')
@@ -852,7 +835,7 @@ def initAgentOutput(earth):
     tt = time.time()
     #%% Init of agent file
     tt = time.time()
-    earth.papi.comm.Barrier()
+    core.mpiBarrier()
     lg.info( 'Waited for Barrier for ' + str( time.time() - tt) + ' s')
     tt = time.time()
     #earth.initAgentFile(typ = HH)
@@ -981,7 +964,7 @@ def runModel(earth, parameters):
     earth.finalize()
 
 def writeSummary(earth, parameters):
-    if earth.papi.rank == 0:
+    if core.mpiRank == 0:
         fid = open(earth.para['outPath'] + '/summary.out','w')
     
         fid.writelines('Parameters:')

@@ -213,7 +213,7 @@ class BaseGraph():
             for attrKey in list(kwAttr.keys()):
                 nType[attrKey][dataIDs] = kwAttr[attrKey]
         lnIDs = [dataID + nTypeID * self.maxNodes for dataID in dataIDs]  
-        nType.nodeList.extend(lnID)
+        nType.nodeList.extend(lnIDs)
         return lnIDs
 
     def remNode(self, lnID):

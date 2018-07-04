@@ -24,16 +24,16 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 import logging as lg
-import pprint as pp
 import numpy as np
 import matplotlib.pylab as plt
 from scipy import signal
-import core
 
-from init_motmo import mpiSize
+
+
 import init_motmo as init
+from lib import core
 
-
+mpiSize = core.mpiSize
 def convolutionMatrix(radius, centerWeight):
     convMat = np.zeros([radius * 2 + 1, radius * 2 + 1])
     for dx in np.arange(-radius, radius + 1):
@@ -222,7 +222,7 @@ def scenarioTestMedium(parameterInput, dirPath):
     setup.recAgent = []       # reporter agents that return a diary
 
     # output
-    setup.writeAgentFile = 1
+    setup.writeAgentFile = 0
     setup.writeNPY = 1
     setup.writeCSV = 0
 

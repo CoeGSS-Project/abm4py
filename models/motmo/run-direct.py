@@ -30,17 +30,18 @@ import os
 import socket
 
 import init_motmo as init
-import core
+from lib import core
+
 
 debug = True
 showFigures = False
 
-comm = core.MPI.COMM_WORLD
-mpiRank = comm.Get_rank()
+comm    = core.comm
+mpiRank = core.mpiRank
 
 overallTime = time.time()
 
-simNo, outputPath = core.setupSimulationEnvironment(comm)
+simNo, outputPath = core.setupSimulationEnvironment()
 
 print ('Current simulation number is: ' + str(simNo))
 print ('Current ouputPath number is: ' + outputPath)
@@ -53,7 +54,8 @@ core.initLogger(debug, outputPath)
 lg.info('on node: ' + socket.gethostname())
 
 parameters = init.createAndReadParameters(fileName, dirPath)
-parameters = init.exchangeParameters(parameters)
+if comm is not None:
+    parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
 
@@ -67,10 +69,6 @@ earth = init.initEarth(simNo,
                        mpiComm=comm)
 
 init.initScenario(earth, parameters)
-
-
-if parameters.scenario == 0:
-    earth.view('output/graph.png')
 
 init.runModel(earth, parameters)
 

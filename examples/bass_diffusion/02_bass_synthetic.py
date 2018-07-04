@@ -21,22 +21,20 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 #%% load modules
-
-import sys 
 import os
 import numpy as np
-import logging as lg
 import time
 import random
 import h5py
 
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
-sys.path.append('../../lib/')
 
-import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
-import core_prod as core
+#import the gcf abm library and core components
+import lib as LIB # basic interface
+from lib import core
 import tools
+
 #%% CONFIG
 N_AGENTS   = 1000   # number of AGID that will be gernerated
 N_STEPS    = 1000   # number of steps performed

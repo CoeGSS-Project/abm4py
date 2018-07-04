@@ -13,10 +13,10 @@ dirPath = os.path.dirname(os.path.realpath(__file__))
 os.chdir('..')
 
 import init_motmo as init
-import core
+from lib import core
 
-comm = core.MPI.COMM_WORLD
-mpiRank = comm.Get_rank()
+comm    = core.comm
+mpiRank = core.mpiRank
 
 # I don't want to polute the model directory with dakota files, but the
 # dakota.interfacing library uses relativ file names, so I start with the
@@ -45,8 +45,8 @@ parameters = init.createAndReadParameters(dakotaParams['scenarioFileName'], dirP
 if mpiRank == 0:
     for d in dakotaParams.descriptors:
         parameters[d] = dakotaParams[d]
-
-parameters = init.exchangeParameters(parameters)
+if comm is not None:
+    parameters = init.exchangeParameters(parameters)
 parameters['outPath'] = outputPath
 parameters['showFigures'] = showFigures
 

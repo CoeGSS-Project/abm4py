@@ -22,21 +22,21 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
 #%% load modules
-
 import sys 
 import os
 import numpy as np
-import logging as lg
 import time
 import random
 
-import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
-sys.path.append('../../lib/')
 
-import lib_gcfabm_prod as LIB #, Agent, World,  h5py, MPI
-import core_prod as core
+sys.path.append('../..')
+
+#import the gcf abm library and core components
+import lib as LIB # basic interface
+from lib import core
 import tools
+
 #%% CONFIG
 N_AGENTS   = 500    # number of AGID that will be gernerated
 N_STEPS    = 1000   # number of steps performed

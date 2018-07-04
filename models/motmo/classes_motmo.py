@@ -25,9 +25,9 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import core
+from lib import core
 
-from lib_gcfabm import World, Agent, GhostAgent, Location, GhostLocation
+from lib import World, Agent, GhostAgent, Location, GhostLocation
 
 #import pdb
 #import igraph as ig
@@ -123,7 +123,8 @@ class Earth(World):
                  maxNodes,
                  maxLinks,
                  debug,
-                 mpiComm=None):
+                 mpiComm=None,
+                 agentOutput=True):
 
         nSteps     = parameters.nSteps
 
@@ -140,7 +141,8 @@ class Earth(World):
                        maxNodes=maxNodes,
                        maxLinks=maxLinks,
                        debug=debug,
-                       mpiComm=mpiComm)
+                       mpiComm=mpiComm,
+                       agentOutput=agentOutput)
 
         self.agentRec   = dict()
         self.time       = 0
@@ -229,7 +231,7 @@ class Earth(World):
         lg.info( 'Average population: ' + str(np.mean(populationList)) + ' - Ecount: ' + str(self.graph.eCount()))
 
         fid = open(self.para['outPath']+ '/initTimes.out', 'a')
-        fid.writelines('r' + str(self.papi.comm.rank) + ', ' +
+        fid.writelines('r' + str(core.mpiRank) + ', ' +
                        str( time.time() - tt) + ',' +
                        str(np.mean(populationList)) + ',' +
                        str(self.graph.eCount()) + '\n')
@@ -304,8 +306,9 @@ class Earth(World):
         Encapsulating method for the syncronization of selected ghost agents
         """
         ttSync = time.time()
-        self.papi.updateGhostNodes([PERS],['commUtil','util', 'mobType'])
-        self.papi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
+        if core.comm is not None:
+            self.papi.updateGhostNodes([PERS],['commUtil','util', 'mobType'])
+            self.papi.updateGhostNodes([CELL],['chargStat', 'carsInCell'])
 
         self.syncTime[self.time] += time.time()-ttSync
         lg.debug('Ghosts synced in ' + str(time.time()- ttSync) + ' seconds')##OPTPRODUCTION
@@ -363,8 +366,8 @@ class Earth(World):
         self.updateRecords()
     
         self.syncGlobals()
-        
-        self.syncGhosts()
+        if self.isParallel:
+            self.syncGhosts()
         
         ttComp = time.time()
 
@@ -421,7 +424,7 @@ class Earth(World):
 
         # waiting for other processes
         ttWait = time.time()
-        self.papi.comm.Barrier()
+        core.mpiBarrier()
         self.waitTime[self.time] += time.time()-ttWait
 
         # I/O
@@ -709,7 +712,7 @@ class Market():
     def __init__(self, earth, properties, propRelDev=0.01, time = 0, burnIn=0):
         #import global variables
         self.globalRecord        = earth.returnGlobalRecord()
-        self.comm                = earth.returnApiComm()
+        self.comm                = core.comm
         self.glob                = earth.returnGlobals()
         self._graph              = earth.returnGraph()
         self.para                = earth.getParameter()
@@ -754,7 +757,8 @@ class Market():
         for re in self.para['regionIDList']:
             reStock = self.glob.globalValue['stock_' + str(re)]
             globalStock += reStock
-        self.goods[0].updateGlobalStock(globalStock, self.comm.rank)
+        
+        self.goods[0].updateGlobalStock(globalStock, core.mpiRank)
         
     def updateSales(self):
         
@@ -944,7 +948,7 @@ class Market():
             lg.debug('techProgress: ' + str([self.glob.globalValue['sales'][iGood] for iGood in list(self.goods.keys())]))##OPTPRODUCTION
              
             
-        if self.comm.rank == 0:
+        if core.mpiRank == 0:
             self.globalRecord['growthRate'].set(self.time, [self.goods[iGood].getGrowthRate() for iGood in list(self.goods.keys())])
             for iGood in list(self.goods.keys()):
                 self.globalRecord['prop_' + self.goods[iGood].label].set(self.time, self.goods[iGood].getProperties())
