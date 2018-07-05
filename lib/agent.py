@@ -23,64 +23,32 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .entity import Entity
+from .base_agent import BaseAgent, Entity
+from .enhancements import Moveable, Parallel
 
-
-class Agent(Entity):
-
+class Agent(BaseAgent, Moveable):
+    """
+    The most common agent type derives from the BaseAgent and additionally
+    receives the abilty to move
+    """
     def __init__(self, world, **kwProperties):
         if 'nID' not in list(kwProperties.keys()):
             nID = -1
         else:
             nID = kwProperties['nID']
         
-        Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner =  int(world.mpiRank)
-
-    def getGlobID(self,world):
-        return next(world.globIDGen)
-
-    def registerChild(self, world, entity, linkTypeID):
-        """
+        BaseAgent.__init__(self, world, nID, **kwProperties)
         
-        """
-        if linkTypeID is not None:
-            #print linkTypeID
-            world.addLink(linkTypeID, self.nID, entity.nID)
-        
-        #entity.loc = self
-
-        if len(self.mpiPeers) > 0: # node has ghosts on other processes
-            for mpiPeer in self.mpiPeers:
-                #print 'adding node ' + str(entity.nID) + ' as ghost'
-                nodeTypeID = world.graph.class2NodeType(entity.__class__)
-                world.papi.queueSendGhostNode( mpiPeer, nodeTypeID, entity, self)
-
-        return self.mpiPeers
-
-
-#    def getLocationAttr(self,prop):
-#
-#        return self.loc.node[prop]
-
-
-    def _moveSpatial(self, newPosition):
-        pass
-        
-    def _moveNormal(self, newPosition):
-        self.attr['pos'] = newPosition
-        
-    def move(self):
-        """ not yet implemented"""
-        pass
 
 
 
 
-
-
-class GhostAgent(Entity):
-    
+class GhostAgent(Entity, Parallel):
+    """
+    Ghost agents are only derived from Entities, since they are not full 
+    agents, but passive copies of the real agents. Thus they do not have 
+    the methods to act themselves.
+    """
     def __init__(self, world, mpiOwner, nID=-1, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner = int(mpiOwner)
@@ -92,8 +60,6 @@ class GhostAgent(Entity):
     def getGlobID(self,world):
 
         return None # global ID need to be acquired via MPI communication
-
-
 
     def registerChild(self, world, entity, linkTypeID):
         world.addLink(linkTypeID, self.nID, entity.nID)

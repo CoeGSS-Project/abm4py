@@ -28,6 +28,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 from lib import core
 
 from lib import World, Agent, GhostAgent, Location, GhostLocation
+from lib.enhancements import Parallel
 
 #import pdb
 #import igraph as ig
@@ -1184,7 +1185,7 @@ class Infrastructure():
     
 
 # %% --- entity classes ---
-class Person(Agent):
+class Person(Agent, Parallel):
     __slots__ = ['gID', 'nID']
     
     def __init__(self, world, **kwProperties):
@@ -1352,7 +1353,10 @@ class Person(Agent):
             idx = idx+ nP
         del idx
 
-        hhIDs = [world.glob2Loc(x) for x in world.getNodeAttr('hhID', localNodeIDList=personIdsAll)]
+        if world.isParallel:
+            hhIDs = [world.glob2Loc(x) for x in world.getNodeAttr('hhID', localNodeIDList=personIdsAll)]
+        else:
+            hhIDs = world.getNodeAttr('hhID', localNodeIDList=personIdsAll).tolist()
         weightData[:,idxColIn] = abs(world.getNodeAttr('income', localNodeIDList=hhIDs) - ownIncome)
         weightData[:,idxColPr] = world.getNodeAttr('preferences', localNodeIDList=personIdsAll)
 
@@ -1548,7 +1552,7 @@ class GhostHousehold(GhostAgent):
         self.loc = parentEntity
         self.loc.hhList.append(self.nID)
 
-class Household(Agent):
+class Household(Agent, Parallel):
     __slots__ = ['gID', 'nID']
     
 
@@ -1737,7 +1741,7 @@ class Household(Agent):
                 personalCosts += float(nTrips) * avgKm * properties[OPERATINGCOSTS] 
             person.set('costs', personalCosts)
             # add cost of mobility to the expenses
-            self.addToAttr('expenses', personalCosts)
+            self.attr['expenses'] += personalCosts
 
 
     def undoActions(self, world, persons):
@@ -1749,7 +1753,7 @@ class Household(Agent):
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.addToAttr('expenses', - adult.get('costs'))
+            self.attr['expenses'] -= adult.get('costs')
 
             world.market.sellCar(mobType)
 
@@ -1894,7 +1898,7 @@ class Household(Agent):
                             adult.set('lastAction', 0)
                     operatingCosts = averDist*mobilityProperties[OPERATINGCOSTS]
                     fixedCosts     = mobilityProperties[FIXEDCOSTS]
-                    self.addToAttr('expenses', operatingCosts + fixedCosts) #TODO running costs
+                    self.attr['expenses'] +=  operatingCosts + fixedCosts #TODO running costs
 
                 self.calculateConsequences(market)
                 utility = self.evalUtility(earth)
@@ -2160,7 +2164,7 @@ class Reporter(Household):
 
 
 
-class Cell(Location):
+class Cell(Location, Parallel):
 
     def __init__(self, earth,  **kwProperties):
         kwProperties.update({'population': 0, 'convenience': [0.,0.,0.,0.,0.], 'carsInCell':[0,0,0,0,0], 'regionId':0})
@@ -2207,7 +2211,7 @@ class Cell(Location):
         """
         
         """
-        self.addToAttr('carsInCell', 1, int(mobTypeID))
+        self.attr['carsInCell'][:,int(mobTypeID)] += 1
 
 
     def remFromTraffic(self,mobTypeID):

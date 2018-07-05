@@ -5,9 +5,9 @@ Created on Tue Jul  3 15:51:31 2018
 
 @author: gcf
 """
-from .entity import Entity
+from .base_agent import BaseAgent, Entity
 
-class Location(Entity):
+class Location(BaseAgent):
 
     def getGlobID(self,world):
         return next(world.globIDGen)
@@ -19,7 +19,7 @@ class Location(Entity):
             nID = kwProperties['nID']
 
 
-        Entity.__init__(self,world, nID, **kwProperties)
+        BaseAgent.__init__(self, world, nID, **kwProperties)
         self.mpiOwner = int(world.mpiRank)
         self.mpiPeers = list()
 

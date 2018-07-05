@@ -405,7 +405,10 @@ def householdSetup(earth, calibration=False):
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
             hh.loc.set('population', hh.loc.get('population') + nPers)
-            
+            if earth.isParallel:
+                hhID = hh.attr['gID']
+            else:
+                hhID = hh.nID
             assert nAdults > 0 ##OPTPRODUCTION
             
             for iPers in range(nPers):
@@ -421,7 +424,7 @@ def householdSetup(earth, calibration=False):
                 assert len(nJourneysPerPerson[iPers]) == 5##OPTPRODUCTION
                 pers = Person(earth,
                               preferences = np.asarray(prefTuple),
-                              hhID        = hh.gID,
+                              hhID        = hhID,
                               gender      = genders[iPers],
                               age         = ages[iPers],
                               nJourneys   = nJourneysPerPerson[iPers],

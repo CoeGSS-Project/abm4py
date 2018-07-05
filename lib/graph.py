@@ -223,7 +223,7 @@ class BaseGraph():
         #dataID = lnID - nTypeID * self.maxNodes
         #print(dataID)
         self.nodes[nodeTypeID].freeRows.append(dataID)
-        self.nodes[nodeTypeID][['active','gID']][dataID] = (False, -1)
+        self.nodes[nodeTypeID][self.persitentAttributes][dataID] = self.persitentValues
         self.nodes[nodeTypeID].nodeList.remove(lnID)
     
         for eTypeID in self.edges.keys():
@@ -552,6 +552,12 @@ class ABMGraph(BaseGraph):
         self.__class2NodeType = dict()
         self.__ghostOfAgentClass   = dict()
         
+        if world.isParallel:
+            self.persitentAttributes = ['active', 'gID']
+            self.persitentValues     = (False, -1)
+        else:
+            self.persitentAttributes = ['active']
+            self.persitentValues     = False
     def addNodeType(self, 
                     nodeTypeIDIdx, 
                     typeStr, 

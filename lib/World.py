@@ -40,62 +40,43 @@ class World:
                  mpiComm=None,
                  agentOutput=False):
         
-        self.agentOutput = agentOutput
-        self.simNo     = simNo
-        self.timeStep  = 0
-        self.para      = dict()
-        
-        self.maxNodes  = int(maxNodes)
-        self.globIDGen = self._globIDGen()
-
-        self.nSteps    = nSteps
-        self.debug     = debug
-        
+        # determines if the frameworks runs in parallel or not
         if mpiComm is None:
             self.isParallel = False
-            self.rank = 0
+            self.isRoot     = True
         else:
             self.isParallel = mpiComm.size > 1
-        self.mpiRank = core.mpiRank
-        self.mpiSize = core.mpiSize
-        # GRAPH
-        self.graph    = ABMGraph(self, maxNodes, maxLinks)
-        self.para['outPath'] = outPath # is not graph, move to para
-
-        self.globalRecord = dict() # storage of global data
-
-        self.addLink        = self.graph.addLink
-        self.addLinks       = self.graph.addLinks
-        self.delLinks       = self.graph.remEdge
-
-        self.addNode     = self.graph.addNode
-        self.addNodes    = self.graph.addNodes
-
-        # agent passing interface for communication between parallel processes
-        if self.isParallel:
-            self.papi = core.PAPI(self)
-            
+            self.mpiRank = core.mpiRank
+            self.mpiSize = core.mpiSize
         
-            lg.debug('Init MPI done')##OPTPRODUCTION
-            if self.papi.comm.rank == 0:
-                self.isRoot = True
+            if self.isParallel:
+                # agent passing interface for communication between parallel processes
+                self.papi = core.PAPI(self)
+                self.__glob2loc = dict()  # reference from global IDs to local IDs
+                self.__loc2glob = dict()  # reference from local IDs to global IDs
+
+                # generator for IDs that are globally unique over all processe
+                self.globIDGen = self._globIDGen()
+                
+                lg.debug('Init MPI done')##OPTPRODUCTION
+                
+                if self.mpiRank == 0:
+                    self.isRoot = True
+                else:
+                    self.isRoot = False
             else:
                 self.isRoot = False
-        else:
-            self.isRoot = True
-        
-        # IO
-        if self.agentOutput:
-            self.io = core.IO(self, nSteps, self.para['outPath'])
-            lg.debug('Init IO done')##OPTPRODUCTION
-        # Globally synced variables
-        self.graph.glob     = core.Globals(self)
-        lg.debug('Init Globals done')##OPTPRODUCTION
+          
+        self.para      = dict()
+        self.para['outPath'] = outPath # is not graph, move to para
+        # TODO put to parameters                    
+        self.agentOutput = agentOutput
+        self.simNo     = simNo
+        self.timeStep  = 0    
+        self.maxNodes  = int(maxNodes)
+        self.nSteps    = nSteps
+        self.debug     = debug
 
-        
-        if spatial:
-            self.spatial  = core.Spatial(self)
-        
         # enumerations
         self.__enums = dict()
 
@@ -111,10 +92,41 @@ class World:
         self.__entDict   = dict()
         self.__locDict   = dict()
 
-        self.__glob2loc = dict()  # reference from global IDs to local IDs
-        self.__loc2glob = dict()  # reference from local IDs to global IDs
-
+        
+        
+        
+        # ======== GRAPH ========
+        self.graph    = ABMGraph(self, maxNodes, maxLinks)
+        
+        # ======== GLOBALS ========
+        # storage of global data
+        self.globalRecord = dict() 
+        # Globally synced variables
+        self.graph.glob     = core.Globals(self)
+        lg.debug('Init Globals done')##OPTPRODUCTION
+        
+        # ======== IO ========
+        if self.agentOutput:
+            self.io = core.IO(self, nSteps, self.para['outPath'])
+            lg.debug('Init IO done')##OPTPRODUCTION
+        
+        # ======== SPATIAL LAYER ========
+        if spatial:
+            self.spatial  = core.Spatial(self)
+        
+        # ======== RANDOM ========
         self.random = core.Random(self, self.__nodeDict, self.__ghostNodeDict, self.__entDict)
+        
+        self.addLink        = self.graph.addLink
+        self.addLinks       = self.graph.addLinks
+        self.delLinks       = self.graph.remEdge
+
+        self.addNode     = self.graph.addNode
+        self.addNodes    = self.graph.addNodes
+
+        
+
+        
 
 
         # inactive is used to virtually remove nodes
@@ -418,8 +430,10 @@ class World:
         #assert len(self.__entList) == agent.nID                                  ##OPTPRODUCTION
         self.__entList.append(agent)
         self.__entDict[agent.nID] = agent
-        self.__glob2loc[agent.gID] = agent.nID
-        self.__loc2glob[agent.nID] = agent.gID
+        
+        if self.isParallel:
+            self.__glob2loc[agent.gID] = agent.nID
+            self.__loc2glob[agent.nID] = agent.gID
 
         if ghost:
             self.__ghostNodeDict[typ].append(agent.nID)
@@ -440,8 +454,9 @@ class World:
         """
         self.__entList.remove(agent)
         del self.__entDict[agent.nID]
-        del self.__glob2loc[agent.gID]
-        del self.__loc2glob[agent.nID]
+        if self.isParallel:
+            del self.__glob2loc[agent.gID]
+            del self.__loc2glob[agent.nID]
         nodeTypeID =  self.graph.class2NodeType(agent.__class__)
         if ghost:
             self.__ghostNodeDict[nodeTypeID].remove(agent.nID)
