@@ -43,7 +43,7 @@ class Entity():
         if world is None:
             return
                 
-        nodeTypeID =  world.graph.class2NodeType(self.__class__)
+        self.nodeTypeID =  world.graph.class2NodeType(self.__class__)
         
         if not hasattr(self, '_graph'):
             self._setGraph(world.graph)
@@ -58,9 +58,9 @@ class Entity():
             self.gID = self.attr['gID'][0]
         
         else:
-            self.nID, self.dataID, self.attr = world.addNode(nodeTypeID,  **kwProperties)
+            self.nID, self.dataID, self.attr = world.addNode(self.nodeTypeID,  **kwProperties)
             
-        self.nodeTypeID = nodeTypeID
+
         # redireciton of internal functionality:
         self.get = firstElementDeco(self.attr.__getitem__)
         self.set = self.attr.__setitem__
@@ -72,11 +72,11 @@ class Entity():
         cls._graph = graph
 
 
-    def attrView(self, key=None):
-        if key is None:
-            return self.attr[0].view()
-        else:
-            return self.attr[0,key].view()
+#    def attrView(self, key=None):
+#        if key is None:
+#            return self.attr[0].view()
+#        else:
+#            return self.attr[0,key].view()
 
     def getPeer(self, peerID):
         return self.__getNode(nodeID=peerID)
@@ -108,18 +108,18 @@ class Entity():
         """
         return self._graph.getOutNodeValues(self.nID, linkTypeID, attr=prop)
 
-    def setPeerAttr(self, prop, values, linkTypeID=None, nodeTypeID=None, force=False):
-        """
-        Set the attributes of all connected nodes of an specified nodeTypeID
-        or connected by a specfic edge type
-        """
-        if not force:
-            raise Exception
-        else:
-            #import warnings
-            #warnings.warn('This is violating the current rules and data get lost')
-
-            self._graph.setOutNodeValues(self.nID, linkTypeID, prop, values)
+#    def setPeerAttr(self, prop, values, linkTypeID=None, nodeTypeID=None, force=False):
+#        """
+#        Set the attributes of all connected nodes of an specified nodeTypeID
+#        or connected by a specfic edge type
+#        """
+#        if not force:
+#            raise Exception
+#        else:
+#            #import warnings
+#            #warnings.warn('This is violating the current rules and data get lost')
+#
+#            self._graph.setOutNodeValues(self.nID, linkTypeID, prop, values)
                                    
 
     def getLinkAttr(self, prop, linkTypeID):
@@ -178,7 +178,6 @@ class Entity():
 
 
     def addToAttr(self, prop, value, idx = None):
-        #raise DeprecationWarning('Will be deprecated in the future')
         if idx is None:
             self.attr[prop] += value
         else:
@@ -190,8 +189,8 @@ class Entity():
         
 
     def register(self, world, parentEntity=None, linkTypeID=None, ghost=False):
-        nodeTypeID = world.graph.class2NodeType(self.__class__)
-        world.registerNode(self, nodeTypeID, ghost)
+        
+        world.registerNode(self, self.nodeTypeID, ghost=False)
 
         if parentEntity is not None:
             self.mpiPeers = parentEntity.registerChild(world, self, linkTypeID)

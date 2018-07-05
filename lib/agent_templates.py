@@ -33,6 +33,7 @@ class Agent(Entity):
             nID = -1
         else:
             nID = kwProperties['nID']
+        
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner =  int(world.mpiRank)
 
@@ -40,10 +41,14 @@ class Agent(Entity):
         return next(world.globIDGen)
 
     def registerChild(self, world, entity, linkTypeID):
+        """
+        
+        """
         if linkTypeID is not None:
             #print linkTypeID
             world.addLink(linkTypeID, self.nID, entity.nID)
-        entity.loc = self
+        
+        #entity.loc = self
 
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiPeers:
@@ -54,9 +59,9 @@ class Agent(Entity):
         return self.mpiPeers
 
 
-    def getLocationAttr(self,prop):
-
-        return self.loc.node[prop]
+#    def getLocationAttr(self,prop):
+#
+#        return self.loc.node[prop]
 
 
     def _moveSpatial(self, newPosition):
@@ -76,21 +81,17 @@ class Agent(Entity):
 
 class GhostAgent(Entity):
     
-    def __init__(self, world, owner, nID=-1, **kwProperties):
+    def __init__(self, world, mpiOwner, nID=-1, **kwProperties):
         Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner =  int(owner)
+        self.mpiOwner = int(mpiOwner)
 
     def register(self, world, parentEntity=None, linkTypeID=None):
-        Entity.register(self, world, parentEntity, linkTypeID, ghost= True)
+        Entity.register(self, world, parentEntity, linkTypeID, ghost=True)
         
 
     def getGlobID(self,world):
 
         return None # global ID need to be acquired via MPI communication
-
-    def getLocationAttr(self, prop):
-
-        return self.loc.node[prop]
 
 
 

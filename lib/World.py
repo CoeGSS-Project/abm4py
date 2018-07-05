@@ -479,6 +479,9 @@ class World:
     def returnGlobals(self):
         return self.graph.glob
     
+    def returnNodeDict(self,):
+        return self.__nodeDict
+    
     def finalize(self):
         """
         Method to finalize records, I/O and reporter

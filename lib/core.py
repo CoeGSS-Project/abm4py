@@ -300,13 +300,7 @@ def convertStr(string):
         except:
             return string
 
-def saveObj(obj, name ):
-    with open( name + '.pkl', 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-def loadObj(name ):
-    with open(name + '.pkl', 'rb') as f:
-        return pickle.load(f)
 
 
 def initLogger(debug, outputPath):
@@ -1068,8 +1062,9 @@ class IO():
         
 
     #%% Init of the IO class
-    def __init__(self, world, nSteps, outputPath = '.'): # of IO
+    def __init__(self, world, nSteps, outputPath = '.', inputPath = '.'): # of IO
 
+        self.inputPath  = inputPath
         self.outputPath  = outputPath
         self._graph      = world.graph
         
@@ -1262,7 +1257,17 @@ class IO():
 
         for nodeTypeID in list(self.dynamicData.keys()):
             record = self.dynamicData[nodeTypeID]
-            saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeTypeID)))
+            self.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeTypeID)))
+
+    @staticmethod
+    def saveObj(obj, name ):
+        with open( name + '.pkl', 'wb') as f:
+            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+    
+    @staticmethod
+    def loadObj(name ):
+        with open(name + '.pkl', 'rb') as f:
+            return pickle.load(f)
 
 class PAPI():
     """
@@ -1690,6 +1695,89 @@ class AttrDict(dict):
 
     def toDict(self):
         return dict( (k, v) for k,v in self.items() )
+
+class Iterators():
     
+    def __init__(self, world):
+        
+        self.world      = world
+        self.__nodeDict = world.returnNodeDict()
+        self.types      = world.types
+        
+        self.custonIterators = dict()
+        
+    def byNodesType(self, nodeTypeID=None,ghosts = False):
+        """
+        Iteration over entities of specified type. Default returns
+        non-ghosts in random order.
+        """
+        if isinstance(nodeTypeID,str):
+            nodeTypeID = self.types.index(nodeTypeID)
+    
+        if ghosts:
+            nodeList = self.__ghostNodeDict[nodeTypeID]
+        else:
+            nodeList = self.__nodeDict[nodeTypeID]
+
+        return  [self.__entDict[i] for i in nodeList]
+    
+    def byLocalID(self, localIDs=None):
+        nodeList = localIDs
+        return  [self.__entDict[i] for i in nodeList]
+
+    def byFilter(self, nodeTypeID, attr, operator, value = None, compareAttr=None):
+        """
+        Method for quick filtering nodes according to comparison of attributes
+        allowed operators are:
+            "lt" :'less than <
+            "elt" :'less or equal than <=
+            "gt" : 'greater than >
+            "egt" : 'greater or equal than >=
+            "eq" : 'equal ==
+        Comparison can be made to values or another attribute
+        """
+        
+        # get comparison value
+        if compareAttr is None:
+            compareValue = value
+        elif value is None:
+            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[nodeTypeID])
+        
+        # get values of all nodes
+        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[nodeTypeID])
+        
+        if operator=='lt':
+            boolArr = values < compareValue    
+            
+        elif operator=='gt':
+            boolArr = values > compareValue    
+            
+        elif operator=='eq':
+            boolArr = values == compareValue    
+            
+        elif operator=='elt':
+            boolArr = values <= compareValue    
+            
+        elif operator=='egt':
+            boolArr = values >= compareValue    
+            
+        lnIDs = np.where(boolArr)[0] + (self.maxNodes * nodeTypeID)
+        
+        return lnIDs
+
+    def customList(self, iterIdentifcation):
+        
+        return self.customIterators[iterIdentifcation]
+    
+    def createCustomList(self, name):
+        pass
+    
+    def appendToCustomList(self, agent):
+        self.customIterators[iterIdentifcation].append(agent)
+        
+    def removeFromCustomList(self, agent):
+        self.customIterators[iterIdentifcation].append(agent)
+    
+        
 if __name__ == '__main__':
     pass
