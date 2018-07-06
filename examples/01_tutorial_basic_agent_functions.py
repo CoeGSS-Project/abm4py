@@ -18,16 +18,15 @@ import h5py
 
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
-sys.path.append('../../lib/')
+sys.path.append('../')
 
-import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
-import core as core
-import tools
+from lib import World, Agent
+import tools_for_01 as tools
 
 #%%
-world = LIB.World(wAgentOutput=False)
+world = World(agentOutput=False)
 #%% register a new agent type with four attributes
-AGENT_ID = world.registerNodeType('agent' , AgentClass=LIB.Agent,
+AGENT_ID = world.registerNodeType('agent' , AgentClass=Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('age', np.int16, 1),
@@ -38,7 +37,7 @@ print(LINK)
 
 #%% create an agent called theodor
 
-theodor = LIB.Agent(world,
+theodor = Agent(world,
                     pos=np.random.randint(0, 50, 2),
                     age = 25,
                     name = 'theodor')    
@@ -46,14 +45,14 @@ theodor = LIB.Agent(world,
 theodor.register(world)
 #%% create an agent called clara
 
-clara = LIB.Agent(world,    
+clara = Agent(world,    
                   pos=  np.random.randint(0, 50, 2),
                   age = 33,
                   name = 'clara')    
     
 clara.register(world)
 #%%create an agent called joana
-joana = LIB.Agent(world,    
+joana = Agent(world,    
                   pos=np.random.randint(0, 50, 2),
                   age = 27 ,
                   name = 'joana')    
