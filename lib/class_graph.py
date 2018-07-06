@@ -112,7 +112,9 @@ class BaseGraph():
 
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
+        ## im nodes dict stehen keine nodes sondern nodeArrays (stf)
         self.nodes          = dict()
+        ## auch im edges dict stehen keine edges (stf)
         self.edges          = dict()
         
         
@@ -161,7 +163,10 @@ class BaseGraph():
 
     def get_lnID(self, nTypeID):
         return self.nodes[nTypeID].nodeList
-    
+
+    ## when I grep for "attributes =" I get the impression that this is never used
+    ## (as only Entity.__init__ calls addNode, beside some test methods)
+    ## also here the kwProps are dropped when attributes are given (stf)
     def addNode(self, nTypeID, attributes=None, **kwProp):
         
         

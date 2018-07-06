@@ -42,6 +42,7 @@ import numpy as np
 
 from class_graph import ABMGraph
 import core
+import types
 
 def assertUpdate(graph, prop, nodeTypeID):
 
@@ -107,7 +108,6 @@ class Entity():
             self.nID = nID
             self.attr, self.dataID = self._graph.getNodeView(nID)
             self.gID = self.attr['gID'][0]
-        
         else:
             self.nID, self.dataID, self.attr = world.addNode(nodeTypeID,  **kwProperties)
             
@@ -279,8 +279,11 @@ class Entity():
 
 
 class Agent(Entity):
-
     def __init__(self, world, **kwProperties):
+        ## this code does not work. If nID is in the kwProperties, Entity.__init__ will fail.
+        ## which implies that we never used this and the code can be removed.
+        ## To test this, you can use 01_bass_network and try to set the nID by yourself
+        ## See also Entity.__init__ comment (stf)
         if 'nID' not in list(kwProperties.keys()):
             nID = -1
         else:
@@ -727,6 +730,15 @@ class World:
         else:
             return self.__enums[enumName]
 
+    def __addIterNodeFunction(self, typeStr, nodeTypeId):
+        name = "iter" + typeStr
+        source = """def %NAME%(self):
+                        return [ self._World__entDict[i] for i in self._World__nodeDict[%NODETYPEID%] ]
+        """.replace("%NAME%", name).replace("%NODETYPEID%", str(nodeTypeId))
+        exec(compile(source, "", "exec"))
+        setattr(self, name, types.MethodType(locals()[name], self))
+
+        
     def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
@@ -759,6 +771,7 @@ class World:
         self.__dataDict[nodeTypeIDIdx]      = list()
         self.__ghostNodeDict[nodeTypeIDIdx] = list()
         self.__ghostDataDict[nodeTypeIDIdx] = list()
+        self.__addIterNodeFunction(typeStr, nodeTypeIDIdx)
 
         return nodeTypeIDIdx
 

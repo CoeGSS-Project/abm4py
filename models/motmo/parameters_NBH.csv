@@ -1,5 +1,5 @@
 name,value,doSweep,minRange,maxRange,comment
-scenario,6,,,,"# selection of the scenario setup"
+scenario,3,,,,"# selection of the scenario setup"
 nSteps,460,,,,"# number of simulation steps"
 burnIn,100,,,,"# number of burn in time steps"
 ioSteps,12,,,,"#number of steps after when the IO writen to file"

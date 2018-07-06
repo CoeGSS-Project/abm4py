@@ -1,12 +1,12 @@
-def calcResults(dakotaResults):
-    years = range(2012, 2018) #2018 is not included
+def calcResults(earth, dakotaResults):
+    years = range(2012, 2018)  # 2018 is not included
     regionIds = earth.getParameter('regionIDList')
 
     def inInterval(data, real, lowFactor, highFactor):
         dataL = data * lowFactor
         dataH = data * highFactor
         return (dataL < real < dataH) * -1
-    
+
     for year in years:
         for regionId in regionIds:
             r = str(regionId)
@@ -28,5 +28,3 @@ def calcResults(dakotaResults):
                                                                                    stocksRec.rec[step, 1],
                                                                                    0.8,
                                                                                    1.2)
-    
-    dakotaResults.write()
