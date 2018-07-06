@@ -2247,9 +2247,10 @@ class Cell(Location):
         popDensity = np.float(self.get('popDensity'))
         for i, funcCall in enumerate(self.convFunctions):
             convAll.append(funcCall(popDensity, parameters, currentMaturity[i], self))
-            
+        
+        homeChargingConv = parameters['homeChargConv']
         #convenience of electric mobility is additionally dependen on the infrastructure
-        convAll[GREEN] *= self.electricInfrastructure()
+        convAll[GREEN] *= homeChargingConv + (self.electricInfrastructure() * (1.-homeChargingConv))
         return convAll
 
     def electricInfrastructure(self, greenMeanCars = None):

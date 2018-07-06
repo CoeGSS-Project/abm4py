@@ -253,22 +253,9 @@ class Entity():
             self.attr[prop][0, idx] += value
 
     def delete(self, world):
-        raise DeprecationWarning('not supported right now')
-        raise NameError('sorry')
-
-        #self._graph.delete_vertices(nID) # not really possible at the current igraph lib
-        # Thus, the node is set to inactive and removed from the iterator lists
-        # This is due to the library, but the problem is general and pose a challenge.
-        world.graph.vs[self.nID]['type'] = 0 #set to inactive
-
-
-        world.deRegisterNode()
-
-        # get all edges - in and out
-        eIDList  = self._graph.incident(self.nID)
-        #set edges to inactive
-        self._graph[eIDList]['type'] = 0
-
+        world.graph.remNode(self.nID)
+        world.deRegisterNode(self, ghost=False)
+        
 
     def register(self, world, parentEntity=None, linkTypeID=None, ghost=False):
         nodeTypeID = world.graph.class2NodeType(self.__class__)
@@ -314,6 +301,12 @@ class Agent(Entity):
         return self.loc.node[prop]
 
 
+    def _moveSpatial(self, newPosition):
+        pass
+        
+    def _moveNormal(self, newPosition):
+        self.attr['pos'] = newPosition
+        
     def move(self):
         """ not yet implemented"""
         pass
@@ -454,7 +447,7 @@ class World:
 
         self.addLink        = self.graph.addLink
         self.addLinks       = self.graph.addLinks
-        self.delLinks       = self.graph.delete_edges
+        self.delLinks       = self.graph.remEdge
 
         self.addNode     = self.graph.addNode
         self.addNodes    = self.graph.addNodes
@@ -824,7 +817,7 @@ class World:
             self.__nodeDict[typ].append(agent.nID)
             self.__dataDict[typ].append(agent.dataID)
 
-    def deRegisterNode(self):
+    def deRegisterNode(self, agent, ghost):
         """
         Method to remove instances of nodes
         -> update of:
@@ -833,15 +826,18 @@ class World:
             - __glob2loc
             - _loc2glob
         """
-        self.__entList[agent.nID] = None
+        self.__entList.remove(agent)
         del self.__entDict[agent.nID]
         del self.__glob2loc[agent.gID]
-        del self.__loc2glob[agent.gID]
-            
-        
-        self.__nodeDict[self.nodeTypeID].remove(agent.nID)
-        self.__dataDict[self.nodeTypeID].remove(agent.dataID)
-
+        del self.__loc2glob[agent.nID]
+        nodeTypeID =  self.graph.class2NodeType(agent.__class__)
+        if ghost:
+            self.__ghostNodeDict[nodeTypeID].remove(agent.nID)
+            self.__ghostDataDict[nodeTypeID].remove(agent.dataID)
+        else:
+            self.__nodeDict[nodeTypeID].remove(agent.nID)
+            self.__dataDict[nodeTypeID].remove(agent.dataID)
+            #print(self.__nodeDict[nodeTypeID])
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
         Creation of of a new record instance. 

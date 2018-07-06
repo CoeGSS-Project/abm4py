@@ -217,18 +217,25 @@ class BaseGraph():
         if kwAttr is not None:
             for attrKey in list(kwAttr.keys()):
                 nType[attrKey][dataIDs] = kwAttr[attrKey]
-                
-        return [dataID + nTypeID * self.maxNodes for dataID in dataIDs]
+        lnIDs = [dataID + nTypeID * self.maxNodes for dataID in dataIDs]  
+        nType.nodeList.extend(lnID)
+        return lnIDs
 
     def remNode(self, lnID):
-        raise DeprecationWarning('not supported right now')
-        raise NameError('sorry')
-        nTypeID = self.getNodeType(lnID)
-        dataID = lnID - nTypeID * self.maxNodes
-        self.freeNodeRows.append(dataID)
-        self.nodes[dataID]['acive','gnID'] = (False, -1)
-        self.nDict[nTypeID].remove(lnID)
+        #raise DeprecationWarning('not supported right now')
+        #raise NameError('sorry')
+        nodeTypeID, dataID = self.getNodeDataRef(lnID)
+        #dataID = lnID - nTypeID * self.maxNodes
+        #print(dataID)
+        self.nodes[nodeTypeID].freeRows.append(dataID)
+        self.nodes[nodeTypeID][['active','gID']][dataID] = (False, -1)
+        self.nodes[nodeTypeID].nodeList.remove(lnID)
     
+        for eTypeID in self.edges.keys():
+            (_, targets) = self.outgoing(lnID, eTypeID)
+            [self.remEdge(eTypeID, lnID, target) for target in targets]
+            (_, sources) = self.incomming(lnID, eTypeID)
+            [self.remEdge(eTypeID, source, lnID) for source in sources]
     
     def isNode(self, lnIDs):
         """
@@ -283,7 +290,9 @@ class BaseGraph():
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
         label is a either string or list of strings
-        """        
+        """     
+        if lnIDs==[]:
+            return None
         if nTypeID is None:
             nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
@@ -319,7 +328,8 @@ class BaseGraph():
         return  eTypeID, dataID
     
     def get_leID(self, source, target, eTypeID):
-        return self.eges[eTypeID].eDict[(source, target)]
+        print ((source, target))
+        return self.edges[eTypeID].eDict[(source, target)]
 
     def addLink(self, eTypeID, source, target, attributes = None):
         """ 
@@ -424,7 +434,7 @@ class BaseGraph():
             for attrKey in list(kwAttr.keys()):
                 eType[attrKey][dataIDs] = kwAttr[attrKey]
 
-    def remEdge(self, source, target, eTypeID):
+    def remEdge(self, eTypeID, source, target):
         
         eType = self.edges[eTypeID]
         
@@ -602,11 +612,11 @@ class ABMGraph(BaseGraph):
         return info
             
 
-    def delete_edges(self, source, target, eTypeID):
-        """ overrides graph.delete_edges"""
-        edgeIDs = self.get_leID(source, target, eTypeID)
-
-        self.remEdge(edgeIDs) # set to inactive
+#    def delete_edges(self, source, target, eTypeID):
+#        """ overrides graph.delete_edges"""
+#        edgeIDs = self.get_leID(source, target, eTypeID)
+#
+#        self.remEdge(edgeIDs) # set to inactive
 
 
     def getOutNodeValues(self, lnID, eTypeID, attr=None):
