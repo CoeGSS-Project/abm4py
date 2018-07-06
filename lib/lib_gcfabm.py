@@ -78,16 +78,26 @@ class Entity():
     Most basic class from which agents of different type are derived
     """
     __slots__ = ['gID', 'nID']
-    
 
+    # In the case that nID is not -1, then the kwProperties are dropped, which
+    # seems strange. From grepping the code I have the impression that
+    # nID is set to None for Ghost stuff (see GhostPerson in classes_motmo),
+    # so maybe this is intented (but why is then the default value of nID = -1
+    # for the GhostAgent?) (stf)
     def __init__(self, world, nID = -1, **kwProperties):
         if world is None:
             return
+        # self.__setattr__ = self.___setattr___
                 
         nodeTypeID =  world.graph.class2NodeType(self.__class__)
-        
-        if not hasattr(self, '_graph'):
-            self._setGraph(world.graph)
+
+        ## In combination with the __getattr__ method, hasattr throws a KeyError,
+        ## so I changed this check (stf):
+        # try:
+        #     hasattr(self, '_graph')
+        # except KeyError:
+        # self.attr = np.array([], dtype=[('foofoo', 'i4')])
+        self._setGraph(world.graph)
 
         self.gID    = self.getGlobID(world)
         kwProperties['gID'] = self.gID
@@ -106,7 +116,24 @@ class Entity():
         self.get = firstElementDeco(self.attr.__getitem__)
         self.set = self.attr.__setitem__
         self.__getNode = world.getNode
-    
+
+    def __getattr__(self, a):
+        return self.attr[a][0]
+
+    def __getitem__(self, a):
+        return self.attr.__getitem__(a)[0]
+
+    def __setitem__(self, a, value):
+        self.attr.__setitem__(a, value)
+    #     self.attr[a] = value
+
+    def __setattr__(self, a, value):
+        try:
+            self.attr[a] = value
+        except:
+            object.__setattr__(self, a, value)
+        
+
     @classmethod
     def _setGraph(cls, graph):
         """ Makes the class variable _graph available at the first init of an entity"""
