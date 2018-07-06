@@ -67,7 +67,7 @@ class PlotClass():
                 pos = positions[agent.dataID]
                 
                 peerDataIDs     = np.asarray(agent.getPeerIDs(LI_AA)) - (world.maxNodes * AGENT)
-                peerPositions = positions[peerDataIDs]
+                peerPositions   = positions[peerDataIDs]
                 for peerPos in peerPositions:
                     
                     linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])

@@ -33,7 +33,7 @@ home = os.path.expanduser("~")
 sys.path.append('../..')
 
 #import the gcf abm library and core components
-import lib as LIB # basic interface
+from  lib import Agent, World # basic interface
 from lib import core
 import tools
 
@@ -54,11 +54,35 @@ DO_PLOT  = True     # decides whether to lateron plot the results or not
 BLUE = [0,0,1,1]
 RED  = [1,0,0,1]
 
+#%% NEW AGENT CLASS DEFINTION
+class Person(Agent):
+
+    def __init__(self, world, **kwAttr):
+        #print(kwAttr['pos'])
+        Agent.__init__(self, world, **kwAttr)
+
+
+    def createSocialNetwork(self, world):
+        
+        #opt1
+        #distance = np.sum((positions - self.attr['pos'])**2,axis=1)
+        
+        #opt2
+        distance = np.abs((innovationVal - self.attr['inno'])**4)
+        
+        # normalizing
+        weights = np.divide(1.,distance, out=np.zeros_like(distance), where=distance!=0)
+        weights = weights / np.sum(weights)
+        
+        
+        friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
+        [self.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
 
 # initialization of the world instance, with no 
-world = LIB.World(simNo,
+world = World(simNo,
               outputPath,
               spatial=True,
               nSteps=N_STEPS,
@@ -67,7 +91,7 @@ world = LIB.World(simNo,
               debug=DEBUG)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
+AGENT = world.registerNodeType('agent' , AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -108,7 +132,7 @@ for iAgent in range(N_AGENTS):
 
     # The init of LIB.Agent requires either the definition of all attributes 
     # that are registered (above) or none.
-    agent = LIB.Agent(world,
+    agent = Person(world,
                       pos=(x, y),
                       switch = 0,
                       color = BLUE,
@@ -139,30 +163,12 @@ innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 # For a fixed agent this function assigns weights to all other agents 
 # either by option 1 via proximity in position or by option 2 via proximity
 # in innovation values.
-def network_creation(agent, world):
-    
-    #opt1
-    #weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
-    
-    #opt2
-    weig = np.abs((innovationVal - agent.attr['inno'])**4)
-    
-    # normalizing
-    weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
-    weig = weig / np.sum(weig)
-    
-    return weig
+
  
 # This loop then executes the choice of friends for every agent by picking 
 # from the agent list according to the probability weights calculated by the 
-# function above    
-for agent in world.iterNodes(AGENT):
-    
-    weights = network_creation(agent, world)
-    
-    friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
-    
-    [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+# function above     
+[agent.createSocialNetwork(world) for agent in world.iterNodes(AGENT)]
     
 
     

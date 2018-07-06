@@ -21,6 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 #%% load modules
+import sys 
 import os
 import numpy as np
 import time
@@ -30,8 +31,10 @@ import h5py
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 
+sys.path.append('../..')
+
 #import the gcf abm library and core components
-import lib as LIB # basic interface
+from lib import Agent, Location, World # basic interface
 from lib import core
 import tools
 
@@ -54,11 +57,48 @@ DO_PLOT  = True     # decides whether to lateron plot the results or not
 BLUE = plt.get_cmap('Blues')(.3)
 RED  = plt.get_cmap('RdPu_r')(.1)
 
+
+#%% NEW AGENT CLASS DEFINTION
+class Person(Agent):
+
+    def __init__(self, world, **kwAttr):
+        #print(kwAttr['pos'])
+        Agent.__init__(self, world, **kwAttr)
+
+
+    def createSocialNetwork(self, world):
+        
+        #opt1
+        #distance = np.sum((positions - self.attr['pos'])**2,axis=1)
+        
+        #opt2
+        distance = np.abs((innovationVal - self.attr['inno'])**4)
+        
+        # normalizing
+        weights = np.divide(1.,distance, out=np.zeros_like(distance), where=distance!=0)
+        weights = weights / np.sum(weights)
+        
+        
+        friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
+        [self.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+
+    ##############################################
+    # change the propertyToPreference function so 
+    # that is relies on the properties
+    
+    def propertyToPreference(self, age, gender, income, hhType): 
+        
+        self.attr['inno'] = random.random() * INNOVATION
+        self.attr['imit'] = random.normalvariate(IMITATION,2 ) 
+        
+
+##############################################
+        
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
 
 # initialization of the world instance, with no 
-world = LIB.World(simNo,
+world = World(simNo,
               outputPath,
               spatial=True,
               nSteps=N_STEPS,
@@ -67,7 +107,7 @@ world = LIB.World(simNo,
               debug=DEBUG)
 
 # register the first AGENT typ and save the numeric type ID as constant
-CELL = world.registerNodeType('cell' , AgentClass=LIB.Location,
+CELL = world.registerNodeType('cell' , AgentClass=Location,
                               staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -75,7 +115,7 @@ CELL = world.registerNodeType('cell' , AgentClass=LIB.Location,
                               dynamicProperties = [('fraction', np.int16, 1)])
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
+AGENT = world.registerNodeType('agent' , AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('age',  np.int16, 1),
@@ -101,7 +141,7 @@ for x in range(populationMap.shape[0]):
     for y in range(populationMap.shape[1]):
         
         if not np.isnan(populationMap[x,y]):
-            cell = LIB.Location(world,
+            cell = Location(world,
                           pos=(x, y),
                           fraction=0,
                           nAgents=max(1,np.int(populationMap[x,y])))
@@ -111,7 +151,7 @@ for x in range(populationMap.shape[0]):
 
 # %%create location network
 connBluePrint = world.spatial.computeConnectionList(radius=2.5)
-world.spatial.connectLocations(IDArray, connBluePrint, LI_CC)
+world.spatial.connectLocations(IDArray, connBluePrint, LI_CC, CELL)
 
 if True:
     #%%
@@ -131,18 +171,7 @@ locDict = world.getLocationDict()
 currIdx = 0
 
 
-##############################################
-# change the propertyToPreference function so 
-# that is relies on the properties
 
-def propertyToPreference(age, gender, income, hhType):
-    
-    inno = random.random() * INNOVATION
-    imit = random.normalvariate(IMITATION,2 ) 
-    
-    return inno, imit
-
-##############################################
 
 for xLoc, yLoc in list(locDict.keys()):  
     loc = world.getNodeBy.location(xLoc, yLoc)
@@ -158,7 +187,7 @@ for xLoc, yLoc in list(locDict.keys()):
         income  = personData[currIdx, H5_INCOME]
         hhType  = personData[currIdx, H5_HHTYPE]
     
-        inno, imit = propertyToPreference(age, gender, income, hhType)
+        
         
         ##############################################
         #create all agents with properties
@@ -174,16 +203,18 @@ for xLoc, yLoc in list(locDict.keys()):
 
         # The init of LIB.Agent requires either the definition of all attributes 
         # that are registered (above) or none.
-        agent = LIB.Agent(world,
+        agent = Person(world,
                           pos=(x, y),
                           switch = 0,
                           color = BLUE,
-                          imit = imit,
-                          inno = inno,
+                          imit = np.nan,
+                          inno = np.nan,
                           nPers =nPers,
                           age = age,
                           income = income,
                           gender = gender)
+        
+        agent.propertyToPreference(age, gender, income, hhType)
         ##############################################
     
         # after the agent is created, it needs to register itself to the world
