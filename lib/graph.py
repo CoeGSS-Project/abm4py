@@ -558,6 +558,7 @@ class ABMGraph(BaseGraph):
         else:
             self.persitentAttributes = ['active']
             self.persitentValues     = False
+    
     def addNodeType(self, 
                     nodeTypeIDIdx, 
                     typeStr, 

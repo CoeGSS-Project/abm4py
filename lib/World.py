@@ -39,8 +39,7 @@ class World:
                  debug=False,
                  mpiComm=None,
                  agentOutput=False):
-        
-        # determines if the frameworks runs in parallel or not
+
         if mpiComm is None:
             self.isParallel = False
             self.isRoot     = True
@@ -48,24 +47,31 @@ class World:
             self.isParallel = mpiComm.size > 1
             self.mpiRank = core.mpiRank
             self.mpiSize = core.mpiSize
-        
             if self.isParallel:
-                # agent passing interface for communication between parallel processes
-                self.papi = core.PAPI(self)
-                self.__glob2loc = dict()  # reference from global IDs to local IDs
-                self.__loc2glob = dict()  # reference from local IDs to global IDs
-
-                # generator for IDs that are globally unique over all processe
-                self.globIDGen = self._globIDGen()
-                
-                lg.debug('Init MPI done')##OPTPRODUCTION
-                
                 if self.mpiRank == 0:
                     self.isRoot = True
                 else:
                     self.isRoot = False
             else:
                 self.isRoot = False
+                
+        # ======== GRAPH ========
+        self.graph    = ABMGraph(self, maxNodes, maxLinks)
+        
+        # determines if the frameworks runs in parallel or not
+        
+        
+        # agent passing interface for communication between parallel processes
+        self.papi = core.PAPI(self)
+        self.__glob2loc = dict()  # reference from global IDs to local IDs
+        self.__loc2glob = dict()  # reference from local IDs to global IDs
+
+        # generator for IDs that are globally unique over all processe
+        self.globIDGen = self._globIDGen()
+        
+        lg.debug('Init MPI done')##OPTPRODUCTION
+                
+                
           
         self.para      = dict()
         self.para['outPath'] = outPath # is not graph, move to para
@@ -95,8 +101,6 @@ class World:
         
         
         
-        # ======== GRAPH ========
-        self.graph    = ABMGraph(self, maxNodes, maxLinks)
         
         # ======== GLOBALS ========
         # storage of global data

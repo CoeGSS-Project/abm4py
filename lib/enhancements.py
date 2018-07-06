@@ -17,19 +17,34 @@ class Parallel():
     def __init__(self, world, nID = -1, **kwProperties):
         
         # adding properties to the attributes
-        kwProperties['gID'] = self.gID
+        self.gID = self.getGlobID(world)
+        #kwProperties['gID'] = self.gID
+        
+        self.attr['gID'] = self.gID
         
         # if nID is -1, the agent is generated emtpy and receives its properties
         # and IDs later by mpi communication
-        if nID is not -1:
-            self.nID = nID
-            self.attr, self.dataID = self._graph.getNodeView(nID)
-            self.mpiOwner =  int(world.mpiRank)
+#        if nID is not -1:
+#            self.nID = nID
+#            self.attr, self.dataID = self._graph.getNodeView(nID)
+#            self.mpiOwner =  int(world.mpiRank)
+#            self.mpiOwner = int(world.mpiRank)
+        self.mpiPeers = list()
 
     def getGlobID(self,world):
         return next(world.globIDGen)
-
-
+# from location
+#    def registerChild(self, world, entity, linkTypeID=None):
+#        world.addLink(linkTypeID, self.nID, entity.nID)
+#        entity.loc = self
+#
+#        if len(self.mpiPeers) > 0: # node has ghosts on other processes
+#            for mpiPeer in self.mpiPeers:
+#                #print 'adding node ' + str(entity.nID) + ' as ghost'
+#                nodeTypeID = world.graph.class2NodeType(entity.__class__)
+#                world.papi.queueSendGhostNode( mpiPeer, nodeTypeID, entity, self)
+#
+#        return self.mpiPeers
 
     def registerChild(self, world, entity, linkTypeID):
         """
@@ -48,30 +63,39 @@ class Parallel():
         return self.mpiPeers
 
 
-class Neigbourhood():
+class Neighborhood():
     """
     This enhancement allows agents to iterate over neigboring instances and thus
     funtion as collectives of agents. 
     """
     def __init__(self, world, nID = -1, **kwProperties):
         self.__getNode = world.getNode
-        self.neigborhood = dict()
+        self.Neighborhood = dict()
     
-    def getNeigbor(self, peerID):
+    def getNeighbor(self, peerID):
         return self.__getNode(nodeID=peerID)
     
-    def reComputeNeigborhood(self, linkTypeID):
-        self.neigborhood[linkTypeID] = [self.getNeigbor(ID) for ID in self.getPeerIDs(linkTypeID)]
+    def reComputeNeighborhood(self, linkTypeID):
+        self.Neighborhood[linkTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(linkTypeID)]
         
-    def iterNeigborhood(self, linkTypeID):
-        return iter(self.neigborhood[linkTypeID])
+    def iterNeighborhood(self, linkTypeID):
+        return iter(self.Neighborhood[linkTypeID])
         
-class Moveable():
+class Mobil():
+    """
+    This enhancemement allows agents to move in the spatial domain. Currently
+    this does not work in the parallel version
+    """
+    
     
     def __init__(self, world, nID = -1, **kwProperties):
         # assert that position is declated as an agents attribute, since 
         # moving relates to the 'pos' attribute
         #TODO can be made more general"
+        
+        if world.isParallel:
+            raise(BaseException('Mobil agents are not working in parallel'))
+            
         assert 'pos' in kwProperties.keys()
         
     def _moveSpatial(self, newPosition):

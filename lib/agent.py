@@ -24,9 +24,9 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .base_agent import BaseAgent, Entity
-from .enhancements import Moveable, Parallel
+from .enhancements import Mobil, Parallel
 
-class Agent(BaseAgent, Moveable):
+class Agent(BaseAgent, Mobil):
     """
     The most common agent type derives from the BaseAgent and additionally
     receives the abilty to move
@@ -50,9 +50,18 @@ class GhostAgent(Entity, Parallel):
     the methods to act themselves.
     """
     def __init__(self, world, mpiOwner, nID=-1, **kwProperties):
+        
         Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner = int(mpiOwner)
-
+        
+        self._setGraph(world.graph)
+        
+        if nID is not -1:
+            self.nID = nID
+            self.attr, self.dataID = self._graph.getNodeView(nID)
+        self.gID = self.attr['gID'][0]
+        
+        
     def register(self, world, parentEntity=None, linkTypeID=None):
         Entity.register(self, world, parentEntity, linkTypeID, ghost=True)
         

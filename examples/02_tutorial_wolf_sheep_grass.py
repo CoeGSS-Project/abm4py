@@ -22,7 +22,7 @@ home = os.path.expanduser("~")
 sys.path.append('../')
 
 import lib as LIB #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Neigbourhood, Collective
+from lib.enhancements import Neighborhood, Collective
 from lib import core
 
 import tools_for_02 as tools
@@ -37,12 +37,11 @@ W_WOLF = 4.  # Reproduction weight for wolves
 APPETITE = .30  # Percentage of grass height that sheep consume
 
 #%% Sheep class
-class Grass(LIB.Location, Neigbourhood, Collective):
+class Grass(LIB.Location, Collective):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
-        Neigbourhood.__init__(self, world, **kwAttr)
+        LIB.Location.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         
     def add(self, value):
@@ -61,8 +60,8 @@ class Grass(LIB.Location, Neigbourhood, Collective):
         
         
         if self.attr['height'] < 0.1:
-            for neigLoc in self.iterNeigborhood(ROOTS):
-                if neigLoc.attr['height'] > 0.7:
+            for neigLoc in self.iterNeighborhood(ROOTS):
+                if neigLoc.attr['height'] > 0.9:
                     self.attr['height'] += 0.05
                     
                     if self.attr['height'] > 0.1:
@@ -296,7 +295,7 @@ connBluePrint = world.spatial.computeConnectionList(radius=1.5)
 world.spatial.connectLocations(IDArray, connBluePrint, ROOTS, Grass)
 
 for grass in world.iterNodes(GRASS):
-    grass.reComputeNeigborhood(ROOTS)
+    grass.reComputeNeighborhood(ROOTS)
 
 del grass
 

@@ -1190,7 +1190,7 @@ class Person(Agent, Parallel):
     
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
-        
+        Parallel.__init__(self, world, **kwProperties)
 
     def isAware(self, mobNewPeriod):
         # method that returns if the Persion is aktively searching for information
@@ -1559,7 +1559,7 @@ class Household(Agent, Parallel):
         
     def __init__(self, world, **kwProperties):
         Agent.__init__(self, world, **kwProperties)
-
+        Parallel.__init__(self, world, **kwProperties)
 
         if world.getParameter('util') == 'cobb':
             self.utilFunc = cobbDouglasUtilNumba
@@ -2169,6 +2169,7 @@ class Cell(Location, Parallel):
     def __init__(self, earth,  **kwProperties):
         kwProperties.update({'population': 0, 'convenience': [0.,0.,0.,0.,0.], 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
+        Parallel.__init__(self, earth, **kwProperties)
         self.hhList = list()
         self.peList = list()
         self.carsToBuy = 0

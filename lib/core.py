@@ -1431,7 +1431,7 @@ class PAPI():
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             #print owner
-            x,y   = ghLoc.get('pos')
+            x,y   = ghLoc.attr['pos'][0]
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
                 self.mpiRecvIDList[(locNodeType, owner)] = list()
@@ -1502,7 +1502,7 @@ class PAPI():
             lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
             for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
-                #print nID, gID
+                print(nID, gID)
                 self.world.setGlob2Loc(gID, nID)
                 self.world.setLoc2Glob(nID, gID)
             #self.world.papi.comm.Barrier()

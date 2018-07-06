@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-from .enhancements import Parallel, Moveable, Collective
+from .enhancements import Parallel, Mobil, Collective
 
 def firstElementDeco(fun):
     """ 
@@ -42,9 +42,11 @@ class Entity():
         #  the nodeTypeID is derived from the agent class and stored        
         self.nodeTypeID =  world.graph.class2NodeType(self.__class__)
 
-        # create instance from existing node 
-        self.nID, self.dataID, self.attr = world.addNode(self.nodeTypeID,  **kwProperties)    
-        self._setGraph(world.graph)
+        # create new node in the graph
+        if nID == -1:
+            self.nID, self.dataID, self.attr = world.addNode(self.nodeTypeID,  **kwProperties)    
+            self._setGraph(world.graph)
+            #print(self.attr['gID'][0])
         
         
     @classmethod
@@ -54,7 +56,7 @@ class Entity():
 
     def register(self, world, parentEntity=None, linkTypeID=None, ghost=False):
         
-        world.registerNode(self, self.nodeTypeID, ghost=False)
+        world.registerNode(self, self.nodeTypeID, ghost=ghost)
 
         if parentEntity is not None:
             self.mpiPeers = parentEntity.registerChild(world, self, linkTypeID)
