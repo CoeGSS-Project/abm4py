@@ -146,6 +146,72 @@ class Entity():
         else:
             return self.attr[0,key].view()
 
+    def setAttrsForType(self, nodesTypeID, func):
+        """
+        This function allows to manipulate the underlaying np.array directly, e.g.
+        to change the attributes of all agents of a given type in a more performant way
+        then with a python loop of for comprehension.
+
+        func is a function that gets an (structured) np.array, and must return an array with the 
+        dimensions.
+
+        Use case: Increase the age for all agents by one:
+        setAttrsForType(AGENT, lambda a: a['age'] += 1)
+
+        see also: setAttrsForFilteredType/Array
+        """    
+        array = self.graph.nodes[nodesTypeID]
+        mask = (array['active'] == True) 
+        array[mask] = func(array[mask])
+
+    def setAttrsForFilteredType(nodesTypeID, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of the underlaying np.array directly. The 
+        subset is formed by the filterFunc.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length.
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying:
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, lambda a: a['alive'] = False)
+
+        see also: setAttrForType and setAttrsForFilteredArray
+        """    
+        array = self.graph.nodes[nodesTypeID]
+        mask = (array['active'] == True) & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+    def setAttrsForFilteredArray(array, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of a given np.array directly. The 
+        subset is formed by the filterFunc. That the array is given to the function explicitly 
+        allows to write nested filters, but for most usecases setFilteredAttrsForType should
+        be good enough.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length.
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
+
+        def heavenOrHell(array):
+            setAttrsForFilteredArray(array, lambda a: a['karma'] > 10 , lambda a: a['heaven'] = True)
+            array['alive'] = False
+            return array
+
+    setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
+
+    see also: setAttrForType and setAttrsForFilteredType
+        """    
+        mask = (array['active'] == True) & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+        
     def getPeer(self, peerID):
         return self.__getNode(nodeID=peerID)
     
@@ -724,14 +790,14 @@ class World:
             return self.__enums[enumName]
 
     def __addIterNodeFunction(self, typeStr, nodeTypeId):
-        name = "iter" + typeStr
+        name = "iter" + typeStr.capitalize()
         source = """def %NAME%(self):
                         return [ self._World__entDict[i] for i in self._World__nodeDict[%NODETYPEID%] ]
         """.replace("%NAME%", name).replace("%NODETYPEID%", str(nodeTypeId))
         exec(compile(source, "", "exec"))
         setattr(self, name, types.MethodType(locals()[name], self))
 
-        
+
     def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
@@ -748,7 +814,8 @@ class World:
         
         # type is an required property
         #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
-        
+
+        # add properties we need for the framework (like gID) automatically (stf)
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 
