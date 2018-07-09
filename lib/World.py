@@ -281,9 +281,9 @@ class World:
             return self.__entDict[self.__glob2loc[globID]]
         elif nodeTypeID is not None:
             if ghosts:
-                return self.__ghostNodeDict[nodeTypeID]
+                return  [self.__entDict[agentID] for agentID in self.__ghostNodeDict[nodeTypeID]]
             else:
-                return self.__nodeDict[nodeTypeID]
+                return [self.__entDict[agentID] for agentID in self.__nodeDict[nodeTypeID]]
 
     def filterNodes(self, nodeTypeID, attr, operator, value = None, compareAttr=None):
         """

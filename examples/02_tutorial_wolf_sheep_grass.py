@@ -21,8 +21,8 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
 
-import lib as LIB #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Neighborhood, Collective
+from lib import World, Agent #, GhostAgent, World,  h5py, MPI
+from lib.enhancements import Neighborhood, Collective, Mobil
 from lib import core
 
 import tools_for_02 as tools
@@ -77,15 +77,15 @@ class Grass(LIB.Location, Collective):
                     
        #if neigLoc in self.groups['rooted'] and neigLoc.attr['height'] < 0.1:
            
-class Sheep(LIB.Agent):
+class Sheep(Agent, Mobil):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
-        
+        Agent.__init__(self, world, **kwAttr)
+        Mobil.__init__(self, world, **kwAttr)
 
     def register(self,world):
-        LIB.Agent.register(self, world)
+        Agent.register(self, world)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
@@ -118,12 +118,14 @@ class Sheep(LIB.Agent):
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
         
-        self.attr['pos'] = [ newX, newY]
-        world.delLinks(LINK_SHEEP, self.nID, self.loc.nID)
-        world.delLinks(LINK_SHEEP, self.loc.nID, self.nID)
-        self.loc =  locDict[( newX, newY)]
-        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
-        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
+#        self.attr['pos'] = [ newX, newY]
+#        world.delLinks(LINK_SHEEP, self.nID, self.loc.nID)
+#        world.delLinks(LINK_SHEEP, self.loc.nID, self.nID)
+#        self.loc =  locDict[( newX, newY)]
+#        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
+#        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
+        
+        Mobil.move(self, newX, newY, LINK_SHEEP)
         self.attr['weight'] -= .1
         
     def step(self, world):
@@ -147,15 +149,15 @@ class Sheep(LIB.Agent):
         elif self.attr['weight'] < 0:
             self.delete(world)        
         
-class Wolf(LIB.Agent):
+class Wolf(Agent):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Agent.__init__(self, world, **kwAttr)
 
 
     def register(self,world):
-        LIB.Agent.register(self, world)
+        Agent.register(self, world)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
@@ -222,10 +224,10 @@ class Wolf(LIB.Agent):
             self.delete(world)
             wolfPack.leave('wolfs',self)
 
-class WolfPack(LIB.Agent, Collective):
+class WolfPack(Agent, Collective):
     
     def __init__(self, world, **kwAttr):
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Agent.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         
         self.registerGroup('wolfs', [])
@@ -334,7 +336,7 @@ plott = tools.PlotClass(world)
 iStep = 0
 while True:
     iStep +=1
-    
+    tt = time.time()
     # Every five steps the grass grows.
     if iStep%5 == 0:
         
@@ -369,5 +371,6 @@ while True:
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
     nHunting = np.sum(world.getNodeAttr('weight', nodeTypeID=WOLF) <1.0)        
-    print(str(world.nNodes(SHEEP)) + ' - ' + str(world.nNodes(WOLF)) + '(' + str(nHunting) + ')')
+    print(str(time.time() - tt) + ' s')
+    #print(str(world.nNodes(SHEEP)) + ' - ' + str(world.nNodes(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

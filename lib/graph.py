@@ -380,9 +380,10 @@ class BaseGraph():
         Method to create serveral edges at once
         Attribures are given as list or array per key word
         """
-        
+        if sources == []:
+             raise(BaseException('Empty list given'))
         if not (self.isNode(sources)) or not( self.isNode(targets)):
-            raise('Nodes do not exist')
+            raise(BaseException('Nodes do not exist'))
         
         nEdges = len(sources)
         

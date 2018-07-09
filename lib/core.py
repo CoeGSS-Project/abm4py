@@ -300,6 +300,47 @@ def convertStr(string):
         except:
             return string
 
+def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
+    import matplotlib.pyplot as plt
+    from matplotlib import collections  as mc
+    linesToDraw = list()
+    positions = world.getNodeAttr('pos', nodeTypeID=agentTypeID)
+    
+    #print(nAgents)
+    plt.figure('graph')
+    plt.clf()
+    ax = plt.subplot(111)
+    if linkTypeID is not None:
+        for agent in world.iterNodes(agentTypeID):
+            pos = agent.attr['pos'][0]
+            
+            
+            
+            
+            
+            peerDataIDs   = np.asarray(agent.getPeerIDs(linkTypeID)) - world.maxNodes
+            if len(peerDataIDs)> 0:
+                peerPositions = positions[peerDataIDs]
+                for peerPos in peerPositions:
+                    
+                    linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
+        lc = mc.LineCollection(linesToDraw, colors='b', lw=.1, zorder=1) 
+        ax.add_collection(lc)
+        ax.autoscale()
+    if attrLabel is not None:
+        values = world.getNodeAttr(attrLabel, nodeTypeID=agentTypeID)
+        #values = values / np.max(values)
+        #print(values)
+        plt.scatter(positions[:,0], positions[:,1], s = 25, c = values,zorder=2)
+        plt.colorbar()
+    else:
+        plt.scatter(positions[:,0], positions[:,1], s = 25, zorder=2)
+    
+    
+    ax.margins(0.1)      
+    plt.tight_layout()  
+    
+    plt.draw()
 
 
 

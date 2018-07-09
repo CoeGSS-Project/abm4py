@@ -98,15 +98,29 @@ class Mobil():
             
         assert 'pos' in kwProperties.keys()
         
-    def _moveSpatial(self, newPosition):
-        pass
+        self._setLocationDict(world.getLocationDict())
         
-    def _moveNormal(self, newPosition):
-        self.attr['pos'] = newPosition
+    def move(self, newX, newY, spatialLinkTypeID):
+        self.attr['pos'] = [ newX, newY]
+        self.remLink(friendID=self.loc.nID, linkTypeID=spatialLinkTypeID)
+        self.loc.remLink(self.nID, linkTypeID=spatialLinkTypeID)
         
-    def move(self):
-        """ not yet implemented"""
-        pass
+        self.loc = self.locDict[( newX, newY)]
+        
+        self.addLink(friendID=self.loc.nID, linkTypeID=spatialLinkTypeID)
+        self.loc.addLink(self.nID, linkTypeID=spatialLinkTypeID)
+
+    @classmethod
+    def _setLocationDict(cls, locDict):
+        """ Makes the class variable _graph available at the first init of an entity"""
+        cls.locDict = locDict
+                
+#    def _moveNormal(self, newPosition):
+#        self.attr['pos'] = newPosition
+#        
+#    def move(self, newPosition, spatialLinkTypeID):
+#        """ not yet implemented"""
+#        pass
 
 class Collective():
     """
