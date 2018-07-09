@@ -200,7 +200,7 @@ class Earth(World):
                             style='plot')
 
 
-    def generateSocialNetwork(self, nodeTypeID, linkTypeID):
+    def generateSocialNetwork(self, agTypeID, liTypeID):
         """
         Function for the generation of a simple network that regards the
         distance between the agents and their similarity in their preferences
@@ -210,7 +210,7 @@ class Earth(World):
         targetList = list()
         weigList  = list()
         populationList = list()
-        for agent in self.random.iterNodes(nodeTypeID):
+        for agent in self.random.iterNodes(agTypeID):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
             ttx = time.time()
@@ -221,11 +221,11 @@ class Earth(World):
             weigList += weights
             populationList.append(agent.loc.attr['population'])
         
-        timePerAgent =  (time.time() - tt ) / self.nNodes(nodeTypeID)
+        timePerAgent =  (time.time() - tt ) / self.nAgents(agTypeID)
         print('Average generation time per agent: {:3.4f}'.format(timePerAgent))
         
         ttx = time.time()
-        self.addLinks(eTypeID=linkTypeID, sources=sourceList, targets=targetList, weig=weigList)
+        self.addLinks(eTypeID=liTypeID, sources=sourceList, targets=targetList, weig=weigList)
         lg.info( 'Connections added in -- ' + str( time.time() - ttx) + ' s')
 
         lg.info( 'Social network created in -- ' + str( time.time() - tt) + ' s')
@@ -269,12 +269,12 @@ class Earth(World):
         Encapsulating method for the sync of global variables
         """
         ttSync = time.time()
-        self.graph.glob.updateLocalValues('meanEmm', self.getNodeAttr('prop', nodeTypeID=PERS)[:,EMISSIONS])
-        self.graph.glob.updateLocalValues('stdEmm', self.getNodeAttr('prop', nodeTypeID=PERS)[:,EMISSIONS])
-        self.graph.glob.updateLocalValues('meanFiC', self.getNodeAttr('prop', nodeTypeID=PERS)[:,FIXEDCOSTS])
-        self.graph.glob.updateLocalValues('stdFiC', self.getNodeAttr('prop', nodeTypeID=PERS)[:,FIXEDCOSTS])
-        self.graph.glob.updateLocalValues('meanOpC', self.getNodeAttr('prop', nodeTypeID=PERS)[:,OPERATINGCOSTS])
-        self.graph.glob.updateLocalValues('stdOpC', self.getNodeAttr('prop', nodeTypeID=PERS)[:,OPERATINGCOSTS])
+        self.graph.glob.updateLocalValues('meanEmm', self.getAgentAttr('prop', agTypeID=PERS)[:,EMISSIONS])
+        self.graph.glob.updateLocalValues('stdEmm', self.getAgentAttr('prop', agTypeID=PERS)[:,EMISSIONS])
+        self.graph.glob.updateLocalValues('meanFiC', self.getAgentAttr('prop', agTypeID=PERS)[:,FIXEDCOSTS])
+        self.graph.glob.updateLocalValues('stdFiC', self.getAgentAttr('prop', agTypeID=PERS)[:,FIXEDCOSTS])
+        self.graph.glob.updateLocalValues('meanOpC', self.getAgentAttr('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
+        self.graph.glob.updateLocalValues('stdOpC', self.getAgentAttr('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
      
         # local values are used to update the new global values
         self.graph.glob.sync()
@@ -328,21 +328,21 @@ class Earth(World):
         if self.timeStep == 0:
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
-            newValue = np.rint(self.getNodeAttr('lastAction', nodeTypeID=PERS) / self.para['burnInTimeFactor']).astype(int)
-            self.setNodeAttr('lastAction', newValue, nodeTypeID=PERS)
+            newValue = np.rint(self.getAgentAttr('lastAction', agTypeID=PERS) / self.para['burnInTimeFactor']).astype(int)
+            self.setAgentAttr('lastAction', newValue, agTypeID=PERS)
 
         elif self.timeStep+5 == self.para['burnIn']:
             lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
-            oldValue = self.getNodeAttr('lastAction', nodeTypeID=PERS) * self.para['burnInTimeFactor']
+            oldValue = self.getAgentAttr('lastAction', agTypeID=PERS) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
             stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
 
-            self.setNodeAttr('lastAction', stochastricRoundValue,  nodeTypeID=PERS)
+            self.setAgentAttr('lastAction', stochastricRoundValue,  agTypeID=PERS)
             
         else:
-            lastActions = self.getNodeAttr('lastAction',nodeTypeID=PERS)
-            self.setNodeAttr('lastAction',lastActions+1, nodeTypeID=PERS)
+            lastActions = self.getAgentAttr('lastAction',agTypeID=PERS)
+            self.setAgentAttr('lastAction',lastActions+1, agTypeID=PERS)
         
         # progressing time
         if self.timeStep > self.para['burnIn']:
@@ -1118,7 +1118,7 @@ class Infrastructure():
     
     def setStations(self, earth, newStationsMap):
         newValues = newStationsMap[earth.cellMapIds]
-        earth.setNodeAttr('chargStat', newValues, nodeTypeID=CELL)
+        earth.setAgentAttr('chargStat', newValues, agTypeID=CELL)
         
     def growthModel(self, earth):
         # if not given exogeneous, a fitted s-curve is used to evalulate the number
@@ -1136,8 +1136,8 @@ class Infrastructure():
         lg.debug('Adding ' + str(nNewStations) + ' new stations')##OPTPRODUCTION
         
         #get the current number of charging stations
-        currNumStations  = earth.getNodeAttr('chargStat', nodeTypeID=CELL)
-        greenCarsPerCell = earth.getNodeAttr('carsInCell',nodeTypeID=CELL)[:,GREEN]+1. 
+        currNumStations  = earth.getAgentAttr('chargStat', agTypeID=CELL)
+        greenCarsPerCell = earth.getAgentAttr('carsInCell',agTypeID=CELL)[:,GREEN]+1. 
         
         #immition factor (related to hotelings law that new competitiors tent to open at the same location)
         
@@ -1180,7 +1180,7 @@ class Infrastructure():
         uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
         
         currNumStations[uniqueRandIdx] += count   
-        earth.setNodeAttr('chargStat', currNumStations, nodeTypeID=CELL)
+        earth.setAgentAttr('chargStat', currNumStations, agTypeID=CELL)
 
     
 
@@ -1197,9 +1197,9 @@ class Person(Agent, Parallel):
         return ((self.attr['lastAction'] - mobNewPeriod/10.) / mobNewPeriod)  > random.random()
 
 
-    def register(self, world, parentEntity=None, linkTypeID=None):
+    def register(self, world, parentEntity=None, liTypeID=None):
 
-        Agent.register(self, world, parentEntity, linkTypeID)
+        Agent.register(self, world, parentEntity, liTypeID)
         self.loc = parentEntity.loc
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
@@ -1218,7 +1218,7 @@ class Person(Agent, Parallel):
         sumWeights = sum1D(post)
         if not(np.isnan(sumWeights) or np.isinf(sumWeights)):
             if sumWeights > 0:
-                self.setLinkAttr('weig', post, linkTypeID=CON_PP)
+                self.setLinkAttr('weig', post, liTypeID=CON_PP)
                 #self['ESSR'] =  (1. / sumSquared1D(post)) / nFriends
                 
                 if sumWeights < 0.99: ##OPTPRODUCTION
@@ -1239,7 +1239,7 @@ class Person(Agent, Parallel):
 
     def socialize(self, weights, friendIDs):
 
-#        weights, linksRef, friendIDs = self.getLinkAttr('weig', linkTypeID=CON_PP)
+#        weights, linksRef, friendIDs = self.getLinkAttr('weig', liTypeID=CON_PP)
         nContacts = len(weights)
         nDrops    = int(nContacts/5)
         
@@ -1249,7 +1249,7 @@ class Person(Agent, Parallel):
              dropIds = np.asarray(friendIDs)[weights < 0.001]
         nDrops =  len(dropIds)
         if nDrops > 0:
-            self.remLinks(friendIDs=dropIds, linkTypeID=CON_PP)
+            self.remLinks(friendIDs=dropIds, liTypeID=CON_PP)
         
         # add t new connections
         currContacts = self.getPeerIDs(CON_PP)
@@ -1261,7 +1261,7 @@ class Person(Agent, Parallel):
             lg.debug('adding contact links')
             
             for friendID in frList:
-                self.addLink(friendID, linkTypeID=CON_PP, weig=1.0/nContacts)
+                self.addLink(friendID, liTypeID=CON_PP, weig=1.0/nContacts)
 
 
     def getRandomNewContacts(self, nContacts, currentContacts):
@@ -1314,7 +1314,7 @@ class Person(Agent, Parallel):
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)
-            personIds = world.getNode(cellIdx).getPersons()
+            personIds = world.getAgent(cellIdx).getPersons()
 
             personIdsAll.append(personIds)
             nPers.append(len(personIds))
@@ -1354,11 +1354,11 @@ class Person(Agent, Parallel):
         del idx
 
         if world.isParallel:
-            hhIDs = [world.glob2Loc(x) for x in world.getNodeAttr('hhID', localNodeIDList=personIdsAll)]
+            hhIDs = [world.glob2Loc(x) for x in world.getAgentAttr('hhID', localNodeIDList=personIdsAll)]
         else:
-            hhIDs = world.getNodeAttr('hhID', localNodeIDList=personIdsAll).tolist()
-        weightData[:,idxColIn] = abs(world.getNodeAttr('income', localNodeIDList=hhIDs) - ownIncome)
-        weightData[:,idxColPr] = world.getNodeAttr('preferences', localNodeIDList=personIdsAll)
+            hhIDs = world.getAgentAttr('hhID', localNodeIDList=personIdsAll).tolist()
+        weightData[:,idxColIn] = abs(world.getAgentAttr('income', localNodeIDList=hhIDs) - ownIncome)
+        weightData[:,idxColPr] = world.getAgentAttr('preferences', localNodeIDList=personIdsAll)
 
 
         for i in idxColPr:
@@ -1409,7 +1409,7 @@ class Person(Agent, Parallel):
         nGhosts = 0
         if world.debug:                                                                 ##OPTPRODUCTION
             for peId in contactList:                                                    ##OPTPRODUCTION
-                if isinstance(world.getNode(peId), GhostPerson):                        ##OPTPRODUCTION
+                if isinstance(world.getAgent(peId), GhostPerson):                        ##OPTPRODUCTION
                     nGhosts += 1                                                        ##OPTPRODUCTION
         #lg.debug('At location ' + str(self.loc.attr['pos']) + 'Ratio of ghost peers: ' + str(float(nGhosts) / len(contactList))) ##OPTPRODUCTION
         
@@ -1418,7 +1418,7 @@ class Person(Agent, Parallel):
 
     def computeCommunityUtility(self,earth, weights, commUtilPeers):
         #get weights from friends
-        #weights, links = self.getLinkAttr('weig', linkTypeID=CON_PP)
+        #weights, links = self.getLinkAttr('weig', liTypeID=CON_PP)
         commUtil = self.attr['commUtil'][0] # old value
         selfUtil = self.attr['selfUtil'][0]
         # compute weighted mean of all friends
@@ -1481,7 +1481,7 @@ class Person(Agent, Parallel):
     def step(self, earth):
 #        earth = core.earth
         #load data
-        peerIDs         = self.getPeerIDs(linkTypeID=CON_PP)
+        peerIDs         = self.getPeerIDs(liTypeID=CON_PP)
         
         nPeers          = len(peerIDs)
         
@@ -1503,7 +1503,7 @@ class Person(Agent, Parallel):
 
 
             # compute similarity
-            #weights = np.asarray(self.getLinkAttr('weig', linkTypeID=CON_PP)[0])
+            #weights = np.asarray(self.getLinkAttr('weig', liTypeID=CON_PP)[0])
             #preferences = np.asarray(self.getPeerAttr('preferences',CON_PP)[0])
 
             #average = np.average(preferences, axis= 0, weights=weights)
@@ -1532,9 +1532,9 @@ class GhostPerson(GhostAgent):
     def __init__(self, world, mpiOwner, nID=None, **kwProperties):
         GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
 
-    def register(self, world, parentEntity=None, linkTypeID=None):
+    def register(self, world, parentEntity=None, liTypeID=None):
 
-        GhostAgent.register(self, world, parentEntity, linkTypeID)
+        GhostAgent.register(self, world, parentEntity, liTypeID)
         self.loc = parentEntity.loc
         self.loc.peList.append(self.nID)
         self.hh = parentEntity
@@ -1544,9 +1544,9 @@ class GhostHousehold(GhostAgent):
     def __init__(self, world, mpiOwner, nID=None, **kwProperties):
         GhostAgent.__init__(self, world, mpiOwner, nID, **kwProperties)
 
-    def register(self, world, parentEntity=None, linkTypeID=None):
+    def register(self, world, parentEntity=None, liTypeID=None):
 
-        GhostAgent.register(self, world, parentEntity, linkTypeID)
+        GhostAgent.register(self, world, parentEntity, liTypeID)
 
         #self.queueConnection(locID,CON_LH)
         self.loc = parentEntity
@@ -1617,11 +1617,11 @@ class Household(Agent, Parallel):
         return utility / factor
 
 
-    #def registerAtLocation(self, world,x,y, nodeTypeID, linkTypeID):
-    def register(self, world, parentEntity=None, linkTypeID=None):
+    #def registerAtLocation(self, world,x,y, agTypeID, liTypeID):
+    def register(self, world, parentEntity=None, liTypeID=None):
 
 
-        Agent.register(self, world, parentEntity, linkTypeID)
+        Agent.register(self, world, parentEntity, liTypeID)
 
 
         #self.queueConnection(locID,CON_LH)
@@ -2032,7 +2032,7 @@ class Household(Agent, Parallel):
         utilities = np.zeros(consMat.shape[0])
         #print 'done'
         #prioMat = self.adultNodeList['preferences'] # [nPers x nPriorities]
-        prioMat = self.getPeerAttr('preferences', linkTypeID=CON_HP)
+        prioMat = self.getPeerAttr('preferences', liTypeID=CON_HP)
         if actorIds is None:
             for iAction in range(consMat.shape[0]):
                 for iPers in range(len(self.adults)):
@@ -2155,8 +2155,8 @@ class Household(Agent, Parallel):
 #TODO Check if reporter class is still useful
 class Reporter(Household):
 
-    def __init__(self, world, nodeTypeID = 'ag', xPos = np.nan, yPos = np.nan):
-        Household.__init__(self, world, nodeTypeID , xPos, yPos)
+    def __init__(self, world, agTypeID = 'ag', xPos = np.nan, yPos = np.nan):
+        Household.__init__(self, world, agTypeID , xPos, yPos)
         self.writer = core.Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
 
@@ -2193,7 +2193,7 @@ class Cell(Location, Parallel):
         """ 
         ToDo: check if not deprecated 
         """
-        self.weights, linkReferences, connectedNodes = self.getLinkAttr('weig',linkTypeID=CON_LL)
+        self.weights, linkReferences, connectedNodes = self.getLinkAttr('weig',liTypeID=CON_LL)
         return self.weights, linkReferences, connectedNodes
 
 
@@ -2204,8 +2204,8 @@ class Cell(Location, Parallel):
     def getPersons(self):
         return self.peList
 
-    def getConnLoc(self,linkTypeID=1):
-        return self.getAgentOfCell(linkTypeID=1)
+    def getConnLoc(self,liTypeID=1):
+        return self.getAgentOfCell(liTypeID=1)
 
 
     def addToTraffic(self,mobTypeID):
@@ -2316,9 +2316,9 @@ class Cell(Location, Parallel):
     
     
     def aggregateEmission(self, earth):
-        mobTypesPers = earth.getNodeAttr('mobType', self.peList)
+        mobTypesPers = earth.getAgentAttr('mobType', self.peList)
         emissionsCell = np.zeros(5)
-        emissionsPers = earth.getNodeAttr('emissions', self.peList)
+        emissionsPers = earth.getAgentAttr('emissions', self.peList)
         for mobType in range(5):
             idx = mobTypesPers == mobType
             emissionsCell[mobType] = emissionsPers[idx].sum()
@@ -2363,22 +2363,22 @@ class GhostCell(GhostLocation, Cell):
         self.hhList = list()
         self.peList = list()
 
-#    def updateHHList_old(self, graph):  # toDo nodeTypeID is not correct anymore
+#    def updateHHList_old(self, graph):  # toDo agTypeID is not correct anymore
 #        """
 #        updated method for the household list, which is required since
 #        ghost cells are not active on their own
 #        """
-#        nodeTypeID = graph.class2NodeType[Household]
-#        hhIDList = self.getPeerIDs(nodeTypeID)
+#        agTypeID = graph.class2NodeType[Household]
+#        hhIDList = self.getPeerIDs(agTypeID)
 #        self.hhList = graph.vs[hhIDList]
 
-#    def updatePeList_old(self, graph):  # toDo nodeTypeID is not correct anymore
+#    def updatePeList_old(self, graph):  # toDo agTypeID is not correct anymore
 #        """
 #        updated method for the people list, which is required since
 #        ghost cells are not active on their own
 #        """
-#        nodeTypeID = graph.class2NodeType[Person] 
-#        hhIDList = self.getPeerIDs(nodeTypeID)
+#        agTypeID = graph.class2NodeType[Person] 
+#        hhIDList = self.getPeerIDs(agTypeID)
 #        self.hhList = graph.vs[hhIDList]
 
 class Opinion():

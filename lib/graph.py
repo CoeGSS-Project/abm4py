@@ -31,13 +31,13 @@ import itertools
 
 class TypeDescription():
 
-    def __init__(self, nodeTypeIDIdx, typeStr, staticProperties, dynamicProperties):
+    def __init__(self, agTypeIDIdx, typeStr, staticProperties, dynamicProperties):
 
         # list of properties per type
         
         self.staProp = staticProperties
         self.dynProp = dynamicProperties
-        self.typeIdx = nodeTypeIDIdx
+        self.typeIdx = agTypeIDIdx
         self.typeStr = typeStr
         
 
@@ -224,12 +224,12 @@ class BaseGraph():
     def remNode(self, lnID):
         #raise DeprecationWarning('not supported right now')
         #raise NameError('sorry')
-        nodeTypeID, dataID = self.getNodeDataRef(lnID)
+        agTypeID, dataID = self.getNodeDataRef(lnID)
         #dataID = lnID - nTypeID * self.maxNodes
         #print(dataID)
-        self.nodes[nodeTypeID].freeRows.append(dataID)
-        self.nodes[nodeTypeID][self.persitentAttributes][dataID] = self.persitentValues
-        self.nodes[nodeTypeID].nodeList.remove(lnID)
+        self.nodes[agTypeID].freeRows.append(dataID)
+        self.nodes[agTypeID][self.persitentAttributes][dataID] = self.persitentValues
+        self.nodes[agTypeID].nodeList.remove(lnID)
     
         for eTypeID in self.edges.keys():
             (_, targets) = self.outgoing(lnID, eTypeID)
@@ -250,12 +250,12 @@ class BaseGraph():
             return self.nodes[nTypeIDs]['active'][dataIDs]
             
             
-    def setNodeAttr(self, label, value, lnID, nTypeID=None):
+    def setAgentAttr(self, label, value, lnID, nTypeID=None):
         
         nTypeID, dataID = self.getEdgeDataRef(lnID)
         self.nodes[nTypeID][label][dataID] = value
     
-    def getNodeAttr(self, label=None, lnID=None, nTypeID=None):
+    def getAgentAttr(self, label=None, lnID=None, nTypeID=None):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
             return self.nodes[nTypeID][label][dataID]
@@ -512,14 +512,14 @@ class BaseGraph():
     def nCount(self, nTypeID=None):
         """Returns the number of nodes of all or a specific node type"""
         if nTypeID is None:
-            return sum([nodeTypeID.nCount() for nodeTypeID in self.nodes.values()])
+            return sum([agTypeID.nCount() for agTypeID in self.nodes.values()])
         else:
             return self.nodes[nTypeID].nCount()
 
     def eCount(self, eTypeID=None):
         """Returns the number of edges of all or a specific node type"""
         if eTypeID is None:
-            return sum([linkTypeID.eCount() for linkTypeID in self.edges.values()])
+            return sum([liTypeID.eCount() for liTypeID in self.edges.values()])
         else:
             return self.edges[eTypeID].eCount()
 
@@ -548,13 +548,13 @@ class ABMGraph(BaseGraph):
         self.queingMode = False
 
         # list of types
-        self.nodeTypeIDs = dict()
-        self.linkTypeIDs = dict()
+        self.agTypeIDs = dict()
+        self.liTypeIDs = dict()
         self.node2EdgeType = dict()
         self.edge2NodeType = dict()
 
         # dict of classes to init node automatically
-        self.__nodeTypeID2Class = dict()
+        self.__agTypeID2Class = dict()
         self.__class2NodeType = dict()
         self.__ghostOfAgentClass   = dict()
         
@@ -566,7 +566,7 @@ class ABMGraph(BaseGraph):
             self.persitentValues     = False
     
     def addNodeType(self, 
-                    nodeTypeIDIdx, 
+                    agTypeIDIdx, 
                     typeStr, 
                     AgentClass, 
                     GhostAgentClass, 
@@ -574,40 +574,40 @@ class ABMGraph(BaseGraph):
                     dynamicProperties):
         """ Create node type description"""
         
-        nodeTypeID = TypeDescription(nodeTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.nodeTypeIDs[nodeTypeIDIdx] = nodeTypeID
-        # same nodeTypeID for ghost and non-ghost
-        self.__nodeTypeID2Class[nodeTypeIDIdx]      = AgentClass, GhostAgentClass
-        self.__class2NodeType[AgentClass]       = nodeTypeIDIdx
+        agTypeID = TypeDescription(agTypeIDIdx, typeStr, staticProperties, dynamicProperties)
+        self.agTypeIDs[agTypeIDIdx] = agTypeID
+        # same agTypeID for ghost and non-ghost
+        self.__agTypeID2Class[agTypeIDIdx]      = AgentClass, GhostAgentClass
+        self.__class2NodeType[AgentClass]       = agTypeIDIdx
         if GhostAgentClass is not None:
-            self.__class2NodeType[GhostAgentClass]  = nodeTypeIDIdx
+            self.__class2NodeType[GhostAgentClass]  = agTypeIDIdx
             self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
-    def addLinkType(self, typeStr, staticProperties, dynamicProperties, nodeTypeID1, nodeTypeID2):
+    def addLinkType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
-        linkTypeIDIdx = len(self.linkTypeIDs)+1
-        linkTypeID = TypeDescription(linkTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.linkTypeIDs[linkTypeIDIdx] = linkTypeID
-        self.node2EdgeType[nodeTypeID1, nodeTypeID2] = linkTypeIDIdx
-        self.edge2NodeType[linkTypeIDIdx] = nodeTypeID1, nodeTypeID2
+        liTypeIDIdx = len(self.liTypeIDs)+1
+        liTypeID = TypeDescription(liTypeIDIdx, typeStr, staticProperties, dynamicProperties)
+        self.liTypeIDs[liTypeIDIdx] = liTypeID
+        self.node2EdgeType[agTypeID1, agTypeID2] = liTypeIDIdx
+        self.edge2NodeType[liTypeIDIdx] = agTypeID1, agTypeID2
         self._initEdgeType(typeStr, staticProperties + dynamicProperties)
 
-        return linkTypeIDIdx
+        return liTypeIDIdx
 
-    def getDTypeOfNodeType(self, nodeTypeID, kind):
+    def getDTypeOfNodeType(self, agTypeID, kind):
         
         if kind == 'sta':
-            dtype = self.nodeTypeIDs[nodeTypeID].staProp
+            dtype = self.agTypeIDs[agTypeID].staProp
         elif kind == 'dyn':
-            dtype = self.nodeTypeIDs[nodeTypeID].dynProp
+            dtype = self.agTypeIDs[agTypeID].dynProp
         else:
-            dtype = self.nodeTypeIDs[nodeTypeID].staProp + self.nodeTypeIDs[nodeTypeID].dynProp
+            dtype = self.agTypeIDs[agTypeID].staProp + self.agTypeIDs[agTypeID].dynProp
         return dtype
     
-    def getPropOfNodeType(self, nodeTypeID, kind):
+    def getPropOfNodeType(self, agTypeID, kind):
         
-        dtype = self.getDTypeOfNodeType(nodeTypeID, kind)
+        dtype = self.getDTypeOfNodeType(agTypeID, kind)
          
         info = dict()    
         info['names'] = []
@@ -682,8 +682,8 @@ class ABMGraph(BaseGraph):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         return self.nodes[nTypeID][dataID:dataID+1].view(), dataID
 
-    def nodeTypeID2Class(self, nodeTypeIDID):
-        return self.__nodeTypeID2Class[nodeTypeIDID]
+    def agTypeID2Class(self, agTypeIDID):
+        return self.__agTypeID2Class[agTypeIDID]
     
     def class2NodeType(self, agentClass):
         return self.__class2NodeType[agentClass]
@@ -692,15 +692,15 @@ class ABMGraph(BaseGraph):
         return self.__ghostOfAgentClass[agentClass]
         
 
-    def getAdjMatrix(self, nodeTypeID):
-        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]
+    def getAdjMatrix(self, agTypeID):
+        liTypeID = self.node2EdgeType[agTypeID, agTypeID]
         
-        nNodes = len(self.nodes[nodeTypeID].nodeList)
+        nNodes = len(self.nodes[agTypeID].nodeList)
         
         adjMatrix = np.zeros([nNodes, nNodes])
         
-        for key in self.edges[linkTypeID].nodesIn.keys():
-            nodeList = self.edges[linkTypeID].nodesIn[key]
+        for key in self.edges[liTypeID].nodesIn.keys():
+            nodeList = self.edges[liTypeID].nodesIn[key]
             
             if len(nodeList)> 0:
                 source = key - self.maxNodes
@@ -709,13 +709,13 @@ class ABMGraph(BaseGraph):
                     adjMatrix[source, target] = 1
         return adjMatrix
     
-    def getAdjList(self, nodeTypeID):
-        linkTypeID = self.node2EdgeType[nodeTypeID, nodeTypeID]        
+    def getAdjList(self, agTypeID):
+        liTypeID = self.node2EdgeType[agTypeID, agTypeID]        
         
-        eDict = self.edges[linkTypeID].nodesOut
+        eDict = self.edges[liTypeID].nodesOut
         adjList = []
         nLinks = 0
-        for source in self.nodes[nodeTypeID].nodeList:
+        for source in self.nodes[agTypeID].nodeList:
             if source in eDict.keys():
                 targetList = [target - self.maxNodes for target in eDict[source] if target != source]
                 nLinks += len(targetList)
@@ -744,18 +744,18 @@ if __name__ == "__main__":
     lnID4, _, dataview4 = bg.addNode(LOC, (4, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    bg.getNodeAttr(lnID=lnID1)
+    bg.getAgentAttr(lnID=lnID1)
     bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
     print(bg.getNodeSeqAttr('gnID', [lnID1, lnID2]))
-    print(bg.getNodeAttr(lnID=lnID2))
+    print(bg.getAgentAttr(lnID=lnID2))
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges
     LOCLOC = bg.addLinkType('loc-loc',  
                             staticProperties=[],
                             dynamicProperties=[('weig', np.float64, 1)],
-                            nodeTypeID1 = LOC,
-                            nodeTypeID2 = LOC)
+                            agTypeID1 = LOC,
+                            agTypeID2 = LOC)
                             
     
     leID1, _, dataview4 = bg.addLink(LOCLOC, lnID1, lnID2, (.5,))

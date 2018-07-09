@@ -223,8 +223,8 @@ class Community(World):
 
 class Hunter(Agent):
     
-    def __init__(self, community, pS, nodeTypeID = 'hu', xPos = np.nan, yPos = np.nan):
-        Agent.__init__(self, community, nodeTypeID, xPos, yPos)
+    def __init__(self, community, pS, agTypeID = 'hu', xPos = np.nan, yPos = np.nan):
+        Agent.__init__(self, community, agTypeID, xPos, yPos)
         if pS > 2*community.vHare/community.vStag:
             huPref = 1
         else:

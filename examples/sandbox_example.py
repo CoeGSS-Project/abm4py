@@ -119,7 +119,7 @@ if __name__ == '__main__':
             #print agent.nID
             nBrownCars = 0
             nGreenCars = 0
-            neigList = agent.getConnNodes(_agent)
+            neigList = agent.getConnAgents(_agent)
             for neigbour in neigList:
                 if neigbour['type'] == _car:
                     nBrownCars +=1
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         for loc in earth.iterNodes(_location):
             
             print 'location is ' + str(loc.x) + ' x '+ str(loc.y)
-            agList = loc.getAgentOfCell(nodeTypeID=_agent)
+            agList = loc.getAgentOfCell(agTypeID=_agent)
     
             while loc.getValue('deltaCars') > 0:
     
@@ -164,13 +164,13 @@ if __name__ == '__main__':
                 ownedCars = agent.getValue('nCars')
                 print'own cars: ' + str(ownedCars),
                 #ownedGreenCars = agent.getValue('nGreenCars')
-                tmp, __ = agent.getConnNodeValues('nGreenCars',nodeTypeID=_agent)
+                tmp, __ = agent.getConnNodeValues('nGreenCars',agTypeID=_agent)
                 sumGreenCars = np.sum(tmp)
                 print 'Sum Green Cars: ' + str(sumGreenCars),
-                tmp, __ = agent.getConnNodeValues('nCars',nodeTypeID=_agent)
+                tmp, __ = agent.getConnNodeValues('nCars',agTypeID=_agent)
                 sumCars = np.sum(tmp)
                 print 'SumCars: ' + str(sumCars)     
-                print agent.getConnNodeValues('nCars',nodeTypeID=_agent)
+                print agent.getConnNodeValues('nCars',agTypeID=_agent)
                 
                 green_pressure = sumGreenCars / sumCars
                 if green_pressure > 0:
@@ -184,14 +184,14 @@ if __name__ == '__main__':
                     #agent.setValue('nGreenCars',ownedGreenCars+1)
                     car = Agent(earth,'greenCar', x, y)
                     carList.append(car)
-                    car.addLink(agID,linkTypeID=_agGrCarLink)
+                    car.addLink(agID,liTypeID=_agGrCarLink)
                     car.setValue('age',0)
                 else:
                     # buy a brown car
                     #agent.setValue('nCars',ownedCars+1)
                     car = Agent(earth,'car', x, y)
                     carList.append(car)
-                    car.addLink(agID,linkTypeID=_agCarLink)
+                    car.addLink(agID,liTypeID=_agCarLink)
                     car.setValue('age',0)
                 loc.setValue('deltaCars',loc.getValue('deltaCars')-1)
     
@@ -254,7 +254,7 @@ if __name__ == '__main__':
             while True:
                 friendID = np.random.choice(earth.nodeList[_agent])
                 if friendID != ag.nID:
-                    ag.addLink(friendID,linkTypeID=_agAgLink)
+                    ag.addLink(friendID,liTypeID=_agAgLink)
                     break
     
     
@@ -268,7 +268,7 @@ if __name__ == '__main__':
     indices = np.where(nCarsArray > 0 )
     for x,y in zip(*indices):
         loc = earth.locDict[(x,y)]
-        agList= loc.getAgentOfCell(nodeTypeID= _agent)
+        agList= loc.getAgentOfCell(agTypeID= _agent)
         for iCar in range(nCarsArray[x,y]):    
             agID = np.random.choice(agList)
             
@@ -277,7 +277,7 @@ if __name__ == '__main__':
             #agent.setValue('nCars',agent.getValue('nCars')+1)
             car = Agent(earth,'car', x, y)
             carList.append(car)
-            car.addLink(agID,linkTypeID=_agCarLink)
+            car.addLink(agID,liTypeID=_agCarLink)
             car.setValue('age',np.random.randint(1,4))
     
     #%%########################### Simulation step    ######################################

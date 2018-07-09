@@ -34,31 +34,31 @@ class Parallel():
     def getGlobID(self,world):
         return next(world.globIDGen)
 # from location
-#    def registerChild(self, world, entity, linkTypeID=None):
-#        world.addLink(linkTypeID, self.nID, entity.nID)
+#    def registerChild(self, world, entity, liTypeID=None):
+#        world.addLink(liTypeID, self.nID, entity.nID)
 #        entity.loc = self
 #
 #        if len(self.mpiPeers) > 0: # node has ghosts on other processes
 #            for mpiPeer in self.mpiPeers:
 #                #print 'adding node ' + str(entity.nID) + ' as ghost'
-#                nodeTypeID = world.graph.class2NodeType(entity.__class__)
-#                world.papi.queueSendGhostNode( mpiPeer, nodeTypeID, entity, self)
+#                agTypeID = world.graph.class2NodeType(entity.__class__)
+#                world.papi.queueSendGhostNode( mpiPeer, agTypeID, entity, self)
 #
 #        return self.mpiPeers
 
-    def registerChild(self, world, entity, linkTypeID):
+    def registerChild(self, world, entity, liTypeID):
         """
         
         """
         # why is register child also adding a link?
-        if linkTypeID is not None:
-            world.addLink(linkTypeID, self.nID, entity.nID)
+        if liTypeID is not None:
+            world.addLink(liTypeID, self.nID, entity.nID)
 
         if len(self.mpiPeers) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
-                nodeTypeID = world.graph.class2NodeType(entity.__class__)
-                world.papi.queueSendGhostNode( mpiPeer, nodeTypeID, entity, self)
+                agTypeID = world.graph.class2NodeType(entity.__class__)
+                world.papi.queueSendGhostNode( mpiPeer, agTypeID, entity, self)
 
         return self.mpiPeers
 
@@ -69,17 +69,17 @@ class Neighborhood():
     funtion as collectives of agents. 
     """
     def __init__(self, world, nID = -1, **kwProperties):
-        self.__getNode = world.getNode
+        self.__getAgent = world.getAgent
         self.Neighborhood = dict()
     
     def getNeighbor(self, peerID):
-        return self.__getNode(nodeID=peerID)
+        return self.__getAgent(nodeID=peerID)
     
-    def reComputeNeighborhood(self, linkTypeID):
-        self.Neighborhood[linkTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(linkTypeID)]
+    def reComputeNeighborhood(self, liTypeID):
+        self.Neighborhood[liTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(liTypeID)]
         
-    def iterNeighborhood(self, linkTypeID):
-        return iter(self.Neighborhood[linkTypeID])
+    def iterNeighborhood(self, liTypeID):
+        return iter(self.Neighborhood[liTypeID])
         
 class Mobil():
     """
@@ -102,13 +102,13 @@ class Mobil():
         
     def move(self, newX, newY, spatialLinkTypeID):
         self.attr['pos'] = [ newX, newY]
-        self.remLink(friendID=self.loc.nID, linkTypeID=spatialLinkTypeID)
-        self.loc.remLink(self.nID, linkTypeID=spatialLinkTypeID)
+        self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
         
         self.loc = self.locDict[( newX, newY)]
         
-        self.addLink(friendID=self.loc.nID, linkTypeID=spatialLinkTypeID)
-        self.loc.addLink(self.nID, linkTypeID=spatialLinkTypeID)
+        self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod
     def _setLocationDict(cls, locDict):
@@ -129,14 +129,14 @@ class Collective():
     an household of persons.
     """
     def __init__(self, world, nID = -1, **kwProperties):
-        self.__getNode = world.getNode
+        self.__getAgent = world.getAgent
         self.groups = dict()
         
     def getMember(self, peerID):
-        return self.__getNode(nodeID=peerID)
+        return self.__getAgent(nodeID=peerID)
     
     def iterMembers(self, peerIDs):
-        return [self.__getNode(nodeID=peerID) for peerID in peerIDs]
+        return [self.__getAgent(nodeID=peerID) for peerID in peerIDs]
  
     def registerGroup(self, groupName, members):
         self.groups[groupName] = members
@@ -162,9 +162,9 @@ class SuperPowers():
         # execution
         assert world.isParallel == False
 
-    def setPeerAttr(self, prop, values, linkTypeID=None, nodeTypeID=None, force=False):
+    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None, force=False):
         """
-        Set the attributes of all connected nodes of an specified nodeTypeID
+        Set the attributes of all connected nodes of an specified agTypeID
         or connected by a specfic edge type
         """
         if not force:
@@ -173,4 +173,4 @@ class SuperPowers():
             #import warnings
             #warnings.warn('This is violating the current rules and data get lost')
 
-            self._graph.setOutNodeValues(self.nID, linkTypeID, prop, values)    
+            self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    

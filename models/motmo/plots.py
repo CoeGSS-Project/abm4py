@@ -11,10 +11,10 @@ mpiRank = comm.Get_rank()
 
 def calGreenNeigbourhoodShareDist(earth):
     global PERS
-    nPersons = len(earth.getNodeDict(PERS))
+    nPersons = len(earth.getAgentDict(PERS))
     relarsPerNeigborhood = np.zeros([nPersons, 3])
-    for i, persId in enumerate(earth.getNodeDict(PERS)):
-        person = earth.getNode(persId)
+    for i, persId in enumerate(earth.getAgentDict(PERS)):
+        person = earth.getAgent(persId)
         x, __ = person.getConnNodeValues('mobType', PERS)
         for mobType in range(3):
             relarsPerNeigborhood[i, mobType] = float(

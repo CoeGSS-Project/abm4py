@@ -39,34 +39,36 @@ class Entity():
     """
     def __init__(self, world, nID = -1, **kwProperties):
         
-        #  the nodeTypeID is derived from the agent class and stored        
-        self.nodeTypeID =  world.graph.class2NodeType(self.__class__)
+        #  the agTypeID is derived from the agent class and stored        
+        self.agTypeID =  world.graph.class2NodeType(self.__class__)
 
         # create new node in the graph
         if nID == -1:
-            self.nID, self.dataID, self.attr = world.addNode(self.nodeTypeID,  **kwProperties)    
+            self.nID, self.dataID, self.attr = world.addNode(self.agTypeID,  **kwProperties)    
             self._setGraph(world.graph)
             #print(self.attr['gID'][0])
 
         self.get = firstElementDeco(self.attr.__getitem__)
         self.set = self.attr.__setitem__
-        self.__getNode = world.getNode
+        self.__getNode = world.getAgent
 
-    def __getattr__(self, a):
-        return self.attr[a][0]
+
 
     def __getitem__(self, a):
         return self.attr.__getitem__(a)[0]
 
     def __setitem__(self, a, value):
         self.attr.__setitem__(a, value)
-    #     self.attr[a] = value
 
-    def __setattr__(self, a, value):
-        try:
-            self.attr[a] = value
-        except:
-            object.__setattr__(self, a, value)
+
+#    def __getattr__(self, a):
+#        return self.attr[a][0]
+#    
+#    def __setattr__(self, a, value):
+#        try:
+#            self.attr[a] = value
+#        except:
+#            object.__setattr__(self, a, value)
             
         
     @classmethod
@@ -74,17 +76,17 @@ class Entity():
         """ Makes the class variable _graph available at the first init of an entity"""
         cls._graph = graph
 
-    def register(self, world, parentEntity=None, linkTypeID=None, ghost=False):
+    def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
-        world.registerNode(self, self.nodeTypeID, ghost=ghost)
+        world.registerAgent(self, self.agTypeID, ghost=ghost)
 
         if parentEntity is not None:
-            self.mpiPeers = parentEntity.registerChild(world, self, linkTypeID)
+            self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""
         world.graph.remNode(self.nID)
-        world.deRegisterNode(self, ghost=False)
+        world.deRegisterAgent(self, ghost=False)
 
 class BaseAgent(Entity):
     """
@@ -98,46 +100,46 @@ class BaseAgent(Entity):
         # redireciton of internal functionality:
         self.get = firstElementDeco(self.attr.__getitem__)
         self.set = self.attr.__setitem__
-        self.__getNode = world.getNode
+        self.__getNode = world.getAgent
     
     
-    def getPeerIDs(self, linkTypeID=None, nodeTypeID=None, mode='out'):
+    def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out'):
         """
         This method returns the IDs of all agents that are connected with a 
         certain link type or of a specified nodeType
         As default, only outgoing connctions are considered, but can be changed
         by setting mode ='in'.
         """
-        if linkTypeID is None:
+        if liTypeID is None:
             
-            linkTypeID = self._graph.node2EdgeType[self.nodeTypeID, nodeTypeID]
+            liTypeID = self._graph.node2EdgeType[self.agTypeID, agTypeID]
         else:
-            assert nodeTypeID is None
+            assert agTypeID is None
         
         
         if mode=='out':            
-            eList, nodeList  = self._graph.outgoing(self.nID, linkTypeID)
+            eList, nodeList  = self._graph.outgoing(self.nID, liTypeID)
         elif mode == 'in':
-            eList, nodeList  = self._graph.incomming(self.nID, linkTypeID)
+            eList, nodeList  = self._graph.incomming(self.nID, liTypeID)
         
         return nodeList
 
         
-    def getPeerAttr(self, prop, linkTypeID=None):
+    def getPeerAttr(self, prop, liTypeID=None):
         """
         This method returns the attributes of all connected nodes connected 
         by a specfic edge type.
         """
-        return self._graph.getOutNodeValues(self.nID, linkTypeID, attr=prop)
+        return self._graph.getOutNodeValues(self.nID, liTypeID, attr=prop)
 
 
                                    
 
-    def getLinkAttr(self, prop, linkTypeID):
+    def getLinkAttr(self, prop, liTypeID):
         """
         This method accesses the values of outgoing links
         """
-        (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, linkTypeID)
+        (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, liTypeID)
 
         edgesValues = self._graph.getEdgeSeqAttr(label=prop, 
                                                  eTypeID=eTypeID, 
@@ -147,46 +149,46 @@ class BaseAgent(Entity):
 
         return edgesValues, (eTypeID, dataID), nIDList
 
-    def setLinkAttr(self, prop, values, linkTypeID=None):
+    def setLinkAttr(self, prop, values, liTypeID=None):
         """
         This method changes the attributes of outgoing links
         """
-        (eTypeID, dataID), _  = self._graph.outgoing(self.nID, linkTypeID)
+        (eTypeID, dataID), _  = self._graph.outgoing(self.nID, liTypeID)
         
         self._graph.setEdgeSeqAttr(label=prop, 
                                    values=values,
                                    eTypeID=eTypeID, 
                                    dataIDs=dataID)
 
-    def getLinkIDs(self, linkTypeID=None):
+    def getLinkIDs(self, liTypeID=None):
         """
         This method changes returns the linkID of all outgoing links of a 
         specified type
         """
-        eList, _  = self._graph.outgoing(self.nID, linkTypeID)
+        eList, _  = self._graph.outgoing(self.nID, liTypeID)
         return eList
 
 
-    def addLink(self, friendID, linkTypeID, **kwpropDict):
+    def addLink(self, friendID, liTypeID, **kwpropDict):
         """
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure
         """
-        self._graph.addLink(linkTypeID, self.nID, friendID, attributes = tuple(kwpropDict.values()))
+        self._graph.addLink(liTypeID, self.nID, friendID, attributes = tuple(kwpropDict.values()))
 
-    def remLink(self, friendID=None, linkTypeID=None):
+    def remLink(self, friendID=None, liTypeID=None):
         """
         This method removes a link to another agent.
         """
-        self._graph.remEdge(source=self.nID, target=friendID, eTypeID=linkTypeID)
+        self._graph.remEdge(source=self.nID, target=friendID, eTypeID=liTypeID)
 
-    def remLinks(self, friendIDs=None, linkTypeID=None):
+    def remLinks(self, friendIDs=None, liTypeID=None):
         """
         Removing mutiple links to other agents.
         """        
         if friendIDs is not None:
             for friendID in friendIDs:
-                self._graph.remEdge(source=self.nID, target=friendID, eTypeID=linkTypeID)
+                self._graph.remEdge(source=self.nID, target=friendID, eTypeID=liTypeID)
 
 
         

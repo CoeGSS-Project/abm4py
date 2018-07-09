@@ -91,7 +91,7 @@ class World:
         self.__nodeDict       = dict()
         self.__ghostNodeDict  = dict()
         
-        # dict of list that provides the storage place for each agent per nodeTypeID
+        # dict of list that provides the storage place for each agent per agTypeID
         self.__dataDict       = dict()
         self.__ghostDataDict  = dict()
 
@@ -151,45 +151,18 @@ class World:
 
 # GENERAL FUNCTIONS
 
+
     def _entByGlobID(self, globID):
         return self.__entDict[self.__glob2loc[globID]]
         
     def _entByLocID(self, locID):
         return self.__entDict[locID]
-
-    def nNodes(self, nodeTypeID=None):
-        return self.graph.nCount(nTypeID=nodeTypeID)
+#%% General Infromation methods
+    def nAgents(self, agTypeID=None):
+        return self.graph.nCount(nTypeID=agTypeID)
         
-    def nLinks(self, linkTypeID):
-       return self.graph.eCount(eTypeID=linkTypeID)  
-        
-    def getDataIDs(self, nodeTypeID):
-        return self.__dataDict[nodeTypeID]
-
-    def glob2Loc(self, globIdx):
-        return self.__glob2loc[globIdx]
-
-    def setGlob2Loc(self, globIdx, locIdx):
-        self.__glob2loc[globIdx] = locIdx
-
-    def loc2Glob(self, locIdx):
-        return self.__loc2glob[locIdx]
-
-    def setLoc2Glob(self, globIdx, locIdx):
-        self.__loc2glob[locIdx] = globIdx 
-
-    def getLocationDict(self):
-        """
-        The locationDict contains all instances of locations that are
-        accessed by (x,y) coordinates
-        """
-        return self.__locDict
-
-    def getNodeDict(self, nodeTypeID):
-        """
-        The nodeDict contains all instances of different entity types
-        """
-        return self.__nodeDict[nodeTypeID]
+    def nLinks(self, liTypeID):
+       return self.graph.eCount(eTypeID=liTypeID)  
 
     def getParameter(self,paraName=None):
         """
@@ -213,139 +186,6 @@ class World:
         for key in list(parameterDict.keys()):
             self.setParameter(key, parameterDict[key])
 
-
-    def getNodeAttr(self, label, localNodeIDList=None, nodeTypeID=None):
-        """
-        Method to read values of node sequences at once
-        Return type is numpy array
-        Only return non-ghost agent properties
-        """
-        if localNodeIDList:   
-            assert nodeTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=localNodeIDList)
-        
-        elif nodeTypeID:           
-            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.__nodeDict[nodeTypeID])
-        
-    def setNodeAttr(self, label, valueList, localNodeIDList=None, nodeTypeID=None):
-        """
-        Method to read values of node sequences at once
-        Return type is numpy array
-        """
-        if localNodeIDList:
-            assert nodeTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localNodeIDList)
-        
-        elif nodeTypeID:
-            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[nodeTypeID])
-
-    def getNodeIDs(self, nodeTypeID):
-        """ 
-        Method to return all local node IDs for a given nodeType
-        """
-        return self.__nodeDict[nodeTypeID]
-
-    def getLinkAttr(self, label, valueList, localLinkIDList=None, linkTypeID=None):
-        if localLinkIDList:   
-            assert linkTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
-        
-        elif linkTypeID:           
-            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[linkTypeID])
-
-    def setLinkAttr(self, label, valueList, localLinkIDList=None, linkTypeID=None):
-        """
-        Method to retrieve all properties of all entities of one linkTypeID
-        """
-        if localLinkIDList:
-            assert linkTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
-        
-        elif linkTypeID:
-            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[linkTypeID])
-    
-  
-    def getNode(self, nodeID=None, globID=None, nodeTypeID=None, ghosts=False):
-        """
-        Method to retrieve a certain instance of an entity by the nodeID
-        Selections can be done by the local nodeID, global ID and the nodetype
-        and the flag ghost
-
-        """
-        if nodeID is not None:
-            return self.__entDict[nodeID]
-        elif globID is not None:
-            return self.__entDict[self.__glob2loc[globID]]
-        elif nodeTypeID is not None:
-            if ghosts:
-                return  [self.__entDict[agentID] for agentID in self.__ghostNodeDict[nodeTypeID]]
-            else:
-                return [self.__entDict[agentID] for agentID in self.__nodeDict[nodeTypeID]]
-
-    def filterNodes(self, nodeTypeID, attr, operator, value = None, compareAttr=None):
-        """
-        Method for quick filtering nodes according to comparison of attributes
-        allowed operators are:
-            "lt" :'less than <
-            "elt" :'less or equal than <=
-            "gt" : 'greater than >
-            "egt" : 'greater or equal than >=
-            "eq" : 'equal ==
-        Comparison can be made to values or another attribute
-        """
-        
-        # get comparison value
-        if compareAttr is None:
-            compareValue = value
-        elif value is None:
-            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[nodeTypeID])
-        
-        # get values of all nodes
-        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[nodeTypeID])
-        
-        if operator=='lt':
-            boolArr = values < compareValue    
-            
-        elif operator=='gt':
-            boolArr = values > compareValue    
-            
-        elif operator=='eq':
-            boolArr = values == compareValue    
-            
-        elif operator=='elt':
-            boolArr = values <= compareValue    
-            
-        elif operator=='egt':
-            boolArr = values >= compareValue    
-            
-        lnIDs = np.where(boolArr)[0] + (self.maxNodes * nodeTypeID)
-        
-        return lnIDs
-        
-
-    def iterNodes(self, nodeTypeID=None, localIDs=None, ghosts = False):
-        """
-        Iteration over entities of specified type. Default returns
-        non-ghosts in random order.
-        """
-        if nodeTypeID is None:
-            nodeList = localIDs
-        elif localIDs is None:
-            if isinstance(nodeTypeID,str):
-                nodeTypeID = self.types.index(nodeTypeID)
-    
-            if ghosts:
-                nodeList = self.__ghostNodeDict[nodeTypeID]
-            else:
-                nodeList = self.__nodeDict[nodeTypeID]
-
-        return  [self.__entDict[i] for i in nodeList]
-
-
     def setEnum(self, enumName, enumDict):
         """
         Method to add enumertations
@@ -362,6 +202,182 @@ class World:
         else:
             return self.__enums[enumName]
 
+#%% Global Agent scope
+    def getAgentAttr(self, label, localNodeIDList=None, agTypeID=None):
+        """
+        Method to read values of node sequences at once
+        Return type is numpy array
+        Only return non-ghost agent properties
+        """
+        if localNodeIDList:   
+            assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=localNodeIDList)
+        
+        
+        elif agTypeID:           
+            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.__nodeDict[agTypeID])
+        
+    def setAgentAttr(self, label, valueList, localNodeIDList=None, agTypeID=None):
+        """
+        Method to read values of node sequences at once
+        Return type is numpy array
+        """
+        if localNodeIDList:
+            assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localNodeIDList)
+        
+        elif agTypeID:
+            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[agTypeID])           
+            
+    def getLinkAttr(self, label, valueList, localLinkIDList=None, liTypeID=None):
+        if localLinkIDList:   
+            assert liTypeID is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
+        
+        elif liTypeID:           
+            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
+
+    def setLinkAttr(self, label, valueList, localLinkIDList=None, liTypeID=None):
+        """
+        Method to retrieve all properties of all entities of one liTypeID
+        """
+        if localLinkIDList:
+            assert liTypeID is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
+        
+        elif liTypeID:
+            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
+
+#%% Agent access 
+    def getLocationDict(self):
+        """
+        The locationDict contains all instances of locations that are
+        accessed by (x,y) coordinates
+        """
+        return self.__locDict
+
+    def getAgentDict(self, agTypeID):
+        """
+        The nodeDict contains all instances of different entity types
+        """
+        return self.__nodeDict[agTypeID]
+
+
+    def getAgentIDs(self, agTypeID, ghosts=False):
+        """ 
+        Method to return all local node IDs for a given nodeType
+        """
+        if ghosts:
+            return self.__ghostNodeDict[agTypeID]
+        else:
+            return self.__nodeDict[agTypeID]
+    
+
+    
+  
+    def getAgent(self, nodeID=None, globID=None, agTypeID=None, ghosts=False):
+        """
+        Method to retrieve a certain instance of an entity by the nodeID
+        Selections can be done by the local nodeID, global ID and the nodetype
+        and the flag ghost
+
+        """
+        if nodeID is not None:
+            return self.__entDict[nodeID]
+        elif globID is not None:
+            return self.__entDict[self.__glob2loc[globID]]
+        elif agTypeID is not None:
+            if ghosts:
+                return  [self.__entDict[agentID] for agentID in self.__ghostNodeDict[agTypeID]]
+            else:
+                return [self.__entDict[agentID] for agentID in self.__nodeDict[agTypeID]]
+
+    def filterAgents(self, agTypeID, attr, operator, value = None, compareAttr=None):
+        """
+        Method for quick filtering nodes according to comparison of attributes
+        allowed operators are:
+            "lt" :'less than <
+            "elt" :'less or equal than <=
+            "gt" : 'greater than >
+            "egt" : 'greater or equal than >=
+            "eq" : 'equal ==
+        Comparison can be made to values or another attribute
+        """
+        
+        # get comparison value
+        if compareAttr is None:
+            compareValue = value
+        elif value is None:
+            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[agTypeID])
+        
+        # get values of all nodes
+        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[agTypeID])
+        
+        if operator=='lt':
+            boolArr = values < compareValue    
+            
+        elif operator=='gt':
+            boolArr = values > compareValue    
+            
+        elif operator=='eq':
+            boolArr = values == compareValue    
+            
+        elif operator=='elt':
+            boolArr = values <= compareValue    
+            
+        elif operator=='egt':
+            boolArr = values >= compareValue    
+            
+        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
+        
+        return lnIDs
+        
+
+    def iterNodes(self, agTypeID=None, localIDs=None, ghosts = False):
+        """
+        Iteration over entities of specified type. Default returns
+        non-ghosts in random order.
+        """
+        if agTypeID is None:
+            nodeList = localIDs
+        elif localIDs is None:
+            if isinstance(agTypeID,str):
+                agTypeID = self.types.index(agTypeID)
+    
+            if ghosts:
+                nodeList = self.__ghostNodeDict[agTypeID]
+            else:
+                nodeList = self.__nodeDict[agTypeID]
+
+        return  [self.__entDict[i] for i in nodeList]
+
+
+#%% Local and global IDs            
+    def getDataIDs(self, agTypeID):
+        return self.__dataDict[agTypeID]
+
+    def glob2Loc(self, globIdx):
+        return self.__glob2loc[globIdx]
+
+    def setGlob2Loc(self, globIdx, locIdx):
+        self.__glob2loc[globIdx] = locIdx
+
+    def loc2Glob(self, locIdx):
+        return self.__loc2glob[locIdx]
+
+    def setLoc2Glob(self, globIdx, locIdx):
+        self.__loc2glob[locIdx] = globIdx 
+
+
+
+
+#%% Register methods
+
+
     def __addIterNodeFunction(self, typeStr, nodeTypeId):
         name = "iter" + typeStr
         source = """def %NAME%(self):
@@ -371,14 +387,14 @@ class World:
         setattr(self, name, types.MethodType(locals()[name], self))
 
         
-    def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
+    def registerAgentType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
-        - Registers the properties of each nodeTypeID for other purposes, e.g. I/O
+        - Registers the properties of each agTypeID for other purposes, e.g. I/O
         of these properties
         - update of convertions dicts:
             - class2NodeType
-            - nodeTypeID2Class
+            - agTypeID2Class
         - creations of access dictionaries
             - nodeDict
             - ghostNodeDict
@@ -391,27 +407,27 @@ class World:
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 
-        nodeTypeIDIdx = len(self.graph.nodeTypeIDs)+1
+        agTypeIDIdx = len(self.graph.agTypeIDs)+1
 
-        self.graph.addNodeType(nodeTypeIDIdx, 
+        self.graph.addNodeType(agTypeIDIdx, 
                                typeStr, 
                                AgentClass,
                                GhostAgentClass,
                                staticProperties, 
                                dynamicProperties)
-        self.__nodeDict[nodeTypeIDIdx]      = list()
-        self.__dataDict[nodeTypeIDIdx]      = list()
-        self.__ghostNodeDict[nodeTypeIDIdx] = list()
-        self.__ghostDataDict[nodeTypeIDIdx] = list()
-        self.__addIterNodeFunction(typeStr, nodeTypeIDIdx)
+        self.__nodeDict[agTypeIDIdx]      = list()
+        self.__dataDict[agTypeIDIdx]      = list()
+        self.__ghostNodeDict[agTypeIDIdx] = list()
+        self.__ghostDataDict[agTypeIDIdx] = list()
+        self.__addIterNodeFunction(typeStr, agTypeIDIdx)
 
-        return nodeTypeIDIdx
+        return agTypeIDIdx
 
 
-    def registerLinkType(self, typeStr,  nodeTypeID1, nodeTypeID2, staticProperties = [], dynamicProperties=[]):
+    def registerLinkType(self, typeStr,  agTypeID1, agTypeID2, staticProperties = [], dynamicProperties=[]):
         """
         Method to register a edge type:
-        - Registers the properties of each linkTypeID for other purposes, e.g. I/O
+        - Registers the properties of each liTypeID for other purposes, e.g. I/O
         of these properties
         - update of convertions dicts:
             - node2EdgeType
@@ -423,16 +439,16 @@ class World:
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         
-        linkTypeIDIdx = self.graph.addLinkType( typeStr, 
+        liTypeIDIdx = self.graph.addLinkType( typeStr, 
                                                staticProperties, 
                                                dynamicProperties, 
-                                               nodeTypeID1, 
-                                               nodeTypeID2)
+                                               agTypeID1, 
+                                               agTypeID2)
         
 
-        return  linkTypeIDIdx
+        return  liTypeIDIdx
 
-    def registerNode(self, agent, typ, ghost=False): #TODO rename agent to entity?
+    def registerAgent(self, agent, typ, ghost=False): #TODO rename agent to entity?
         """
         Method to register instances of nodes
         -> update of:
@@ -458,7 +474,7 @@ class World:
             self.__nodeDict[typ].append(agent.nID)
             self.__dataDict[typ].append(agent.dataID)
 
-    def deRegisterNode(self, agent, ghost):
+    def deRegisterAgent(self, agent, ghost):
         """
         Method to remove instances of nodes
         -> update of:
@@ -472,14 +488,14 @@ class World:
         if self.isParallel:
             del self.__glob2loc[agent.gID]
             del self.__loc2glob[agent.nID]
-        nodeTypeID =  self.graph.class2NodeType(agent.__class__)
+        agTypeID =  self.graph.class2NodeType(agent.__class__)
         if ghost:
-            self.__ghostNodeDict[nodeTypeID].remove(agent.nID)
-            self.__ghostDataDict[nodeTypeID].remove(agent.dataID)
+            self.__ghostNodeDict[agTypeID].remove(agent.nID)
+            self.__ghostDataDict[agTypeID].remove(agent.dataID)
         else:
-            self.__nodeDict[nodeTypeID].remove(agent.nID)
-            self.__dataDict[nodeTypeID].remove(agent.dataID)
-            #print(self.__nodeDict[nodeTypeID])
+            self.__nodeDict[agTypeID].remove(agent.nID)
+            self.__dataDict[agTypeID].remove(agent.dataID)
+            #print(self.__nodeDict[agTypeID])
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
         Creation of of a new record instance. 
@@ -497,6 +513,8 @@ class World:
         self.__locDict[x,y] = location
 
 
+#%% Return of world components
+        
     def returnApiComm(self):
         return self.papi.comm
 
@@ -511,7 +529,8 @@ class World:
     
     def returnNodeDict(self,):
         return self.__nodeDict
-    
+
+#%% other    
     def finalize(self):
         """
         Method to finalize records, I/O and reporter

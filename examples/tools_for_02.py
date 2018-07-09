@@ -27,12 +27,12 @@ class PlotClass():
         plt.clf()
         extend = world.getParameter('extend')
         
-        grass = np.reshape(world.getNodeAttr('height', nodeTypeID=1),[extend, extend])
+        grass = np.reshape(world.getAgentAttr('height', agTypeID=1),[extend, extend])
         
         
         self.hh_area = plt.pcolormesh(grass, cmap='summer_r',zorder=-1)
         
-        pos = world.getNodeAttr('pos', nodeTypeID = 2)
+        pos = world.getAgentAttr('pos', agTypeID = 2)
         #print(pos.shape)
         self.hh_sheeps = plt.scatter(pos[:,1],pos[:,0], c='w', s = 35, marker='s',zorder=2)
         self.hh_wolfs  = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
@@ -43,11 +43,11 @@ class PlotClass():
     
     def update(self, world):
 
-        pos = world.getNodeAttr('pos', nodeTypeID = 2)
+        pos = world.getAgentAttr('pos', agTypeID = 2)
         
         self.hh_sheeps.set_offsets(np.c_[pos[:,1],pos[:,0]])
-        pos = world.getNodeAttr('pos', nodeTypeID = 3)
+        pos = world.getAgentAttr('pos', agTypeID = 3)
         self.hh_wolfs.set_offsets(np.c_[pos[:,1],pos[:,0]])
-        self.hh_area.set_array(world.getNodeAttr('height', nodeTypeID=1))
+        self.hh_area.set_array(world.getAgentAttr('height', agTypeID=1))
         plt.draw()
         self.fig.canvas.flush_events()

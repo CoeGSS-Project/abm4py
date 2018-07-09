@@ -50,7 +50,7 @@ for hu in range(nHunters):
     x,y = random.choice(community.locDict.keys())
     offset = (random.random() - 0.5)/5. 
     pS = max(0, min(1, 2*community.vHare/community.vStag + offset))
-    hunter = Hunter(community, pS, nodeTypeID='hu', xPos=x, yPos=y)
+    hunter = Hunter(community, pS, agTypeID='hu', xPos=x, yPos=y)
     hunter.connectLocation(community)
     hunter.register(community)   
 #community.view()

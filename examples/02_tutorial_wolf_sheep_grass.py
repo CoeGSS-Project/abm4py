@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
 
-from lib import World, Agent #, GhostAgent, World,  h5py, MPI
+from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
 from lib.enhancements import Neighborhood, Collective, Mobil
 from lib import core
 
@@ -37,11 +37,11 @@ W_WOLF = 4.  # Reproduction weight for wolves
 APPETITE = .30  # Percentage of grass height that sheep consume
 
 #%% Sheep class
-class Grass(LIB.Location, Collective):
+class Grass(Location, Collective):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Location.__init__(self, world, **kwAttr)
+        Location.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         
     def add(self, value):
@@ -170,7 +170,7 @@ class Wolf(Agent):
         five units of weight.
         
         """
-        sheepList = self.loc.getPeerIDs(linkTypeID=LINK_SHEEP)
+        sheepList = self.loc.getPeerIDs(liTypeID=LINK_SHEEP)
         if len(sheepList) > 0:
             sheep = self.loc.getMember(random.choice(sheepList))
             sheep.delete(world)
@@ -252,26 +252,26 @@ class WolfPack(Agent, Collective):
         newPack.computeCenter()
         
 #%%
-world = LIB.World(agentOutput=False,
+world = World(agentOutput=False,
                   maxNodes=100000,
                   maxLinks=200000)
 
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
-GRASS = world.registerNodeType('grass' , AgentClass=Grass,
+GRASS = world.registerAgentType('grass' , AgentClass=Grass,
                                staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [('height', np.float32, 1)])
 
-SHEEP = world.registerNodeType('sheep' , AgentClass=Sheep,
+SHEEP = world.registerAgentType('sheep' , AgentClass=Sheep,
                                staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [('weight', np.float32, 1)])
 
 
-WOLF = world.registerNodeType('wolf' , AgentClass=Wolf,
+WOLF = world.registerAgentType('wolf' , AgentClass=Wolf,
                                staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [('weight', np.float32, 1)])
 
-WOLFPACK = world.registerNodeType('wolfPack' , AgentClass=WolfPack,
+WOLFPACK = world.registerAgentType('wolfPack' , AgentClass=WolfPack,
                                staticProperties  = [],
                                dynamicProperties = [('center', np.float32, 2),
                                                     ('nWolfs', np.int16, 1)])
@@ -283,6 +283,7 @@ LINK_WOLF = world.registerLinkType('grassLink',WOLF, GRASS)
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 IDArray = np.zeros([EXTEND, EXTEND])
 
+tt = time.time()
 for x in range(EXTEND):
     for y in range(EXTEND):
         
@@ -292,7 +293,8 @@ for x in range(EXTEND):
         grass.register(world)
         world.registerLocation(grass, x,y)
         IDArray[x,y] = grass.nID
-
+timePerAgent = (time.time() -tt ) / world.nAgents(GRASS)
+print(timePerAgent)
 connBluePrint = world.spatial.computeConnectionList(radius=1.5)
 world.spatial.connectLocations(IDArray, connBluePrint, ROOTS, Grass)
 
@@ -344,12 +346,12 @@ while True:
             
         
     
-    [sheep.step(world) for sheep in world.iterNodes(nodeTypeID=SHEEP)]
+    [sheep.step(world) for sheep in world.iterNodes(agTypeID=SHEEP)]
        
         
     
     
-    for wolfPack in world.iterNodes(nodeTypeID=WOLFPACK):
+    for wolfPack in world.iterNodes(agTypeID=WOLFPACK):
         center = wolfPack.computeCenter()   
         
         wolfPack.attr['nWolfs'] = len(wolfPack.groups['wolfs'])
@@ -362,15 +364,15 @@ while True:
         
         
     # This updates the plot.        
-    pos = world.getNodeAttr('pos', nodeTypeID=SHEEP)
+    pos = world.getAgentAttr('pos', agTypeID=SHEEP)
     if pos is not None:
         np.clip(pos, 0, EXTEND, out=pos)
-        pos = world.setNodeAttr('pos', pos, nodeTypeID=SHEEP)
+        pos = world.setAgentAttr('pos', pos, agTypeID=SHEEP)
         plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
-    nHunting = np.sum(world.getNodeAttr('weight', nodeTypeID=WOLF) <1.0)        
+    nHunting = np.sum(world.getAgentAttr('weight', agTypeID=WOLF) <1.0)        
     print(str(time.time() - tt) + ' s')
-    #print(str(world.nNodes(SHEEP)) + ' - ' + str(world.nNodes(WOLF)) + '(' + str(nHunting) + ')')
+    #print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

@@ -25,9 +25,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import collections  as mc
 
-def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
+def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
-    positions = world.getNodeAttr('pos', nodeTypeID=agentTypeID)
+    positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.figure('graph')
@@ -40,7 +40,7 @@ def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
         
         
         
-        peerDataIDs   = np.asarray(agent.getPeerIDs(linkTypeID)) - world.maxNodes
+        peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
         if len(peerDataIDs)> 0:
             peerPositions = positions[peerDataIDs]
             for peerPos in peerPositions:
@@ -48,7 +48,7 @@ def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
                 linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
     if attrLabel is not None:
-        values = world.getNodeAttr(attrLabel, nodeTypeID=agentTypeID)
+        values = world.getAgentAttr(attrLabel, agTypeID=agentTypeID)
         values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 15, c = values,zorder=2)

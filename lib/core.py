@@ -63,16 +63,16 @@ from collections import OrderedDict
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 
-def writeAdjFile(world,fileName, nodeTypeID):
+def writeAdjFile(world,fileName, agTypeID):
     #graph.to_undirected()
-    #edgeTypeID = world.graph.node2EdgeType[nodeTypeID, nodeTypeID]
-    adjList, nLinks = world.graph.getAdjList(nodeTypeID)
+    #edgeTypeID = world.graph.node2EdgeType[agTypeID, agTypeID]
+    adjList, nLinks = world.graph.getAdjList(agTypeID)
     fid = open(fileName,'w')
     fid.write('% Adjecency file created by gcfABM \n')
-    fid.write(str(world.nNodes(nodeTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
+    fid.write(str(world.nAgents(agTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
     fid.write('% Adjecencies of verteces \n')
     
-    popList = world.getNodeAttr('population', nodeTypeID=nodeTypeID).tolist()
+    popList = world.getAgentAttr('population', agTypeID=agTypeID).tolist()
 
     for adjline, popu in zip(adjList, popList):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
@@ -300,17 +300,17 @@ def convertStr(string):
         except:
             return string
 
-def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
+def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getNodeAttr('pos', nodeTypeID=agentTypeID)
+    positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
-    if linkTypeID is not None:
+    if liTypeID is not None:
         for agent in world.iterNodes(agentTypeID):
             pos = agent.attr['pos'][0]
             
@@ -318,7 +318,7 @@ def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
             
             
             
-            peerDataIDs   = np.asarray(agent.getPeerIDs(linkTypeID)) - world.maxNodes
+            peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
                 for peerPos in peerPositions:
@@ -328,7 +328,7 @@ def plotGraph(world, agentTypeID, linkTypeID=None, attrLabel=None):
         ax.add_collection(lc)
         ax.autoscale()
     if attrLabel is not None:
-        values = world.getNodeAttr(attrLabel, nodeTypeID=agentTypeID)
+        values = world.getAgentAttr(attrLabel, agTypeID=agentTypeID)
         #values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 25, c = values,zorder=2)
@@ -371,14 +371,14 @@ class Spatial():
         
         return computeConnectionList(radius, weightingFunc, ownWeight)
 
-    def initSpatialLayer(self, rankArray, connList, LocClassObject, linkTypeID):
+    def initSpatialLayer(self, rankArray, connList, LocClassObject, liTypeID):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
-        nodeTypeID = self.world.graph.class2NodeType(LocClassObject)
+        agTypeID = self.world.graph.class2NodeType(LocClassObject)
         if self.world.isParallel:
             GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
         nodeArray = ((rankArray * 0) +1)
@@ -406,7 +406,7 @@ class Spatial():
                     IDArray[x,y] = loc.nID
                     
                     self.world.registerLocation(loc, x, y)          # only for real cells
-                    #self.world.registerNode(loc,nodeTypeID)     # only for real cells
+                    #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
 
         if self.world.isParallel:
@@ -429,7 +429,7 @@ class Spatial():
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
-                            self.world.registerNode(loc,nodeTypeID,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
+                            self.world.registerAgent(loc,agTypeID,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
                             
                             #self.world.registerLocation(loc, xDst, yDst)
                             ghostLocationList.append(loc)
@@ -439,9 +439,9 @@ class Spatial():
         #nConnection  = list()
         #print 'rank: ' +  str(self.world.locDict)
 
-        self.connectLocations(IDArray, connList, linkTypeID, nodeTypeID, ghostLocationList,)
+        self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList,)
 
-    def connectLocations(self, IDArray, connList, linkTypeID, nodeTypeID, ghostLocationList=None):
+    def connectLocations(self, IDArray, connList, liTypeID, agTypeID, ghostLocationList=None):
         
         xOrg = 0
         yOrg = 0
@@ -490,7 +490,7 @@ class Spatial():
 
             
         #eStart = self.world.graph.ecount()
-        self.world.graph.addLinks(linkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
+        self.world.graph.addLinks(liTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
 #        eStart = 0
@@ -503,20 +503,20 @@ class Spatial():
 #            ii +=1
         if self.world.isParallel:    
             lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
-            self.world.papi.initCommunicationViaLocations(ghostLocationList, nodeTypeID)
+            self.world.papi.initCommunicationViaLocations(ghostLocationList, agTypeID)
             lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
             
     def getLocation(self, x,y):
         
         #get nID of the location
         nID = self.world.getLocationDict()[x,y].nID
-        return self.world.getNode(nodeID=nID)
+        return self.world.getAgent(nodeID=nID)
 
 
     def getNCloseEntities(self, 
                            agent, 
                            nContacts,
-                           nodeTypeID, 
+                           agTypeID, 
                            currentContacts = None, 
                            addYourself = True):
         """
@@ -525,7 +525,7 @@ class Spatial():
         #ToDO add to easyUI
         """
 
-        linkTypeID = self.world.graph.node2EdgeType[1, nodeTypeID]
+        liTypeID = self.world.graph.node2EdgeType[1, agTypeID]
         
         if currentContacts is None:
             isInit=True
@@ -545,7 +545,7 @@ class Spatial():
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)           
-            personIds = self.world.getNode(cellIdx).getPeerIDs(linkTypeID)
+            personIds = self.world.getAgent(cellIdx).getPeerIDs(liTypeID)
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -1055,7 +1055,7 @@ class IO():
                      agIds, 
                      nAgentsGlob, 
                      loc2GlobIdx, 
-                     nodeTypeID, 
+                     agTypeID, 
                      timeStepMag):
             
             self.ag2FileIdx = agIds
@@ -1067,7 +1067,7 @@ class IO():
             self.timeStep = 0
             self.nAgentsGlob = nAgentsGlob
             self.loc2GlobIdx = loc2GlobIdx
-            self.nodeTypeID    = nodeTypeID
+            self.agTypeID    = agTypeID
             self.timeStepMag = timeStepMag
 
 
@@ -1089,12 +1089,12 @@ class IO():
         def writeData(self, h5File, folderName=None):
             #print self.header
             if folderName is None:
-                path = '/' + str(self.nodeTypeID)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
+                path = '/' + str(self.agTypeID)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
                 #print 'IO-path: ' + path
                 self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
                 self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
             else:
-                path = '/' + str(self.nodeTypeID)+ '/' + folderName
+                path = '/' + str(self.agTypeID)+ '/' + folderName
                 #print 'IO-path: ' + path
                 self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
                 self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
@@ -1126,28 +1126,28 @@ class IO():
         self.timeStepMag = int(np.ceil(np.log10(nSteps)))
 
 
-    def initNodeFile(self, world, nodeTypeIDs):
+    def initNodeFile(self, world, agTypeIDs):
         """
         Initializes the internal data structure for later I/O
         """
         lg.info('start init of the node file')
 
-        for nodeTypeID in nodeTypeIDs:
+        for agTypeID in agTypeIDs:
             mpiBarrier()
             tt = time.time()
-            lg.info(' NodeType: ' +str(nodeTypeID))
-            group = self.h5File.create_group(str(nodeTypeID))
+            lg.info(' NodeType: ' +str(agTypeID))
+            group = self.h5File.create_group(str(agTypeID))
             
-            attrStrings = [string.encode('utf8') for string in world.graph.getPropOfNodeType(nodeTypeID, 'dyn')['names']]
+            attrStrings = [string.encode('utf8') for string in world.graph.getPropOfNodeType(agTypeID, 'dyn')['names']]
             group.attrs.create('dynamicProps', attrStrings)
             
-            attrStrings = [string.encode('utf8') for string in  world.graph.getPropOfNodeType(nodeTypeID, 'sta')['names']]
+            attrStrings = [string.encode('utf8') for string in  world.graph.getPropOfNodeType(agTypeID, 'sta')['names']]
             group.attrs.create('staticProps', attrStrings)
 
             lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
 
-            nAgents = len(world.getNode(nodeTypeID=nodeTypeID))
+            nAgents = len(world.getAgent(agTypeID=agTypeID))
             self.nAgentsAll = np.empty(1*mpiSize,dtype=np.int)
             
             if comm is not None:
@@ -1169,20 +1169,20 @@ class IO():
             tt = time.time()
 
 
-            dataIDS = world.getDataIDs(nodeTypeID)
+            dataIDS = world.getDataIDs(agTypeID)
             # static data
             staticRec  = self.Record(nAgents, 
                                      dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
-                                     nodeTypeID, 
+                                     agTypeID, 
                                      self.timeStepMag)
             
-            attrInfo   = world.graph.getPropOfNodeType(nodeTypeID, 'sta')
+            attrInfo   = world.graph.getPropOfNodeType(agTypeID, 'sta')
             attributes = attrInfo['names']
             sizes      = attrInfo['sizes']
             
-            attrDtype = world.graph.getDTypeOfNodeType(nodeTypeID, 'sta')
+            attrDtype = world.graph.getDTypeOfNodeType(agTypeID, 'sta')
             
             lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
 
@@ -1191,7 +1191,7 @@ class IO():
                 #check if first property of first entity is string
                 try:
                      
-                    entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=nodeTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                    entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=agTypeID, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
                     raise BaseException
@@ -1203,23 +1203,23 @@ class IO():
             staticRec.initStorage(attrDtype)
             #print attrInfo
             
-            self.staticData[nodeTypeID] = staticRec
+            self.staticData[agTypeID] = staticRec
             lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
-            dataIDS = world.getDataIDs(nodeTypeID)
+            dataIDS = world.getDataIDs(agTypeID)
             # dynamic data
             dynamicRec = self.Record(nAgents, 
                                      dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
-                                     nodeTypeID, 
+                                     agTypeID, 
                                      self.timeStepMag)
 
-            attrInfo   = world.graph.getPropOfNodeType(nodeTypeID, 'dyn')
+            attrInfo   = world.graph.getPropOfNodeType(agTypeID, 'dyn')
             attributes = attrInfo['names']
             sizes      = attrInfo['sizes']
 
-            attrDtype = world.graph.getDTypeOfNodeType(nodeTypeID, 'dyn')
+            attrDtype = world.graph.getDTypeOfNodeType(agTypeID, 'dyn')
 
             lg.info('Dynamic record created in  ' + str(time.time()-tt)  + ' seconds')
 
@@ -1227,7 +1227,7 @@ class IO():
             for attr, nProp in zip(attributes, sizes):
                 #check if first property of first entity is string
                 entProp = self._graph.getNodeSeqAttr(attr, 
-                                                     nTypeID=nodeTypeID,
+                                                     nTypeID=agTypeID,
                                                      dataIDs=staticRec.ag2FileIdx[0])
                 if not isinstance(entProp,str):
                     dynamicRec.addAttr(attr, nProp)
@@ -1235,35 +1235,35 @@ class IO():
             tt = time.time()
             # allocate storage
             dynamicRec.initStorage(attrDtype)
-            self.dynamicData[nodeTypeID] = dynamicRec
+            self.dynamicData[agTypeID] = dynamicRec
             
             #lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
             
-            self.writeDataToFile(0, nodeTypeID, static=True)
+            self.writeDataToFile(0, agTypeID, static=True)
             
         lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-    def writeDataToFile(self, timeStep, nodeTypeIDs, static=False):
+    def writeDataToFile(self, timeStep, agTypeIDs, static=False):
         """
         Transfers data from the graph to record for the I/O
         and writing data to hdf5 file
         """
-        if isinstance(nodeTypeIDs,int):
-            nodeTypeIDs = [nodeTypeIDs]
+        if isinstance(agTypeIDs,int):
+            agTypeIDs = [agTypeIDs]
         
-        for nodeTypeID in nodeTypeIDs:
+        for agTypeID in agTypeIDs:
             if static:
                 #for typ in self.staticData.keys():
-                self.staticData[nodeTypeID].addData(timeStep, self._graph.nodes[nodeTypeID])
-                self.staticData[nodeTypeID].writeData(self.h5File, folderName='static')
+                self.staticData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
+                self.staticData[agTypeID].writeData(self.h5File, folderName='static')
             else:
                 #for typ in self.dynamicData.keys():
-                self.dynamicData[nodeTypeID].addData(timeStep, self._graph.nodes[nodeTypeID])
-                self.dynamicData[nodeTypeID].writeData(self.h5File)
+                self.dynamicData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
+                self.dynamicData[agTypeID].writeData(self.h5File)
 
                
 
-    def initEdgeFile(self, linkTypeIDs):
+    def initEdgeFile(self, liTypeIDs):
         """
         ToDo
         """
@@ -1276,15 +1276,15 @@ class IO():
         ToDo: include attributes in the agent file
         """
 
-        for nodeTypeID in list(self.dynamicData.keys()):
-            group = self.h5File.get('/' + str(nodeTypeID))
-            record = self.dynamicData[nodeTypeID]
+        for agTypeID in list(self.dynamicData.keys()):
+            group = self.h5File.get('/' + str(agTypeID))
+            record = self.dynamicData[agTypeID]
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
-        for nodeTypeID in list(self.staticData.keys()):
-            group = self.h5File.get('/' + str(nodeTypeID))
-            record = self.staticData[nodeTypeID]
+        for agTypeID in list(self.staticData.keys()):
+            group = self.h5File.get('/' + str(agTypeID))
+            record = self.staticData[agTypeID]
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
@@ -1295,9 +1295,9 @@ class IO():
         self.h5File.close()
         lg.info( 'Agent file closed')
 
-        for nodeTypeID in list(self.dynamicData.keys()):
-            record = self.dynamicData[nodeTypeID]
-            self.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(nodeTypeID)))
+        for agTypeID in list(self.dynamicData.keys()):
+            record = self.dynamicData[agTypeID]
+            self.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(agTypeID)))
 
     @staticmethod
     def saveObj(obj, name ):
@@ -1379,19 +1379,19 @@ class PAPI():
         return recvBuffer
 
 
-    def _packData(self, nodeTypeID, mpiPeer, propList, connList=None):
+    def _packData(self, agTypeID, mpiPeer, propList, connList=None):
         """
         Privat method to pack all data for MPI transfer
         """
         dataSize = 0
-        nNodes = len(self.mpiSendIDList[(nodeTypeID,mpiPeer)])
+        nNodes = len(self.mpiSendIDList[(agTypeID,mpiPeer)])
         
         dataPackage = dict()
         dataPackage['nNodes']  = nNodes
-        dataPackage['nTypeID'] = nodeTypeID
+        dataPackage['nTypeID'] = agTypeID
 
         for prop in propList:
-            dataPackage[prop] = self.world.graph.getNodeSeqAttr(label=prop, lnIDs=self.mpiSendIDList[(nodeTypeID,mpiPeer)] )
+            dataPackage[prop] = self.world.graph.getNodeSeqAttr(label=prop, lnIDs=self.mpiSendIDList[(agTypeID,mpiPeer)] )
             dataSize += np.prod(dataPackage[prop].shape)
         
         if connList is not None:
@@ -1403,22 +1403,22 @@ class PAPI():
 
 
 
-    def _updateGhostNodeData(self, nodeTypeIDList= 'dyn', propertyList= 'dyn'):
+    def _updateGhostNodeData(self, agTypeIDList= 'dyn', propertyList= 'dyn'):
         """
         Privat method to update the data between processes for existing ghost nodes
         """
         tt = time.time()
         messageSize = 0
         
-        for (nodeTypeID, mpiPeer) in list(self.mpiSendIDList.keys()):
+        for (agTypeID, mpiPeer) in list(self.mpiSendIDList.keys()):
 
-            if nodeTypeIDList == 'all' or nodeTypeID in nodeTypeIDList:
+            if agTypeIDList == 'all' or agTypeID in agTypeIDList:
 
                 if propertyList in ['all', 'dyn', 'sta']:
-                    propertyList = self.world.graph.getPropOfNodeType(nodeTypeID, kind=propertyList)['names']
+                    propertyList = self.world.graph.getPropOfNodeType(agTypeID, kind=propertyList)['names']
                     
-                lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for nodeTypeID ' + str(nodeTypeID) + 'MPIMPIMPI')
-                dataPackage ,packageSize = self._packData(nodeTypeID, mpiPeer, propertyList, connList=None)
+                lg.debug('MPIMPIMPIMPI -  Updating ' + str(propertyList) + ' for agTypeID ' + str(agTypeID) + 'MPIMPIMPI')
+                dataPackage ,packageSize = self._packData(agTypeID, mpiPeer, propertyList, connList=None)
                                                     
                 messageSize = messageSize + packageSize
                 self._add2Buffer(mpiPeer, dataPackage)
@@ -1436,16 +1436,16 @@ class PAPI():
 
 
                 for dataPackage in recvBuffer[mpiPeer]:
-                    nodeTypeID = dataPackage['nTypeID']
+                    agTypeID = dataPackage['nTypeID']
 
                     if propertyList == 'all':
-                        propertyList= self.world.graph.nodeProperies[nodeTypeID][:]
+                        propertyList= self.world.graph.nodeProperies[agTypeID][:]
                         propertyList.remove('gID')
 
                     for prop in propertyList:
                         self.world.graph.setNodeSeqAttr(label=prop, 
                                                     values=dataPackage[prop],
-                                                    lnIDs=self.mpiRecvIDList[(nodeTypeID, mpiPeer)])                        
+                                                    lnIDs=self.mpiRecvIDList[(agTypeID, mpiPeer)])                        
                     
         syncUnpackTime = time.time() -tt
 
@@ -1514,7 +1514,7 @@ class PAPI():
             
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
-            for entity in [self.world.getNode(nodeID=i) for i in lnIDList]:
+            for entity in [self.world.getAgent(nodeID=i) for i in lnIDList]:
                 entity.mpiPeers.append(mpiDest)
 
             # send requested global IDs
@@ -1556,22 +1556,22 @@ class PAPI():
 
         messageSize = 0
         #%%Packing of data
-        for nodeTypeID, mpiPeer in sorted(self.ghostNodeQueue.keys()):
+        for agTypeID, mpiPeer in sorted(self.ghostNodeQueue.keys()):
             
             #get size of send array
-            IDsList= self.ghostNodeQueue[(nodeTypeID, mpiPeer)]['nIds']
-            connList = self.ghostNodeQueue[(nodeTypeID, mpiPeer)]['conn']
+            IDsList= self.ghostNodeQueue[(agTypeID, mpiPeer)]['nIds']
+            connList = self.ghostNodeQueue[(agTypeID, mpiPeer)]['conn']
 
-            self.mpiSendIDList[(nodeTypeID,mpiPeer)] = IDsList
+            self.mpiSendIDList[(agTypeID,mpiPeer)] = IDsList
 
             #nodeSeq = world.graph.vs[IDsList]
 
             # setting up ghost out communication
-            #self.ghostNodeSend[nodeTypeID, mpiPeer] = IDsList
+            #self.ghostNodeSend[agTypeID, mpiPeer] = IDsList
             
-            propList = world.graph.getPropOfNodeType(nodeTypeID, kind='all')['names']
+            propList = world.graph.getPropOfNodeType(agTypeID, kind='all')['names']
             #print propList
-            dataPackage, packageSize = self._packData( nodeTypeID, mpiPeer,  propList, connList)
+            dataPackage, packageSize = self._packData( agTypeID, mpiPeer,  propList, connList)
             self._add2Buffer(mpiPeer, dataPackage)
             messageSize = messageSize + packageSize
         recvBuffer = self._all2allSync()
@@ -1585,50 +1585,50 @@ class PAPI():
         #%% create ghost agents from dataDict
 
                 nNodes   = dataPackage['nNodes']
-                nodeTypeID = dataPackage['nTypeID']
+                agTypeID = dataPackage['nTypeID']
                 #
-                IDsList = world.addNodes(nodeTypeID, nNodes)
+                IDsList = world.addNodes(agTypeID, nNodes)
                 # setting up ghostIn communicator
-                self.mpiRecvIDList[(nodeTypeID, mpiPeer)] = IDsList
+                self.mpiRecvIDList[(agTypeID, mpiPeer)] = IDsList
 
 
-                propList = world.graph.getPropOfNodeType(nodeTypeID, kind='all')['names']
+                propList = world.graph.getPropOfNodeType(agTypeID, kind='all')['names']
                 propList.append('gID')
 
                 for prop in propList:   
                     self.world.graph.setNodeSeqAttr(label=prop, 
                                                 values=dataPackage[prop],
-                                                lnIDs=self.mpiRecvIDList[(nodeTypeID, mpiPeer)])                        
+                                                lnIDs=self.mpiRecvIDList[(agTypeID, mpiPeer)])                        
 
                 gIDsParents = dataPackage['connectedNodes']
 
                 # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
-                for nID, gID in zip(self.mpiRecvIDList[(nodeTypeID, mpiPeer)], gIDsParents):
+                for nID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiPeer)], gIDsParents):
 
-                    GhostAgentClass = world.graph.nodeTypeID2Class(nodeTypeID)[1]
+                    GhostAgentClass = world.graph.agTypeID2Class(agTypeID)[1]
 
                     agent = GhostAgentClass(world, mpiPeer, nID=nID)
 
-                    parentEntity = world.getNode(world.glob2Loc(gID))
-                    linkTypeID = world.graph.node2EdgeType[parentEntity.nodeTypeID, nodeTypeID]
+                    parentEntity = world.getAgent(world.glob2Loc(gID))
+                    liTypeID = world.graph.node2EdgeType[parentEntity.agTypeID, agTypeID]
 
-                    agent.register(world, parentEntity, linkTypeID)
+                    agent.register(world, parentEntity, liTypeID)
 
 
         lg.info('################## Ratio of ghost agents ################################################')
-        for nodeTypeIDIdx in list(world.graph.nodeTypeIDs.keys()):
-            nodeTypeID = world.graph.nodeTypeIDs[nodeTypeIDIdx].typeStr
-            nAgents = len(world.getNode(nodeTypeID=nodeTypeIDIdx))
+        for agTypeIDIdx in list(world.graph.agTypeIDs.keys()):
+            agTypeID = world.graph.agTypeIDs[agTypeIDIdx].typeStr
+            nAgents = len(world.getAgent(agTypeID=agTypeIDIdx))
             if nAgents > 0:
-                nGhosts = float(len(world.getNode(nodeTypeID=nodeTypeIDIdx, ghosts=True)))
+                nGhosts = float(len(world.getAgent(agTypeID=agTypeIDIdx, ghosts=True)))
                 nGhostsRatio = nGhosts / nAgents
-                lg.info('Ratio of ghost agents for type "' + nodeTypeID + '" is: ' + str(nGhostsRatio))
+                lg.info('Ratio of ghost agents for type "' + agTypeID + '" is: ' + str(nGhostsRatio))
         lg.info('#########################################################################################')
 
 
 
 
-    def updateGhostNodes(self, nodeTypeIDList= 'all', propertyList='all'):
+    def updateGhostNodes(self, agTypeIDList= 'all', propertyList='all'):
         """
         Method to update ghost node data on all processes
         """
@@ -1637,9 +1637,9 @@ class PAPI():
             return None
         tt = time.time()
 
-        if nodeTypeIDList == 'all':
-            nodeTypeIDList = self.world.graph.nodeTypeIDs
-        messageSize = self._updateGhostNodeData(nodeTypeIDList, propertyList)
+        if agTypeIDList == 'all':
+            agTypeIDList = self.world.graph.agTypeIDs
+        messageSize = self._updateGhostNodeData(agTypeIDList, propertyList)
 
         if self.world.timeStep == 0:
             lg.info('Ghost update (of approx size ' +
@@ -1650,29 +1650,29 @@ class PAPI():
                      str(messageSize * 24. / 1000. ) + ' KB)' +         ##OPTPRODUCTION
                      ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
         
-        if nodeTypeIDList == 'all':
-            nodeTypeIDList = self.world.graph.nodeTypeIDs
+        if agTypeIDList == 'all':
+            agTypeIDList = self.world.graph.agTypeIDs
         
         
-        for nodeTypeID in nodeTypeIDList:
-            self.world.graph.ghostTypeUpdated[nodeTypeID] = list()
+        for agTypeID in agTypeIDList:
+            self.world.graph.ghostTypeUpdated[agTypeID] = list()
             if propertyList in ['all', 'dyn', 'sta']:        
-                propertyList = self.world.graph.getPropOfNodeType(nodeTypeID, kind=propertyList)['names']
+                propertyList = self.world.graph.getPropOfNodeType(agTypeID, kind=propertyList)['names']
             
             
             for prop in propertyList:
-                self.world.graph.ghostTypeUpdated[nodeTypeID].append(prop)
+                self.world.graph.ghostTypeUpdated[agTypeID].append(prop)
             
 
-    def queueSendGhostNode(self, mpiPeer, nodeTypeID, entity, parentEntity):
+    def queueSendGhostNode(self, mpiPeer, agTypeID, entity, parentEntity):
 
-        if (nodeTypeID, mpiPeer) not in list(self.ghostNodeQueue.keys()):
-            self.ghostNodeQueue[nodeTypeID, mpiPeer] = dict()
-            self.ghostNodeQueue[nodeTypeID, mpiPeer]['nIds'] = list()
-            self.ghostNodeQueue[nodeTypeID, mpiPeer]['conn'] = list()
+        if (agTypeID, mpiPeer) not in list(self.ghostNodeQueue.keys()):
+            self.ghostNodeQueue[agTypeID, mpiPeer] = dict()
+            self.ghostNodeQueue[agTypeID, mpiPeer]['nIds'] = list()
+            self.ghostNodeQueue[agTypeID, mpiPeer]['conn'] = list()
 
-        self.ghostNodeQueue[nodeTypeID, mpiPeer]['nIds'].append(entity.nID)
-        self.ghostNodeQueue[nodeTypeID, mpiPeer]['conn'].append(parentEntity.gID)
+        self.ghostNodeQueue[agTypeID, mpiPeer]['nIds'].append(entity.nID)
+        self.ghostNodeQueue[agTypeID, mpiPeer]['conn'].append(parentEntity.gID)
 
 
 
@@ -1716,16 +1716,16 @@ class Random():
     def location(self, nChoice):
         return random.sample(self.locDict.items(), nChoice)
     
-    def iterNodes(self, nodeTypeID, ghosts=False):
+    def iterNodes(self, agTypeID, ghosts=False):
         # a generator that yields items instead of returning a list
-        if isinstance(nodeTypeID,str):
-            nodeTypeID = self.__world.types.index(nodeTypeID)
+        if isinstance(agTypeID,str):
+            agTypeID = self.__world.types.index(agTypeID)
 
-        nodes = self.__world.getNode(nodeTypeID=nodeTypeID, ghosts=ghosts)
+        nodes = self.__world.getAgentIDs(agTypeID=agTypeID, ghosts=ghosts)
 
         shuffled_list = sorted(nodes, key=lambda x: random.random())
         for nodeID in shuffled_list:
-            yield self.__world.getNode(nodeID=nodeID)
+            yield self.__world.getAgent(nodeID=nodeID)
             
 
 class AttrDict(dict):
@@ -1746,18 +1746,18 @@ class Iterators():
         
         self.custonIterators = dict()
         
-    def byNodesType(self, nodeTypeID=None,ghosts = False):
+    def byNodesType(self, agTypeID=None,ghosts = False):
         """
         Iteration over entities of specified type. Default returns
         non-ghosts in random order.
         """
-        if isinstance(nodeTypeID,str):
-            nodeTypeID = self.types.index(nodeTypeID)
+        if isinstance(agTypeID,str):
+            agTypeID = self.types.index(agTypeID)
     
         if ghosts:
-            nodeList = self.__ghostNodeDict[nodeTypeID]
+            nodeList = self.__ghostNodeDict[agTypeID]
         else:
-            nodeList = self.__nodeDict[nodeTypeID]
+            nodeList = self.__nodeDict[agTypeID]
 
         return  [self.__entDict[i] for i in nodeList]
     
@@ -1765,7 +1765,7 @@ class Iterators():
         nodeList = localIDs
         return  [self.__entDict[i] for i in nodeList]
 
-    def byFilter(self, nodeTypeID, attr, operator, value = None, compareAttr=None):
+    def byFilter(self, agTypeID, attr, operator, value = None, compareAttr=None):
         """
         Method for quick filtering nodes according to comparison of attributes
         allowed operators are:
@@ -1781,10 +1781,10 @@ class Iterators():
         if compareAttr is None:
             compareValue = value
         elif value is None:
-            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[nodeTypeID])
+            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[agTypeID])
         
         # get values of all nodes
-        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[nodeTypeID])
+        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[agTypeID])
         
         if operator=='lt':
             boolArr = values < compareValue    
@@ -1801,7 +1801,7 @@ class Iterators():
         elif operator=='egt':
             boolArr = values >= compareValue    
             
-        lnIDs = np.where(boolArr)[0] + (self.maxNodes * nodeTypeID)
+        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
         
         return lnIDs
 

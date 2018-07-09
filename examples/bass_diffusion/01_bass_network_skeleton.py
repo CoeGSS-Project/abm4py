@@ -65,7 +65,7 @@ world = LIB.World(simNo,
               maxLinks=1e5,
               debug=DEBUG)
 
-AGENT = world.registerNodeType('agent' , AgentClass=LIB.Agent,
+AGENT = world.registerAgentType('agent' , AgentClass=LIB.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -99,9 +99,9 @@ for iAgent in range(N_AGENTS):
 
 #%% creation of spatial proximity network
   
-positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
-agIDList  = world.getNodeIDs(AGENT)
-innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
+positions = world.getAgentAttr('pos', agTypeID=AGENT)
+agIDList  = world.getAgentIDs(AGENT)
+innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
 
 def network_creation(agent, world):
     
@@ -126,12 +126,12 @@ for agent in world.iterNodes(AGENT):
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
     
-    [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+    [agent.addLink(ID, liTypeID = LI_AA) for ID in friendIDs]
     
 
     
     
-positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
+positions = world.getAgentAttr('pos',agTypeID=AGENT)
 
 ##############################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -149,7 +149,7 @@ if DO_PLOT:
 while True:
     tt =time.time()
     iStep+=1
-    switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
+    switched = world.getAgentAttr('switch',agTypeID=AGENT)
     switchFraction = np.sum(switched) / N_AGENTS
     fracList.append(switchFraction)
     
@@ -158,7 +158,7 @@ while True:
         break
     tools.printfractionExceed(switchFraction, iStep)
     
-    nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
+    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
     for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
@@ -172,6 +172,6 @@ while True:
             plotting.add(iStep,inno)
             
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
     
     

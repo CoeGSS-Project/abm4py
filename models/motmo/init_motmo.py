@@ -401,7 +401,7 @@ def householdSetup(earth, calibration=False):
                            hhType=hhType)
 
             hh.adults = list()
-            hh.register(earth, parentEntity=loc, linkTypeID=CON_LH)
+            hh.register(earth, parentEntity=loc, liTypeID=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
             hh.loc.set('population', hh.loc.get('population') + nPers)
@@ -439,7 +439,7 @@ def householdSetup(earth, calibration=False):
                               emissions   = 0.)
                 
                 pers.imitation = np.random.randint(parameters['nMobTypes'])
-                pers.register(earth, parentEntity=hh, linkTypeID=CON_HP)
+                pers.register(earth, parentEntity=hh, liTypeID=CON_HP)
                 
                 successFlag = True
             
@@ -525,7 +525,7 @@ def initScenario(earth, parameters):
                                  2: 'fixedCosts',
                                  3: 'operatingCosts'})
 
-    earth.setEnum('nodeTypeIDs', {1: 'cell',
+    earth.setEnum('agTypeIDs', {1: 'cell',
                                 2: 'household',
                                 3: 'pers'})
 
@@ -569,7 +569,7 @@ def initScenario(earth, parameters):
 def initTypes(earth):
     tt = time.time()
     global CELL
-    CELL = earth.registerNodeType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
+    CELL = earth.registerAgentType('cell', AgentClass=Cell, GhostAgentClass= GhostCell,
                                staticProperties  = [('gID', np.int32, 1),
                                                    ('pos', np.int16, 2),
                                                    ('regionId', np.int16, 1),
@@ -582,7 +582,7 @@ def initTypes(earth):
                                                    ('electricConsumption', np.float64, 1)])
 
     global HH
-    HH = earth.registerNodeType('hh', 
+    HH = earth.registerAgentType('hh', 
                                 AgentClass=Household, 
                                 GhostAgentClass=GhostHousehold,
                                 staticProperties  = [('gID', np.int32, 1),
@@ -596,7 +596,7 @@ def initTypes(earth):
                                                     ('expenses', np.float64, 1)])
 
     global PERS
-    PERS = earth.registerNodeType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
+    PERS = earth.registerAgentType('pers', AgentClass=Person, GhostAgentClass= GhostPerson,
                                 staticProperties = [('gID', np.int32, 1),
                                                    ('hhID', np.int32, 1),
                                                    ('preferences', np.float64, 4),
@@ -637,7 +637,7 @@ def initSpatialLayer(earth):
     earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
                            LocClassObject=Cell,
-                           linkTypeID=CON_CC)
+                           liTypeID=CON_CC)
     
     convMat = np.asarray([[0., 1, 0.],[1., 1., 1.],[0., 1., 0.]])
     tmp = parameters['population']*parameters['reductionFactor']
@@ -856,7 +856,7 @@ def initAgentOutput(earth):
 def initCacheArrays(earth):
     
     maxFriends = earth.para['maxFriends']
-    persZero = earth.getNode(nodeID=earth.getNode(nodeTypeID=PERS)[0])
+    persZero = earth.getAgent(agTypeID=PERS)[0]
     
     nUtil = persZero.get('commUtil').shape[0]
     Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
@@ -1007,7 +1007,7 @@ def onlinePostProcessing(earth):
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
     for agent in earth.random.iterNodes(HH):
-        friendList = agent.getPeerIDs(linkTypeID=CON_HH)
+        friendList = agent.getPeerIDs(liTypeID=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()
             avgStd += df.ix[friendList].std().values

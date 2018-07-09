@@ -23,11 +23,11 @@ class Location(BaseAgent, Neighborhood):
         BaseAgent.__init__(self, world, nID, **kwProperties)
         Neighborhood.__init__(self, world, nID, **kwProperties)
     
-#    def getConnectedLocation(self, linkTypeID=1):
+#    def getConnectedLocation(self, liTypeID=1):
 #        """ 
 #        ToDo: check if not deprecated 
 #        """
-#        self.weights, _, nodeIDList = self.getLinkAttr('weig',linkTypeID=linkTypeID)
+#        self.weights, _, nodeIDList = self.getLinkAttr('weig',liTypeID=liTypeID)
 #        
 #        return self.weights,  nodeIDList
 
@@ -48,10 +48,10 @@ class GhostLocation(Entity):
             self.attr, self.dataID = self._graph.getNodeView(nID)
         self.gID = self.attr['gID'][0]
 
-    def register(self, world, parentEntity=None, linkTypeID=None):
-        Entity.register(self, world, parentEntity, linkTypeID, ghost= True)
+    def register(self, world, parentEntity=None, liTypeID=None):
+        Entity.register(self, world, parentEntity, liTypeID, ghost= True)
 
-    def registerChild(self, world, entity, linkTypeID=None):
-        world.addLink(linkTypeID, self.nID, entity.nID)
+    def registerChild(self, world, entity, liTypeID=None):
+        world.addLink(liTypeID, self.nID, entity.nID)
         
         entity.loc = self

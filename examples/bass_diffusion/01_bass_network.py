@@ -76,7 +76,7 @@ class Person(Agent):
         
         
         friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
-        [self.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+        [self.addLink(ID, liTypeID = LI_AA) for ID in friendIDs]
 
 #%% setup
 simNo, outputPath = core.setupSimulationEnvironment()
@@ -91,7 +91,7 @@ world = World(simNo,
               debug=DEBUG)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerNodeType('agent' , AgentClass=Person,
+AGENT = world.registerAgentType('agent' , AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -147,18 +147,18 @@ for iAgent in range(N_AGENTS):
 
 #%% creation of spatial proximity network
 
-# world.getNodeAttr is used to receive the position of all agents 
-# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# world.getAgentAttr is used to receive the position of all agents 
+# for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.
-positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
+positions = world.getAgentAttr('pos', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
-agIDList  = world.getNodeIDs(AGENT)
+agIDList  = world.getAgentIDs(AGENT)
 
-# world.getNodeAttr is used to receive the innovation value of all agents 
-# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# world.getAgentAttr is used to receive the innovation value of all agents 
+# for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT. The value is given as float.
-innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
 
 # For a fixed agent this function assigns weights to all other agents 
 # either by option 1 via proximity in position or by option 2 via proximity
@@ -175,15 +175,15 @@ innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
 # Here one can choose the positions of the agents in the plot by putting all 
 # options but the favoured one into comments.
     
-positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
-#positions[:,0] = world.getNodeAttr('inno',nodeTypeID=AGENT)
-#positions[:,1] = world.getNodeAttr('imit',nodeTypeID=AGENT)
+positions = world.getAgentAttr('pos',agTypeID=AGENT)
+#positions[:,0] = world.getAgentAttr('inno',agTypeID=AGENT)
+#positions[:,1] = world.getAgentAttr('imit',agTypeID=AGENT)
 #%% Scheduler
 iStep = 0
 fracList = list()
 fracPerSector = {1:[], 2:[], 3:[],4:[]}
 
-switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
+switched = world.getAgentAttr('switch',agTypeID=AGENT)
 
 
 # If results shall be plotted:
@@ -195,8 +195,8 @@ while True:
     tt =time.time()
     iStep+=1
     
-    # world.getNodeAttr is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
+    # world.getAgentAttr is used to retrieve the attribute "switch" of all AGIDs
+    switched = world.getAgentAttr('switch',agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -214,7 +214,7 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
+    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
@@ -235,7 +235,7 @@ while True:
     
     # each 50 steps, the visualization is updated       
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
     
     #time.sleep(.1)
     #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

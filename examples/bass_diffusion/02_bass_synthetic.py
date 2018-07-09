@@ -80,7 +80,7 @@ class Person(Agent):
         
         
         friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
-        [self.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+        [self.addLink(ID, liTypeID = LI_AA) for ID in friendIDs]
 
     ##############################################
     # change the propertyToPreference function so 
@@ -107,7 +107,7 @@ world = World(simNo,
               debug=DEBUG)
 
 # register the first AGENT typ and save the numeric type ID as constant
-CELL = world.registerNodeType('cell' , AgentClass=Location,
+CELL = world.registerAgentType('cell' , AgentClass=Location,
                               staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -115,7 +115,7 @@ CELL = world.registerNodeType('cell' , AgentClass=Location,
                               dynamicProperties = [('fraction', np.int16, 1)])
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerNodeType('agent' , AgentClass=Person,
+AGENT = world.registerAgentType('agent' , AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('age',  np.int16, 1),
@@ -224,18 +224,18 @@ for xLoc, yLoc in list(locDict.keys()):
 
 #%% creation of spatial proximity network
 
-# world.getNodeAttr is used to receive the position of all agents 
-# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# world.getAgentAttr is used to receive the position of all agents 
+# for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.  
-positions = world.getNodeAttr('pos', nodeTypeID=AGENT)
+positions = world.getAgentAttr('pos', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
-agIDList  = world.getNodeIDs(AGENT)
+agIDList  = world.getAgentIDs(AGENT)
 
-# world.getNodeAttr is used to receive the innovation value of all agents 
-# for plotting. The label specifies the AGENT attribute and the nodeTypeID
+# world.getAgentAttr is used to receive the innovation value of all agents 
+# for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT. The value is given as float.
-innovationVal = world.getNodeAttr('inno', nodeTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
 
 for agent in world.iterNodes(AGENT):
     ##############################################
@@ -258,12 +258,12 @@ for agent in world.iterNodes(AGENT):
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
     
-    [agent.addLink(ID, linkTypeID = LI_AA) for ID in friendIDs]
+    [agent.addLink(ID, liTypeID = LI_AA) for ID in friendIDs]
     
 
         
     
-positions = world.getNodeAttr('pos',nodeTypeID=AGENT)
+positions = world.getAgentAttr('pos',agTypeID=AGENT)
 
 ##############################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -277,20 +277,20 @@ if False:
     #%%
     plt.figure('statistics')
     plt.subplot(2,2,1)
-    data = world.getNodeAttr('age',nodeTypeID=AGENT)
+    data = world.getAgentAttr('age',agTypeID=AGENT)
     plt.hist(data)
     plt.title('age distribution')
     plt.subplot(2,2,2)
-    data = world.getNodeAttr('income',nodeTypeID=AGENT)
+    data = world.getAgentAttr('income',agTypeID=AGENT)
     plt.hist(data)
     plt.title('income distribution')
     plt.subplot(2,2,3)
-    data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
+    data = world.getAgentAttr('nPers',agTypeID=AGENT)
     plt.hist(data)
     plt.title('household size')
     plt.subplot(2,2,4)
-    data = world.getNodeAttr('nPers',nodeTypeID=AGENT)
-    plt.scatter(world.getNodeAttr('income',nodeTypeID=AGENT), world.getNodeAttr('age',nodeTypeID=AGENT))
+    data = world.getAgentAttr('nPers',agTypeID=AGENT)
+    plt.scatter(world.getAgentAttr('income',agTypeID=AGENT), world.getAgentAttr('age',agTypeID=AGENT))
     
     plt.title('relation income to age')
     plt.draw()
@@ -314,12 +314,12 @@ while True:
     tt =time.time()
     iStep+=1
     
-    # world.getNodeAttr is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getNodeAttr('switch',nodeTypeID=AGENT)
+    # world.getAgentAttr is used to retrieve the attribute "switch" of all AGIDs
+    switched = world.getAgentAttr('switch',agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
-    switchFraction = np.sum(switched) / world.nNodes(AGENT)
+    switchFraction = np.sum(switched) / world.nAgents(AGENT)
     
     # the fraction is appended to the list for recording and visualization
     fracList.append(switchFraction)
@@ -333,7 +333,7 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    nodesToIter = world.filterNodes(AGENT, 'switch', 'eq', 0)
+    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
@@ -353,5 +353,5 @@ while True:
     
     # each 50 steps, the visualization is updated               
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getNodeAttr('color',nodeTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
     

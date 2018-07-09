@@ -62,13 +62,13 @@ class GhostAgent(Entity, Parallel):
         self.gID = self.attr['gID'][0]
         
         
-    def register(self, world, parentEntity=None, linkTypeID=None):
-        Entity.register(self, world, parentEntity, linkTypeID, ghost=True)
+    def register(self, world, parentEntity=None, liTypeID=None):
+        Entity.register(self, world, parentEntity, liTypeID, ghost=True)
         
 
     def getGlobID(self,world):
 
         return None # global ID need to be acquired via MPI communication
 
-    def registerChild(self, world, entity, linkTypeID):
-        world.addLink(linkTypeID, self.nID, entity.nID)
+    def registerChild(self, world, entity, liTypeID):
+        world.addLink(liTypeID, self.nID, entity.nID)

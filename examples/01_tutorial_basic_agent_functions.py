@@ -26,7 +26,7 @@ import tools_for_01 as tools
 #%%
 world = World(agentOutput=False)
 #%% register a new agent type with four attributes
-AGENT_ID = world.registerNodeType('agent' , AgentClass=Agent,
+AGENT_ID = world.registerAgentType('agent' , AgentClass=Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('age', np.int16, 1),
@@ -71,11 +71,11 @@ clara.getPeerAttr('age', LINK)
 
 #%%
 #getting ages of everbody
-ages = world.getNodeAttr('age',nodeTypeID=AGENT_ID)
+ages = world.getAgentAttr('age',agTypeID=AGENT_ID)
 
 # get all canditates
-candidates = world.getNode(nodeTypeID=AGENT_ID) 
-ages = world.getNodeAttr('age', nodeTypeID=AGENT_ID)
+candidates = world.getAgent(agTypeID=AGENT_ID) 
+ages = world.getAgentAttr('age', agTypeID=AGENT_ID)
 
 # compute probability to connect for all other agents
 differenceInAge = np.abs(ages -joana.get('age'))
