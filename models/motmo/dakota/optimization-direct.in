@@ -3,7 +3,6 @@ environment
 
 method
     coliny_direct
-        max_iterations = 160
         seed = 1
 
 variables
@@ -18,12 +17,11 @@ variables
             elements %SCENARIO_FILENAME%       %RESULT_SCRIPT%
 
 interface
-    system asynchronous evaluation_concurrency = 4
+    system asynchronous evaluation_concurrency = 10
         analysis_drivers = 'run-simulation.sh'
         parameters_file = 'd-params.in'
         results_file = 'd-results.out'
         file_tag
-        file_save
 
 responses
     objective_functions = %NUM_RESPONSES%

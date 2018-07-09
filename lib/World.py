@@ -25,6 +25,7 @@ from . import core
 
 import logging as lg
 import numpy as np
+import types
 
 class World:
 
@@ -361,6 +362,15 @@ class World:
         else:
             return self.__enums[enumName]
 
+    def __addIterNodeFunction(self, typeStr, nodeTypeId):
+        name = "iter" + typeStr
+        source = """def %NAME%(self):
+                        return [ self._World__entDict[i] for i in self._World__nodeDict[%NODETYPEID%] ]
+        """.replace("%NAME%", name).replace("%NODETYPEID%", str(nodeTypeId))
+        exec(compile(source, "", "exec"))
+        setattr(self, name, types.MethodType(locals()[name], self))
+
+        
     def registerNodeType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
@@ -393,6 +403,7 @@ class World:
         self.__dataDict[nodeTypeIDIdx]      = list()
         self.__ghostNodeDict[nodeTypeIDIdx] = list()
         self.__ghostDataDict[nodeTypeIDIdx] = list()
+        self.__addIterNodeFunction(typeStr, nodeTypeIDIdx)
 
         return nodeTypeIDIdx
 
@@ -529,4 +540,21 @@ class World:
             if self.para['showFigures']:
                 # plotting and saving figures
                 for key in self.globalRecord:
+
                     self.globalRecord[key].plot(self.para['outPath'])
+
+        
+class easyUI():
+    """ 
+    Easy-to-use user interace that provides high-level methods or functions to improve 
+    user friendliness of the library
+    """
+    def __init__(earth):
+        pass
+
+
+        
+if __name__ == '__main__':
+    
+    pass
+    

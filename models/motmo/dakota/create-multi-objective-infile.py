@@ -17,9 +17,9 @@ assert(regionIds and outputValues and years and scenarioFileName and resultScrip
 def addQuotes(s):
     return "'" + s + "' "
 
-responseDescriptors = ''
-weights = ''
-numResponses = 0
+responseDescriptors = "'runNo' "
+weights = '0 '
+numResponses = 1
 for o in outputValues:
     for r in regionIds:
         for y in years:
@@ -34,6 +34,8 @@ for u in continuousVariables:
     continuousLowerBounds += str(u[2]) + ' '
     continuousUpperBounds += str(u[3]) + ' '
 
+
+    
 with io.open(sys.argv[1], mode = 'r') as template:
     with io.open(sys.argv[3], mode = 'w') as out:
         for line in template:

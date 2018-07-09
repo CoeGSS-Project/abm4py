@@ -47,7 +47,27 @@ class Entity():
             self.nID, self.dataID, self.attr = world.addNode(self.nodeTypeID,  **kwProperties)    
             self._setGraph(world.graph)
             #print(self.attr['gID'][0])
-        
+
+        self.get = firstElementDeco(self.attr.__getitem__)
+        self.set = self.attr.__setitem__
+        self.__getNode = world.getNode
+
+    def __getattr__(self, a):
+        return self.attr[a][0]
+
+    def __getitem__(self, a):
+        return self.attr.__getitem__(a)[0]
+
+    def __setitem__(self, a, value):
+        self.attr.__setitem__(a, value)
+    #     self.attr[a] = value
+
+    def __setattr__(self, a, value):
+        try:
+            self.attr[a] = value
+        except:
+            object.__setattr__(self, a, value)
+            
         
     @classmethod
     def _setGraph(cls, graph):

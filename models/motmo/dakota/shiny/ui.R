@@ -20,9 +20,20 @@
 shinyUI( 
     navbarPage(
         "Dakota Visualization",
+        ## tabPanel(
+        ##     "Crosstalk",
+        ##     d3scatterOutput("scatter1"),
+        ##     d3scatterOutput("scatter2")
+        ## ),
         tabPanel(
             "Time Series",
-            plotlyOutput("timeSeries")
+            plotlyOutput("splom"),
+            ## plotlyOutput("scatter3"),
+            parcoordsOutput("bar"),
+            parcoordsOutput("bar2"),
+            verbatimTextOutput("summary"),
+            plotlyOutput("timeSeriesComb"),
+            plotlyOutput("timeSeriesElec")
         ),
         tabPanel( #//{ TimeSeries
             "Parallal Coordinates",

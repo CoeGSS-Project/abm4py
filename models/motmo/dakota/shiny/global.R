@@ -1,21 +1,30 @@
 ##  dakota_restart_util to_tabular dakota.rst dakota.tabular
 ##  sed -r 's/[ ]+/,/g' ../dakota.tabular > dakota.csv
 
-library(plotly)
-library(shiny)
+
+## devtools::install_github("rstudio/crosstalk")
+## devtools::install_github("ropensci/plotly")
+## devtools::install_github("rstudio/DT")
+## devtools::install_github("timelyportfolio/parcoords@feature/crosstalk2")
+
 library(tidyverse)
 library(magrittr)
 
-## devtools::install_github("rstudio/crosstalk")
+library(shiny)
+library(plotly)
+library(crosstalk)
+library(d3scatter)
+library(parcoords)
 
 options(tibble.width = 120)
 options(shiny.autoreload = TRUE)
 
 readTable <- function(filename) { ##//{
     df <- read_table2(filename) %>%
-        select(-interface, -scenarioFileName, -calcResultsScript, -X46)
+        select(-interface, -scenarioFileName, -calcResultsScript)
     names(df)[1] <- 'id'
-    df
+    ## the last column is an artifact from the dakota_restart_util and can be removed
+    df %>% select(-length(df))
 } ##//}
 
 ##//{ findVars 
@@ -52,11 +61,8 @@ findVars <- function(df) {
   } #//}
 
 createTimeSeriesTable <- function(df) { ##//{
-    numR <- length(findResponses(df))
-    numT <- length(names(df))
-    start <- numT - numR + 1
     df %>%
-        gather(key = 'key', value = 'value', start:numT) %>%
+        gather(key = 'key', value = 'value', which(startsWith(names(df), "o_"))) %>%
         mutate(year = extractFromColumnName(key, YEARPOS) %>% as.integer,
                region = extractFromColumnName(key, REGIONPOS) %>% as.character,
                responseDesc = extractFromColumnName(key, VARIABLEPOS) %>% as.character) %>%
@@ -90,13 +96,14 @@ calcAbsError <- function(ts, data, response, region) { ##//{
 } ##//}
 
 createCalibrationTable <- function(df, ts) { ##//{
-    numVarsInclId <- length(findVars(df)) + 1
-
-    numDataElecCars <- sum((ts %>% filter(id == 1, responseDesc == 'dataElecCars', region == '6321'))$value)
-    numDataCombCars <- sum((ts %>% filter(id == 1, responseDesc == 'dataCombCars', region == '6321'))$value)
+    ## the 'real world' numbers are the same for each run, so I just take the one with the minimal id
+    firstRun <- min(ts$id)
+    numDataElecCars <- sum((ts %>% filter(id == firstRun, responseDesc == 'dataElecCars', region == '6321'))$value)
+    numDataCombCars <- sum((ts %>% filter(id == firstRun, responseDesc == 'dataCombCars', region == '6321'))$value)
 
     df %>%
-        select(1:numVarsInclId) %>%
+        select(which(!startsWith(names(df), "o_"))) %>%
+        select(-runNo) %>%
         mutate(c_intervalElec = calcInterval(ts, 'dataElecCars', 'numElecCars', 0.8, 1.2),
                c_intervalComb = calcInterval(ts, 'dataCombCars', 'numCombCars', 0.8, 1.2)) %>%
         mutate(c_intervalSum = c_intervalElec + c_intervalComb) %>%
@@ -108,15 +115,33 @@ createCalibrationTable <- function(df, ts) { ##//{
 
 #####------ script style starts here
 
-df <- readTable('../dakota.tabular')
+df <- readTable('../dakota-moga.tabular')
 
 df %<>% mutate_at(vars(contains("dataElec")), funs(. * 3) )
 df %<>% mutate_at(vars(contains("dataComb")), funs(. * 0.1) )
+names
+df %<>% mutate(opt = "moga")
 
 ts <- createTimeSeriesTable(df)
 
 ct <- createCalibrationTable(df, ts)
 
-ctl <- ct %>% select(id, starts_with("c_")) %>% gather(key = 'var', value = 'value', -id)
+
+df2 <- readTable('../dakota.tabular')
+
+df2 %<>% mutate_at(vars(contains("dataElec")), funs(. * 3) )
+df2 %<>% mutate_at(vars(contains("dataComb")), funs(. * 0.1) )
+df2 %<>% mutate(id = id + 10000)
+
+df2 %<>% mutate(opt = "direct", runNo = 0)
+
+
+ts2 <- createTimeSeriesTable(df2)
+
+ct2 <- createCalibrationTable(df2, ts2)
+
+
+ct %<>% bind_rows(ct2)
+## ctl <- ct %>% select(id, starts_with("c_")) %>% gather(key = 'var', value = 'value', -id)
 
 

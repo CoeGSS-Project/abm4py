@@ -72,4 +72,7 @@ if mpiRank == 0:
     os.chdir(dakotadir)
     exec(open(dakotaParams['calcResultsScript']).read())
     # the script executed contains the calcResults function
-    calcResults(dakotaResults)
+    calcResults(earth, dakotaResults)
+    dakotaResults["runNo"].function = int(dakotaRunNo)
+
+    dakotaResults.write()
