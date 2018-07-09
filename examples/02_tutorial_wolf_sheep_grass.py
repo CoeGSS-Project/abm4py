@@ -38,17 +38,17 @@ home = os.path.expanduser("~")
 sys.path.append('../')
 
 from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Neighborhood, Collective, Mobil
+from lib.enhancements import Neighborhood, Collective, Mobile
 from lib import core
 
 import tools_for_02 as tools
 
 #%% SETUP
 EXTEND = 100
-N_SHEEPS = 70
+N_SHEEPS = 300
 N_PACKS  = 1
 N_WOLFS  = 10
-W_SHEEP = 5. # Reproduction weight for sheep
+W_SHEEP = 10. # Reproduction weight for sheep
 W_WOLF = 4.  # Reproduction weight for wolves
 APPETITE = .30  # Percentage of grass height that sheep consume
 
@@ -84,21 +84,13 @@ class Grass(Location, Collective):
                         break
                     
         self.attr['height'] = min(self.attr['height']*1.1, 1.)
-#        if self.attr['height'] > 0.7:
-#             [neigLoc.add(0.05) for neigLoc in self.groups['rooted'] if neigLoc.attr['height'] < 0.1]   
-#        if self.attr['height'] > 0.7:
-#            for neigLoc in self.groups['rooted']:
-#                if neigLoc.attr['height'] < 0.1:
-#                    neigLoc.add(0.05)
-                    
-       #if neigLoc in self.groups['rooted'] and neigLoc.attr['height'] < 0.1:
            
-class Sheep(Agent, Mobil):
+class Sheep(Agent, Mobile):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
         Agent.__init__(self, world, **kwAttr)
-        Mobil.__init__(self, world, **kwAttr)
+        Mobile.__init__(self, world, **kwAttr)
 
     def register(self,world):
         Agent.register(self, world)
@@ -141,7 +133,7 @@ class Sheep(Agent, Mobil):
 #        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
 #        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
         
-        Mobil.move(self, newX, newY, LINK_SHEEP)
+        Mobile.move(self, newX, newY, LINK_SHEEP)
         self.attr['weight'] -= .1
         
     def step(self, world):
@@ -193,7 +185,7 @@ class Wolf(Agent):
             self.attr['weight'] += 5.0
             print('sheep died')
     
-    def move(self, center):
+    def move(self, center, hunt=False):
         """ Jette
         
         The function move lets the wolves move in the same way as sheep. 
@@ -203,7 +195,10 @@ class Wolf(Agent):
         delta =  pos - center
         
         bias = np.clip((.5*delta)**3 / np.sqrt(np.sum( delta**2)),a_min = -5, a_max=5).astype(np.int)
-        (dx,dy) = np.random.randint(-3,4,2) - bias
+        if hunt:
+            (dx,dy) = np.random.randint(-5,6,2) - bias
+        else:
+            (dx,dy) = np.random.randint(-3,4,2) - bias
         newX, newY = (pos + [ dx, dy])
         
         newX = min(max(0,newX), EXTEND-1)
@@ -221,7 +216,7 @@ class Wolf(Agent):
         self.move(center)
             
         # If the wolves weight goes below 1 unit it starts hunting.
-        if self.attr['weight'] < 1.0:
+        if self.attr['weight'] < 1.5:
             self.hunt()
         
         # If a wolf has enough weight and at least one other wolf close 
@@ -389,6 +384,6 @@ while True:
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
     nHunting = np.sum(world.getAgentAttr('weight', agTypeID=WOLF) <1.0)        
-    print(str(time.time() - tt) + ' s')
-    #print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
+    #print(str(time.time() - tt) + ' s')
+    print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

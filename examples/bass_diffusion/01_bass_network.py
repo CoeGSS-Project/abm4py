@@ -88,7 +88,8 @@ world = World(simNo,
               nSteps=N_STEPS,
               maxNodes=1e4,
               maxLinks=1e5,
-              debug=DEBUG)
+              debug=DEBUG,
+              agentOutput=True)
 
 # register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerAgentType('agent' , AgentClass=Person,
@@ -144,7 +145,7 @@ for iAgent in range(N_AGENTS):
     # in order to get listed within the iterators and other predefined structures
     agent.register(world)
 
-
+world.io.initNodeFile(world, [AGENT])
 #%% creation of spatial proximity network
 
 # world.getAgentAttr is used to receive the position of all agents 
@@ -237,5 +238,8 @@ while True:
     if DO_PLOT and iStep%50 == 0:
         plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
     
+    world.io.writeDataToFile(iStep, [AGENT])
     #time.sleep(.1)
     #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
+
+world.io.finalizeAgentFile()

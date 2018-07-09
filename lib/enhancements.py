@@ -78,12 +78,13 @@ class Neighborhood():
         return self.__getAgent(nodeID=peerID)
     
     def reComputeNeighborhood(self, liTypeID):
-        self.Neighborhood[liTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(liTypeID)]
+        #self.Neighborhood[liTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(liTypeID)]
+        self.Neighborhood[liTypeID] = self.getPeerAttr('instance', liTypeID= liTypeID)
         
     def iterNeighborhood(self, liTypeID):
         return iter(self.Neighborhood[liTypeID])
         
-class Mobil():
+class Mobile():
     """
     This enhancemement allows agents to move in the spatial domain. Currently
     this does not work in the parallel version
@@ -96,7 +97,7 @@ class Mobil():
         #TODO can be made more general"
         
         if world.isParallel:
-            raise(BaseException('Mobil agents are not working in parallel'))
+            raise(BaseException('Mobile agents are not working in parallel'))
             
         assert 'pos' in kwProperties.keys()
         
@@ -107,7 +108,7 @@ class Mobil():
         self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
         
-        self.loc = self.locDict[( newX, newY)]
+        self.loc = self.locDict[(newX, newY)]
         
         self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)

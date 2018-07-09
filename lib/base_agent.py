@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-from .enhancements import Parallel, Mobil, Collective
+from .enhancements import Parallel, Mobile, Collective
 
 def firstElementDeco(fun):
     """ 
@@ -46,7 +46,7 @@ class Entity():
         if nID == -1:
             self.nID, self.dataID, self.attr = world.addNode(self.agTypeID,  **kwProperties)    
             self._setGraph(world.graph)
-            #print(self.attr['gID'][0])
+            self['instance'] = self
 
             self.get = firstElementDeco(self.attr.__getitem__)
             self.set = self.attr.__setitem__

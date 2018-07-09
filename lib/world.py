@@ -409,6 +409,15 @@ class World:
                 
         agTypeIDIdx = len(self.graph.agTypeIDs)+1
 
+#        if self.isParallel:
+#            globalIDset = False
+#            for item in staticProperties:
+#                if item[0] == 'gID':
+#                    globalIDset = True
+#            if not globalIDset:
+#                staticProperties = [('gID', np.int32, 1)] + staticProperties
+#            print(staticProperties)
+                
         self.graph.addNodeType(agTypeIDIdx, 
                                typeStr, 
                                AgentClass,

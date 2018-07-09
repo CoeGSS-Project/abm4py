@@ -1542,7 +1542,7 @@ class PAPI():
             lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
             for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
-                print(nID, gID)
+                #print(nID, gID)
                 self.world.setGlob2Loc(gID, nID)
                 self.world.setLoc2Glob(nID, gID)
             #self.world.papi.comm.Barrier()

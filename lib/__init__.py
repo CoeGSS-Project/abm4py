@@ -37,7 +37,7 @@ Thus, the function "location.registerEntity" does initialize ghost copies
 """
 from __future__ import absolute_import
 
-from .World import World
+from .world import World
 from .agent import Agent, GhostAgent
 from .location import Location, GhostLocation
 from . import core

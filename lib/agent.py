@@ -24,9 +24,9 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .base_agent import BaseAgent, Entity
-from .enhancements import Mobil, Parallel
+from .enhancements import Mobile, Parallel
 
-class Agent(BaseAgent, Mobil):
+class Agent(BaseAgent, Mobile):
     """
     The most common agent type derives from the BaseAgent and additionally
     receives the abilty to move
@@ -59,6 +59,7 @@ class GhostAgent(Entity, Parallel):
         if nID is not -1:
             self.nID = nID
             self.attr, self.dataID = self._graph.getNodeView(nID)
+            self['instance'] = self
         self.gID = self.attr['gID'][0]
         
         

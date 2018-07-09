@@ -125,7 +125,8 @@ class BaseGraph():
         self.getEdgeTypeID = itertools.count(1).__next__
         
         #persistent nodeattributes
-        self.persNodeAttr = [('active', np.bool_,1)]
+        self.persNodeAttr = [('active', np.bool_,1),
+                             ('instance', np.object,1)]
         #persistent edge attributes
         self.persEdgeAttr = [('active', np.bool_, 1),
                              ('source', np.int32, 1), 
@@ -559,11 +560,23 @@ class ABMGraph(BaseGraph):
         self.__ghostOfAgentClass   = dict()
         
         if world.isParallel:
-            self.persitentAttributes = ['active', 'gID']
-            self.persitentValues     = (False, -1)
+            self.persitentAttributes = ['active', 'instance' 'gID']
+            self.persitentValues     = (False, None, -1)
+            self.persNodeAttr = [('active', np.bool_,1),
+                                 ('instance', np.object,1),
+                                 ('gID', np.int32,1)]
         else:
-            self.persitentAttributes = ['active']
+            self.persitentAttributes = ['active', 'instance']
             self.persitentValues     = False
+            self.persNodeAttr = [('active', np.bool_,1),
+                                 ('instance', np.object,1)]
+
+        #persistent nodeattributes
+        
+        #persistent edge attributes
+        self.persEdgeAttr = [('active', np.bool_, 1),
+                             ('source', np.int32, 1), 
+                             ('target', np.int32, 1)]
     
     def addNodeType(self, 
                     agTypeIDIdx, 

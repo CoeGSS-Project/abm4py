@@ -46,6 +46,7 @@ class GhostLocation(Entity):
         if nID is not -1:
             self.nID = nID
             self.attr, self.dataID = self._graph.getNodeView(nID)
+            self['instance'] = self
         self.gID = self.attr['gID'][0]
 
     def register(self, world, parentEntity=None, liTypeID=None):

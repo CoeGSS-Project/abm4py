@@ -62,7 +62,7 @@ connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
 earth.spatial.initSpatialLayer(parameters['landLayer'],
                        connList, 
                        LocClassObject=init.Cell,
-                       linkTypeID=1)    
+                       liTypeID=1)    
     
 parameters.population.clip(min=2)
 for cell in earth.iterNodes(CELL):
@@ -82,7 +82,7 @@ elif  parameters.scenario == 3:
      earth.graph.addLink(1,1000461,1000309)
      earth.graph.addLink(1,1000309,1000461)
 
-core.writeAdjFile(earth, parameters['resourcePath'] + 'outGraph.txt', nodeTypeID=1)
+core.writeAdjFile(earth, parameters['resourcePath'] + 'outGraph.txt', agTypeID=1)
 
 metisPath = home + '/software/metis-5.1.0/build/Linux-x86_64/programs/gpmetis'
 
