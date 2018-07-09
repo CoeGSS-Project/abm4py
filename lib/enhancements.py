@@ -69,9 +69,10 @@ class Neigbourhood():
 class Moveable():
     
     def __init__(self, world, nID = -1, **kwProperties):
-        # assert that position is declated as an agents attribute, since 
-        # moving relates to the 'pos' attribute
+        """ assert that position is declared as an agent's attribute, since 
+         moving relates to the 'pos' attribute """
         #TODO can be made more general"
+        # SW: warum braucht das nID?, same question for collective
         assert 'pos' in kwProperties.keys()
         
     def _moveSpatial(self, newPosition):

@@ -21,7 +21,8 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
 
-import lib as LIB #, GhostAgent, World,  h5py, MPI
+#import lib as LIB #, GhostAgent, World,  h5py, MPI
+from lib import World, Agent, Location 
 from lib.enhancements import Neigbourhood, Collective
 from lib import core
 
@@ -37,11 +38,11 @@ W_WOLF = 4.  # Reproduction weight for wolves
 APPETITE = .30  # Percentage of grass height that sheep consume
 
 #%% Sheep class
-class Grass(LIB.Location, Neigbourhood, Collective):
+class Grass(Location, Neigbourhood, Collective):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Location.__init__(self, world, **kwAttr) #hier stand LIB.Agent, warum?
         Neigbourhood.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         
@@ -51,15 +52,13 @@ class Grass(LIB.Location, Neigbourhood, Collective):
 
 
     def grow(self):
-        """ Jette
-        
+        """        
         The function grow lets the grass grow by ten percent.
-        If the grass height is higher than 0.7 it lets random neighbours
-        grow by the length 0.1
-        
+        If the grass height is smaller than 0.1, and a neighboring patch has 
+        grass higher than 0.7, the grass grows by .05. Then it grows by 
+        10 percent.
         """
-        
-        
+                
         if self.attr['height'] < 0.1:
             for neigLoc in self.iterNeigborhood(ROOTS):
                 if neigLoc.attr['height'] > 0.7:
@@ -78,20 +77,20 @@ class Grass(LIB.Location, Neigbourhood, Collective):
                     
        #if neigLoc in self.groups['rooted'] and neigLoc.attr['height'] < 0.1:
            
-class Sheep(LIB.Agent):
+class Sheep(Agent):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Agent.__init__(self, world, **kwAttr)
         
 
-    def register(self,world):
-        LIB.Agent.register(self, world)
+    def register(self, world):
+        Agent.register(self, world)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
         
-    def eat(self,):
+    def eat(self):
         """ Jette
         
         The function eat lets a sheep eat a percentage of the grass it is 
@@ -114,7 +113,8 @@ class Sheep(LIB.Agent):
         
         """
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0]
+        newX, newY = (self.attr['pos'] + [ dx, dy])[0] 
+        #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
@@ -148,15 +148,15 @@ class Sheep(LIB.Agent):
         elif self.attr['weight'] < 0:
             self.delete(world)        
         
-class Wolf(LIB.Agent):
+class Wolf(Agent):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Agent.__init__(self, world, **kwAttr)
 
 
     def register(self,world):
-        LIB.Agent.register(self, world)
+        Agent.register(self, world)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
@@ -223,10 +223,10 @@ class Wolf(LIB.Agent):
             self.delete(world)
             wolfPack.leave('wolfs',self)
 
-class WolfPack(LIB.Agent, Collective):
+class WolfPack(Agent, Collective):
     
     def __init__(self, world, **kwAttr):
-        LIB.Agent.__init__(self, world, **kwAttr)
+        Agent.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         
         self.registerGroup('wolfs', [])
@@ -251,7 +251,7 @@ class WolfPack(LIB.Agent, Collective):
         newPack.computeCenter()
         
 #%%
-world = LIB.World(agentOutput=False,
+world = World(agentOutput=False,
                   maxNodes=100000,
                   maxLinks=200000)
 
@@ -276,8 +276,8 @@ WOLFPACK = world.registerNodeType('wolfPack' , AgentClass=WolfPack,
                                                     ('nWolfs', np.int16, 1)])
 
 #%% register a link type to connect agents
-LINK_SHEEP = world.registerLinkType('grassLink',SHEEP, GRASS)
-LINK_WOLF = world.registerLinkType('grassLink',WOLF, GRASS)
+LINK_SHEEP = world.registerLinkType('grassLink', SHEEP, GRASS)
+LINK_WOLF = world.registerLinkType('grassLink', WOLF, GRASS)
 
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 IDArray = np.zeros([EXTEND, EXTEND])

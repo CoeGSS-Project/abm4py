@@ -48,7 +48,7 @@ RED  = [1,0,0,1]
 #%% setup
 
 # initialization of the world instance, with no 
-world = lib.World(wAgentOutput=False)
+world = lib.World(agentOutput=False)
 
 # register the first AGID typ and save the numeric type ID as constant
 AGID = world.registerNodeType('Agent' , AgentClass=lib.Agent,

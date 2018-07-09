@@ -20,7 +20,7 @@ class Location(BaseAgent):
 
 
         BaseAgent.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner = int(world.mpiRank)
+#        self.mpiOwner = int(world.mpiRank)
         self.mpiPeers = list()
 
 
