@@ -106,8 +106,10 @@ world = World(simNo,
               maxLinks=1e5,
               debug=DEBUG)
 
+
 # register the first AGENT typ and save the numeric type ID as constant
 CELL = world.registerAgentType('cell' , AgentClass=Location,
+
                               staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -150,7 +152,9 @@ for x in range(populationMap.shape[0]):
             IDArray[x,y] = cell.nID
 
 # %%create location network
+
 connBluePrint = world.spatial.computeConnectionList(radius=2.5)
+
 world.spatial.connectLocations(IDArray, connBluePrint, LI_CC, CELL)
 
 if True:

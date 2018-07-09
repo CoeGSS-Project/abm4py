@@ -91,9 +91,10 @@ class Mobil():
     
     
     def __init__(self, world, nID = -1, **kwProperties):
-        # assert that position is declated as an agents attribute, since 
-        # moving relates to the 'pos' attribute
+        """ assert that position is declared as an agent's attribute, since 
+         moving relates to the 'pos' attribute """
         #TODO can be made more general"
+
         
         if world.isParallel:
             raise(BaseException('Mobil agents are not working in parallel'))
