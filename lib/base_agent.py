@@ -48,9 +48,9 @@ class Entity():
             self._setGraph(world.graph)
             #print(self.attr['gID'][0])
 
-        self.get = firstElementDeco(self.attr.__getitem__)
-        self.set = self.attr.__setitem__
-        self.__getNode = world.getAgent
+            self.get = firstElementDeco(self.attr.__getitem__)
+            self.set = self.attr.__setitem__
+            self.__getNode = world.getAgent
 
 
 

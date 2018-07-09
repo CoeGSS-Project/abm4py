@@ -54,7 +54,7 @@ class World:
                 else:
                     self.isRoot = False
             else:
-                self.isRoot = False
+                self.isRoot = True
                 
         # ======== GRAPH ========
         self.graph    = ABMGraph(self, maxNodes, maxLinks)

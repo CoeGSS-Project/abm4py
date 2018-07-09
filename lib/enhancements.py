@@ -17,10 +17,12 @@ class Parallel():
     def __init__(self, world, nID = -1, **kwProperties):
         
         # adding properties to the attributes
-        self.gID = self.getGlobID(world)
-        #kwProperties['gID'] = self.gID
+        gID = self.getGlobID(world)
+        self.attr['gID'] = gID
+        self.gID = gID
+         #kwProperties['gID'] = self.gID
         
-        self.attr['gID'] = self.gID
+        #self.attr['gID'] = self.gID
         
         # if nID is -1, the agent is generated emtpy and receives its properties
         # and IDs later by mpi communication
