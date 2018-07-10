@@ -8,7 +8,7 @@ Created on Thu Jul  5 09:07:26 2018
 
 class Parallel():
     """
-    This agent enhancements adds the required methods and variables to agents
+    This agent traits adds the required methods and variables to agents
     for parallel execution of the code.
     This contains:
         - global ID: self.gID

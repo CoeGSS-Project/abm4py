@@ -24,7 +24,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .base_agent import BaseAgent, Entity
-from .enhancements import Mobile, Parallel
+from .traits import Mobile, Parallel
 
 class Agent(BaseAgent, Mobile):
     """

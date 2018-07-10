@@ -35,7 +35,7 @@ home = os.path.expanduser("~")
 sys.path.append('../')
 
 from lib import World, Agent, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Neighborhood, Collective, Mobile, Parallel
+from lib.traits import Neighborhood, Collective, Mobile, Parallel
 from lib import core
 
 import tools_for_03 as tools

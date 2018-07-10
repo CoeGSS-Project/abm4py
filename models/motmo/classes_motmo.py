@@ -28,7 +28,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 from lib import core
 
 from lib import World, Agent, GhostAgent, Location, GhostLocation
-from lib.enhancements import Parallel
+from lib.traits import Parallel
 
 #import pdb
 #import igraph as ig

@@ -39,7 +39,7 @@ sys.path.append('../')
 
 
 from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Neighborhood, Collective, Mobile
+from lib.traits import Neighborhood, Collective, Mobile
 from lib import core
 
 import tools_for_02 as tools

@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-from .enhancements import Parallel, Mobile, Collective
+from .traits import Parallel, Mobile, Collective
 
 def firstElementDeco(fun):
     """ 

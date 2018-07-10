@@ -6,7 +6,7 @@ Created on Tue Jul  3 15:51:31 2018
 @author: gcf
 """
 from .base_agent import BaseAgent, Entity
-from .enhancements import Neighborhood
+from .traits import Neighborhood
 
 class Location(BaseAgent, Neighborhood):
 

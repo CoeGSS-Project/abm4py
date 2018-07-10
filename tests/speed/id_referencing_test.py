@@ -28,7 +28,7 @@ import random
 sys.path.append('../../')
 
 from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from lib.enhancements import Mobile
+from lib.traits import Mobile
 from lib import core
 
  #%% Setup
