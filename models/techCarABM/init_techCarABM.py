@@ -211,9 +211,9 @@ earth.enums['prefTypes'][3] = 'money'
 earth.nPref = len(earth.enums['prefTypes'])
 earth.nPrefTypes = [0]* earth.nPref
 
-earth.enums['nodeTypeIDs'] = dict()
-earth.enums['nodeTypeIDs'][1] = 'cell'
-earth.enums['nodeTypeIDs'][2] = 'household'
+earth.enums['agTypeIDs'] = dict()
+earth.enums['agTypeIDs'][1] = 'cell'
+earth.enums['agTypeIDs'][2] = 'household'
 
 if para.randomAgents:
     idx = 0

@@ -463,8 +463,8 @@ class OpinionGenerator():
 
 class Household(Agent):
 
-    def __init__(self, world, nodeTypeID = 'ag', xPos = np.nan, yPos = np.nan):
-        Agent.__init__(self, world, nodeTypeID,  xPos, yPos)
+    def __init__(self, world, agTypeID = 'ag', xPos = np.nan, yPos = np.nan):
+        Agent.__init__(self, world, agTypeID,  xPos, yPos)
         self.obs  = dict()
         self.car  = dict()
         self.util = 0
@@ -534,7 +534,7 @@ class Household(Agent):
         
         weighted = True
         if weighted:
-            weights, edges = self.getLinkAttrFast('weig', linkTypeID=_thh)    
+            weights, edges = self.getLinkAttrFast('weig', liTypeID=_thh)    
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
@@ -570,7 +570,7 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getLinkAttrFast('weig', linkTypeID=_thh) 
+            weights, edges = self.getLinkAttrFast('weig', liTypeID=_thh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
@@ -585,9 +585,9 @@ class Household(Agent):
         return carIDs[maxid], avgUtil[maxid]
     
     def weightFriendExperience(self, world):
-        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,nodeTypeID= _hh)
-        carLabels, _        = self.getConnNodeValues( 'label' ,nodeTypeID= _hh)
-        #friendID            = self.getOutNeighNodes(linkTypeID=_thh)
+        friendUtil, friendIDs = self.getConnNodeValues( 'noisyUtil' ,agTypeID= _hh)
+        carLabels, _        = self.getConnNodeValues( 'label' ,agTypeID= _hh)
+        #friendID            = self.getOutNeighNodes(liTypeID=_thh)
         ownLabel = self.getValue('label')
         ownUtil  = self.getValue('util')
         
@@ -862,8 +862,8 @@ class Household(Agent):
 
 class Reporter(Household):
     
-    def __init__(self, world, nodeTypeID = 'ag', xPos = np.nan, yPos = np.nan):
-        Household.__init__(self, world, nodeTypeID , xPos, yPos)
+    def __init__(self, world, agTypeID = 'ag', xPos = np.nan, yPos = np.nan):
+        Household.__init__(self, world, agTypeID , xPos, yPos)
         self.writer = Writer(world, str(self.nID) + '_diary')
         raise('do not use - or update')
     def evalUtility(self, world, props =None):
@@ -996,7 +996,7 @@ class Cell(Location):
         self.obsMemory   = Memory(memeLabels)
     
     def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getLinkAttr('weig',linkTypeID=_tll, mode='out')
+        self.weights, self.eIDs = self.getLinkAttr('weig',liTypeID=_tll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         
         #remap function to only return the values 
@@ -1007,11 +1007,11 @@ class Cell(Location):
     #    return self.weights, self.eIDs, self.connNodeList
     
     def getAgents(self):
-        #return self.getAgentOfCell(linkTypeID=1)
+        #return self.getAgentOfCell(liTypeID=1)
         return self.agList
     
-    def getConnLoc(self,linkTypeID=1):
-        return self.getAgentOfCell(linkTypeID=1)
+    def getConnLoc(self,liTypeID=1):
+        return self.getAgentOfCell(liTypeID=1)
     
     def returnCarPercentile(self):
         """ 

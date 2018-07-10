@@ -117,12 +117,12 @@ earth.setParameters(parameters)
 
 
 #%% Init of entity types
-CELL    = earth.registerNodeType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
+CELL    = earth.registerAgentType('cell' , AgentClass=LIB.Location, GhostAgentClass= LIB.GhostLocation,
                                      staticProperties  = [('gID', np.int32, 1),
                                                          ('pos', np.int16, 2)],
                                      dynamicProperties = [('agentsPerCell', np.int16, 1)])
 
-AGENT   = earth.registerNodeType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
+AGENT   = earth.registerAgentType('agent' , AgentClass=LIB.Agent, GhostAgentClass= LIB.GhostAgent,
                                      staticProperties  = [('gID', np.int32),
                                                          ('pos', np.int16, 2)],
                                      dynamicProperties = [('prop_A'),
@@ -175,7 +175,7 @@ for cell in earth.random.iterNodes(CELL, ghosts=True):
 # creation of agents
 locDict = earth.getLocationDict()
 for x, y in list(locDict.keys()):
-    loc         = earth.getNode(locDict[x, y].nID)
+    loc         = earth.getAgent(locDict[x, y].nID)
     nAgentsCell = loc.get('agentsPerCell')
     
     for iAgent in range(nAgentsCell):
@@ -183,7 +183,7 @@ for x, y in list(locDict.keys()):
                           pos=(x, y),
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
-        agent.register(earth, parentEntity=loc, linkTypeID=CON_AC)
+        agent.register(earth, parentEntity=loc, liTypeID=CON_AC)
 #        agent.loc.peList.append(agent.nID)
 
 
@@ -200,7 +200,7 @@ globalTargetList = list()
 for agent in earth.random.iterNodes(AGENT):
     contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
                                                                       nContacts=nFriends, 
-                                                                      nodeTypeID=AGENT,
+                                                                      agTypeID=AGENT,
                                                                       addYourself=False)
     globalSourceList.extend(connList[0])
     globalTargetList.extend(connList[1])
@@ -258,8 +258,8 @@ def stepFunction(earth):
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
-    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getNodeAttr('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', earth.getNodeAttr('prop_B', nodeTypeID=AGENT))
+    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAgentAttr('prop_B',AGENT))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAgentAttr('prop_B', agTypeID=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])
