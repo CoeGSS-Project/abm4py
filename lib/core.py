@@ -439,7 +439,9 @@ class Spatial():
         #nConnection  = list()
         #print 'rank: ' +  str(self.world.locDict)
 
-        self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList,)
+
+        self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList)
+
 
     def connectLocations(self, IDArray, connList, liTypeID, agTypeID, ghostLocationList=None):
         
