@@ -44,7 +44,7 @@ class Entity():
 
         # create new node in the graph
         if nID == -1:
-            self.nID, self.dataID, self.attr = world.addNode(self.agTypeID,  **kwProperties)    
+            self.nID, self.dataID, self.attr = world.addNode(self.agTypeID, **kwProperties)    
             self._setGraph(world.graph)
             self['instance'] = self
 

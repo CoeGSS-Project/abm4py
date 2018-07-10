@@ -41,8 +41,8 @@ from lib import core
 import tools_for_03 as tools
 
 #%% SETUP
-EXTEND = 100
-
+EXTEND = 50
+RADIUS = 1.5
 
 #%% Class definition
 class Grass(Location, Collective, Parallel):
@@ -59,22 +59,13 @@ class Grass(Location, Collective, Parallel):
 
 
     def grow(self):
-        """ Jette
-        
-        The function grow lets the grass grow by ten percent.
-        If the grass height is higher than 0.7 it lets random neighbours
-        grow by the length 0.1
-        
-        """
-        
-
         currHeight = self.attr['height']
         for neigLoc in self.iterNeighborhood(ROOTS):
-            if neigLoc.attr['height'] > 2*currHeight:
+            if neigLoc['height'] > 2*currHeight:
                 self['height'] *= ((random.random()*.8)+1)
                 break
-            else:
-                self['height'] *= ((random.random()*.05)+1)
+        else:
+            self['height'] *= ((random.random()*.05)+1)
 
 class GhostGrass(GhostLocation):   
     
@@ -83,8 +74,6 @@ class GhostGrass(GhostLocation):
 
     
 #%% Init of world and register of agents and links
-
-
 world = World(agentOutput=False,
               mpiComm=core.comm,
               maxNodes=100000,
@@ -101,19 +90,19 @@ else:
     
 world.setParameter('extend', EXTEND)
 GRASS = world.registerAgentType('grass' , AgentClass=Grass, GhostAgentClass=GhostGrass,
-                               staticProperties  = [('gID', np.int32, 1),
-                                                    ('pos', np.int16, 2),
-                                                    ('instance', np.object_,1)],
+                               staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [('height', np.float32, 1)])
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 
-connBluePrint = world.spatial.computeConnectionList(radius=1.5)
+connBluePrint = world.spatial.computeConnectionList(radius=RADIUS)
 world.spatial.initSpatialLayer(rankIDLayer, connBluePrint, Grass, ROOTS)
-#plt.pcolormesh(rankIDLayer)
-print(world.nAgents())
+
 for grass in world.iterNodes(GRASS):
     grass.reComputeNeighborhood(ROOTS)
-    grass['height'] = random.random()+ 0.1
+    if np.min(grass['pos']) < 6:
+        grass['height'] = random.random()+ 3.1    
+    else:
+        grass['height'] = random.random()+ 0.1
 
 
 plott = tools.PlotClass(world, rankIDLayer)

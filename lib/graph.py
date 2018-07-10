@@ -28,7 +28,13 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 import logging as lg
 import numpy as np
 import itertools
+from numba import njit
 
+
+@njit
+def getRefByList(maxLen, idList):
+    return idList[0] // maxLen, [lnID%maxLen for lnID in idList]
+    
 class TypeDescription():
 
     def __init__(self, agTypeIDIdx, typeStr, staticProperties, dynamicProperties):
@@ -144,22 +150,27 @@ class BaseGraph():
 #    def extendNodeArray(self, nTypeID):
 #        currentSize = len(self.nAttr[nTypeID])
         #self.nAttr[nTypeID][currentSize:currentSize+self.CHUNK_SIZE] = 
-        
+
+
     def getNodeDataRef(self, lnIDs):
         """ 
         calculates the node type ID from local ID
         ONLY on node type per call
         """
-        
-        try:
+        try: 
+            # array is given
             return lnIDs[0] // self.maxNodes, lnIDs%self.maxNodes
-            
+
         except:
-            try: 
-                return int(lnIDs[0] / self.maxNodes), [lnID%self.maxNodes for lnID in lnIDs]
-            except:
-                
+            try:
+                # single ID is given
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
+            except:
+                # list is given
+                return(getRefByList(self.maxNodes, lnIDs))
+                
+                
+            
 
 
     def get_lnID(self, nTypeID):
@@ -181,11 +192,14 @@ class BaseGraph():
              lnID = dataID + nTypeID * self.maxNodes
 
          dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
-         if attributes is not None:
-             dataview[:] = (True,) + attributes
-         else:
+#         if attributes is not None:
+#             dataview[:] = (True,) + attributes
+#         else:
+         if any(kwProp):
              dataview['active'] = True
              dataview[list(kwProp.keys())] = tuple(kwProp.values())
+         elif attributes is not None:
+             dataview[:] = (True,) + attributes
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
@@ -315,17 +329,20 @@ class BaseGraph():
         """ calculates the node type ID and dataID from local ID"""
         if isinstance(leID, tuple):
             eTypeID, dataID = leID
+            return  eTypeID, dataID
         else:
-            if isinstance(leID, list):
-                leID = np.asarray(leID)
-                eTypeID, dataID = int(leID[0] / self.maxEdges), leID%self.maxEdges
-            
-            elif isinstance(leID, np.ndarray):
-                eTypeID, dataID = int(leID[0] / self.maxEdges), leID%self.maxEdges
-            else:
-                eTypeID, dataID = int(leID / self.maxEdges), leID%self.maxEdges
-        
-        #assert leID in self.edges[eTypeID].edgeList ##OPTPRODUCTION
+            try: 
+                # array is given
+                return leID[0] // self.maxEdges, lnIDs%self.maxEdges
+    
+            except:
+                try:
+                    # single ID is given
+                    return leID // self.maxEdges, leID%self.maxEdges
+                except:
+                    # list is given
+                    return(getRefByList(self.maxEdges, leID))
+                
         return  eTypeID, dataID
     
     def get_leID(self, source, target, eTypeID):
@@ -566,10 +583,11 @@ class ABMGraph(BaseGraph):
                                  ('instance', np.object,1),
                                  ('gID', np.int32,1)]
         else:
-            self.persitentAttributes = ['active', 'instance']
+            self.persitentAttributes = ['active', 'instance', 'gID']
             self.persitentValues     = False
             self.persNodeAttr = [('active', np.bool_,1),
-                                 ('instance', np.object,1)]
+                                 ('instance', np.object,1),
+                                 ('gID', np.int32,1)]
 
         #persistent nodeattributes
         
