@@ -27,7 +27,7 @@ class PlotClass():
         self.rankIDLayer = rankIDLayer
         self.extend = world.getParameter('extend')
         self.globalArray = np.zeros([self.extend, self.extend])
-        plt.clf()
+            plt.clf()
         
         
         self.gatherData(world)
