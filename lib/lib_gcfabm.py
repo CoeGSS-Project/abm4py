@@ -117,8 +117,8 @@ class Entity():
         self.set = self.attr.__setitem__
         self.__getNode = world.getNode
 
-    def __getattr__(self, a):
-        return self.attr[a][0]
+    # def __getattr__(self, a):
+    #     return self.attr[a][0]
 
     def __getitem__(self, a):
         return self.attr.__getitem__(a)[0]
@@ -127,11 +127,11 @@ class Entity():
         self.attr.__setitem__(a, value)
     #     self.attr[a] = value
 
-    def __setattr__(self, a, value):
-        try:
-            self.attr[a] = value
-        except:
-            object.__setattr__(self, a, value)
+    # def __setattr__(self, a, value):
+    #     try:
+    #         self.attr[a] = value
+    #     except:
+    #         object.__setattr__(self, a, value)
         
 
     @classmethod
@@ -145,72 +145,6 @@ class Entity():
             return self.attr[0].view()
         else:
             return self.attr[0,key].view()
-
-    def setAttrsForType(self, nodesTypeID, func):
-        """
-        This function allows to manipulate the underlaying np.array directly, e.g.
-        to change the attributes of all agents of a given type in a more performant way
-        then with a python loop of for comprehension.
-
-        func is a function that gets an (structured) np.array, and must return an array with the 
-        dimensions.
-
-        Use case: Increase the age for all agents by one:
-        setAttrsForType(AGENT, lambda a: a['age'] += 1)
-
-        see also: setAttrsForFilteredType/Array
-        """    
-        array = self.graph.nodes[nodesTypeID]
-        mask = (array['active'] == True) 
-        array[mask] = func(array[mask])
-
-    def setAttrsForFilteredType(nodesTypeID, filterFunc, setFunc):
-        """
-        This function allows to manipulate a subset of the underlaying np.array directly. The 
-        subset is formed by the filterFunc.
-
-        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
-        the same length.
-
-        setFunc is a function that gets an array that contains the rows where the boolean array returned
-        by the filterFunc is True, and must return an array with the same dimensions. 
-
-        Use case: All agents without food are dying:
-        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, lambda a: a['alive'] = False)
-
-        see also: setAttrForType and setAttrsForFilteredArray
-        """    
-        array = self.graph.nodes[nodesTypeID]
-        mask = (array['active'] == True) & filterFunc(array) 
-        array[mask] = setFunc(array[mask])
-
-    def setAttrsForFilteredArray(array, filterFunc, setFunc):
-        """
-        This function allows to manipulate a subset of a given np.array directly. The 
-        subset is formed by the filterFunc. That the array is given to the function explicitly 
-        allows to write nested filters, but for most usecases setFilteredAttrsForType should
-        be good enough.
-
-        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
-        the same length.
-
-        setFunc is a function that gets an array that contains the rows where the boolean array returned
-        by the filterFunc is True, and must return an array with the same dimensions. 
-
-        Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
-
-        def heavenOrHell(array):
-            setAttrsForFilteredArray(array, lambda a: a['karma'] > 10 , lambda a: a['heaven'] = True)
-            array['alive'] = False
-            return array
-
-    setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
-
-    see also: setAttrForType and setAttrsForFilteredType
-        """    
-        mask = (array['active'] == True) & filterFunc(array) 
-        array[mask] = setFunc(array[mask])
-
         
     def getPeer(self, peerID):
         return self.__getNode(nodeID=peerID)
@@ -520,7 +454,8 @@ class World:
 
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self, mpiComm=mpiComm)
-            
+
+        self.isSpatial = spatial
         
         lg.debug('Init MPI done')##OPTPRODUCTION
         if self.papi.comm.rank == 0:
@@ -537,7 +472,7 @@ class World:
         lg.debug('Init Globals done')##OPTPRODUCTION
 
         
-        if spatial:
+        if self.isSpatial:
             self.spatial  = core.Spatial(self)
         
         # enumerations
@@ -567,7 +502,8 @@ class World:
             def __init__ (self, world):
                 self.locID = world._entByLocID
                 self.globID = world._entByGlobID
-                self.location = world.spatial.getLocation
+                if world.isSpatial:
+                    self.location = world.spatial.getLocation
         self.getNodeBy = GetEntityBy(self)
 
     def _globIDGen(self):
@@ -668,6 +604,81 @@ class World:
             assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
             self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[nodeTypeID])
 
+    def setAttrsForType(self, nodesTypeID, func):
+        """
+        This function allows to manipulate the underlaying np.array directly, e.g.
+        to change the attributes of all agents of a given type in a more performant way
+        then with a python loop of for comprehension.
+
+        func is a function that gets an (structured) np.array, and must return an array with the 
+        dimensions.
+
+        Use case: Increase the age for all agents by one:
+        setAttrsForType(AGENT, lambda a: a['age'] += 1)
+
+        see also: setAttrsForFilteredType/Array
+        """    
+        array = self.graph.nodes[nodesTypeID]
+        mask = (array['active'] == True) 
+        array[mask] = func(array[mask])
+
+    def setAttrsForFilteredType(self, nodesTypeID, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of the underlaying np.array directly. The 
+        subset is formed by the filterFunc.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length.
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying:
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, lambda a: a['alive'] = False)
+
+        see also: setAttrForType and setAttrsForFilteredArray
+        """    
+        array = self.graph.nodes[nodesTypeID]
+        mask = (array['active'] == True) & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+    def setAttrsForFilteredArray(self, array, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of a given np.array directly. The 
+        subset is formed by the filterFunc. That the array is given to the function explicitly 
+        allows to write nested filters, but for most usecases setFilteredAttrsForType should
+        be good enough.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length.
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
+
+        def heavenOrHell(array):
+            setAttrsForFilteredArray(array, lambda a: a['karma'] > 10 , lambda a: a['heaven'] = True)
+            array['alive'] = False
+            return array
+
+    setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
+
+    see also: setAttrForType and setAttrsForFilteredType
+        """    
+        mask = (array['active'] == True) & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+
+    def deleteAgentsFilteredType(self, nodesTypeID, filterFunc):
+        array = self.graph.nodes[nodesTypeID]
+        # array['active'][array['active'] == True & filterFunc(array)] = False
+        filtered = array[array['active'] == True & filterFunc(array)]
+        if len(filtered) > 0:
+            for aID in np.nditer(filtered['gID']):
+                agent = self.getNode(globID = int(aID))
+                agent.delete(self)
+            
     def getNodeIDs(self, nodeTypeID):
         """ 
         Method to return all local node IDs for a given nodeType

@@ -137,6 +137,7 @@ class BaseGraph():
         nTypeID          = self.getNodeTypeID()
         dt               = np.dtype(self.persNodeAttr + attrDescriptor)
         self.nodes[nTypeID] = NodeArray(self.maxNodes, nTypeID, dtype=dt)
+        self.nodes[nTypeID]['active'] = False
 
         return nTypeID
     
