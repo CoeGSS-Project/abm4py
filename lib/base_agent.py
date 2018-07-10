@@ -124,8 +124,8 @@ class BaseAgent(Entity):
         
         return nodeList
 
-        
-    def getPeerAttr(self, prop, liTypeID=None):
+
+    def getPeerAttr(self, prop, liTypeID):
         """
         This method returns the attributes of all connected nodes connected 
         by a specfic edge type.
