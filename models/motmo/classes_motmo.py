@@ -1337,7 +1337,6 @@ class Person(Agent, Parallel):
             personIds = list()
             for nP, subList in zip(nPers, personIdsAll):
                 personIds.extend(np.random.choice(subList, nP))
-                
         else:
             personIds = [item for sublist in personIdsAll for item in sublist]
         personIdsAll =  personIds   

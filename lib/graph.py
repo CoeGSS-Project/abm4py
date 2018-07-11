@@ -112,8 +112,8 @@ class BaseGraph():
         storage space.
         """
         
-        self.maxNodes       = int(maxNodesPerType)
-        self.maxEdges       = int(maxEdgesPerType)
+        self.maxNodes       = np.int64(maxNodesPerType)
+        self.maxEdges       = np.int64(maxEdgesPerType)
         
 
         self.nodeGlob2Loc   = dict()
@@ -144,7 +144,16 @@ class BaseGraph():
     def _initNodeType(self, nodeName, attrDescriptor):
         
         nTypeID          = self.getNodeTypeID()
-        dt               = np.dtype(self.persNodeAttr + attrDescriptor)
+        
+        # enforcing that attributes are unique
+        uniqueAttributes = []
+        uniqueAttributesList = []
+        for attrDesc in self.persNodeAttr + attrDescriptor:
+            if attrDesc[0] not in uniqueAttributesList:
+                uniqueAttributesList.append(attrDesc[0])
+                uniqueAttributes.append(attrDesc)
+        
+        dt                  = np.dtype(uniqueAttributes)
         self.nodes[nTypeID] = NodeArray(self.maxNodes, nTypeID, dtype=dt)
         self.nodes[nTypeID]['active'] = False
 
@@ -170,9 +179,13 @@ class BaseGraph():
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
             except:
                 # list is given
-                return(getRefByList(self.maxNodes, lnIDs))
-                
-                
+#                try:
+                return getRefByList(self.maxNodes, lnIDs)
+#                except:
+#                    print(lnIDs)
+#                   
+#                    import pdb
+#                    pdb.set_trace()
             
 
 

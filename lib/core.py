@@ -436,11 +436,6 @@ class Spatial():
                             ghostLocationList.append(loc)
         self.world.graph.IDArray = IDArray
 
-
-        #nConnection  = list()
-        #print 'rank: ' +  str(self.world.locDict)
-
-
         self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList)
 
 
