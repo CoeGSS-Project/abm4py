@@ -105,7 +105,7 @@ class Mobile():
         self._setLocationDict(world.getLocationDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
-        self.attr['pos'] = [ newX, newY]
+        self['pos'] = [ newX, newY]
         self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
         

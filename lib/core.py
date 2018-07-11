@@ -307,7 +307,8 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
-    plt.figure('graph')
+    plt.ion()
+    fig= plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
     if liTypeID is not None:
@@ -341,7 +342,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.tight_layout()  
     
     plt.draw()
-
+    fig.canvas.flush_events()
 
 
 def initLogger(debug, outputPath):
