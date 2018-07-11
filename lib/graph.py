@@ -211,11 +211,12 @@ class BaseGraph():
 #         if attributes is not None:
 #             dataview[:] = (True,) + attributes
 #         else:
+         dataview['active'] = True
          if any(kwProp):
-             dataview['active'] = True
              dataview[list(kwProp.keys())] = tuple(kwProp.values())
          elif attributes is not None:
              dataview[:] = (True,) + attributes
+         
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
