@@ -1302,8 +1302,8 @@ class Person(Agent, Parallel):
 
         contactList = list()
         connList   = list()
-        ownPref    = self.get('preferences')
-        ownIncome  = self.hh.get('income')
+        ownPref    = self['preferences']
+        ownIncome  = self.hh['income']
 
 
         #get spatial weights to all connected cells
@@ -1384,7 +1384,7 @@ class Person(Agent, Parallel):
 
         if np.sum(weightData[:,0]>0) < nContacts:
             lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
-            lg.info( "population = " + str(self.loc.get('population')) + " surrounding population: " +str(np.sum(self.loc.getPeerAttr('population',CON_LL)[0])))
+            lg.info( "population = " + str(self.loc['population']) + " surrounding population: " +str(np.sum(self.loc.getPeerAttr('population',CON_LL)[0])))
 
             nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
 
@@ -1426,7 +1426,7 @@ class Person(Agent, Parallel):
         else:
             commUtil += np.mean(commUtilPeers,axis=0)
 
-        mobType  = self.attr['mobType'][0]
+        mobType  = self['mobType']
         
         
         # adding weighted selfUtil selftrust
@@ -1441,7 +1441,7 @@ class Person(Agent, Parallel):
             print('nID: ' + str(self.nID))                                       ##OPTPRODUCTION
             print('error: ')                                                     ##OPTPRODUCTION
             print('communityUtil: ' + str(commUtil))                             ##OPTPRODUCTION
-            print('selfUtil: ' + str(self.get('selfUtil')))                 ##OPTPRODUCTION
+            print('selfUtil: ' + str(self['selfUtil']))                 ##OPTPRODUCTION
             print('nlinks: ' + str(len(weights)))                                  ##OPTPRODUCTION
 
             return                                                              ##OPTPRODUCTION
@@ -1453,8 +1453,8 @@ class Person(Agent, Parallel):
 
     def imitate(self, utilPeers, weights, mobTypePeers):
         #pdb.set_trace()
-        if self.get('preferences')[INNO] > .15 and random.random() > .98:
-            self.imitation = [np.random.choice(self.get('commUtil').shape[0])]
+        if self['preferences'][INNO] > .15 and random.random() > .98:
+            self.imitation = [np.random.choice(self['commUtil'].shape[0])]
         else:
 
             if np.sum(~np.isfinite(utilPeers)) > 0:
@@ -1496,7 +1496,7 @@ class Person(Agent, Parallel):
         
         
         
-        if earth.para['weightConnections'] and random.random() > self.get('util'): 
+        if earth.para['weightConnections'] and random.random() > self['util']: 
             # weight friends
             self.weightFriendExperience(earth, commUtilPeers, weights)
 
@@ -1516,9 +1516,9 @@ class Person(Agent, Parallel):
             self.imitation = [-1]
         
 
-        if self.get('mobType')>1:
-            good = earth.market.goods[self.get('mobType')]
-            self.set('prop',[good.properties['emissions'],good.properties['fixedCosts'], good.properties['operatingCosts']])
+        if self['mobType']>1:
+            good = earth.market.goods[self['mobType']]
+            self['prop'] =[good.properties['emissions'],good.properties['fixedCosts'], good.properties['operatingCosts']]
 
         # socialize
 #        if np.random.rand() >0.99:

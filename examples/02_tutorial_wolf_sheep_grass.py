@@ -99,7 +99,7 @@ class Sheep(Agent, Mobile):
 
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
+        #world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
         
     def eat(self):
@@ -125,7 +125,7 @@ class Sheep(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0] 
+        newX, newY = self['pos'] + [ dx, dy]
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
@@ -172,7 +172,7 @@ class Wolf(Agent):
     def register(self,world):
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_WOLF, self.nID, self.loc.nID)
+        #world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
         
     def hunt(self):
@@ -188,7 +188,7 @@ class Wolf(Agent):
             sheep = self.loc.getMember(random.choice(sheepList))
             sheep.delete(world)
             self.attr['weight'] += 5.0
-            print('sheep died')
+            #print('sheep died')
     
     def move(self, center, hunt=False):
         """ Jette
@@ -196,23 +196,22 @@ class Wolf(Agent):
         The function move lets the wolves move in the same way as sheep. 
         The wolf though only looses 0.02 units of weight.
         """
-        pos = self.attr['pos'][0]
+        pos = self['pos']
         delta =  pos - center
         
         bias = np.clip((.5*delta)**3 / np.sqrt(np.sum( delta**2)),a_min = -5, a_max=5).astype(np.int)
         if hunt:
-            (dx,dy) = np.random.randint(-5,6,2) - bias
+            newX, newY = pos + np.random.randint(-5,6,2) - bias
         else:
-            (dx,dy) = np.random.randint(-3,4,2) - bias
-        newX, newY = (pos + [ dx, dy])
+            newX, newY = pos + np.random.randint(-3,4,2) - bias
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
         self.attr['pos'] = [ newX, newY]
-        world.delLinks(LINK_WOLF, self.nID, self.loc.nID)
+        #world.delLinks(LINK_WOLF, self.nID, self.loc.nID)
         world.delLinks(LINK_WOLF, self.loc.nID, self.nID)
         self.loc =  locDict[( newX, newY)]
-        world.addLink(LINK_WOLF, self.nID, self.loc.nID)
+        #world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
         self.attr['weight'] -= .02
 
@@ -351,9 +350,12 @@ del wolfPack, wolf
 plott = tools.PlotClass(world)
     
 #%%
+import tqdm
 iStep = 0
+pbar = tqdm.tqdm()
 while True:
     iStep +=1
+    pbar.update(1)
     tt = time.time()
     # Every five steps the grass grows.
     if iStep%5 == 0:
@@ -388,7 +390,8 @@ while True:
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
-    nHunting = np.sum(world.getAgentAttr('weight', agTypeID=WOLF) <1.0)        
+    nHunting = np.sum(world.getAgentAttr('weight', agTypeID=WOLF) <1.0) 
+    #grassHeight = np.sum(world.getAgentAttr('height', agTypeID=GRASS))       
     #print(str(time.time() - tt) + ' s')
-    print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
+    #print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

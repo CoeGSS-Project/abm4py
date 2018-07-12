@@ -106,12 +106,12 @@ class Mobile():
         
     def move(self, newX, newY, spatialLinkTypeID):
         self['pos'] = [ newX, newY]
-        self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        #self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
         
         self.loc = self.locDict[(newX, newY)]
         
-        self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        #self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod

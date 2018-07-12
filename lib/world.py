@@ -297,7 +297,7 @@ class World:
             else:
                 return [self.__entDict[agentID] for agentID in self.__nodeDict[agTypeID]]
 
-    def filterAgents(self, agTypeID, attr, operator, value = None, compareAttr=None):
+    def filterAgents_old(self, agTypeID, attr, operator, value = None, compareAttr=None):
         """
         Method for quick filtering nodes according to comparison of attributes
         allowed operators are:
@@ -333,11 +333,21 @@ class World:
         elif operator=='egt':
             boolArr = values >= compareValue    
             
-        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
+#        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
         
-        return lnIDs
+        #return lnIDs
+#        return[self.__entDict[i] for i in lnIDs]
+#        print(values)
+#        return values['instance'][boolArr]
+        return self.graph.nodes[agTypeID]['instance'][np.where(boolArr)[0]]
+    
+    def filterAgents(self, nodesTypeID, func):
         
-
+        array = self.graph.nodes[nodesTypeID]
+        mask = array['active'] & func(array)
+        #maskedArray = array[mask]
+        return array['instance'][mask]
+                    
     def iterNodes(self, agTypeID=None, localIDs=None, ghosts = False):
         """
         Iteration over entities of specified type. Default returns

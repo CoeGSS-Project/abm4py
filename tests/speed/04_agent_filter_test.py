@@ -32,7 +32,7 @@ from lib.traits import Mobile
 from lib import core
 
  #%% Setup
-N_AGENTS   = 100000
+N_AGENTS   = 50000
 REF_LENGTH = 1000
 n_REPEAT   = 50
 #%% register a new agent type with four attributes
@@ -50,13 +50,18 @@ for iAgent in range(N_AGENTS):
                   randNum = random.random())
     agent.register(world)
     
-tt = time.time()    
+tt = time.time()   
+resultNew = dict() 
 for treshold in np.linspace(0,1):
-    x = world.filterAgents(AGENT, lambda a: a['randNum'] > treshold)
+    resultNew[treshold] = len(world.filterAgents(AGENT, lambda a: a['randNum'] < treshold))
 print('Agent filered 50 times in  ' + str(time.time() -tt) )      
 
+resultOld = dict()
 tt = time.time()    
 for treshold in np.linspace(0,1):
-    x = world.filterAgents_old(AGENT, 'randNum', 'gt', treshold)
+    resultOld[treshold] = len(world.filterAgents_old(AGENT, 'randNum', 'lt', treshold))
     #print(x)
 print('OLD - Agent filered 50 times in  ' + str(time.time() -tt)) 
+
+for treshold in np.linspace(0,1):
+    assert resultOld[treshold] == resultNew[treshold]
