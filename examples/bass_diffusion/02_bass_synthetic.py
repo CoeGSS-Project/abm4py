@@ -178,7 +178,7 @@ currIdx = 0
 
 
 for xLoc, yLoc in list(locDict.keys()):  
-    loc = world.getNodeBy.location(xLoc, yLoc)
+    loc = locDict[xLoc, yLoc]
     
     
     for iAgent in range(loc.get('nAgents')):
@@ -337,12 +337,12 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
-    randValues  = np.random.random(len(nodesToIter))*1000
+    agentsToIter = world.filterAgents(AGENT, lambda a: a['switch'] == 0)
+    randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.  
-    for agent, randNum in zip(world.getAgents.byType(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(agentsToIter,randValues) :
         
         # dynamic of the agent
         switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS

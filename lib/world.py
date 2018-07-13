@@ -571,6 +571,9 @@ class World:
 
     def getAgentListsByType(self):
         return self.__agentsByType, self.__ghostsByType
+
+    def getAllAgentDict(self):
+        return self.__allAgentDict
     
     def getGlobToLocDIct(self):
         return self.__glob2loc

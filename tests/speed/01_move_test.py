@@ -91,7 +91,6 @@ tt = time.time()
 
 connList      = world.spatial.computeConnectionList(radius=1.5)
 connBluePrint = world.spatial.initSpatialLayer(nodeMap, connList, Location, LINK)
-[neig.reComputeNeighborhood(LINK) for neig in world.getAgents.byType(LOC)]
 
 world.setAttrOfAgentType('property', 0., agTypeID=LOC)
 print('Spatial layer created in ' + str(time.time() -tt) )   

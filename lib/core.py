@@ -1739,6 +1739,7 @@ class AgentAccess():
         self.__glob2Loc     = world.getGlobToLocDIct()
         self.__types          = world.graph.agTypeByStr
         self.__agListByType, self.__ghostAgentListByType = world.getAgentListsByType()
+        self.__allAgentDict = world.getAllAgentDict()
         
         self.custonIterators = dict()
      

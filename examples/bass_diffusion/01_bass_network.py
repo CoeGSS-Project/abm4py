@@ -215,12 +215,13 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
-    randValues  = np.random.random(len(nodesToIter))*1000
+    #nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
+    agentsToIter = world.filterAgents(AGENT, lambda a: a['switch'] == 0)
+    randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.    
-    for agent, randNum in zip(world.getAgents.byType(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(agentsToIter,randValues) :
         
         # switchFraction is recalculated for every agent as the sum of all its
         # friends that switched devided by its total number of friends
