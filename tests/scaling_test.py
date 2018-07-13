@@ -258,8 +258,8 @@ def stepFunction(earth):
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
-    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAttrOfAgents('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAttrOfAgents('prop_B', agTypeID=AGENT))
+    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAttrOfAgentType('prop_B',AGENT))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAttrOfAgentType('prop_B', agTypeID=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])

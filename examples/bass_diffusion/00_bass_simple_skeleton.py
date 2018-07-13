@@ -133,6 +133,6 @@ while True:
                 agent.attr['color'] = RED
             
     if iStep%50 == 0:
-        ploting.update(iStep, fracList, world.getAttrOfAgents('color',agTypeID=AGENT))
+        ploting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

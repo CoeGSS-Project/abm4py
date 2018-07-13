@@ -148,18 +148,18 @@ for iAgent in range(N_AGENTS):
 world.io.initNodeFile(world, [AGENT])
 #%% creation of spatial proximity network
 
-# world.getAttrOfAgents is used to receive the position of all agents 
+# world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.
-positions = world.getAttrOfAgents('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
 agIDList  = world.getAgentIDs(AGENT)
 
-# world.getAttrOfAgents is used to receive the innovation value of all agents 
+# world.getAttrOfAgentType is used to receive the innovation value of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT. The value is given as float.
-innovationVal = world.getAttrOfAgents('inno', agTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
 # For a fixed agent this function assigns weights to all other agents 
 # either by option 1 via proximity in position or by option 2 via proximity
@@ -176,15 +176,15 @@ innovationVal = world.getAttrOfAgents('inno', agTypeID=AGENT).astype(np.float64)
 # Here one can choose the positions of the agents in the plot by putting all 
 # options but the favoured one into comments.
     
-positions = world.getAttrOfAgents('pos',agTypeID=AGENT)
-#positions[:,0] = world.getAttrOfAgents('inno',agTypeID=AGENT)
-#positions[:,1] = world.getAttrOfAgents('imit',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
+#positions[:,0] = world.getAttrOfAgentType('inno',agTypeID=AGENT)
+#positions[:,1] = world.getAttrOfAgentType('imit',agTypeID=AGENT)
 #%% Scheduler
 iStep = 0
 fracList = list()
 fracPerSector = {1:[], 2:[], 3:[],4:[]}
 
-switched = world.getAttrOfAgents('switch',agTypeID=AGENT)
+switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
 
 
 # If results shall be plotted:
@@ -196,8 +196,8 @@ while True:
     tt =time.time()
     iStep+=1
     
-    # world.getAttrOfAgents is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getAttrOfAgents('switch',agTypeID=AGENT)
+    # world.getAttrOfAgentType is used to retrieve the attribute "switch" of all AGIDs
+    switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -236,7 +236,7 @@ while True:
     
     # each 50 steps, the visualization is updated       
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAttrOfAgents('color',agTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
     world.io.writeDataToFile(iStep, [AGENT])
     #time.sleep(.1)

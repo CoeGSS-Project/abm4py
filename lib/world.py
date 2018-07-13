@@ -196,58 +196,60 @@ class World:
         core.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
 
 #%% Global Agent scope
-    def getAttrOfAgents(self, label, localIDList=None, agTypeID=None):
+        
+    def getAttrOfAgents(self, label, localIDList):
+        return self.graph.getNodeSeqAttr(label, lnIDs=localIDList)
+
+    def getAttrOfAgentType(self, label, agTypeID):
         """
         Method to read values of node sequences at once
         Return type is numpy array
         Only return non-ghost agent properties
         """
-        if localIDList:   
-            assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=localIDList)
-        
-        
-        elif agTypeID:           
-            assert localIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.__agentIDsByType[agTypeID])
-        
+        return self.graph.getNodeSeqAttr(label, lnIDs=self.__agentIDsByType[agTypeID])
+    
     def setAttrOfAgents(self, label, valueList, localIDList=None, agTypeID=None):
         """
         Method to write values of node sequences at once
         Return type is numpy array
         """
-        if localIDList:
-            assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localIDList)
-        
-        elif agTypeID:
-            assert localIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
+        self.graph.setNodeSeqAttr(label, valueList, lnIDs=localIDList)
+
+    def setAttrOfAgentType(self, label, valueList, agTypeID):
+        """
+        Method to write values of all agents of a type at once
+        Return type is numpy array
+        """
+        self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
             
     def getAttrOfLinks(self, label, localLinkIDList=None, liTypeID=None):
-        if localLinkIDList:   
-            assert liTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
+        """
+        Method to write values of a sequence of links at once
+        Return type is numpy array
+        """
+        return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
         
-        elif liTypeID:           
-            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
-
-    def setAttrOfLinks(self, label, valueList, localLinkIDList=None, liTypeID=None):
+    def getAttrOfLinkType(self, label, liTypeID):
+        """
+        Method to write values of all links of a type at once
+        Return type is numpy array
+        """
+        return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
+        
+    def setAttrOfLinks(self, label, valueList, localLinkIDList):
         """
         Method to retrieve all properties of all entities of one liTypeID
         """
-        if localLinkIDList:
-            assert liTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
+        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
         
-        elif liTypeID:
-            assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
+    def setAttrOfLinkType(self, label, valueList, liTypeID):
+        """
+        Method to retrieve all properties of all entities of one liTypeID
+        """
+        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
+
 
 #%% Agent access 
-
-
 
     def getAgentIDs(self, agTypeID, ghosts=False):
         """ 

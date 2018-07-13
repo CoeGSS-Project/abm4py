@@ -89,10 +89,10 @@ for iAgent in range(N_AGENTS):
 #%% Scheduler
 fracList = list()
 
-# world.getAttrOfAgents is used to receive the position of all agents 
+# world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGID attribute and the agTypeID
 # specifies the type of AGID.
-positions = world.getAttrOfAgents(label='pos',agTypeID=AGID)
+positions = world.getAttrOfAgentType(label='pos',agTypeID=AGID)
 
 # this class is only implemented for a convenient interactive visualization of 
 # the example
@@ -104,8 +104,8 @@ tt =time.time()
 for iStep in range(N_STEPS):
     
     
-    # world.getAttrOfAgents is used to retrieve the attribute "switch"  of all AGIDs
-    switched = world.getAttrOfAgents('switch',agTypeID=AGID)
+    # world.getAttrOfAgentType is used to retrieve the attribute "switch"  of all AGIDs
+    switched = world.getAttrOfAgentType('switch',agTypeID=AGID)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -142,6 +142,6 @@ for iStep in range(N_STEPS):
     
     # each 50 steos, the visualization is updated        
     if iStep%50 == 0:
-        ploting.update(iStep+1, fracList, world.getAttrOfAgents('color',agTypeID=AGID))
+        ploting.update(iStep+1, fracList, world.getAttrOfAgentType('color',agTypeID=AGID))
     
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

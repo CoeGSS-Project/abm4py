@@ -71,11 +71,11 @@ clara.getAttrOfPeers('age', LINK)
 
 #%%
 #getting ages of everbody
-ages = world.getAttrOfAgents('age',agTypeID=AGENT_ID)
+ages = world.getAttrOfAgentType('age',agTypeID=AGENT_ID)
 
 # get all canditates
 candidates = world.getAgents.byType(AGENT_ID) 
-ages = world.getAttrOfAgents('age', agTypeID=AGENT_ID)
+ages = world.getAttrOfAgentType('age', agTypeID=AGENT_ID)
 
 # compute probability to connect for all other agents
 differenceInAge = np.abs(ages -joana.get('age'))

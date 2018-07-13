@@ -40,9 +40,9 @@ world = World(agentOutput=False,
           maxNodes=100000,
           maxLinks=500000)
 
-AGENT = world.registerAgentType('agent' , AgentClass=Agent,
-                               staticProperties  = [],
-                               dynamicProperties = [])
+AGENT = world.registerAgentType('agent', AgentClass=Agent,
+                                         staticProperties  = [],
+                                         dynamicProperties = [])
 
 for iAgent in range(N_AGENTS):
     
@@ -57,7 +57,7 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getEdgeDataRef(subList)
+        x = world.graph.getNodeDataRef(subList)
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
@@ -68,9 +68,11 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getEdgeDataRef(subList)
+        x = world.graph.getNodeDataRef(subList)
+        
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
 
 print('Asking reference for a single ID')    
 timeReq = list()  
@@ -79,6 +81,6 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         singleID = idList[i]
-        x = world.graph.getEdgeDataRef(singleID)
+        x = world.graph.getNodeDataRef(singleID)
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))

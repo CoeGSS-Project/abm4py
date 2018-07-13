@@ -269,12 +269,12 @@ class Earth(World):
         Encapsulating method for the sync of global variables
         """
         ttSync = time.time()
-        self.graph.glob.updateLocalValues('meanEmm', self.getAttrOfAgents('prop', agTypeID=PERS)[:,EMISSIONS])
-        self.graph.glob.updateLocalValues('stdEmm', self.getAttrOfAgents('prop', agTypeID=PERS)[:,EMISSIONS])
-        self.graph.glob.updateLocalValues('meanFiC', self.getAttrOfAgents('prop', agTypeID=PERS)[:,FIXEDCOSTS])
-        self.graph.glob.updateLocalValues('stdFiC', self.getAttrOfAgents('prop', agTypeID=PERS)[:,FIXEDCOSTS])
-        self.graph.glob.updateLocalValues('meanOpC', self.getAttrOfAgents('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
-        self.graph.glob.updateLocalValues('stdOpC', self.getAttrOfAgents('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
+        self.graph.glob.updateLocalValues('meanEmm', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,EMISSIONS])
+        self.graph.glob.updateLocalValues('stdEmm', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,EMISSIONS])
+        self.graph.glob.updateLocalValues('meanFiC', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,FIXEDCOSTS])
+        self.graph.glob.updateLocalValues('stdFiC', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,FIXEDCOSTS])
+        self.graph.glob.updateLocalValues('meanOpC', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
+        self.graph.glob.updateLocalValues('stdOpC', self.getAttrOfAgentType('prop', agTypeID=PERS)[:,OPERATINGCOSTS])
      
         # local values are used to update the new global values
         self.graph.glob.sync()
@@ -328,21 +328,21 @@ class Earth(World):
         if self.timeStep == 0:
             lg.info( 'setting up time warp during burnin by factor of ' + str(self.para['burnInTimeFactor']))
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] / self.para['burnInTimeFactor'])
-            newValue = np.rint(self.getAttrOfAgents('lastAction', agTypeID=PERS) / self.para['burnInTimeFactor']).astype(int)
-            self.setAttrOfAgents('lastAction', newValue, agTypeID=PERS)
+            newValue = np.rint(self.getAttrOfAgentType('lastAction', agTypeID=PERS) / self.para['burnInTimeFactor']).astype(int)
+            self.setAttrOfAgentType('lastAction', newValue, agTypeID=PERS)
 
         elif self.timeStep+5 == self.para['burnIn']:
             lg.info( 'reducting time speed to normal')
             self.para['mobNewPeriod'] = int(self.para['mobNewPeriod'] * self.para['burnInTimeFactor'])
-            oldValue = self.getAttrOfAgents('lastAction', agTypeID=PERS) * self.para['burnInTimeFactor']
+            oldValue = self.getAttrOfAgentType('lastAction', agTypeID=PERS) * self.para['burnInTimeFactor']
             newValue = oldValue.astype(int)
             stochastricRoundValue = newValue + (np.random.random(len(oldValue)) < oldValue-newValue).astype(int)
 
-            self.setAttrOfAgents('lastAction', stochastricRoundValue,  agTypeID=PERS)
+            self.setAttrOfAgentType('lastAction', stochastricRoundValue,  agTypeID=PERS)
             
         else:
-            lastActions = self.getAttrOfAgents('lastAction',agTypeID=PERS)
-            self.setAttrOfAgents('lastAction',lastActions+1, agTypeID=PERS)
+            lastActions = self.getAttrOfAgentType('lastAction',agTypeID=PERS)
+            self.setAttrOfAgentType('lastAction',lastActions+1, agTypeID=PERS)
         
         # progressing time
         if self.timeStep > self.para['burnIn']:
@@ -1118,7 +1118,7 @@ class Infrastructure():
     
     def setStations(self, earth, newStationsMap):
         newValues = newStationsMap[earth.cellMapIds]
-        earth.setAttrOfAgents('chargStat', newValues, agTypeID=CELL)
+        earth.setAttrOfAgentType('chargStat', newValues, agTypeID=CELL)
         
     def growthModel(self, earth):
         # if not given exogeneous, a fitted s-curve is used to evalulate the number
@@ -1136,8 +1136,8 @@ class Infrastructure():
         lg.debug('Adding ' + str(nNewStations) + ' new stations')##OPTPRODUCTION
         
         #get the current number of charging stations
-        currNumStations  = earth.getAttrOfAgents('chargStat', agTypeID=CELL)
-        greenCarsPerCell = earth.getAttrOfAgents('carsInCell',agTypeID=CELL)[:,GREEN]+1. 
+        currNumStations  = earth.getAttrOfAgentType('chargStat', agTypeID=CELL)
+        greenCarsPerCell = earth.getAttrOfAgentType('carsInCell',agTypeID=CELL)[:,GREEN]+1. 
         
         #immition factor (related to hotelings law that new competitiors tent to open at the same location)
         
@@ -1180,7 +1180,7 @@ class Infrastructure():
         uniqueRandIdx, count = np.unique(randIdx,return_counts=True)
         
         currNumStations[uniqueRandIdx] += count   
-        earth.setAttrOfAgents('chargStat', currNumStations, agTypeID=CELL)
+        earth.setAttrOfAgentType('chargStat', currNumStations, agTypeID=CELL)
 
     
 

@@ -382,16 +382,16 @@ while True:
         
         
     # This updates the plot.        
-    pos = world.getAttrOfAgents('pos', agTypeID=SHEEP)
+    pos = world.getAttrOfAgentType('pos', agTypeID=SHEEP)
     if pos is not None:
         np.clip(pos, 0, EXTEND, out=pos)
-        pos = world.setAttrOfAgents('pos', pos, agTypeID=SHEEP)
+        pos = world.setAttrOfAgentType('pos', pos, agTypeID=SHEEP)
         plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
-    nHunting = np.sum(world.getAttrOfAgents('weight', agTypeID=WOLF) <1.0) 
-    #grassHeight = np.sum(world.getAttrOfAgents('height', agTypeID=GRASS))       
+    nHunting = np.sum(world.getAttrOfAgentType('weight', agTypeID=WOLF) <1.0) 
+    #grassHeight = np.sum(world.getAttrOfAgentType('height', agTypeID=GRASS))       
     #print(str(time.time() - tt) + ' s')
     print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

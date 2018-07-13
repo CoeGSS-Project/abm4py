@@ -42,7 +42,7 @@ class PlotClass():
 
     def gatherData(self, world):
        
-        parts = world.papi.comm.gather(world.getAttrOfAgents('height', agTypeID=1))
+        parts = world.papi.comm.gather(world.getAttrOfAgentType('height', agTypeID=1))
         if world.isRoot:
             for rank, part in enumerate(parts):
                 #print(rank)

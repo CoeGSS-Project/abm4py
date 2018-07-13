@@ -298,7 +298,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getAttrOfAgents('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.ion()

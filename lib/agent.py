@@ -32,15 +32,13 @@ class Agent(_Entity):
     receives the abilty to move
     """
     def __init__(self, world, nID = -1, **kwProperties):
-        # init of the Entity class to init storage
-        _Entity.__init__(self, world, nID, **kwProperties)
-
         self.__getNode = world.getAgent
         if 'nID' not in list(kwProperties.keys()):
             nID = -1
         else:
             nID = kwProperties['nID']
-        
+
+        # init of the Entity class to init storage
         _Entity.__init__(self, world, nID, **kwProperties)
         
     
@@ -65,7 +63,7 @@ class Agent(_Entity):
         
         return nodeList
 
-    def getLinkIDs(self, liTypeID=None):
+    def getLinkIDs(self, liTypeID):
         """
         This method changes returns the linkID of all outgoing links of a 
         specified type
@@ -74,7 +72,7 @@ class Agent(_Entity):
         return eList
     
         
-    def getAttrOfPeers(self, prop, liTypeID=None):
+    def getAttrOfPeers(self, prop, liTypeID):
         """
         This method returns the attributes of all connected nodes connected 
         by a specfic edge type.
@@ -98,7 +96,7 @@ class Agent(_Entity):
 
         return edgesValues, (eTypeID, dataID), nIDList
 
-    def setAttrOfLink(self, prop, values, liTypeID=None):
+    def setAttrOfLink(self, prop, values, liTypeID):
         """
         This method changes the attributes of outgoing links
         """

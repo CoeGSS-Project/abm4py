@@ -115,7 +115,7 @@ class BaseGraph():
         self.maxNodes       = np.int64(maxNodesPerType)
         self.maxEdges       = np.int64(maxEdgesPerType)
         
-        
+        self.lnID2dataIdx   = dict()
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
         ## im nodes dict stehen keine nodes sondern nodeArrays (stf)
@@ -220,6 +220,7 @@ class BaseGraph():
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
+         self.lnID2dataIdx[lnID] = dataID
          return lnID, dataID, dataview
      
     
@@ -836,10 +837,10 @@ if __name__ == "__main__":
     lnID4, _, dataview4 = bg.addNode(LOC, (4, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    bg.getAttrOfAgents(lnID=lnID1)
+    bg.getAttrOfAgentType(lnID=lnID1)
     bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
     print(bg.getNodeSeqAttr('gnID', [lnID1, lnID2]))
-    print(bg.getAttrOfAgents(lnID=lnID2))
+    print(bg.getAttrOfAgentType(lnID=lnID2))
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges

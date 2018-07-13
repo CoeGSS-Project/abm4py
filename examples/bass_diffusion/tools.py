@@ -114,7 +114,7 @@ def printfractionExceed(switchFraction, iStep):
         
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
-    positions = world.getAttrOfAgents('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.figure('graph')
@@ -135,7 +135,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
                 linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
     if attrLabel is not None:
-        values = world.getAttrOfAgents(attrLabel, agTypeID=agentTypeID)
+        values = world.getAttrOfAgentType(attrLabel, agTypeID=agentTypeID)
         values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 15, c = values,zorder=2)

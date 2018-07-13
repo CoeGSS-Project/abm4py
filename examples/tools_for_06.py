@@ -31,19 +31,19 @@ class PlotClass():
         
         localNodeIDList=world.filterAgents(2, 'sick', 'eq', True)
         if len(localNodeIDList) > 0: 
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             #print(pos.shape)
             self.h_sicks = plt.scatter(pos[:,1],pos[:,0], c='r', s = 35, marker='s',zorder=2)
         
         localNodeIDList=world.filterAgents(2, 'sick', 'eq', False)
         if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             #print(pos.shape)
             self.h_healths = plt.scatter(pos[:,1],pos[:,0], c='g', s = 35, marker='s',zorder=2)
         
         localNodeIDList=world.filterAgents(2, 'remainingImmunity', 'gt', 0)
         if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             #print(pos.shape)
             self.h_immunes = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
         
@@ -70,19 +70,19 @@ class PlotClass():
     def update(self, world):
         localNodeIDList=world.filterAgents(2, 'sick', 'eq', True)
         if len(localNodeIDList) > 0: 
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             self.h_sicks.set_offsets(np.c_[pos[:,1],pos[:,0]])
             
         
         localNodeIDList=world.filterAgents(2, 'sick', 'eq', False)
         if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             self.h_healths.set_offsets(np.c_[pos[:,1],pos[:,0]])
             
         
         localNodeIDList=world.filterAgents(2, 'remainingImmunity', 'gt', 0)
         if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgents('pos', localNodeIDList)
+            pos = world.getAttrOfAgentType('pos', localNodeIDList)
             # self.h_immunes = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
             self.h_immunes.set_offsets(np.c_[pos[:,1],pos[:,0]])
 

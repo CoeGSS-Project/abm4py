@@ -99,9 +99,9 @@ for iAgent in range(N_AGENTS):
 
 #%% creation of spatial proximity network
   
-positions = world.getAttrOfAgents('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
 agIDList  = world.getAgentIDs(AGENT)
-innovationVal = world.getAttrOfAgents('inno', agTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
 def network_creation(agent, world):
     
@@ -131,7 +131,7 @@ for agent in world.getAgents.byType(AGENT):
 
     
     
-positions = world.getAttrOfAgents('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
 
 ##############################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -149,7 +149,7 @@ if DO_PLOT:
 while True:
     tt =time.time()
     iStep+=1
-    switched = world.getAttrOfAgents('switch',agTypeID=AGENT)
+    switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
     switchFraction = np.sum(switched) / N_AGENTS
     fracList.append(switchFraction)
     
@@ -172,6 +172,6 @@ while True:
             plotting.add(iStep,inno)
             
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAttrOfAgents('color',agTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
     
