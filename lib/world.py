@@ -162,14 +162,11 @@ class World:
     def nLinks(self, liTypeID):
        return self.graph.eCount(eTypeID=liTypeID)  
 
-    def getParameter(self,paraName=None):
+    def getParameters(self):
         """
         Returns a dictionary of all simulations parameters or a single value
         """
-        if paraName is not None:
-            return self.para[paraName]
-        else:
-            return self.para
+        return self.para
 
     def setParameter(self, paraName, paraValue):
         """
@@ -184,21 +181,19 @@ class World:
         for key in list(parameterDict.keys()):
             self.setParameter(key, parameterDict[key])
 
-    def setEnum(self, enumName, enumDict):
-        """
-        Method to add enumertations
-        Dict should have integers as keys an strings as values
-        """
-        self.__enums[enumName] = enumDict
-         
-    def getEnum(self, enumName=None):
+    # saving enumerations
+    def saveParameters(self, fileName= 'simulation_parameters'):
+        core.saveObj(self.para, self.para['outPath'] + '/' + fileName)
+       
+    def enum(self):
         """ 
         Returns a specified enumeration dict
         """         
-        if enumName is None:
-            return self.__enums.keys()
-        else:
-            return self.__enums[enumName]
+        return self.__enums
+
+    def saveEnumerations(self, fileName= 'enumerations'):
+        # saving enumerations
+        core.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
 
 #%% Global Agent scope
     def getAttrOfAgents(self, label, localIDList=None, agTypeID=None):
@@ -376,8 +371,8 @@ class World:
 
 
 #%% Register methods
-    def __addIterNodeFunction(self, typeStr, nodeTypeId):
-        name = "iter" + typeStr.capitalize()
+    def __addIterNodeFunction(self, agTypeStr, nodeTypeId):
+        name = "iter" + agTypeStr.capitalize()
         source = """def %NAME%(self):
                         return [ self._World__allAgentDict[i] for i in self._World__agentIDsByType[%NODETYPEID%] ]
         """.replace("%NAME%", name).replace("%NODETYPEID%", str(nodeTypeId))
@@ -385,7 +380,7 @@ class World:
         setattr(self, name, types.MethodType(locals()[name], self))
 
         
-    def registerAgentType(self, typeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
+    def registerAgentType(self, agTypeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
         """
         Method to register a node type:
         - Registers the properties of each agTypeID for other purposes, e.g. I/O
@@ -418,13 +413,13 @@ class World:
 #            print(staticProperties)
                 
         self.graph.addNodeType(agTypeIDIdx, 
-                               typeStr, 
+                               agTypeStr, 
                                AgentClass,
                                GhostAgentClass,
                                staticProperties, 
                                dynamicProperties)
 
-        self.__addIterNodeFunction(typeStr, agTypeIDIdx)
+        self.__addIterNodeFunction(agTypeStr, agTypeIDIdx)
         
         
         # agent instance lists
@@ -446,7 +441,7 @@ class World:
         return agTypeIDIdx
 
 
-    def registerLinkType(self, typeStr,  agTypeID1, agTypeID2, staticProperties = [], dynamicProperties=[]):
+    def registerLinkType(self, agTypeStr,  agTypeID1, agTypeID2, staticProperties = [], dynamicProperties=[]):
         """
         Method to register a edge type:
         - Registers the properties of each liTypeID for other purposes, e.g. I/O
@@ -461,7 +456,7 @@ class World:
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         
-        liTypeIDIdx = self.graph.addLinkType( typeStr, 
+        liTypeIDIdx = self.graph.addLinkType( agTypeStr, 
                                                staticProperties, 
                                                dynamicProperties, 
                                                agTypeID1, 
@@ -470,18 +465,10 @@ class World:
 
         return  liTypeIDIdx
 
-    def registerAgent(self, agent, typ, ghost=False): #TODO rename agent to entity?
+    def registerAgent(self, agent, agTypeID, ghost=False): #TODO rename agent to entity?
         """
-        Method to register instances of nodes
-        -> update of:
-            - entList
-            - endDict
-            - __glob2loc
-            - _loc2glob
+        Method to register instances of Agents
         """
-        #print 'assert' + str((len(self.__agList), agent.nID))
-        #assert len(self.__agList) == agent.nID                                  ##OPTPRODUCTION
-
         self.__allAgentDict[agent.nID] = agent
         
         if self.isParallel:
@@ -489,19 +476,19 @@ class World:
             self.__loc2glob[agent.nID] = agent.gID
 
         if ghost:
-            self.__ghostIDsByType[typ].append(agent.nID)
-            self.__ghostDataIDsByType[typ].append(agent.dataID)
-            self.__ghostsByType[typ].append(agent)
-            self.__nGhostsByType[typ] +=1
+            self.__ghostIDsByType[agTypeID].append(agent.nID)
+            self.__ghostDataIDsByType[agTypeID].append(agent.dataID)
+            self.__ghostsByType[agTypeID].append(agent)
+            self.__nGhostsByType[agTypeID] +=1
         else:
-            self.__agentIDsByType[typ].append(agent.nID)
-            self.__agendDataIDsList[typ].append(agent.dataID)
-            self.__agentsByType[typ].append(agent)
-            self.__nAgentsByType[typ] +=1
+            self.__agentIDsByType[agTypeID].append(agent.nID)
+            self.__agendDataIDsList[agTypeID].append(agent.dataID)
+            self.__agentsByType[agTypeID].append(agent)
+            self.__nAgentsByType[agTypeID] +=1
     
     def deRegisterAgent(self, agent, ghost):
         """
-        Method to remove instances of nodes
+        Method to remove instances of agents
         -> update of:
             - entList
             - endDict
@@ -603,13 +590,7 @@ class World:
                 self.globalRecord[key].saveCSV(self.para['outPath'])
                 self.globalRecord[key].save2Hdf5(filePath)
 
-            
-            # saving enumerations
-            core.saveObj(self.__enums, self.para['outPath'] + '/enumerations')
 
-
-            # saving enumerations
-            core.saveObj(self.para, self.para['outPath'] + '/simulation_parameters')
 
             if self.para['showFigures']:
                 # plotting and saving figures
@@ -618,6 +599,8 @@ class World:
                     self.globalRecord[key].plot(self.para['outPath'])
 
         
+        if self.getParameters()['writeAgentFile']:
+            self.io.finalizeAgentFile()
 
         
 if __name__ == '__main__':

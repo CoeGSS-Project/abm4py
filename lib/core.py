@@ -3,13 +3,9 @@
 """
 Copyright (c) 2017
 Global Climate Forum e.V.
-http://wwww.globalclimateforum.org
+http://www.globalclimateforum.org
 
----- MoTMo ----
-MOBILITY TRANSIOn MODEL
--- core functionality file --
-
-This file is part on GCFABM.
+This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
@@ -311,12 +307,8 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     ax = plt.subplot(111)
     if liTypeID is not None:
         for agent in world.getAgents.byType(agentTypeID):
+            
             pos = agent.attr['pos'][0]
-            
-            
-            
-            
-            
             peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
@@ -1249,11 +1241,11 @@ class IO():
         
         for agTypeID in agTypeIDs:
             if static:
-                #for typ in self.staticData.keys():
+                #for type in self.staticData.keys():
                 self.staticData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
                 self.staticData[agTypeID].writeData(self.h5File, folderName='static')
             else:
-                #for typ in self.dynamicData.keys():
+                #for type in self.dynamicData.keys():
                 self.dynamicData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
                 self.dynamicData[agTypeID].writeData(self.h5File)
 

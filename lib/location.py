@@ -47,7 +47,7 @@ class GhostLocation(Agent, Parallel):
     def registerChild(self, world, entity, liTypeID=None):
         world.addLink(liTypeID, self.nID, entity.nID)
         
-        entity.loc = self
+        #entity.loc = self
         
     def delete(self, world):
         """ method to delete the agent from the simulation"""

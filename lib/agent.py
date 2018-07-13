@@ -112,26 +112,25 @@ class Agent(_Entity):
 
 
 
-    def addLink(self, friendID, liTypeID, **kwpropDict):
+    def addLink(self, peerID, liTypeID, **kwpropDict):
         """
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure
         """
-        self._graph.addLink(liTypeID, self.nID, friendID, attributes = tuple(kwpropDict.values()))
+        self._graph.addLink(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
 
-    def remLink(self, friendID=None, liTypeID=None):
+    def remLink(self, peerID, liTypeID):
         """
         This method removes a link to another agent.
         """
-        self._graph.remEdge(source=self.nID, target=friendID, eTypeID=liTypeID)
+        self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
 
-    def remLinks(self, friendIDs=None, liTypeID=None):
+    def remLinks(self, peerIDs, liTypeID):
         """
         Removing mutiple links to other agents.
         """        
-        if friendIDs is not None:
-            for friendID in friendIDs:
-                self._graph.remEdge(source=self.nID, target=friendID, eTypeID=liTypeID)
+        [self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID) for peerID in peerIDs]
+                
 
 
 class GhostAgent(_Entity, Parallel):
