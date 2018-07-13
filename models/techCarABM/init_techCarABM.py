@@ -336,13 +336,13 @@ tt = time.time()
 import pandas as pd
 #prefUtil = pd.DataFrame([],columns= ["prSaf", "prEco", "prCon"] )    
 #prefUtil.loc[0] = 0
-for household in earth.iterAgents.byType(_hh):
+for household in earth.getAgents.byType(_hh):
     household.buyCar(earth,np.random.choice(earth.market.brandProp.keys()))
     household.car['age'] = np.random.randint(0,15)
     household.util = household.evalUtility(earth)
     household.shareExperience(earth)
     
-for cell in earth.iterAgents.byType(_cell):
+for cell in earth.getAgents.byType(_cell):
     cell.step()
     
 #earth.record.loc[earth.time, earth.rec["avgUtilPref"][1]] /= earth.nPrefTypes
@@ -415,7 +415,7 @@ print 'Simulation steos done in -- ' + str( time.time() - tt) + ' s'
 #if False:
 #    #plot individual utilities
 #    plt.figure()
-#    for agent in earth.iterAgents.byType(_hh):
+#    for agent in earth.getAgents.byType(_hh):
 #        plt.plot(agent.utilList)    
 
 #plt.figure()
@@ -459,7 +459,7 @@ if True:
     
     print 'Preferences - standart deviation within friends'
     avgStd= np.zeros([1,4])    
-    for agent in earth.iterAgents.byType(_hh): 
+    for agent in earth.getAgents.byType(_hh): 
         friendList = agent.getConnNodeIDs(_hh,mode='out')
         if len(friendList)> 1:
             #print df.ix[friendList].std()

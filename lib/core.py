@@ -334,6 +334,15 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.draw()
     fig.canvas.flush_events()
 
+def firstElementDeco(fun):
+    """ 
+    Decorator that returns the first element
+    ToDo: if possible find better way
+    """
+    def helper(arg):
+        return fun(arg)[0]
+    return helper
+
 
 def initLogger(debug, outputPath):
     """
@@ -1687,24 +1696,21 @@ class PAPI():
 class Random():
     
     
-    def __init__(self, world, agentDict, ghostAgentDict, entDict):
+    def __init__(self, world, __agentIDsByType, __ghostIDsByType, __agentsByType):
         self.__world = world # make world availabel in class random
-        self.agentDict = agentDict
-        self.ghostAgentDict = ghostAgentDict
-        self.entDict = entDict
+        self.__agentIDsByType = __agentIDsByType
+        self.__ghostIDsByType = __ghostIDsByType
+        self.__agentsByType   = __agentsByType
         
 
-    def agents(self, entType, nChoice=1):
-        IDs = random.sample(self.agentDict[entType],nChoice)
-        if len(IDs) == 1:
-            return self.entDict[IDs[0]]
-        else:
-            return [self.entDict[nodeID] for nodeID in IDs]
+    def nChoiceOfType(self, agTypeID, nChoice=1):
+        return random.sample(self.__agentsByType[agTypeID],nChoice)
+    
     
     def locations(self, nChoice):
         return random.sample(self.locDict.items(), nChoice)
     
-    def iterAgents(self, agTypeID, ghosts=False):
+    def shuffleAgentsOfType(self, agTypeID, ghosts=False):
         # a generator that yields items instead of returning a list
         if isinstance(agTypeID,str):
             agTypeID = self.__world.types.index(agTypeID)

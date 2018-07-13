@@ -26,7 +26,7 @@ class PlotClass():
         self.fig = plt.figure('spatial')
         plt.clf()
         plt.subplot(1,2,1)
-        extend = world.getParameter('extend')
+        extend = world.getParameters('extend')
         
         
         localNodeIDList=world.filterAgents(2, 'sick', 'eq', True)

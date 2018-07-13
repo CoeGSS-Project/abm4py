@@ -165,7 +165,7 @@ class Earth(World):
             self.para['omniscientBurnIn']=self.para['burnIn']
 
     def nPriorities(self):
-        return len(self.getEnum('priorities'))
+        return len(self.getEnums()['priorities'])
 
 
     # init car market
@@ -186,17 +186,17 @@ class Earth(World):
         goodID = self.market.initGood(initTimeStep, label, propDict, **kwProperties)
 
         # TODO: move convenience Function from a instance variable to a class variable            
-        for cell in self.random.iterAgents(CELL):
+        for cell in self.random.shuffleAgentsOfType(CELL):
             cell.convFunctions.append(convFunction)
 
-        if 'brands' not in list(self.getEnum()):
-            self.setEnum('brands', {})
-        self.getEnum('brands')[goodID] = label
+        if 'brands' not in list(self.getEnums().keys()):
+            self.getEnums()['brands'] = {}
+        self.getEnums()['brands'][goodID] = label
 
         # adding a record about the properties of each goood
         self.registerRecord('prop_' + label,
                             'properties of ' + label,
-                            list(self.getEnum('properties').values()), 
+                            list(self.getEnums()['properties'].values()), 
                             style='plot')
 
 
@@ -210,7 +210,7 @@ class Earth(World):
         targetList = list()
         weigList  = list()
         populationList = list()
-        for agent in self.random.iterAgents(agTypeID):
+        for agent in self.random.shuffleAgentsOfType(agTypeID):
 
             nContacts = random.randint(self.para['minFriends'],self.para['maxFriends'])
             ttx = time.time()
@@ -249,12 +249,12 @@ class Earth(World):
             self.globalRecord['nChargStations_' + str(re)].set(self.time,0)
             
             
-        for cell in self.iterAgents.byType(CELL):
+        for cell in self.getAgents.byType(CELL):
             regionID = str(int(cell.get('regionId')))
-            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell.get('carsInCell')) * self.para['reductionFactor'])
-            self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell.get('electricConsumption')))
-            self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell.get('emissions')))
-            self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell.get('chargStat')))
+            self.globalRecord['stock_' + regionID].add(self.time,np.asarray(cell['carsInCell']) * self.para['reductionFactor'])
+            self.globalRecord['elDemand_' + regionID].add(self.time,np.asarray(cell['electricConsumption']))
+            self.globalRecord['emissions_' + regionID].add(self.time,np.asarray(cell['emissions']))
+            self.globalRecord['nChargStations_' + regionID].add(self.time,np.asarray(cell['chargStat']))
                 
         # move values to global data class
         for re in self.para['regionIDList']:
@@ -386,7 +386,7 @@ class Earth(World):
         
         ###### Cell loop ######
         ttCell = time.time()
-        for cell in self.random.iterAgents(CELL):
+        for cell in self.random.shuffleAgentsOfType(CELL):
             cell.step(self.para, self.market.getCurrentMaturity())
         lg.debug('Cell step required ' + str(time.time()- ttCell) + ' seconds')##OPTPRODUCTION
 
@@ -394,7 +394,7 @@ class Earth(World):
 
         ###### Person loop ######
 
-        for person in self.random.iterAgents(PERS):
+        for person in self.random.shuffleAgentsOfType(PERS):
             person.step(self)
         lg.debug('Person step required ' + str(time.time()- ttComp) + ' seconds')##OPTPRODUCTION
    
@@ -403,10 +403,10 @@ class Earth(World):
         ###### Household loop ######
         tthh = time.time()
         if self.para['omniscientAgents'] or (self.time < self.para['omniscientBurnIn']):
-            for household in self.random.iterAgents(HH):
+            for household in self.random.shuffleAgentsOfType(HH):
                 household.stepOmniscient(self)
         else:
-            for household in self.random.iterAgents(HH):
+            for household in self.random.shuffleAgentsOfType(HH):
 
 #                if random.random()<1e-4:
 #                    household.stepOmniscient(self)
@@ -414,7 +414,7 @@ class Earth(World):
                 household.evolutionaryStep(self)
         lg.debug('Household step required ' + str(time.time()- tthh) + ' seconds')##OPTPRODUCTION
 
-        for cell in self.iterAgents.byType(CELL):
+        for cell in self.getAgents.byType(CELL):
             cell.aggregateEmission(self)
 
                
@@ -429,9 +429,9 @@ class Earth(World):
         self.waitTime[self.time] += time.time()-ttWait
 
         # I/O
-        ioStep = self.getParameter("ioSteps")
-        if self.getParameter('writeAgentFile'):
-            if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameter('nSteps')):
+        ioStep = self.getParameters()["ioSteps"]
+        if self.getParameters()['writeAgentFile']:
+            if ioStep !=0 and (self.timeStep%ioStep == 0 or self.timeStep == self.getParameters()['nSteps']):
                 ttIO = time.time()
                 self.io.writeDataToFile(self.time, [CELL, HH, PERS])
                 self.ioTime[self.time] = time.time()-ttIO
@@ -443,7 +443,7 @@ class Earth(World):
               ' - tWait: '+ '{:10.5f}'.format(self.waitTime[self.time])+
               ' - tIO: '+ '{:10.5f}'.format(self.ioTime[self.time]) ))
 
-        if self.getParameter('omniscientAgents'):
+        if self.getParameters()['omniscientAgents']:
             lg.info( 'Omincent step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
         else:
             lg.info( 'Step ' + str(self.time) + ' done in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
@@ -716,8 +716,8 @@ class Market():
         self.comm                = core.comm
         self.glob                = earth.getGlobals()
         self._graph              = earth.getGraph()
-        self.para                = earth.getParameter()
-        self.getParameter        = earth.getParameter
+        self.para                = earth.getParameters()
+        self.getParameter        = earth.getParameters
 
         self.time                = time
         self.date                = earth.date
@@ -823,8 +823,8 @@ class Market():
 
 
     def initExogenousExperience(self, scenario):
-        experienceWorldBrown = self.getParameter('experienceWorldBrown')
-        experienceWorldGreen = self.getParameter('experienceWorldGreen')
+        experienceWorldBrown = self.para['experienceWorldBrown']
+        experienceWorldGreen = self.para['experienceWorldGreen']
         self.experienceBrownStart = experienceWorldBrown[0]
         self.experienceGreenStart = experienceWorldGreen[0]
                                                    
@@ -1207,7 +1207,7 @@ class Person(Agent, Parallel):
 
     
     def weightFriendExperience(self, world, commUtilPeers, weights):        
-        friendUtil = commUtilPeers[:,self.get('mobType')]
+        friendUtil = commUtilPeers[:,self['mobType']]
         ownUtil    = self.attr['util'][0]
 
         prop = normalizedGaussian(friendUtil, ownUtil, world.para['utilObsError'])
@@ -1383,7 +1383,7 @@ class Person(Agent, Parallel):
         weightData[:,0] = weightData[:,0] / np.sum(weightData[:,0],axis=0)
 
         if np.sum(weightData[:,0]>0) < nContacts:
-            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
+            lg.info( "nID: " + str(self.nID) + ": Reducting the number of friends at " + str(self.loc['pos']))
             lg.info( "population = " + str(self.loc['population']) + " surrounding population: " +str(np.sum(self.loc.getAttrOfPeers('population',CON_LL)[0])))
 
             nContacts = min(np.sum(weightData[:,0]>0)-1,nContacts)
@@ -1398,7 +1398,7 @@ class Person(Agent, Parallel):
             connList   = [(self.nID, personIdsAll[idx]) for idx in ids]
             assert len(ids) <= world.para['maxFriends']
             
-        if isInit and world.getParameter('addYourself') and addYourself:
+        if isInit and world.getParameters()['addYourself'] and addYourself:
             #add yourself as a friend
             contactList.append(self.nID)
             connList.append((self.nID,self.nID))
@@ -1560,9 +1560,9 @@ class Household(Agent, Parallel):
         Agent.__init__(self, world, **kwProperties)
         Parallel.__init__(self, world, **kwProperties)
 
-        if world.getParameter('util') == 'cobb':
+        if world.getParameters()['util'] == 'cobb':
             self.utilFunc = cobbDouglasUtilNumba
-        elif world.getParameter('util') == 'ces':
+        elif world.getParameters()['util'] == 'ces':
             self.utilFunc = self.CESUtil
         self.computeTime = 0
         
@@ -1642,20 +1642,20 @@ class Household(Agent, Parallel):
         hhUtility = 0
         for adult in self.adults:
 
-            utility = self.utilFunc(adult.get('consequences'), adult.get('preferences'))
+            utility = self.utilFunc(adult['consequences'], adult['preferences'])
             #assert not( np.isnan(utility) or np.isinf(utility)), utility ##OPTPRODUCTION
 
             #adult.node['expUtilNew'][adult.node['mobType']] = utility + np.random.randn()* world.para['utilObsError']/10
-            adult.set('util', utility)
+            adult['util'] = utility
 
 
             if actionTaken:
                 # self-util is only saved if an action is taken
-                adult.attr['selfUtil'][0, adult.get('mobType')] = utility
+                adult.attr['selfUtil'][0, adult['mobType']] = utility
 
             hhUtility += utility
 
-        self.set('util', hhUtility)
+        self['util'] =  hhUtility
 
         return hhUtility
 
@@ -1691,7 +1691,7 @@ class Household(Agent, Parallel):
             while len([x for x in actionIdsList if x == [-1]]) < minNoAction:
                 randIdx = np.random.randint(len(actionIdsList))
                 actionIdsList[randIdx] = [-1]
-                eUtilsList[randIdx] =  [adult.get('util')]#[ eUtilsList[randIdx][0] ]
+                eUtilsList[randIdx] =  [adult['util']]#[ eUtilsList[randIdx][0] ]
             #print 'large Household'
 
         combActions = core.cartesian(actionIdsList)
@@ -1722,7 +1722,7 @@ class Household(Agent, Parallel):
             else:
                 person.set('lastAction', 0)
 
-            nJourneys = person.get('nJourneys').tolist()
+            nJourneys = person['nJourneys'].tolist()
             emissionsPerKm = properties[EMISSIONS] * earth.market.para['reductionFactor']# in kg/km
                         
             #TODO optimize code
@@ -1732,15 +1732,15 @@ class Household(Agent, Parallel):
                 
             # add personal emissions to household sum
             #emissions[actionIdx] += personalEmissions / 1000. # in kg Co2
-            person.attr['emissions'] = personalEmissions / 1000. # in kg Co2
+            person['emissions'] = personalEmissions / 1000. # in kg Co2
             
             #calculate costs
             personalCosts = properties[FIXEDCOSTS]
             for nTrips, avgKm in zip(nJourneys, MEAN_KM_PER_TRIP): 
                 personalCosts += float(nTrips) * avgKm * properties[OPERATINGCOSTS] 
-            person.set('costs', personalCosts)
+            person['costs'] = personalCosts
             # add cost of mobility to the expenses
-            self.attr['expenses'] += personalCosts
+            self['expenses'] += personalCosts
 
 
     def undoActions(self, world, persons):
@@ -1752,7 +1752,7 @@ class Household(Agent, Parallel):
             self.loc.remFromTraffic(mobType)
 
             # remove cost of mobility to the expenses
-            self.attr['expenses'] -= adult.get('costs')
+            self['expenses'] -= adult['costs']
 
             world.market.sellCar(mobType)
 
@@ -1764,9 +1764,9 @@ class Household(Agent, Parallel):
         
         hhCarBonus = 0.2
         mobProperties = earth.market.currMobProps
-        convCell      = self.loc.get('convenience')
-        income        = self.get('income')
-        averDist      = np.mean([np.dot(ad.get('nJourneys'), MEAN_KM_PER_TRIP) for ad in self.adults])
+        convCell      = self.loc['convenience']
+        income        = self['income']
+        averDist      = np.mean([np.dot(ad['nJourneys'], MEAN_KM_PER_TRIP) for ad in self.adults])
 
         
         for ix, actions in enumerate(actionIds):
@@ -1795,11 +1795,11 @@ class Household(Agent, Parallel):
         carInHh = False
         # at least one car in househould?
         # stf: !=2 ist unschön. Was ist in der neuen Version mit Car sharing?
-        if any([adult.get('mobType') !=2 for adult in self.adults]):
+        if any([adult['mobType'] !=2 for adult in self.adults]):
             carInHh = True
 
         # calculate money consequence
-        money = min(1., max(1e-5, 1 - self.get('expenses') / self.get('income')))
+        money = min(1., max(1e-5, 1 - self['expenses'] / self['income']))
 
 
         
@@ -1809,8 +1809,8 @@ class Household(Agent, Parallel):
             hhCarBonus = 0.
 
             #get action of the person
-            actionIdx = adult.get('mobType')
-            mobProps  = adult.get('prop')
+            actionIdx = adult['mobType']
+            mobProps  = adult['prop']
 
 #            if (actionIdx != 2):
 #                decay = 1- (1/(1+math.exp(-0.1*(adult.get('lastAction')-market.para['mobNewPeriod']))))
@@ -1823,7 +1823,7 @@ class Household(Agent, Parallel):
             if (actionIdx > 2) and carInHh:
                 hhCarBonus = 0.2
 
-            convenience = hhLocation.get('convenience')[actionIdx] + hhCarBonus
+            convenience = hhLocation['convenience'][actionIdx] + hhCarBonus
 
             if convenience > 1.:##OPTPRODUCTION
                 convenience = 1. ##OPTPRODUCTION
@@ -1847,7 +1847,7 @@ class Household(Agent, Parallel):
                 assert (consequence <= 1) and (consequence >= 0)              ##OPTPRODUCTION
 
 
-            adult.attr['consequences'][:] = [convenience, ecology, money, innovation]
+            adult['consequences'][:] = [convenience, ecology, money, innovation]
 
 
     def bestMobilityChoice(self, earth, persGetInfoList , forcedTryAll = False):
@@ -1866,38 +1866,38 @@ class Household(Agent, Parallel):
             oldProp = list()
             oldLastAction = list()
             for adult in self.adults:
-                oldMobType.append(adult.get('mobType'))
-                oldProp.append(adult.get('prop'))
-                oldLastAction.append(adult.get('lastAction'))
-            oldExpenses = self.get('expenses')
-            oldUtil = copy.copy(self.get('util'))
+                oldMobType.append(adult['mobType'])
+                oldProp.append(adult['prop'])
+                oldLastAction.append(adult['lastAction'])
+            oldExpenses = self['expenses']
+            oldUtil = copy.copy(self['util'])
 
 
             # try all mobility combinations
             for combinationIdx in range(len(combinedActions)):
                 self.attr['expenses'] = 0
-                averDist      = np.mean([np.dot(ad.get('nJourneys'), MEAN_KM_PER_TRIP) for ad in self.adults])
+                averDist      = np.mean([np.dot(ad['nJourneys'], MEAN_KM_PER_TRIP) for ad in self.adults])
                 for adultIdx, adult in enumerate(self.adults):
                     
                     mobChoice = combinedActions[combinationIdx][adultIdx]
                     if mobChoice == -1:     # no action taken
-                        adult.set('mobType', oldMobType[adultIdx])
-                        adult.set('prop', oldProp[adultIdx])
-                        adult.set('lastAction', oldLastAction[adultIdx])
+                        adult['mobType'] = oldMobType[adultIdx]
+                        adult['prop'] = oldProp[adultIdx]
+                        adult['lastAction'] = oldLastAction[adultIdx]
                         mobilityProperties = oldProp[adultIdx]
                         #print(mobilityProperties)
                     else:
-                        adult.set('mobType', mobChoice)
-                        mobilityProperties = market.goods[adult.get('mobType')].getProperties()
+                        adult['mobType'] = mobChoice
+                        mobilityProperties = market.goods[adult['mobType']].getProperties()
                         
-                        adult.set('prop', mobilityProperties)
+                        adult['prop'] = mobilityProperties
                         if earth.time <  earth.para['burnIn']:
-                            adult.set('lastAction', random.randint(0, int(1.5* earth.para['mobNewPeriod'])))
+                            adult['lastAction'] = random.randint(0, int(1.5* earth.para['mobNewPeriod']))
                         else:
-                            adult.set('lastAction', 0)
+                            adult['lastAction'] = 0
                     operatingCosts = averDist*mobilityProperties[OPERATINGCOSTS]
                     fixedCosts     = mobilityProperties[FIXEDCOSTS]
-                    self.attr['expenses'] +=  operatingCosts + fixedCosts #TODO running costs
+                    self['expenses'] +=  operatingCosts + fixedCosts #TODO running costs
 
                 self.calculateConsequences(market)
                 utility = self.evalUtility(earth)
@@ -1934,10 +1934,10 @@ class Household(Agent, Parallel):
                              + str(oldUtil) + ' exp. Util: ' + str(utilities[bestUtilIdx]))                     ##OPTPRODUCTION
                     lg.debug('possible utilitties: ' + str(utilities))                                          ##OPTPRODUCTION                
                     lg.debug(self.attr)                                                                        ##OPTPRODUCTION
-                    lg.debug('properties: ' + str([adult.get('prop') for adult in self.adults]))           ##OPTPRODUCTION
-                    lg.debug('consequence: '+ str([adult.get('consequences') for adult in self.adults]))   ##OPTPRODUCTION
-                    lg.debug('preferences: '+ str([adult.get('preferences') for adult in self.adults]))    ##OPTPRODUCTION
-                    lg.debug('utility: ' +    str([adult.get('util')  for adult in self.adults]))          ##OPTPRODUCTION
+                    lg.debug('properties: ' + str([adult['prop'] for adult in self.adults]))           ##OPTPRODUCTION
+                    lg.debug('consequence: '+ str([adult['consequences'] for adult in self.adults]))   ##OPTPRODUCTION
+                    lg.debug('preferences: '+ str([adult['preferences'] for adult in self.adults]))    ##OPTPRODUCTION
+                    lg.debug('utility: ' +    str([adult['util']  for adult in self.adults]))          ##OPTPRODUCTION
         else:
             actionTaken = False
 
@@ -2043,7 +2043,7 @@ class Household(Agent, Parallel):
                 
         bestOpt = combinedActionsOptions[np.argmax(utilities)]
         
-        if np.max(utilities) > self.get('util') * earth.para['hhAcceptFactor']:
+        if np.max(utilities) > self['util'] * earth.para['hhAcceptFactor']:
             return bestOpt, np.max(utilities), actorIds
         else:
             return None, None, None
@@ -2084,7 +2084,7 @@ class Household(Agent, Parallel):
             persGetInfoList = [True] * len(self.adults) # list of persons that gather information about new mobility options
 
         else:
-            if len(self.adults)*earth.market.minPrice < self.attr['income']: #TODO
+            if len(self.adults)*earth.market.minPrice < self['income']: #TODO
 
                 #self.attr['nPers']
                 persGetInfoList = [adult.isAware(earth.para['mobNewPeriod'])  for adult in self.adults]
@@ -2228,9 +2228,9 @@ class Cell(Location, Parallel):
         Not used in the simulations, but for testing purposes.
         
         """
-        #self.attr['population'] = population #/ float(world.getParameter('reductionFactor'))
+        #self.attr['population'] = population #/ float(world.getParameters('reductionFactor'))
 
-        convAll = self.calculateConveniences(world.getParameter(), world.market.getCurrentMaturity())
+        convAll = self.calculateConveniences(world.getParameters(), world.market.getCurrentMaturity())
 
 #        for x in convAll:                             ##OPTPRODUCTION
 #            if np.isinf(x) or np.isnan(x) or x == 0:  ##OPTPRODUCTION
@@ -2387,10 +2387,10 @@ class Opinion():
         - Update the method + more sophisticate method maybe using the DLR Data
     """
     def __init__(self, world):
-        self.charAge            = world.getParameter('charAge')
-        self.indiRatio          = world.getParameter('individualPrio')
-        self.minIncomeEco       = world.getParameter('minIncomeEco')
-        self.convIncomeFraction = world.getParameter('charIncome')
+        self.charAge            = world.getParameters()['charAge']
+        self.indiRatio          = world.getParameters()['individualPrio']
+        self.minIncomeEco       = world.getParameters()['minIncomeEco']
+        self.convIncomeFraction = world.getParameters()['charIncome']
 
     def getPref(self, age, sex, nKids, nPers, income, radicality):
 

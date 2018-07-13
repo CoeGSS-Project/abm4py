@@ -87,7 +87,7 @@ class World:
         self.__enums = dict()
 
         # agent ID lists and dicts
-        self.__agentIDsByType       = dict()
+        self.__agentIDsByType  = dict()
         self.__ghostIDsByType  = dict()
         
         # dict of lists that provides the storage place for each agent per agTypeID
@@ -122,7 +122,7 @@ class World:
             self.spatial  = core.Spatial(self)
         
         # ======== RANDOM ========
-        self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__allAgentDict)
+        self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__agentsByType)
         
         
         # re-direct of graph functionality 
@@ -185,7 +185,7 @@ class World:
     def saveParameters(self, fileName= 'simulation_parameters'):
         core.saveObj(self.para, self.para['outPath'] + '/' + fileName)
        
-    def enum(self):
+    def getEnums(self):
         """ 
         Returns a specified enumeration dict
         """         

@@ -84,7 +84,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in tqdm.tqdm(self.iterAgents.byType(_cell)):
+        for location in tqdm.tqdm(self.getAgents.byType(_cell)):
             location.initCellMemory(memoryTime, memeLabels)
     
 #    def initObsAtLoc(self,properties):
@@ -96,7 +96,7 @@ class Earth(World):
     def addBrand(self, label, propertyTuple, initTimeStep):
         brandID = self.market.addBrand(label, propertyTuple, initTimeStep)
         
-        for cell in self.iterAgents.byType(_cell):
+        for cell in self.getAgents.byType(_cell):
             cell.traffic[brandID] = 0
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
@@ -120,7 +120,7 @@ class Earth(World):
         if label in self.market.brandLabels.itervalues():
             brandID = self.market.brandLabels.keys()[self.market.brandLabels.values().index(label)]
             
-            for cell in self.iterAgents.byType(_cell):
+            for cell in self.getAgents.byType(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
         #Zm = ma.masked_invalid(traffic)
         plt.clf()
@@ -192,7 +192,7 @@ class Earth(World):
         # else has a fast car same for ecology, etc.
         
         #loop over cells
-        for cell in self.iterAgents.byType(_cell):
+        for cell in self.getAgents.byType(_cell):
             cell.step()
         # Update observations (remove old ones)
         # Compute the number of cars in each cell

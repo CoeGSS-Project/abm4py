@@ -22,14 +22,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-#def firstElementDeco(fun):
-#    """ 
-#    Decorator that returns the first element
-#    ToDo: if possible find better way
-#    """
-#    def helper(arg):
-#        return fun(arg)[0]
-#    return helper
+from .core import firstElementDeco
 
 class _Entity():
     """
@@ -47,6 +40,9 @@ class _Entity():
             self._setGraph(world.graph)
             self['instance'] = self
             self.__getNode = world.getAgent
+
+            self.get = firstElementDeco(self.attr.__getitem__)
+            self.set = self.attr.__setitem__
 
     def __getitem__(self, a):
         return self.attr.__getitem__(a)[0]

@@ -26,7 +26,7 @@ class PlotClass():
         self.fig = plt.figure('spatial')
         plt.clf()
         plt.subplot(1,2,1)
-        extend = world.getParameters()['extend']
+        extend = world.getParameterss()['extend']
         
         grass = np.reshape(world.getAttrOfAgents('height', agTypeID=1),[extend, extend])
         

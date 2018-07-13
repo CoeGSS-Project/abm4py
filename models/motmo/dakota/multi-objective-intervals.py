@@ -1,6 +1,6 @@
 def calcResults(earth, dakotaResults):
     years = range(2012, 2018)  # 2018 is not included
-    regionIds = earth.getParameter('regionIDList')
+    regionIds = earth.getParameters('regionIDList')
 
     def inInterval(data, real, lowFactor, highFactor):
         dataL = data * lowFactor
