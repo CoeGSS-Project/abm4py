@@ -59,7 +59,7 @@ print('Agent filered 50 times in  ' + str(time.time() -tt) )
 resultOld = dict()
 tt = time.time()    
 for treshold in np.linspace(0,1):
-    resultOld[treshold] = len(world.filterAgents_old(AGENT, 'randNum', 'lt', treshold))
+    resultOld[treshold] = len(world.getAgents.byFilter(AGENT, 'randNum', 'lt', treshold))
     #print(x)
 print('OLD - Agent filered 50 times in  ' + str(time.time() -tt)) 
 

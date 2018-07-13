@@ -84,7 +84,7 @@ class Earth(World):
     
     def initMemory(self, memeLabels, memoryTime):
         self.memoryTime = memoryTime
-        for location in tqdm.tqdm(self.iterNodes(_cell)):
+        for location in tqdm.tqdm(self.iterAgents.byType(_cell)):
             location.initCellMemory(memoryTime, memeLabels)
     
 #    def initObsAtLoc(self,properties):
@@ -96,7 +96,7 @@ class Earth(World):
     def addBrand(self, label, propertyTuple, initTimeStep):
         brandID = self.market.addBrand(label, propertyTuple, initTimeStep)
         
-        for cell in self.iterNodes(_cell):
+        for cell in self.iterAgents.byType(_cell):
             cell.traffic[brandID] = 0
         if 'brands' not in self.enums.keys():
             self.enums['brands'] = dict()
@@ -120,7 +120,7 @@ class Earth(World):
         if label in self.market.brandLabels.itervalues():
             brandID = self.market.brandLabels.keys()[self.market.brandLabels.values().index(label)]
             
-            for cell in self.iterNodes(_cell):
+            for cell in self.iterAgents.byType(_cell):
                 traffic[cell.x,cell.y] += cell.traffic[brandID]
         #Zm = ma.masked_invalid(traffic)
         plt.clf()
@@ -192,7 +192,7 @@ class Earth(World):
         # else has a fast car same for ecology, etc.
         
         #loop over cells
-        for cell in self.iterNodes(_cell):
+        for cell in self.iterAgents.byType(_cell):
             cell.step()
         # Update observations (remove old ones)
         # Compute the number of cars in each cell
@@ -534,7 +534,7 @@ class Household(Agent):
         
         weighted = True
         if weighted:
-            weights, edges = self.getLinkAttrFast('weig', liTypeID=_thh)    
+            weights, edges = self.getAttrOfLinkFast('weig', liTypeID=_thh)    
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             #weights, edges = self.getConnProp('weig',_thh,mode='OUT')
             if np.any(np.isnan(weights)) or np.any(np.isinf(weights)):
@@ -570,7 +570,7 @@ class Household(Agent):
         
         if weighted:
                 
-            weights, edges = self.getLinkAttrFast('weig', liTypeID=_thh) 
+            weights, edges = self.getAttrOfLinkFast('weig', liTypeID=_thh) 
             target = [edge.target for edge in edges]
             srcDict =  dict(zip(target,weights))
             for i, id_ in enumerate(carIDs):
@@ -630,7 +630,7 @@ class Household(Agent):
             idxF = np.where(carLabels!=ownLabel)[0]
             #otherEdges = [ edgeIDs[x] for x in idxF]
        
-            prior = np.asarray(world.getLinkAttr(edgeIDs,'weig'))
+            prior = np.asarray(world.getAttrOfLinks(edgeIDs,'weig'))
             post = prior
             sumPrior = np.sum(prior)
             post[idxT] = prior[idxT] * prop 
@@ -638,7 +638,7 @@ class Household(Agent):
             post = post / np.sum(post) * sumPrior
             if not(np.any(np.isnan(post)) or np.any(np.isinf(post))):
                 if np.sum(post) > 0:
-                    world.setLinkAttr(edgeIDs,'weig',post)
+                    world.setAttrOfLinks(edgeIDs,'weig',post)
                 else:
                     print 'updating failed, sum of weights are zero'
                     
@@ -996,7 +996,7 @@ class Cell(Location):
         self.obsMemory   = Memory(memeLabels)
     
     def getConnCellsPlus(self):
-        self.weights, self.eIDs = self.getLinkAttr('weig',liTypeID=_tll, mode='out')
+        self.weights, self.eIDs = self.getAttrOfLink('weig',liTypeID=_tll, mode='out')
         self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
         
         #remap function to only return the values 

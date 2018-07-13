@@ -27,13 +27,13 @@ from matplotlib import collections  as mc
 
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
-    positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgents('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
-    for agent in world.iterNodes(agentTypeID):
+    for agent in world.getAgents.byType(agentTypeID):
         pos = agent.attr['pos'][0]
         
         
@@ -48,7 +48,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
                 linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
     if attrLabel is not None:
-        values = world.getAgentAttr(attrLabel, agTypeID=agentTypeID)
+        values = world.getAttrOfAgents(attrLabel, agTypeID=agentTypeID)
         values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 15, c = values,zorder=2)

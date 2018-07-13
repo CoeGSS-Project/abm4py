@@ -117,7 +117,7 @@ while True:
         break
     
     
-    for agent, randNum in zip(world.iterNodes(AGENT), np.random.random(N_AGENTS)*1000):
+    for agent, randNum in zip(world.getAgents.byType(AGENT), np.random.random(N_AGENTS)*1000):
         
         if agent.attr['switch'] == 0:
             
@@ -133,6 +133,6 @@ while True:
                 agent.attr['color'] = RED
             
     if iStep%50 == 0:
-        ploting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
+        ploting.update(iStep, fracList, world.getAttrOfAgents('color',agTypeID=AGENT))
     
     print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))

@@ -115,7 +115,7 @@ class BaseGraph():
         self.maxNodes       = np.int64(maxNodesPerType)
         self.maxEdges       = np.int64(maxEdgesPerType)
         
-
+        
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
         ## im nodes dict stehen keine nodes sondern nodeArrays (stf)
@@ -130,7 +130,7 @@ class BaseGraph():
         self.getNodeTypeID = itertools.count(1).__next__
         self.getEdgeTypeID = itertools.count(1).__next__
         
-        #persistent nodeattributes
+        #persistent node attributes
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1)]
         self.defaultNodeValues = (False, None,)
@@ -299,12 +299,12 @@ class BaseGraph():
         return np.all(self.nodes[nTypeIDs]['active'][dataIDs])
                         
             
-    def setAgentAttr(self, label, value, lnID, nTypeID=None):
+    def setAttrOfAgents(self, label, value, lnID, nTypeID=None):
         
         nTypeID, dataID = self.getEdgeDataRef(lnID)
         self.nodes[nTypeID][label][dataID] = value
     
-    def getAgentAttr(self, label=None, lnID=None, nTypeID=None):
+    def getAttrOfAgents(self, label=None, lnID=None, nTypeID=None):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
             return self.nodes[nTypeID][label][dataID]
@@ -628,8 +628,9 @@ class ABMGraph(BaseGraph):
         self.queingMode = False
 
         # list of types
-        self.agTypeIDs = dict()
-        self.liTypeIDs = dict()
+        self.agTypeByID = dict()
+        self.agTypeByStr = dict()
+        self.liTypeByID = dict()
         self.node2EdgeType = dict()
         self.edge2NodeType = dict()
 
@@ -653,6 +654,8 @@ class ABMGraph(BaseGraph):
                              ('source', np.int32, 1), 
                              ('target', np.int32, 1)]
     
+        
+    
     def addNodeType(self, 
                     agTypeIDIdx, 
                     typeStr, 
@@ -663,7 +666,8 @@ class ABMGraph(BaseGraph):
         """ Create node type description"""
         
         agTypeID = TypeDescription(agTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.agTypeIDs[agTypeIDIdx] = agTypeID
+        self.agTypeByID[agTypeIDIdx] = agTypeID
+        self.agTypeByStr[typeStr]    = agTypeID
         # same agTypeID for ghost and non-ghost
         self.__agTypeID2Class[agTypeIDIdx]      = AgentClass, GhostAgentClass
         self.__class2NodeType[AgentClass]       = agTypeIDIdx
@@ -674,9 +678,9 @@ class ABMGraph(BaseGraph):
 
     def addLinkType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
-        liTypeIDIdx = len(self.liTypeIDs)+1
+        liTypeIDIdx = len(self.liTypeByID)+1
         liTypeID = TypeDescription(liTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.liTypeIDs[liTypeIDIdx] = liTypeID
+        self.liTypeByID[liTypeIDIdx] = liTypeID
         self.node2EdgeType[agTypeID1, agTypeID2] = liTypeIDIdx
         self.edge2NodeType[liTypeIDIdx] = agTypeID1, agTypeID2
         self._initEdgeType(typeStr, staticProperties + dynamicProperties)
@@ -686,11 +690,11 @@ class ABMGraph(BaseGraph):
     def getDTypeOfNodeType(self, agTypeID, kind):
         
         if kind == 'sta':
-            dtype = self.agTypeIDs[agTypeID].staProp
+            dtype = self.agTypeByID[agTypeID].staProp
         elif kind == 'dyn':
-            dtype = self.agTypeIDs[agTypeID].dynProp
+            dtype = self.agTypeByID[agTypeID].dynProp
         else:
-            dtype = self.agTypeIDs[agTypeID].staProp + self.agTypeIDs[agTypeID].dynProp
+            dtype = self.agTypeByID[agTypeID].staProp + self.agTypeByID[agTypeID].dynProp
         return dtype
     
     def getPropOfNodeType(self, agTypeID, kind):
@@ -832,10 +836,10 @@ if __name__ == "__main__":
     lnID4, _, dataview4 = bg.addNode(LOC, (4, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    bg.getAgentAttr(lnID=lnID1)
+    bg.getAttrOfAgents(lnID=lnID1)
     bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
     print(bg.getNodeSeqAttr('gnID', [lnID1, lnID2]))
-    print(bg.getAgentAttr(lnID=lnID2))
+    print(bg.getAttrOfAgents(lnID=lnID2))
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges

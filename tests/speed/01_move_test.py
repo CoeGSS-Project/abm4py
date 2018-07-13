@@ -43,7 +43,7 @@ class Walker(Agent, Mobile):
     def register(self,world):
         Agent.register(self, world)
         self.loc = world.getLocationDict()[tuple(self.get('pos'))]
-        world.addLink(ANCHOR, self.nID, self.loc.nID)
+        #world.addLink(ANCHOR, self.nID, self.loc.nID)
         world.addLink(ANCHOR, self.loc.nID, self.nID)
         
     def randomWalk(self):
@@ -64,7 +64,7 @@ class Walker(Agent, Mobile):
        
  #%% Setup
 EXTEND   = 50
-DO_PLOT = True
+DO_PLOT = False
 N_WALKERS = 5000
 N_STEPS   = 100
        
@@ -91,14 +91,14 @@ tt = time.time()
 
 connList      = world.spatial.computeConnectionList(radius=1.5)
 connBluePrint = world.spatial.initSpatialLayer(nodeMap, connList, Location, LINK)
-[neig.reComputeNeighborhood(LINK) for neig in world.iterNodes(LOC)]
+[neig.reComputeNeighborhood(LINK) for neig in world.getAgents.byType(LOC)]
 
-world.setAgentAttr('property', 0., agTypeID=LOC)
+world.setAttrOfAgents('property', 0., agTypeID=LOC)
 print('Spatial layer created in ' + str(time.time() -tt) )   
 print('Number of Locations: ' + str(world.nAgents(LOC)))        
 print('Number of spatial links: ' + str(world.nLinks(LINK)))        
 
-locList = world.getAgent(agTypeID=LOC)
+locList = world.getAgents.byType(LOC)
 tt = time.time()
 for iWalker in range(N_WALKERS):
 
@@ -115,8 +115,10 @@ timeReq=list()
 
 for iSteps in range(N_STEPS):  
     tt = time.time()
-    [walker.randomWalk() for walker in world.getAgent(agTypeID=WKR)] 
+    [walker.randomWalk() for walker in world.getAgents.byType(WKR)] 
     timeReq.append(time.time() -tt)
-print(str(np.mean(timeReq)) + ' +- '  + str(np.std(timeReq)))    
-#    if DO_PLOT:        
-#        core.plotGraph(world, agentTypeID=WKR)
+    if DO_PLOT:        
+        core.plotGraph(world, agentTypeID=WKR)
+if not DO_PLOT:  
+    print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+

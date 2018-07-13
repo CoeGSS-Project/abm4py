@@ -67,15 +67,15 @@ clara.addLink(joana.nID,LINK)
 #%%
 tools.plotGraph(world, AGENT_ID, LINK, attrLabel= 'age')
 
-clara.getPeerAttr('age', LINK)
+clara.getAttrOfPeers('age', LINK)
 
 #%%
 #getting ages of everbody
-ages = world.getAgentAttr('age',agTypeID=AGENT_ID)
+ages = world.getAttrOfAgents('age',agTypeID=AGENT_ID)
 
 # get all canditates
-candidates = world.getAgent(agTypeID=AGENT_ID) 
-ages = world.getAgentAttr('age', agTypeID=AGENT_ID)
+candidates = world.getAgents.byType(AGENT_ID) 
+ages = world.getAttrOfAgents('age', agTypeID=AGENT_ID)
 
 # compute probability to connect for all other agents
 differenceInAge = np.abs(ages -joana.get('age'))

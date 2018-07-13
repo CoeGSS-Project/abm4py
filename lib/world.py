@@ -55,13 +55,11 @@ class World:
                     self.isRoot = False
             else:
                 self.isRoot = True
+        
         self.isSpatial = spatial
                 
         # ======== GRAPH ========
         self.graph    = ABMGraph(self, maxNodes, maxLinks)
-        
-        # determines if the frameworks runs in parallel or not
-        
         
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self)
@@ -88,21 +86,24 @@ class World:
         # enumerations
         self.__enums = dict()
 
-        # node lists and dicts
-        self.__nodeDict       = dict()
-        self.__ghostNodeDict  = dict()
+        # agent ID lists and dicts
+        self.__agentIDsByType       = dict()
+        self.__ghostIDsByType  = dict()
         
-        # dict of list that provides the storage place for each agent per agTypeID
-        self.__dataDict       = dict()
-        self.__ghostDataDict  = dict()
+        # dict of lists that provides the storage place for each agent per agTypeID
+        self.__agendDataIDsList    = dict()
+        self.__ghostDataIDsByType  = dict()
 
-        self.__entList   = list()
-        self.__entDict   = dict()
+        # dict and list of agent instances
+        self.__agentsByType  = dict()
+        self.__ghostsByType  = dict()
+        
+        self.__allAgentDict    = dict()
         self.__locDict   = dict()
 
         
-        
-        
+        self.__nAgentsByType = dict()
+        self.__nGhostsByType = dict()
         
         # ======== GLOBALS ========
         # storage of global data
@@ -121,28 +122,20 @@ class World:
             self.spatial  = core.Spatial(self)
         
         # ======== RANDOM ========
-        self.random = core.Random(self, self.__nodeDict, self.__ghostNodeDict, self.__entDict)
+        self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__allAgentDict)
         
+        
+        # re-direct of graph functionality 
         self.addLink        = self.graph.addLink
         self.addLinks       = self.graph.addLinks
         self.delLinks       = self.graph.remEdge
 
         self.addNode     = self.graph.addNode
         self.addNodes    = self.graph.addNodes
-
-        
-
-        
+      
+        self.getAgents  = core.AgentAccess(self)
 
 
-        # inactive is used to virtually remove nodes
-        
-        class GetEntityBy():
-            def __init__ (self, world):
-                self.locID = world._entByLocID
-                self.globID = world._entByGlobID
-                self.location = world.spatial.getLocation
-        self.getNodeBy = GetEntityBy(self)
 
     def _globIDGen(self):
         i = -1
@@ -154,20 +147,24 @@ class World:
 
 
     def _entByGlobID(self, globID):
-        return self.__entDict[self.__glob2loc[globID]]
+        return self.__allAgentDict[self.__glob2loc[globID]]
         
     def _entByLocID(self, locID):
-        return self.__entDict[locID]
+        return self.__allAgentDict[locID]
+    
 #%% General Infromation methods
-    def nAgents(self, agTypeID=None):
-        return self.graph.nCount(nTypeID=agTypeID)
+    def nAgents(self, agTypeID, ghosts=False):
+        if ghosts:
+            return self.__nGhostsByType[agTypeID]
+        else:
+            return self.__nAgentsByType[agTypeID]
         
     def nLinks(self, liTypeID):
        return self.graph.eCount(eTypeID=liTypeID)  
 
     def getParameter(self,paraName=None):
         """
-        Returns a dictionary of all simulations parameters
+        Returns a dictionary of all simulations parameters or a single value
         """
         if paraName is not None:
             return self.para[paraName]
@@ -204,35 +201,35 @@ class World:
             return self.__enums[enumName]
 
 #%% Global Agent scope
-    def getAgentAttr(self, label, localNodeIDList=None, agTypeID=None):
+    def getAttrOfAgents(self, label, localIDList=None, agTypeID=None):
         """
         Method to read values of node sequences at once
         Return type is numpy array
         Only return non-ghost agent properties
         """
-        if localNodeIDList:   
+        if localIDList:   
             assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=localNodeIDList)
+            return self.graph.getNodeSeqAttr(label, lnIDs=localIDList)
         
         
         elif agTypeID:           
-            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            return self.graph.getNodeSeqAttr(label, lnIDs=self.__nodeDict[agTypeID])
+            assert localIDList is None # avoid wrong usage ##OPTPRODUCTION
+            return self.graph.getNodeSeqAttr(label, lnIDs=self.__agentIDsByType[agTypeID])
         
-    def setAgentAttr(self, label, valueList, localNodeIDList=None, agTypeID=None):
+    def setAttrOfAgents(self, label, valueList, localIDList=None, agTypeID=None):
         """
-        Method to read values of node sequences at once
+        Method to write values of node sequences at once
         Return type is numpy array
         """
-        if localNodeIDList:
+        if localIDList:
             assert agTypeID is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localNodeIDList)
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=localIDList)
         
         elif agTypeID:
-            assert localNodeIDList is None # avoid wrong usage ##OPTPRODUCTION
-            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__nodeDict[agTypeID])           
+            assert localIDList is None # avoid wrong usage ##OPTPRODUCTION
+            self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
             
-    def getLinkAttr(self, label, valueList, localLinkIDList=None, liTypeID=None):
+    def getAttrOfLinks(self, label, localLinkIDList=None, liTypeID=None):
         if localLinkIDList:   
             assert liTypeID is None # avoid wrong usage ##OPTPRODUCTION
             return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
@@ -241,7 +238,7 @@ class World:
             assert localLinkIDList is None # avoid wrong usage ##OPTPRODUCTION
             return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
 
-    def setLinkAttr(self, label, valueList, localLinkIDList=None, liTypeID=None):
+    def setAttrOfLinks(self, label, valueList, localLinkIDList=None, liTypeID=None):
         """
         Method to retrieve all properties of all entities of one liTypeID
         """
@@ -254,18 +251,7 @@ class World:
             self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
 
 #%% Agent access 
-    def getLocationDict(self):
-        """
-        The locationDict contains all instances of locations that are
-        accessed by (x,y) coordinates
-        """
-        return self.__locDict
 
-    def getAgentDict(self, agTypeID):
-        """
-        The nodeDict contains all instances of different entity types
-        """
-        return self.__nodeDict[agTypeID]
 
 
     def getAgentIDs(self, agTypeID, ghosts=False):
@@ -273,104 +259,34 @@ class World:
         Method to return all local node IDs for a given nodeType
         """
         if ghosts:
-            return self.__ghostNodeDict[agTypeID]
+            return self.__ghostIDsByType[agTypeID]
         else:
-            return self.__nodeDict[agTypeID]
+            return self.__agentIDsByType[agTypeID]
     
 
-    
-  
-    def getAgent(self, nodeID=None, globID=None, agTypeID=None, ghosts=False):
-        """
-        Method to retrieve a certain instance of an entity by the nodeID
-        Selections can be done by the local nodeID, global ID and the nodetype
-        and the flag ghost
+    def getAgent(self, agentID):    
+        return self.__allAgentDict[agentID]
 
-        """
-        if nodeID is not None:
-            return self.__entDict[nodeID]
-        elif globID is not None:
-            return self.__entDict[self.__glob2loc[globID]]
-        elif agTypeID is not None:
-            if ghosts:
-                return  [self.__entDict[agentID] for agentID in self.__ghostNodeDict[agTypeID]]
-            else:
-                return [self.__entDict[agentID] for agentID in self.__nodeDict[agTypeID]]
 
-    def filterAgents_old(self, agTypeID, attr, operator, value = None, compareAttr=None):
+    def filterAgents(self, agTypeID, func):
         """
-        Method for quick filtering nodes according to comparison of attributes
-        allowed operators are:
-            "lt" :'less than <
-            "elt" :'less or equal than <=
-            "gt" : 'greater than >
-            "egt" : 'greater or equal than >=
-            "eq" : 'equal ==
-        Comparison can be made to values or another attribute
+        This function allows to access a sub-selection of agents that is defined 
+        by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
         """
-        
-        # get comparison value
-        if compareAttr is None:
-            compareValue = value
-        elif value is None:
-            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[agTypeID])
-        
-        # get values of all nodes
-        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[agTypeID])
-        
-        if operator=='lt':
-            boolArr = values < compareValue    
-            
-        elif operator=='gt':
-            boolArr = values > compareValue    
-            
-        elif operator=='eq':
-            boolArr = values == compareValue    
-            
-        elif operator=='elt':
-            boolArr = values <= compareValue    
-            
-        elif operator=='egt':
-            boolArr = values >= compareValue    
-            
-#        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
-        
-        #return lnIDs
-#        return[self.__entDict[i] for i in lnIDs]
-#        print(values)
-#        return values['instance'][boolArr]
-        return self.graph.nodes[agTypeID]['instance'][np.where(boolArr)[0]]
-    
-    def filterAgents(self, nodesTypeID, func):
-        
-        array = self.graph.nodes[nodesTypeID]
+        array = self.graph.nodes[agTypeID]
         mask = array['active'] & func(array)
         #maskedArray = array[mask]
         return array['instance'][mask]
-                    
-    def iterNodes(self, agTypeID=None, localIDs=None, ghosts = False):
-        """
-        Iteration over entities of specified type. Default returns
-        non-ghosts in random order.
-        """
-        if agTypeID is None:
-            nodeList = localIDs
-        elif localIDs is None:
-            if isinstance(agTypeID,str):
-                agTypeID = self.types.index(agTypeID)
-    
-            if ghosts:
-                nodeList = self.__ghostNodeDict[agTypeID]
-            else:
-                nodeList = self.__nodeDict[agTypeID]
 
-        return  [self.__entDict[i] for i in nodeList]
-
-    def setAttrsForType(self, nodesTypeID, func):
+    def setAttrsForType(self, agTypeID, func):
+        
         """
         This function allows to manipulate the underlaying np.array directly, e.g.
         to change the attributes of all agents of a given type in a more performant way
-        then with a python loop of for comprehension.
+        then with a python loop for comprehension.
 
         func is a function that gets an (structured) np.array, and must return an array with the 
         dimensions.
@@ -380,11 +296,11 @@ class World:
 
         see also: setAttrsForFilteredType/Array
         """    
-        array = self.graph.nodes[nodesTypeID]
+        array = self.graph.nodes[agTypeID]
         mask = (array['active'] == True) 
         array[mask] = func(array[mask])
 
-    def setAttrsForFilteredType(self, nodesTypeID, filterFunc, setFunc):
+    def setAttrsForFilteredType(self, agTypeID, filterFunc, setFunc):
         """
         This function allows to manipulate a subset of the underlaying np.array directly. The 
         subset is formed by the filterFunc.
@@ -400,7 +316,7 @@ class World:
 
         see also: setAttrForType and setAttrsForFilteredArray
         """    
-        array = self.graph.nodes[nodesTypeID]
+        array = self.graph.nodes[agTypeID]
         mask = (array['active'] == True) & filterFunc(array) 
         array[mask] = setFunc(array[mask])
 
@@ -432,8 +348,8 @@ class World:
         array[mask] = setFunc(array[mask])
 
 
-    def deleteAgentsFilteredType(self, nodesTypeID, filterFunc):
-        array = self.graph.nodes[nodesTypeID]
+    def deleteAgentsFilteredType(self, agTypeID, filterFunc):
+        array = self.graph.nodes[agTypeID]
         # array['active'][array['active'] == True & filterFunc(array)] = False
         filtered = array[array['active'] == True & filterFunc(array)]
         if len(filtered) > 0:
@@ -442,7 +358,7 @@ class World:
                 agent.delete(self)
 #%% Local and global IDs            
     def getDataIDs(self, agTypeID):
-        return self.__dataDict[agTypeID]
+        return self.__agendDataIDsList[agTypeID]
 
     def glob2Loc(self, globIdx):
         return self.__glob2loc[globIdx]
@@ -460,12 +376,10 @@ class World:
 
 
 #%% Register methods
-
-
     def __addIterNodeFunction(self, typeStr, nodeTypeId):
         name = "iter" + typeStr.capitalize()
         source = """def %NAME%(self):
-                        return [ self._World__entDict[i] for i in self._World__nodeDict[%NODETYPEID%] ]
+                        return [ self._World__allAgentDict[i] for i in self._World__agentIDsByType[%NODETYPEID%] ]
         """.replace("%NAME%", name).replace("%NODETYPEID%", str(nodeTypeId))
         exec(compile(source, "", "exec"))
         setattr(self, name, types.MethodType(locals()[name], self))
@@ -492,7 +406,7 @@ class World:
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 
-        agTypeIDIdx = len(self.graph.agTypeIDs)+1
+        agTypeIDIdx = len(self.graph.agTypeByID)+1
 
 #        if self.isParallel:
 #            globalIDset = False
@@ -509,11 +423,25 @@ class World:
                                GhostAgentClass,
                                staticProperties, 
                                dynamicProperties)
-        self.__nodeDict[agTypeIDIdx]      = list()
-        self.__dataDict[agTypeIDIdx]      = list()
-        self.__ghostNodeDict[agTypeIDIdx] = list()
-        self.__ghostDataDict[agTypeIDIdx] = list()
+
         self.__addIterNodeFunction(typeStr, agTypeIDIdx)
+        
+        
+        # agent instance lists
+        self.__agentsByType[agTypeIDIdx]   = list()
+        self.__ghostsByType[agTypeIDIdx]   = list()
+        
+        # agent ID lists
+        self.__agentIDsByType[agTypeIDIdx]  = list()
+        self.__ghostIDsByType[agTypeIDIdx]  = list()
+        
+        # data idx lists per type       
+        self.__agendDataIDsList[agTypeIDIdx]    = list()
+        self.__ghostDataIDsByType[agTypeIDIdx]  = list()
+
+        # number of agens per type
+        self.__nAgentsByType[agTypeIDIdx] = 0
+        self.__nGhostsByType[agTypeIDIdx] = 0
 
         return agTypeIDIdx
 
@@ -551,23 +479,26 @@ class World:
             - __glob2loc
             - _loc2glob
         """
-        #print 'assert' + str((len(self.__entList), agent.nID))
-        #assert len(self.__entList) == agent.nID                                  ##OPTPRODUCTION
-        self.__entList.append(agent)
-        self.__entDict[agent.nID] = agent
+        #print 'assert' + str((len(self.__agList), agent.nID))
+        #assert len(self.__agList) == agent.nID                                  ##OPTPRODUCTION
+
+        self.__allAgentDict[agent.nID] = agent
         
         if self.isParallel:
             self.__glob2loc[agent.gID] = agent.nID
             self.__loc2glob[agent.nID] = agent.gID
 
         if ghost:
-            self.__ghostNodeDict[typ].append(agent.nID)
-            self.__ghostDataDict[typ].append(agent.dataID)
-        
+            self.__ghostIDsByType[typ].append(agent.nID)
+            self.__ghostDataIDsByType[typ].append(agent.dataID)
+            self.__ghostsByType[typ].append(agent)
+            self.__nGhostsByType[typ] +=1
         else:
-            self.__nodeDict[typ].append(agent.nID)
-            self.__dataDict[typ].append(agent.dataID)
-
+            self.__agentIDsByType[typ].append(agent.nID)
+            self.__agendDataIDsList[typ].append(agent.dataID)
+            self.__agentsByType[typ].append(agent)
+            self.__nAgentsByType[typ] +=1
+    
     def deRegisterAgent(self, agent, ghost):
         """
         Method to remove instances of nodes
@@ -577,19 +508,22 @@ class World:
             - __glob2loc
             - _loc2glob
         """
-        self.__entList.remove(agent)
-        del self.__entDict[agent.nID]
+        
+        del self.__allAgentDict[agent.nID]
         if self.isParallel:
             del self.__glob2loc[agent.gID]
             del self.__loc2glob[agent.nID]
         agTypeID =  self.graph.class2NodeType(agent.__class__)
+        self.__agentsByType[agTypeID].remove(agent)
         if ghost:
-            self.__ghostNodeDict[agTypeID].remove(agent.nID)
-            self.__ghostDataDict[agTypeID].remove(agent.dataID)
+            self.__ghostIDsByType[agTypeID].remove(agent.nID)
+            self.__ghostDataIDsByType[agTypeID].remove(agent.dataID)
+            self.__nGhostsByType[agTypeID] -=1
         else:
-            self.__nodeDict[agTypeID].remove(agent.nID)
-            self.__dataDict[agTypeID].remove(agent.dataID)
-            #print(self.__nodeDict[agTypeID])
+            self.__agentIDsByType[agTypeID].remove(agent.nID)
+            self.__agendDataIDsList[agTypeID].remove(agent.dataID)
+            self.__nAgentsByType[agTypeID] -=1
+            #print(self.__agentIDsByType[agTypeID])
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
         Creation of of a new record instance. 
@@ -607,23 +541,50 @@ class World:
         self.__locDict[x,y] = location
 
 
-#%% Return of world components
+#%% Access of privat variables
         
-    def returnApiComm(self):
+    def getParallelCommInterface(self):
+        """
+        returns the parallel agent passing interface (see core.py)
+        """
         return self.papi.comm
 
-    def returnGraph(self):
+    def getGraph(self):
+        """
+        returns the agent graph instance
+        """
         return self.graph
 
-    def returnGlobalRecord(self):
+    def getGlobalRecord(self):
+        """
+        returns global record class
+        """
         return self.globalRecord
 
-    def returnGlobals(self):
+    def getGlobals(self):
+        """
+        returns the global variables defined in the graph
+        """
         return self.graph.glob
-    
-    def returnNodeDict(self,):
-        return self.__nodeDict
 
+    def getLocationDict(self):
+        """
+        The locationDict contains all instances of locations that are
+        accessed by (x,y) coordinates
+        """
+        return self.__locDict
+
+    def getAgentDict(self):
+        """
+        The nodeDict contains all instances of different entity types
+        """
+        return self.__agentIDsByType
+
+    def getAgentListsByType(self):
+        return self.__agentsByType, self.__ghostsByType
+    
+    def getGlobToLocDIct(self):
+        return self.__glob2loc
 #%% other    
     def finalize(self):
         """
@@ -657,14 +618,6 @@ class World:
                     self.globalRecord[key].plot(self.para['outPath'])
 
         
-class easyUI():
-    """ 
-    Easy-to-use user interace that provides high-level methods or functions to improve 
-    user friendliness of the library
-    """
-    def __init__(earth):
-        pass
-
 
         
 if __name__ == '__main__':

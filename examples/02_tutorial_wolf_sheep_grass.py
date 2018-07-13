@@ -313,7 +313,7 @@ print(timePerAgent)
 connBluePrint = world.spatial.computeConnectionList(radius=1.5)
 world.spatial.connectLocations(IDArray, connBluePrint, ROOTS, Grass)
 
-for grass in world.iterNodes(GRASS):
+for grass in world.getAgents.byType(GRASS):
     grass.reComputeNeighborhood(ROOTS)
 
 del grass
@@ -360,16 +360,16 @@ while True:
     # Every five steps the grass grows.
     if iStep%5 == 0:
         
-        [grass.grow()for grass in world.iterNodes(GRASS)]
+        [grass.grow() for grass in world.getAgents.byType(GRASS)]
             
         
     
-    [sheep.step(world) for sheep in world.iterNodes(agTypeID=SHEEP)]
+    [sheep.step(world) for sheep in world.getAgents.byType(SHEEP)]
        
         
     
     
-    for wolfPack in world.iterNodes(agTypeID=WOLFPACK):
+    for wolfPack in world.getAgents.byType(WOLFPACK):
         center = wolfPack.computeCenter()   
         
         wolfPack.attr['nWolfs'] = len(wolfPack.groups['wolfs'])
@@ -382,16 +382,16 @@ while True:
         
         
     # This updates the plot.        
-    pos = world.getAgentAttr('pos', agTypeID=SHEEP)
+    pos = world.getAttrOfAgents('pos', agTypeID=SHEEP)
     if pos is not None:
         np.clip(pos, 0, EXTEND, out=pos)
-        pos = world.setAgentAttr('pos', pos, agTypeID=SHEEP)
+        pos = world.setAttrOfAgents('pos', pos, agTypeID=SHEEP)
         plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
-    nHunting = np.sum(world.getAgentAttr('weight', agTypeID=WOLF) <1.0) 
-    #grassHeight = np.sum(world.getAgentAttr('height', agTypeID=GRASS))       
+    nHunting = np.sum(world.getAttrOfAgents('weight', agTypeID=WOLF) <1.0) 
+    #grassHeight = np.sum(world.getAttrOfAgents('height', agTypeID=GRASS))       
     #print(str(time.time() - tt) + ' s')
-    #print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
+    print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

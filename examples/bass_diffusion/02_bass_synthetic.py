@@ -228,20 +228,20 @@ for xLoc, yLoc in list(locDict.keys()):
 
 #%% creation of spatial proximity network
 
-# world.getAgentAttr is used to receive the position of all agents 
+# world.getAttrOfAgents is used to receive the position of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.  
-positions = world.getAgentAttr('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgents('pos', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
 agIDList  = world.getAgentIDs(AGENT)
 
-# world.getAgentAttr is used to receive the innovation value of all agents 
+# world.getAttrOfAgents is used to receive the innovation value of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT. The value is given as float.
-innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAttrOfAgents('inno', agTypeID=AGENT).astype(np.float64)
 
-for agent in world.iterNodes(AGENT):
+for agent in world.getAgents.byType(AGENT):
     ##############################################
     # create a new creation rule 
     
@@ -267,7 +267,7 @@ for agent in world.iterNodes(AGENT):
 
         
     
-positions = world.getAgentAttr('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgents('pos',agTypeID=AGENT)
 
 ##############################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -281,20 +281,20 @@ if False:
     #%%
     plt.figure('statistics')
     plt.subplot(2,2,1)
-    data = world.getAgentAttr('age',agTypeID=AGENT)
+    data = world.getAttrOfAgents('age',agTypeID=AGENT)
     plt.hist(data)
     plt.title('age distribution')
     plt.subplot(2,2,2)
-    data = world.getAgentAttr('income',agTypeID=AGENT)
+    data = world.getAttrOfAgents('income',agTypeID=AGENT)
     plt.hist(data)
     plt.title('income distribution')
     plt.subplot(2,2,3)
-    data = world.getAgentAttr('nPers',agTypeID=AGENT)
+    data = world.getAttrOfAgents('nPers',agTypeID=AGENT)
     plt.hist(data)
     plt.title('household size')
     plt.subplot(2,2,4)
-    data = world.getAgentAttr('nPers',agTypeID=AGENT)
-    plt.scatter(world.getAgentAttr('income',agTypeID=AGENT), world.getAgentAttr('age',agTypeID=AGENT))
+    data = world.getAttrOfAgents('nPers',agTypeID=AGENT)
+    plt.scatter(world.getAttrOfAgents('income',agTypeID=AGENT), world.getAttrOfAgents('age',agTypeID=AGENT))
     
     plt.title('relation income to age')
     plt.draw()
@@ -318,8 +318,8 @@ while True:
     tt =time.time()
     iStep+=1
     
-    # world.getAgentAttr is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getAgentAttr('switch',agTypeID=AGENT)
+    # world.getAttrOfAgents is used to retrieve the attribute "switch" of all AGIDs
+    switched = world.getAttrOfAgents('switch',agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -342,10 +342,10 @@ while True:
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.  
-    for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(world.getAgents.byType(localIDs=nodesToIter),randValues) :
         
         # dynamic of the agent
-        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
         inno, imit = agent.attr[['inno','imit']][0]
         
         # if the condition for an agent to switch is met, the agent attributes
@@ -357,5 +357,5 @@ while True:
     
     # each 50 steps, the visualization is updated               
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAttrOfAgents('color',agTypeID=AGENT))
     

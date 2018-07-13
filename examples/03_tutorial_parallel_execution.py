@@ -45,14 +45,14 @@ EXTEND = 50
 RADIUS = 1.5
 
 #%% Class definition
-class Grass(Location, Collective, Parallel):
+class Grass(Location, Collective, Parallel, Neighborhood):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
         Location.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         Parallel.__init__(self, world, **kwAttr)
-        
+        Neighborhood.__init__(self, world, **kwAttr)
     def add(self, value):
         
         self.attr['height'] += value
@@ -97,7 +97,7 @@ ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',n
 connBluePrint = world.spatial.computeConnectionList(radius=RADIUS)
 world.spatial.initSpatialLayer(rankIDLayer, connBluePrint, Grass, ROOTS)
 
-for grass in world.iterNodes(GRASS):
+for grass in world.getAgents.byType(GRASS):
     grass.reComputeNeighborhood(ROOTS)
     if np.min(grass['pos']) < 6:
         grass['height'] = random.random()+ 3.1    
@@ -109,8 +109,8 @@ plott = tools.PlotClass(world, rankIDLayer)
     
 while True:
     tt = time.time()
-    [grass.grow() for grass in world.iterNodes(GRASS)]
-    world.papi.updateGhostNodes(propertyList=['height'])
+    [grass.grow() for grass in world.getAgents.byType(GRASS)]
+    world.papi.updateGhostAgents(propertyList=['height'])
     print(str(time.time() -tt) + ' s')
     
 

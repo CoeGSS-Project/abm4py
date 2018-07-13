@@ -353,7 +353,7 @@ def householdSetup(earth, calibration=False):
     for x, y in list(locDict.keys()):
         #print x,y
         nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
-        loc         = earth.getNodeBy.location(x, y)
+        loc         = earth.spatial.getLocation(x, y)
         region      = parameters['regionIdRaster'][x, y]
         regionIdx   = np.where(regionIdxList == region)[0][0]
 
@@ -454,10 +454,10 @@ def householdSetup(earth, calibration=False):
     lg.info('All agents initialized in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
     if earth.isParallel:
-        earth.papi.transferGhostNodes(earth)
+        earth.papi.transferGhostAgents(earth)
 
         
-    for hh in earth.iterNodes(HH, ghosts = False):                  ##OPTPRODUCTION
+    for hh in earth.iterAgents.byType(HH, ghosts = False):                  ##OPTPRODUCTION
         assert len(hh.adults) == hh.get('hhSize') - hh.get('nKids')  ##OPTPRODUCTION
         
     core.mpiBarrier()
@@ -657,7 +657,7 @@ def initSpatialLayer(earth):
    
     if 'regionIdRaster' in list(parameters.keys()):
 
-        for cell in earth.random.iterNodes(CELL):
+        for cell in earth.random.iterAgents(CELL):
             cell.set('regionId', parameters['regionIdRaster'][tuple(cell.get('pos'))])
             cell.set('chargStat', 0)
             cell.set('emissions', np.zeros(len(earth.getEnum('mobilityTypes'))))
@@ -665,7 +665,7 @@ def initSpatialLayer(earth):
             cell.cellSize = parameters['cellSizeMap'][tuple(cell.get('pos'))]
             cell.set('popDensity', popDensity[tuple(cell.get('pos'))])
     if earth.isParallel:        
-        earth.papi.updateGhostNodes([CELL],['chargStat'])
+        earth.papi.updateGhostAgents([CELL],['chargStat'])
 
     if mpiRank == 0:
         print('Setup of the spatial layer done in'  + "{:2.4f}".format((time.time()-tt)) + ' s')
@@ -692,9 +692,9 @@ def cellTest(earth):
     eConvArray = earth.para['landLayer'] * 0
     
     #import tqdm
-    #for i, cell in tqdm.tqdm(enumerate(earth.random.iterNodes(CELL))):
+    #for i, cell in tqdm.tqdm(enumerate(earth.random.iterAgents(CELL))):
     if earth.para['showFigures']:
-        for i, cell in enumerate(earth.random.iterNodes(CELL)):        
+        for i, cell in enumerate(earth.random.iterAgents(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
             #cell.set('carsInCell',[0,200.,0,0,0])
@@ -856,7 +856,7 @@ def initAgentOutput(earth):
 def initCacheArrays(earth):
     
     maxFriends = earth.para['maxFriends']
-    persZero = earth.getAgent(agTypeID=PERS)[0]
+    persZero = earth.getAgents.byType(PERS)[0]
     
     nUtil = persZero.get('commUtil').shape[0]
     Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
@@ -913,7 +913,7 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.random.iterNodes(HH):
+    for household in earth.random.iterAgents(HH):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
@@ -921,7 +921,7 @@ def runModel(earth, parameters):
 
     lg.info('Initial actions done')
 
-    for cell in earth.random.iterNodes(CELL):
+    for cell in earth.random.iterAgents(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
      
     
@@ -933,7 +933,7 @@ def runModel(earth, parameters):
     
     lg.info('Initial market step done')
 
-    for household in earth.random.iterNodes(HH):
+    for household in earth.random.iterAgents(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
@@ -1006,7 +1006,7 @@ def onlinePostProcessing(earth):
 
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
-    for agent in earth.random.iterNodes(HH):
+    for agent in earth.random.iterAgents(HH):
         friendList = agent.getPeerIDs(liTypeID=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()

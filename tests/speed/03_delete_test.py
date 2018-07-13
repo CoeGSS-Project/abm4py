@@ -91,14 +91,14 @@ tt = time.time()
 
 connList      = world.spatial.computeConnectionList(radius=1.5)
 connBluePrint = world.spatial.initSpatialLayer(nodeMap, connList, Location, LINK)
-[neig.reComputeNeighborhood(LINK) for neig in world.iterNodes(LOC)]
+[neig.reComputeNeighborhood(LINK) for neig in world.getAgents.byType(LOC)]
 
-world.setAgentAttr('property', 0., agTypeID=LOC)
+world.setAttrOfAgents('property', 0., agTypeID=LOC)
 print('Spatial layer created in ' + str(time.time() -tt) )   
 print('Number of Locations: ' + str(world.nAgents(LOC)))        
 print('Number of spatial links: ' + str(world.nLinks(LINK)))        
 
-locList = world.getAgent(agTypeID=LOC)
+locList = world.getAgents.byType(LOC)
 tt = time.time()
 for iWalker in range(N_WALKERS):
 
@@ -113,12 +113,12 @@ print('Number of Walkers: ' + str(world.nAgents(WKR)))
 print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     
 
 tt = time.time()
-for agent in world.getAgent(agTypeID=WKR):
+for agent in world.getAgents.byType(WKR):
     agent.delete(world)
 print('Walkers deleted in ' + str(time.time() -tt) )  
 
 tt = time.time()
-for location in world.getAgent(agTypeID=LOC):
+for location in world.getAgents.byType(LOC):
     location.delete(world)
 print('Locations deleted in ' + str(time.time() -tt) )      
 
