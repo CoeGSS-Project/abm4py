@@ -25,7 +25,7 @@ class PlotClass():
         plt.ion()
         self.fig = plt.figure('output')
         self.rankIDLayer = rankIDLayer
-        self.extend = world.getParameters('extend')
+        self.extend = world.getParameters()['extend']
         self.globalArray = np.zeros([self.extend, self.extend])
         plt.clf()
         

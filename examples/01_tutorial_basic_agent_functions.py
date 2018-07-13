@@ -74,7 +74,7 @@ clara.getAttrOfPeers('age', LINK)
 ages = world.getAttrOfAgentType('age',agTypeID=AGENT_ID)
 
 # get all canditates
-candidates = world.getAgents.byType(AGENT_ID) 
+candidates = world.getAgentIDs(AGENT_ID) 
 ages = world.getAttrOfAgentType('age', agTypeID=AGENT_ID)
 
 # compute probability to connect for all other agents
