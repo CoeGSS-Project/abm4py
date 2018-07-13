@@ -425,7 +425,7 @@ class Spatial():
     
                         if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != mpiRank:  # location lives on another process
                             
-                            loc = GhstLocClassObject(self.world, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
+                            loc = GhstLocClassObject(self.world, mpiOwner=rankArray[xDst,yDst], pos= (xDst, yDst))
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             

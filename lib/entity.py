@@ -29,13 +29,13 @@ class _Entity():
     Enitity is the storage structure of all agents and contains the basic 
     methods to create and delete itself.
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID=None, **kwProperties):
         
         #  the agTypeID is derived from the agent class and stored        
         self.agTypeID =  world.graph.class2NodeType(self.__class__)
 
         # create new node in the graph
-        if nID == -1:
+        if nID == None:
             self.nID, self.dataID, self.attr = world.addNode(self.agTypeID, **kwProperties)    
             
             self._setGraph(world.graph)
@@ -44,6 +44,13 @@ class _Entity():
 
             self.get = firstElementDeco(self.attr.__getitem__)
             self.set = self.attr.__setitem__
+        # connects the agent to an existing node
+        else:
+            self.nID = nID
+            self._setGraph(world.graph)
+            self.attr, self.dataID = self._graph.getNodeView(nID)
+            self['instance'] = self
+            
 
     def __getitem__(self, a):
         return self.attr.__getitem__(a)[0]

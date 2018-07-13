@@ -31,12 +31,12 @@ class Agent(_Entity):
     The most common agent type derives from the BaseAgent and additionally
     receives the abilty to move
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         self.__getNode = world.getAgent
-        if 'nID' not in list(kwProperties.keys()):
-            nID = -1
-        else:
-            nID = kwProperties['nID']
+#        if 'nID' not in list(kwProperties.keys()):
+#            nID = None
+#        else:
+#            nID = kwProperties['nID']
 
         # init of the Entity class to init storage
         _Entity.__init__(self, world, nID, **kwProperties)
@@ -137,17 +137,10 @@ class GhostAgent(_Entity, Parallel):
     agents, but passive copies of the real agents. Thus they do not have 
     the methods to act themselves.
     """
-    def __init__(self, world, mpiOwner, nID=-1, **kwProperties):
+    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
         
         _Entity.__init__(self, world, nID, **kwProperties)
-        self.mpiOwner = int(mpiOwner)
-        
-        self._setGraph(world.graph)
-        
-        if nID is not -1:
-            self.nID = nID
-            self.attr, self.dataID = self._graph.getNodeView(nID)
-            self['instance'] = self
+        self.mpiOwner = int(mpiOwner)       
         self.gID = self.attr['gID'][0]
         
         

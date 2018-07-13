@@ -2165,7 +2165,7 @@ class Reporter(Household):
 
 class Cell(Location, Parallel):
 
-    def __init__(self, earth,  **kwProperties):
+    def __init__(self, earth, **kwProperties):
         kwProperties.update({'population': 0, 'convenience': [0.,0.,0.,0.,0.], 'carsInCell':[0,0,0,0,0], 'regionId':0})
         Location.__init__(self, earth, **kwProperties)
         Parallel.__init__(self, earth, **kwProperties)

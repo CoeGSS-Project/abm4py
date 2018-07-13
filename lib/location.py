@@ -15,7 +15,7 @@ class Location(Agent):
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in list(kwProperties.keys()):
-            nID = -1
+            nID = None
         else:
             nID = kwProperties['nID']
 
@@ -25,21 +25,18 @@ class Location(Agent):
 
 class GhostLocation(Agent, Parallel):
     
+
+   
+    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
+        
+        Agent.__init__(self, world, nID, **kwProperties)
+        
+        self.mpiOwner = int(mpiOwner)       
+        self.gID = self.attr['gID'][0]
+
     def getGlobID(self,world):
 
-        return -1
-
-    def __init__(self, world, owner, nID=-1, **kwProperties):
-
-        Agent.__init__(self,world, nID, **kwProperties)
-        self.mpiOwner = int(owner)
-        
-        self._setGraph(world.graph)
-        if nID is not -1:
-            self.nID = nID
-            self.attr, self.dataID = self._graph.getNodeView(nID)
-            self['instance'] = self
-        self.gID = self.attr['gID'][0]
+        return -1        
 
     def register(self, world, parent_Entity=None, liTypeID=None):
         Agent.register(self, world, parent_Entity, liTypeID, ghost= True)

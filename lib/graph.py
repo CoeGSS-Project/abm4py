@@ -212,6 +212,7 @@ class BaseGraph():
 #             dataview[:] = (True,) + attributes
 #         else:
          dataview['active'] = True
+         dataview['ID'] = lnID
          if any(kwProp):
              dataview[list(kwProp.keys())] = tuple(kwProp.values())
          elif attributes is not None:
@@ -641,11 +642,12 @@ class ABMGraph(BaseGraph):
         self.__ghostOfAgentClass   = dict()
         
         #persistent nodeattributes
-        self.persitentAttributes = ['active', 'instance', 'gID']
-        self.defaultNodeValues     = (False, None, -1)
+        self.persitentAttributes = ['active', 'instance', 'gID', 'ID']
+        self.defaultNodeValues     = (False, None, -1, -1)
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1),
-                             ('gID', np.int32,1)]
+                             ('gID', np.int32,1),
+                             ('ID', np.int32,1)]
 
 
         
