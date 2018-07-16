@@ -1,0 +1,32 @@
+environment
+    tabular_data
+
+method
+    moga
+        seed = 1
+
+variables
+    continuous_design = %NUM_CONTINUOUS%
+        descriptor      %CONTINUOUS_DESCRIPTORS%
+        lower_bounds    %CONTINUOUS_LOWERBOUNDS%           
+        upper_bounds    %CONTINUOUS_UPPERBOUNDS%
+        initial_point   %CONTINUOUS_INITIALPOINT%
+    discrete_state_set 
+        string = 2
+            descriptors 'scenarioFileName'     'calcResultsScript'
+            elements %SCENARIO_FILENAME%       %RESULT_SCRIPT%
+
+interface
+    system asynchronous evaluation_concurrency = 10
+        analysis_drivers = 'run-simulation.sh'
+        parameters_file = 'd-params.in'
+        results_file = 'd-results.out'
+        file_tag
+
+responses
+    objective_functions = %NUM_RESPONSES%
+    descriptors %RESPONSE_DESCRIPTORS%
+    weights = %RESPONSE_WEIGHTS%
+    no_gradients
+    no_hessians
+
