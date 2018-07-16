@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul  5 09:07:26 2018
+Copyright (c) 2017
+Global Climate Forum e.V.
+http://www.globalclimateforum.org
 
-@author: gcf
+This file is part of GCFABM.
+
+GCFABM is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GCFABM is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
+
+
 """
 
 class Parallel():
@@ -180,6 +197,20 @@ class SuperPowers():
             self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
 
 class Aggregator():
+    """
+    This is an experimental trait that overrides the addLink and remLink methods
+    of the agent classes with addtional capabilities.
+    
+    AddLink will than also add the attrbute array of the link target to an 
+    aggregationDict, which is ordered by linkTypeIDs. Similarly, remLink will
+    remove the attributes again. ATTENTION: world.addLink(s), does not support
+    this additional feature!!
+    
+    Derive a new Class wie **ClassNewClass(Aggregator, Agent)**.
+    
+    aggregateItems
+    
+    """
     
     def __init__(self, world, nID = -1, **kwProperties):
         self.aggegationDict = dict()
@@ -203,5 +234,5 @@ class Aggregator():
         self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
         self.aggegationDict[liTypeID].remove(self.__getAgent(peerID).attr)
         
-    def aggregateItems(self, label, liTypeID):
-        return [item[label] for item in  self.aggegationDict[liTypeID]]
+#    def aggregateItems(self, label, liTypeID):
+#        return [item[label] for item in  self.aggegationDict[liTypeID]]

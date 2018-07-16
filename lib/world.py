@@ -202,7 +202,7 @@ class World:
 
     def getAttrOfAgentType(self, label, agTypeID):
         """
-        Method to read values of node sequences at once
+        Method to read attributes of node sequences at once
         Return type is numpy array
         Only return non-ghost agent properties
         """
