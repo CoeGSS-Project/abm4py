@@ -9,21 +9,21 @@ See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
-
 ```
 python > 3.x
-
-numpy
+numpy >= 1.14
 pandas 
-mpi4py for parallel execution
 h5py
 matplotlib
+
+OPTIONAL:
+mpi4py for parallel execution
+
 ```
 
 ### Installing
 
-ToDo...
+git clone https://ageiges@bitbucket.org/ageiges/motmo.git
 
 ## Running the tests
 
@@ -34,20 +34,24 @@ sh tests/run_test.sh
 
 ## Deployment
 
-ToDo...
+This Framework is tested using Anaconda 3. Thus, follow the standart installation
+procedure fo Andaconda and add missing packages using: "conda install PACKAGE_NAME"
 
 
 ## Contributing
 
-ToDo..
+Jette von Postel
 
 ## Authors
 
-ToDo...
+Andreas Geiges
+Steffen Fuerst
+Sarah Wolf
+Gesine Steudle
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the NU General Public License - see the file headers for details
 
 ## Acknowledgments
 
