@@ -40,7 +40,10 @@ class Agent(_Entity):
 
         # init of the Entity class to init storage
         _Entity.__init__(self, world, nID, **kwProperties)
-            
+
+    def getPeers(self, liTypeID):
+        return self._graph.getOutNodeValues(self.nID, liTypeID, attr='instance')
+    
     def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out'):
         """
         This method returns the IDs of all agents that are connected with a 
