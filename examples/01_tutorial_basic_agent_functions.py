@@ -66,12 +66,13 @@ clara.addLink(joana.nID,LINK)
 #%%
 tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')
 
-# stf: Geht das auch im parallelen Fall? 
-print('Claras peers have the age of: ' + str(clara.getPeerAttr('age', LINK)))
+print('Claras peers have the age of: ' + str(clara.getAttrOfPeers('age', LINK)))
 
 #%%
 #getting ages of everbody
-ages = world.getAgentAttr('age',agTypeID=HUMANS)
+ages = world.getAttrOfAgentType('age',agTypeID=HUMANS)
+
+# get all canditates
 
 # get all canditates:
 # stf: ages ist ein np.array, aber die IDs sind eine python Liste :-(

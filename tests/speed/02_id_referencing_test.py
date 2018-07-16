@@ -32,23 +32,24 @@ from lib.traits import Mobile
 from lib import core
 
  #%% Setup
-N_AGENTS = 10000
+N_AGENTS   = 10000
 REF_LENGTH = 1000
+n_REPEAT   = 50
 #%% register a new agent type with four attributes
 world = World(agentOutput=False,
           maxNodes=100000,
           maxLinks=500000)
 
-AGENT = world.registerAgentType('agent' , AgentClass=Agent,
-                               staticProperties  = [],
-                               dynamicProperties = [])
+AGENT = world.registerAgentType('agent', AgentClass=Agent,
+                                         staticProperties  = [],
+                                         dynamicProperties = [])
 
 for iAgent in range(N_AGENTS):
     
     agent = Agent(world)
     agent.register(world)
     
-print('list of IDs')    
+print('Asking reference for a list of IDs')    
 idList = world.getAgentIDs(agTypeID=AGENT)
 timeReq = list()   
 maxNodes = world.maxNodes
@@ -56,26 +57,30 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getEdgeDataRef(subList)
+        x = world.graph.getNodeDataRef(subList)
     timeReq.append(time.time() -tt)
-print(str(np.mean(timeReq)) + ' +- '  + str(np.std(timeReq)))
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print('array of IDs')    
+print('Asking reference for a array of IDs')    
+timeReq = list()  
 idList = np.asarray(world.getAgentIDs(agTypeID=AGENT))
 for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getEdgeDataRef(subList)
+        x = world.graph.getNodeDataRef(subList)
+        
     timeReq.append(time.time() -tt)
-print(str(np.mean(timeReq)) + ' +- '  + str(np.std(timeReq)))
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print('single ID')    
+
+print('Asking reference for a single ID')    
+timeReq = list()  
 idList =world.getAgentIDs(agTypeID=AGENT)
 for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         singleID = idList[i]
-        x = world.graph.getEdgeDataRef(singleID)
+        x = world.graph.getNodeDataRef(singleID)
     timeReq.append(time.time() -tt)
-print(str(np.mean(timeReq)) + ' +- '  + str(np.std(timeReq)))
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))

@@ -3,13 +3,9 @@
 """
 Copyright (c) 2017
 Global Climate Forum e.V.
-http://wwww.globalclimateforum.org
+http://www.globalclimateforum.org
 
----- MoTMo ----
-MOBILITY TRANSIOn MODEL
--- core functionality file --
-
-This file is part on GCFABM.
+This file is part of GCFABM.
 
 GCFABM is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
@@ -72,7 +68,7 @@ def writeAdjFile(world,fileName, agTypeID):
     fid.write(str(world.nAgents(agTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
     fid.write('% Adjecencies of verteces \n')
     
-    popList = world.getAgentAttr('population', agTypeID=agTypeID).tolist()
+    popList = world.agentAttr('population', agTypeID=agTypeID).tolist()
 
     for adjline, popu in zip(adjList, popList):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
@@ -120,8 +116,6 @@ def setupSimulationEnvironment(mpiComm=None, simNo=None):
     else:
         simNo    = None
         baseOutputPath = None
-
-    
     
     if (mpiComm is not None) and mpiComm.size > 1:
         # parallel communication
@@ -304,20 +298,17 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
-    plt.figure('graph')
+    plt.ion()
+    fig= plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
     if liTypeID is not None:
-        for agent in world.iterNodes(agentTypeID):
+        for agent in world.getAgents.byType(agentTypeID):
+            
             pos = agent.attr['pos'][0]
-            
-            
-            
-            
-            
             peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
@@ -328,7 +319,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
         ax.add_collection(lc)
         ax.autoscale()
     if attrLabel is not None:
-        values = world.getAgentAttr(attrLabel, agTypeID=agentTypeID)
+        values = world.agentAttr(attrLabel, agTypeID=agentTypeID)
         #values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 25, c = values,zorder=2)
@@ -341,7 +332,16 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.tight_layout()  
     
     plt.draw()
+    fig.canvas.flush_events()
 
+def firstElementDeco(fun):
+    """ 
+    Decorator that returns the first element
+    ToDo: if possible find better way
+    """
+    def helper(arg):
+        return fun(arg)[0]
+    return helper
 
 
 def initLogger(debug, outputPath):
@@ -425,7 +425,7 @@ class Spatial():
     
                         if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != mpiRank:  # location lives on another process
                             
-                            loc = GhstLocClassObject(self.world, owner=rankArray[xDst,yDst], pos= (xDst, yDst))
+                            loc = GhstLocClassObject(self.world, mpiOwner=rankArray[xDst,yDst], pos= (xDst, yDst))
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
@@ -434,11 +434,6 @@ class Spatial():
                             #self.world.registerLocation(loc, xDst, yDst)
                             ghostLocationList.append(loc)
         self.world.graph.IDArray = IDArray
-
-
-        #nConnection  = list()
-        #print 'rank: ' +  str(self.world.locDict)
-
 
         self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList)
 
@@ -512,10 +507,10 @@ class Spatial():
         
         #get nID of the location
         nID = self.world.getLocationDict()[x,y].nID
-        return self.world.getAgent(nodeID=nID)
+        return self.world.getAgent(agentID=nID)
 
 
-    def getNCloseEntities(self, 
+    def getNCloseAgents(self, 
                            agent, 
                            nContacts,
                            agTypeID, 
@@ -547,7 +542,7 @@ class Spatial():
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
 
             cellWeigList.append(cellWeight)           
-            personIds = self.world.getAgent(cellIdx).getPeerIDs(liTypeID)
+            personIds = self.world.getAgents(cellIdx).getPeerIDs(liTypeID)
             personIdsAll.extend(personIds)
             nPers.append(len(personIds))
 
@@ -1149,7 +1144,7 @@ class IO():
             lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
             tt = time.time()
 
-            nAgents = len(world.getAgent(agTypeID=agTypeID))
+            nAgents = world.nAgents(agTypeID)
             self.nAgentsAll = np.empty(1*mpiSize,dtype=np.int)
             
             if comm is not None:
@@ -1255,11 +1250,11 @@ class IO():
         
         for agTypeID in agTypeIDs:
             if static:
-                #for typ in self.staticData.keys():
+                #for type in self.staticData.keys():
                 self.staticData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
                 self.staticData[agTypeID].writeData(self.h5File, folderName='static')
             else:
-                #for typ in self.dynamicData.keys():
+                #for type in self.dynamicData.keys():
                 self.dynamicData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
                 self.dynamicData[agTypeID].writeData(self.h5File)
 
@@ -1516,7 +1511,7 @@ class PAPI():
             
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
-            for entity in [self.world.getAgent(nodeID=i) for i in lnIDList]:
+            for entity in [self.world.getAgent(agentID=i) for i in lnIDList]:
                 entity.mpiPeers.append(mpiDest)
 
             # send requested global IDs
@@ -1550,7 +1545,7 @@ class PAPI():
             #self.world.papi.comm.Barrier()
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
-    def transferGhostNodes(self, world):
+    def transferGhostAgents(self, world):
         """
         Privat method to initially transfer the data between processes and to create
         ghost nodes from the received data
@@ -1618,11 +1613,11 @@ class PAPI():
 
 
         lg.info('################## Ratio of ghost agents ################################################')
-        for agTypeIDIdx in list(world.graph.agTypeIDs.keys()):
-            agTypeID = world.graph.agTypeIDs[agTypeIDIdx].typeStr
-            nAgents = len(world.getAgent(agTypeID=agTypeIDIdx))
+        for agTypeIDIdx in list(world.graph.agTypeByID.keys()):
+            agTypeID = world.graph.agTypeByID[agTypeIDIdx].typeStr
+            nAgents = world.nAgents(agTypeIDIdx)
             if nAgents > 0:
-                nGhosts = float(len(world.getAgent(agTypeID=agTypeIDIdx, ghosts=True)))
+                nGhosts = float(world.nAgents(agTypeIDIdx, ghosts=True))
                 nGhostsRatio = nGhosts / nAgents
                 lg.info('Ratio of ghost agents for type "' + agTypeID + '" is: ' + str(nGhostsRatio))
         lg.info('#########################################################################################')
@@ -1630,7 +1625,7 @@ class PAPI():
 
 
 
-    def updateGhostNodes(self, agTypeIDList= 'all', propertyList='all'):
+    def updateGhostAgents(self, agTypeIDList= 'all', propertyList='all'):
         """
         Method to update ghost node data on all processes
         """
@@ -1640,7 +1635,7 @@ class PAPI():
         tt = time.time()
 
         if agTypeIDList == 'all':
-            agTypeIDList = self.world.graph.agTypeIDs
+            agTypeIDList = self.world.graph.agTypeByID
         messageSize = self._updateGhostNodeData(agTypeIDList, propertyList)
 
         if self.world.timeStep == 0:
@@ -1653,7 +1648,7 @@ class PAPI():
                      ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
         
         if agTypeIDList == 'all':
-            agTypeIDList = self.world.graph.agTypeIDs
+            agTypeIDList = self.world.graph.agTypeByID
         
         
         for agTypeID in agTypeIDList:
@@ -1666,7 +1661,7 @@ class PAPI():
                 self.world.graph.ghostTypeUpdated[agTypeID].append(prop)
             
 
-    def queueSendGhostNode(self, mpiPeer, agTypeID, entity, parentEntity):
+    def queueSendGhostAgent(self, mpiPeer, agTypeID, entity, parentEntity):
 
         if (agTypeID, mpiPeer) not in list(self.ghostNodeQueue.keys()):
             self.ghostNodeQueue[agTypeID, mpiPeer] = dict()
@@ -1701,24 +1696,21 @@ class PAPI():
 class Random():
     
     
-    def __init__(self, world, nodeDict, ghostNodeDict, entDict):
+    def __init__(self, world, __agentIDsByType, __ghostIDsByType, __agentsByType):
         self.__world = world # make world availabel in class random
-        self.nodeDict = nodeDict
-        self.ghostNodeDict = ghostNodeDict
-        self.entDict = entDict
+        self.__agentIDsByType = __agentIDsByType
+        self.__ghostIDsByType = __ghostIDsByType
+        self.__agentsByType   = __agentsByType
         
 
-    def entity(self, entType, nChoice=1):
-        IDs = random.sample(self.nodeDict[entType],nChoice)
-        if len(IDs) == 1:
-            return self.entDict[IDs[0]]
-        else:
-            return [self.entDict[nodeID] for nodeID in IDs]
+    def nChoiceOfType(self, nChoice, agTypeID):
+        return random.sample(self.__agentsByType[agTypeID],nChoice)
     
-    def location(self, nChoice):
+    
+    def locations(self, nChoice):
         return random.sample(self.locDict.items(), nChoice)
     
-    def iterNodes(self, agTypeID, ghosts=False):
+    def shuffleAgentsOfType(self, agTypeID, ghosts=False):
         # a generator that yields items instead of returning a list
         if isinstance(agTypeID,str):
             agTypeID = self.__world.types.index(agTypeID)
@@ -1726,8 +1718,8 @@ class Random():
         nodes = self.__world.getAgentIDs(agTypeID=agTypeID, ghosts=ghosts)
 
         shuffled_list = sorted(nodes, key=lambda x: random.random())
-        for nodeID in shuffled_list:
-            yield self.__world.getAgent(nodeID=nodeID)
+        for agID in shuffled_list:
+            yield self.__world.getAgent(agentID=agID)
             
 
 class AttrDict(dict):
@@ -1738,34 +1730,50 @@ class AttrDict(dict):
     def toDict(self):
         return dict( (k, v) for k,v in self.items() )
 
-class Iterators():
+class AgentAccess():
     
     def __init__(self, world):
         
-        self.world      = world
-        self.__nodeDict = world.returnNodeDict()
-        self.types      = world.types
+        self.world = world
+        self.__agentIDsByType    = world.getAgentDict()
+        self.__glob2Loc     = world.getGlobToLocDIct()
+        self.__types          = world.graph.agTypeByStr
+        self.__agListByType, self.__ghostAgentListByType = world.getAgentListsByType()
+        self.__allAgentDict = world.getAllAgentDict()
         
         self.custonIterators = dict()
-        
-    def byNodesType(self, agTypeID=None,ghosts = False):
+     
+    def byID(self, localIDs=None):
         """
         Iteration over entities of specified type. Default returns
         non-ghosts in random order.
         """
-        if isinstance(agTypeID,str):
-            agTypeID = self.types.index(agTypeID)
-    
+        return [self.__allAgentDict[i] for i in localIDs] 
+        
+    def byType(self, agTypeID=None,ghosts = False):
+        """
+        Iteration over entities of specified type. Default returns
+        non-ghosts in random order.
+        """
         if ghosts:
-            nodeList = self.__ghostNodeDict[agTypeID]
+            return  self.__ghostAgentListByType.copy()
         else:
-            nodeList = self.__nodeDict[agTypeID]
+            return  self.__agListByType[agTypeID].copy()
 
-        return  [self.__entDict[i] for i in nodeList]
+    def byTypeStr(self, agTypeStr, ghosts = False):
+        
+        agTypeID = self.__types[agTypeStr].typeIdx
+        
+        if ghosts:
+            return  self.__ghostAgentListByType.copy()
+        else:
+            return  self.__agListByType[agTypeID].copy()
+
+
+
     
-    def byLocalID(self, localIDs=None):
-        nodeList = localIDs
-        return  [self.__entDict[i] for i in nodeList]
+    def byGlobalID(self, globalIDs=None):
+        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
 
     def byFilter(self, agTypeID, attr, operator, value = None, compareAttr=None):
         """
@@ -1783,10 +1791,10 @@ class Iterators():
         if compareAttr is None:
             compareValue = value
         elif value is None:
-            compareValue = self.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__nodeDict[agTypeID])
+            compareValue = self.world.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__agentIDsByType[agTypeID])
         
         # get values of all nodes
-        values = self.graph.getNodeSeqAttr(attr, lnIDs=self.__nodeDict[agTypeID])
+        values = self.world.graph.getNodeSeqAttr(attr, lnIDs=self.__agentIDsByType[agTypeID])
         
         if operator=='lt':
             boolArr = values < compareValue    
@@ -1803,7 +1811,7 @@ class Iterators():
         elif operator=='egt':
             boolArr = values >= compareValue    
             
-        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
+        lnIDs = np.where(boolArr)[0] + (self.world.maxNodes * agTypeID)
         
         return lnIDs
 

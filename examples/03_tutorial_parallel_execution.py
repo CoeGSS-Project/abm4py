@@ -41,18 +41,18 @@ from lib import core
 import tools_for_03 as tools
 
 #%% SETUP
-EXTEND = 50
+EXTEND = 20
 RADIUS = 1.5
 
 #%% Class definition
-class Grass(Location, Collective, Parallel):
+class Grass(Location, Collective, Parallel, Neighborhood):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
         Location.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         Parallel.__init__(self, world, **kwAttr)
-        
+        Neighborhood.__init__(self, world, **kwAttr)
     def add(self, value):
         
         self.attr['height'] += value
@@ -82,9 +82,15 @@ world = World(agentOutput=False,
 rankIDLayer = np.zeros([EXTEND, EXTEND]).astype(int)
 if world.isParallel:
     print('parallel mode')
-    rankIDLayer[EXTEND//2:,:EXTEND//2] = 1
-    rankIDLayer[:EXTEND//2,EXTEND//2:] = 2
-    rankIDLayer[:EXTEND//2,:EXTEND//2:] = 3
+    if core.mpiSize == 4:
+    
+        rankIDLayer[EXTEND//2:,:EXTEND//2] = 1
+        rankIDLayer[:EXTEND//2,EXTEND//2:] = 2
+        rankIDLayer[:EXTEND//2,:EXTEND//2:] = 3
+
+    elif core.mpiSize == 2:
+        rankIDLayer[EXTEND//2:,:] = 1
+        
 else:
     print('non-parallel mode')
     
@@ -97,10 +103,10 @@ ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',n
 connBluePrint = world.spatial.computeConnectionList(radius=RADIUS)
 world.spatial.initSpatialLayer(rankIDLayer, connBluePrint, Grass, ROOTS)
 
-for grass in world.iterNodes(GRASS):
+for grass in world.getAgents.byType(GRASS):
     grass.reComputeNeighborhood(ROOTS)
-    if np.min(grass['pos']) < 6:
-        grass['height'] = random.random()+ 3.1    
+    if np.all(grass['pos'] < 8):
+        grass['height'] = random.random()+ 13.1    
     else:
         grass['height'] = random.random()+ 0.1
 
@@ -109,8 +115,8 @@ plott = tools.PlotClass(world, rankIDLayer)
     
 while True:
     tt = time.time()
-    [grass.grow() for grass in world.iterNodes(GRASS)]
-    world.papi.updateGhostNodes(propertyList=['height'])
+    [grass.grow() for grass in world.getAgents.byType(GRASS)]
+    world.papi.updateGhostAgents(propertyList=['height'])
     print(str(time.time() -tt) + ' s')
     
 

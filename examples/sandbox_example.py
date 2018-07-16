@@ -115,7 +115,7 @@ if __name__ == '__main__':
     def computeCars():
     
         # for the agent nodes
-        for agent in earth.iterNodes(_agent):
+        for agent in earth.getAgents.byType(_agent):
             #print agent.nID
             nBrownCars = 0
             nGreenCars = 0
@@ -130,7 +130,7 @@ if __name__ == '__main__':
             agent.setValue('nGreenCars',nGreenCars)
         
         # for spatial nodes
-        for location in earth.iterNodes(_location):
+        for location in earth.getAgents.byType(_location):
             nCars = 0
             #reach all agents of the nodes and their cars => neighboorhood order of 2
             neigList, neigIDList = location.getNeigbourhood(order = 2) 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                     
     # step of the environment
     def environmentStep(deltaCars):
-        for location in earth.iterNodes(_location):
+        for location in earth.getAgents.byType(_location):
             location.setValue('deltaCars',deltaCars[location.x,location.y])
     
     
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     def simulationStep(deltaCars):
         
         
-        for loc in earth.iterNodes(_location):
+        for loc in earth.getAgents.byType(_location):
             
             print 'location is ' + str(loc.x) + ' x '+ str(loc.y)
             agList = loc.getAgentOfCell(agTypeID=_agent)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     earth.graph.vs['nGreenCars'] = 0  
     
     # add social connections
-    for ag in earth.iterNodes(_agent):
+    for ag in earth.getAgents.byType(_agent):
     
         nFriends = np.random.randint(3)+1
         

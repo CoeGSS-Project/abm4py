@@ -24,7 +24,7 @@ import sys
 import numpy as np
 import time
 import random
-sys.path.append('../')
+sys.path.append('../../')
 
 from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
 from lib.traits import Mobile
@@ -43,8 +43,8 @@ class Walker(Agent, Mobile):
     def register(self,world):
         Agent.register(self, world)
         self.loc = world.getLocationDict()[tuple(self.get('pos'))]
-        world.addLink(ANCOR, self.nID, self.loc.nID)
-        world.addLink(ANCOR, self.loc.nID, self.nID)
+        world.addLink(ANCHOR, self.nID, self.loc.nID)
+        world.addLink(ANCHOR, self.loc.nID, self.nID)
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)
@@ -60,17 +60,17 @@ class Walker(Agent, Mobile):
 #        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
 #        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
         
-        Mobile.move(self, newX, newY, ANCOR)
+        Mobile.move(self, newX, newY, ANCHOR)
        
  #%% Setup
 EXTEND   = 50
 DO_PLOT = True
-N_WALKERS = 1000
+N_WALKERS = 500
 N_STEPS   = 100
        
 world = World(agentOutput=False,
           maxNodes=100000,
-          maxLinks=500000)
+          maxLinks=200000)
 
 #%% register a new agent type with four attributes
 nodeMap = np.zeros([EXTEND, EXTEND])
@@ -85,18 +85,20 @@ LINK = world.registerLinkType('link',LOC, LOC, dynamicProperties = [('weig', np.
 WKR = world.registerAgentType('walker' , AgentClass=Walker,
                                dynamicProperties =  [('pos', np.int16, 2)])
 
-ANCOR  = world.registerLinkType('link',LOC, WKR)
+ANCHOR  = world.registerLinkType('link',LOC, WKR)
+
+tt = time.time()
 
 connList      = world.spatial.computeConnectionList(radius=1.5)
 connBluePrint = world.spatial.initSpatialLayer(nodeMap, connList, Location, LINK)
-[neig.reComputeNeighborhood(LINK) for neig in world.iterNodes(LOC)]
 
-world.setAgentAttr('property', 0., agTypeID=LOC)
+world.setAttrOfAgentType('property', 0., agTypeID=LOC)
+print('Spatial layer created in ' + str(time.time() -tt) )   
+print('Number of Locations: ' + str(world.nAgents(LOC)))        
+print('Number of spatial links: ' + str(world.nLinks(LINK)))        
 
-print('number of Locations: ' + str(world.nAgents(LOC)))        
-print('number of Links: ' + str(world.nLinks(LINK)))        
-
-locList = world.getAgent(agTypeID=LOC)
+locList = world.getAgents.byType(LOC)
+tt = time.time()
 for iWalker in range(N_WALKERS):
 
     loc = random.choice(locList)    
@@ -104,11 +106,20 @@ for iWalker in range(N_WALKERS):
                   pos=tuple(loc.attr['pos'][0]))
     walker.loc = loc
     walker.register(world)
+    
+print('Walkers created in ' + str(time.time() -tt) )   
+print('Number of Walkers: ' + str(world.nAgents(WKR)))        
+print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     
 
-if DO_PLOT:        
-    core.plotGraph(world, agentTypeID=WKR)        
+tt = time.time()
+for agent in world.getAgents.byType(WKR):
+    agent.delete(world)
+print('Walkers deleted in ' + str(time.time() -tt) )  
 
-for iSteps in range(N_STEPS):    
-    [walker.randomWalk() for walker in world.getAgent(agTypeID=WKR)] 
-    if DO_PLOT:        
-        core.plotGraph(world, agentTypeID=WKR)
+tt = time.time()
+for location in world.getAgents.byType(LOC):
+    location.delete(world)
+print('Locations deleted in ' + str(time.time() -tt) )      
+
+print('Number of spatial links: ' + str(world.nLinks(LINK)))
+print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     

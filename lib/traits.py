@@ -44,7 +44,7 @@ class Parallel():
 #            for mpiPeer in self.mpiPeers:
 #                #print 'adding node ' + str(entity.nID) + ' as ghost'
 #                agTypeID = world.graph.class2NodeType(entity.__class__)
-#                world.papi.queueSendGhostNode( mpiPeer, agTypeID, entity, self)
+#                world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
 #
 #        return self.mpiPeers
 
@@ -60,7 +60,7 @@ class Parallel():
             for mpiPeer in self.mpiPeers:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 agTypeID = world.graph.class2NodeType(entity.__class__)
-                world.papi.queueSendGhostNode( mpiPeer, agTypeID, entity, self)
+                world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
 
         return self.mpiPeers
 
@@ -75,11 +75,11 @@ class Neighborhood():
         self.Neighborhood = dict()
     
     def getNeighbor(self, peerID):
-        return self.__getAgent(nodeID=peerID)
+        return self.__getAgent(peerID)
     
     def reComputeNeighborhood(self, liTypeID):
         #self.Neighborhood[liTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(liTypeID)]
-        self.Neighborhood[liTypeID] = self.getPeerAttr('instance', liTypeID= liTypeID)
+        self.Neighborhood[liTypeID] = self.getAttrOfPeers('instance', liTypeID= liTypeID)
         
     def iterNeighborhood(self, liTypeID):
         return iter(self.Neighborhood[liTypeID])
@@ -105,13 +105,13 @@ class Mobile():
         self._setLocationDict(world.getLocationDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
-        self.attr['pos'] = [ newX, newY]
-        self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        self['pos'] = [ newX, newY]
+        #self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
         
         self.loc = self.locDict[(newX, newY)]
         
-        self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+        #self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod
@@ -137,10 +137,10 @@ class Collective():
         self.groups = dict()
         
     def getMember(self, peerID):
-        return self.__getAgent(nodeID=peerID)
+        return self.__getAgent(agentID=peerID)
     
     def iterMembers(self, peerIDs):
-        return [self.__getAgent(nodeID=peerID) for peerID in peerIDs]
+        return [self.__getAgent(agentID=peerID) for peerID in peerIDs]
  
     def registerGroup(self, groupName, members):
         self.groups[groupName] = members

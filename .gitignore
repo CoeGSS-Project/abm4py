@@ -34,7 +34,7 @@ environment
 __pycache__
 *_prod.py
 get
-test_old*
+sandbox*
 doe/*
 tests/output*
 tests/test_env*

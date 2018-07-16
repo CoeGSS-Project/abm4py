@@ -160,15 +160,15 @@ earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
                            LocClassObject=LIB.Location)
 
-for cell in earth.random.iterNodes(CELL):
+for cell in earth.random.iterAgents(CELL):
     cell.set('agentsPerCell', np.random.randint(minAgentPerCell,maxAgentPerCell))
     cell.peList = list()
     
-earth.papi.updateGhostNodes([CELL],['agentsPerCell'])
+earth.papi.updateGhostAgents([CELL],['agentsPerCell'])
 if mpiRank == 0:
     print('spatial layer initialized')
 
-for cell in earth.random.iterNodes(CELL, ghosts=True):
+for cell in earth.random.iterAgents(CELL, ghosts=True):
     cell.peList = list()
     
     
@@ -187,7 +187,7 @@ for x, y in list(locDict.keys()):
 #        agent.loc.peList.append(agent.nID)
 
 
-earth.papi.transferGhostNodes(earth) 
+earth.papi.transferGhostAgents(earth) 
 
 if mpiRank == 0:
     print('Agents created')
@@ -197,8 +197,8 @@ if mpiRank == 0:
 globalSourceList = list()
 globalTargetList = list()
 #globalWeightList = list()
-for agent in earth.random.iterNodes(AGENT):
-    contactList, connList, weigList = earth.spatial.getNCloseEntities(agent=agent, 
+for agent in earth.random.iterAgents(AGENT):
+    contactList, connList, weigList = earth.spatial.getNCloseAgents(agent=agent, 
                                                                       nContacts=nFriends, 
                                                                       agTypeID=AGENT,
                                                                       addYourself=False)
@@ -212,7 +212,7 @@ del  globalSourceList, globalTargetList
 if mpiRank == 0:
     print('Agents connections created')    
 #%% register of global records
-earth.papi.updateGhostNodes([AGENT],['prop_B'])
+earth.papi.updateGhostAgents([AGENT],['prop_B'])
 
 earth.registerRecord('average_prop_B',
                      'sumation test for agents',
@@ -233,9 +233,9 @@ def stepFunction(earth):
     
     
     tt = time.time()    
-    for agent in earth.random.iterNodes(AGENT):
+    for agent in earth.random.iterAgents(AGENT):
         
-        peerValues = np.asarray(agent.getPeerAttr('prop_B',CON_AA))
+        peerValues = np.asarray(agent.getAttrOfPeers('prop_B',CON_AA))
         peerAverage = np.sum(peerValues / len(peerValues))
         #print peerAverage
         if peerAverage < 0.5:
@@ -246,7 +246,7 @@ def stepFunction(earth):
     
     
     tt = time.time()
-    earth.papi.updateGhostNodes([AGENT],['prop_B'])
+    earth.papi.updateGhostAgents([AGENT],['prop_B'])
     earth.syncTime[earth.timeStep] += time.time() - tt
     
     tt = time.time()
@@ -258,8 +258,8 @@ def stepFunction(earth):
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
-    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAgentAttr('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAgentAttr('prop_B', agTypeID=AGENT))
+    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAttrOfAgentType('prop_B',AGENT))
+    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAttrOfAgentType('prop_B', agTypeID=AGENT))
         
     earth.graph.glob.sync()
     earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])

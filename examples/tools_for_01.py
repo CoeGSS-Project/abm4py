@@ -27,13 +27,14 @@ from matplotlib import collections as mc
 
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
-    positions = world.getAgentAttr('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
-    plt.figure('graph')
+    plt.ion()
+    fig = plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
-    for agent in world.iterNodes(agentTypeID):
+    for agent in world.getAgents.byType(agentTypeID):
         pos = agent.attr['pos'][0]
         peerDataIDs = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
         if len(peerDataIDs) > 0:
@@ -43,7 +44,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
 
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
     if attrLabel is not None:
-        values = world.getAgentAttr(attrLabel, agTypeID=agentTypeID)
+        values = world.getAttrOfAgentType(attrLabel, agTypeID=agentTypeID)
         values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:, 0], positions[:, 1], s = 15, c = values, zorder = 2)
@@ -52,6 +53,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     ax.add_collection(lc)
     ax.autoscale()
     ax.margins(0.1)      
-    plt.tight_layout()  
+    plt.tight_layout()
     #plt.colorbar()
     plt.draw()
+    fig.canvas.flush_events()

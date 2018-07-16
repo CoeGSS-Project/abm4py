@@ -65,7 +65,7 @@ earth.spatial.initSpatialLayer(parameters['landLayer'],
                        liTypeID=1)    
     
 parameters.population.clip(min=2)
-for cell in earth.iterNodes(CELL):
+for cell in earth.getAgents.byType(CELL):
     pos = cell.get('pos')
     cell.set('population', parameters.population[pos[0], pos[1]])
     

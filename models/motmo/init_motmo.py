@@ -80,7 +80,7 @@ global earth
 
 # Mobility setup setup
 def mobilitySetup(earth):
-    parameters = earth.getParameter()
+    parameters = earth.getParameters()
 
     # define convenience functions
     def convenienceBrown(density, pa, kappa, cell):
@@ -217,7 +217,7 @@ def mobilitySetup(earth):
                     initMaturity = parameters['initMaturityN']) # initital maturity
     
 
-    earth.setParameter('nMobTypes', len(earth.getEnum('brands')))
+    earth.setParameter('nMobTypes', len(earth.getEnums()['brands']))
     return earth
     ##############################################################################
 
@@ -267,7 +267,7 @@ def householdSetup(earth, calibration=False):
     H5MOBDEM = [5, 6, 7, 8, 9]
     
     
-    parameters = earth.getParameter()
+    parameters = earth.getParameters()
     tt = time.time()
     parameters['population'] = np.ceil(parameters['population'])
     nAgents = 0
@@ -353,7 +353,7 @@ def householdSetup(earth, calibration=False):
     for x, y in list(locDict.keys()):
         #print x,y
         nAgentsCell = int(parameters['population'][x, y]) + nAgentsCell # subtracting Agents that are places too much in the last cell
-        loc         = earth.getNodeBy.location(x, y)
+        loc         = earth.spatial.getLocation(x, y)
         region      = parameters['regionIdRaster'][x, y]
         regionIdx   = np.where(regionIdxList == region)[0][0]
 
@@ -404,7 +404,7 @@ def householdSetup(earth, calibration=False):
             hh.register(earth, parentEntity=loc, liTypeID=CON_LH)
             #hh.registerAtLocation(earth,x,y,HH,CON_LH)
 
-            hh.loc.set('population', hh.loc.get('population') + nPers)
+            hh.loc['population'] = hh.loc['population'] + nPers
             if earth.isParallel:
                 hhID = hh.attr['gID']
             else:
@@ -454,11 +454,11 @@ def householdSetup(earth, calibration=False):
     lg.info('All agents initialized in ' + "{:2.4f}".format((time.time()-tt)) + ' s')
 
     if earth.isParallel:
-        earth.papi.transferGhostNodes(earth)
+        earth.papi.transferGhostAgents(earth)
 
         
-    for hh in earth.iterNodes(HH, ghosts = False):                  ##OPTPRODUCTION
-        assert len(hh.adults) == hh.get('hhSize') - hh.get('nKids')  ##OPTPRODUCTION
+    for hh in earth.getAgents.byType(HH, ghosts = False):                  ##OPTPRODUCTION
+        assert len(hh.adults) == hh['hhSize'] - hh['nKids']  ##OPTPRODUCTION
         
     core.mpiBarrier()
     lg.info(str(nAgents) + ' Agents and ' + str(nHH) +
@@ -514,31 +514,31 @@ def initScenario(earth, parameters):
 
     
     #init location memory
-    
-    earth.setEnum('priorities', {0: 'convinience',
-                                 1: 'ecology',
-                                 2: 'money',
-                                 3: 'imitation'})
+    enums = earth.getEnums()
+    enums['priorities'] =   {0: 'convinience',
+                             1: 'ecology',
+                             2: 'money',
+                             3: 'imitation'}
 
 
-    earth.setEnum('properties', {1: 'emissions',
-                                 2: 'fixedCosts',
-                                 3: 'operatingCosts'})
+    enums['properties'] =   {1: 'emissions',
+                             2: 'fixedCosts',
+                             3: 'operatingCosts'}
 
-    earth.setEnum('agTypeIDs', {1: 'cell',
-                                2: 'household',
-                                3: 'pers'})
+    enums['agTypeIDs'] =   {1: 'cell',
+                            2: 'household',
+                            3: 'pers'}
 
-    earth.setEnum('consequences', {0: 'convenience',
-                                   1: 'eco-friendliness',
-                                   2: 'remaining money',
-                                   3: 'innovation'})
+    enums['consequences'] =   {0: 'convenience',
+                               1: 'eco-friendliness',
+                               2: 'remaining money',
+                               3: 'innovation'}
 
-    earth.setEnum('mobilityTypes', {0: 'brown',
-                                    1: 'green',
-                                    2: 'public transport',
-                                    3: 'shared mobility',
-                                    4: 'None motorized'})
+    enums['mobilityTypes'] =   {0: 'brown',
+                                1: 'green',
+                                2: 'public transport',
+                                3: 'shared mobility',
+                                4: 'None motorized'}
 
     initTypes(earth)
     
@@ -632,7 +632,7 @@ def initTypes(earth):
 
 def initSpatialLayer(earth):
     tt = time.time()
-    parameters = earth.getParameter()
+    parameters = earth.getParameters()
     connList= core.computeConnectionList(parameters['connRadius'], ownWeight=1.5)
     earth.spatial.initSpatialLayer(parameters['landLayer'],
                            connList, 
@@ -657,15 +657,15 @@ def initSpatialLayer(earth):
    
     if 'regionIdRaster' in list(parameters.keys()):
 
-        for cell in earth.random.iterNodes(CELL):
-            cell.set('regionId', parameters['regionIdRaster'][tuple(cell.get('pos'))])
-            cell.set('chargStat', 0)
-            cell.set('emissions', np.zeros(len(earth.getEnum('mobilityTypes'))))
-            cell.set('electricConsumption', 0.)
-            cell.cellSize = parameters['cellSizeMap'][tuple(cell.get('pos'))]
-            cell.set('popDensity', popDensity[tuple(cell.get('pos'))])
+        for cell in earth.random.shuffleAgentsOfType(CELL):
+            cell['regionId'] = parameters['regionIdRaster'][tuple(cell['pos'])]
+            cell['chargStat'] = 0
+            cell['emissions'] = np.zeros(len(earth.getEnums()['mobilityTypes']))
+            cell['electricConsumption'] = 0.
+            cell.cellSize = parameters['cellSizeMap'][tuple(cell['pos'])]
+            cell['popDensity'] = popDensity[tuple(cell['pos'])]
     if earth.isParallel:        
-        earth.papi.updateGhostNodes([CELL],['chargStat'])
+        earth.papi.updateGhostAgents([CELL],['chargStat'])
 
     if mpiRank == 0:
         print('Setup of the spatial layer done in'  + "{:2.4f}".format((time.time()-tt)) + ' s')
@@ -692,16 +692,14 @@ def cellTest(earth):
     eConvArray = earth.para['landLayer'] * 0
     
     #import tqdm
-    #for i, cell in tqdm.tqdm(enumerate(earth.random.iterNodes(CELL))):
     if earth.para['showFigures']:
-        for i, cell in enumerate(earth.random.iterNodes(CELL)):        
+        for i, cell in enumerate(earth.random.shuffleAgentsOfType(CELL)):        
             #tt = time.time()
             convAll, popDensity = cell.selfTest(earth)
-            #cell.set('carsInCell',[0,200.,0,0,0])
             convAll[1] = convAll[1] * cell.electricInfrastructure(100.)
             convArray[:, i] = convAll
             popArray[i] = popDensity
-            eConvArray[cell.get('pos')] = convAll[1]
+            eConvArray[cell['pos']] = convAll[1]
             #print time.time() - ttclass
         
         
@@ -737,14 +735,14 @@ def cellTest(earth):
             else:
                 plt.subplot(2, 2, i+1)
             plt.scatter(popArray,convArray[i,:], s=2)
-            plt.title('convenience of ' + earth.getEnum('mobilityTypes')[i])
+            plt.title('convenience of ' + earth.getEnums()['mobilityTypes'][i])
         plt.show()
         adsf
         
 # %% Generate Network
 def generateNetwork(earth):
     tt = time.time()
-    parameters = earth.getParameter()
+    parameters = earth.getParameters()
     
     tt = time.time()
     
@@ -772,17 +770,17 @@ def initMobilityTypes(earth):
 
 def initGlobalRecords(earth):
     tt = time.time()
-    parameters = earth.getParameter()
+    parameters = earth.getParameters()
 
     calDataDfCV = pd.read_csv(parameters['resourcePath'] + 'calDataCV.csv', index_col=0, header=1)
     calDataDfEV = pd.read_csv(parameters['resourcePath'] + 'calDataEV.csv', index_col=0, header=1)
 
 
-    
+    enums = earth.getEnums()
     for re in parameters['regionIDList']:
         earth.registerRecord('stock_' + str(re),
                          'total use per mobility type -' + str(re),
-                         list(earth.getEnum('mobilityTypes').values()),
+                         list(enums['mobilityTypes'].values()),
                          style='plot',
                          mpiReduce='sum')
     
@@ -794,7 +792,7 @@ def initGlobalRecords(earth):
         
         earth.registerRecord('emissions_' + str(re),
                          'co2Emissions -' + str(re),
-                         list(earth.getEnum('mobilityTypes').values()),
+                         list(enums['mobilityTypes'].values()),
                          style='plot',
                          mpiReduce='sum')
 
@@ -823,9 +821,9 @@ def initGlobalRecords(earth):
         earth.globalRecord['stock_' + str(re)].addCalibrationData(timeIdxs,values)
 
     earth.registerRecord('growthRate', 'Growth rate of mobitlity types',
-                         list(earth.getEnum('mobilityTypes').values()), style='plot')
+                         list(enums['mobilityTypes'].values()), style='plot')
     earth.registerRecord('allTimeProduced', 'Overall production of car types',
-                         list(earth.getEnum('mobilityTypes').values()), style='plot')
+                         list(enums['mobilityTypes'].values()), style='plot')
     earth.registerRecord('maturities', 'Technological maturity of mobility types',
                          ['mat_B', 'mat_G', 'mat_P', 'mat_S', 'mat_N'], style='plot')
     earth.registerRecord('globEmmAndPrice', 'Properties',
@@ -856,9 +854,9 @@ def initAgentOutput(earth):
 def initCacheArrays(earth):
     
     maxFriends = earth.para['maxFriends']
-    persZero = earth.getAgent(agTypeID=PERS)[0]
+    persZero = earth.getAgents.byType(PERS)[0]
     
-    nUtil = persZero.get('commUtil').shape[0]
+    nUtil = persZero['commUtil'].shape[0]
     Person.cacheCommUtil = np.zeros([maxFriends+1, nUtil])
     Person.cacheUtil     = np.zeros(maxFriends+1)
     Person.cacheMobType  = np.zeros(maxFriends+1, dtype=np.int32)
@@ -913,15 +911,15 @@ def runModel(earth, parameters):
 
     #%% Initial actions
     tt = time.time()
-    for household in earth.random.iterNodes(HH):
+    for household in earth.random.shuffleAgentsOfType(HH):
 
         household.takeActions(earth, household.adults, np.random.randint(0, earth.market.getNMobTypes(), len(household.adults)))
         for adult in household.adults:
-            adult.set('lastAction', np.int(np.random.rand() * np.float(earth.para['mobNewPeriod'])))
+            adult['lastAction'] =  np.int(np.random.rand() * np.float(earth.para['mobNewPeriod']))
 
     lg.info('Initial actions done')
 
-    for cell in earth.random.iterNodes(CELL):
+    for cell in earth.random.shuffleAgentsOfType(CELL):
         cell.step(earth.para, earth.market.getCurrentMaturity())
      
     
@@ -933,7 +931,7 @@ def runModel(earth, parameters):
     
     lg.info('Initial market step done')
 
-    for household in earth.random.iterNodes(HH):
+    for household in earth.random.shuffleAgentsOfType(HH):
         household.calculateConsequences(earth.market)
         household.util = household.evalUtility(earth, actionTaken=True)
         #household.shareExperience(earth)
@@ -962,8 +960,8 @@ def runModel(earth, parameters):
 
     #%% Finishing the simulation
     lg.info( "Finalizing the simulation (No." + str(earth.simNo) +"):")
-    if parameters.writeAgentFile:
-        earth.io.finalizeAgentFile()
+    earth.saveParameters()  
+    earth.saveEnumerations()
     earth.finalize()
 
 def writeSummary(earth, parameters):
@@ -1006,7 +1004,7 @@ def onlinePostProcessing(earth):
 
     lg.info( 'Preferences - standart deviation within friends')
     avgStd= np.zeros([1, 4])
-    for agent in earth.random.iterNodes(HH):
+    for agent in earth.random.shuffleAgentsOfType(HH):
         friendList = agent.getPeerIDs(liTypeID=CON_HH)
         if len(friendList) > 1:
             #print df.ix[friendList].std()

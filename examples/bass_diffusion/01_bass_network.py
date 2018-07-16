@@ -142,23 +142,23 @@ for iAgent in range(N_AGENTS):
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures
-    agent.register(world)
+    world.registerAgent(agent)
 
 world.io.initNodeFile(world, [AGENT])
 #%% creation of spatial proximity network
 
-# world.getAgentAttr is used to receive the position of all agents 
+# world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.
-positions = world.getAgentAttr('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
 agIDList  = world.getAgentIDs(AGENT)
 
-# world.getAgentAttr is used to receive the innovation value of all agents 
+# world.getAttrOfAgentType is used to receive the innovation value of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT. The value is given as float.
-innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
 # For a fixed agent this function assigns weights to all other agents 
 # either by option 1 via proximity in position or by option 2 via proximity
@@ -168,22 +168,22 @@ innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
 # This loop then executes the choice of friends for every agent by picking 
 # from the agent list according to the probability weights calculated by the 
 # function above     
-[agent.createSocialNetwork(world) for agent in world.iterNodes(AGENT)]
+[agent.createSocialNetwork(world) for agent in world.getAgents.byType(AGENT)]
     
 
     
 # Here one can choose the positions of the agents in the plot by putting all 
 # options but the favoured one into comments.
     
-positions = world.getAgentAttr('pos',agTypeID=AGENT)
-#positions[:,0] = world.getAgentAttr('inno',agTypeID=AGENT)
-#positions[:,1] = world.getAgentAttr('imit',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
+#positions[:,0] = world.getAttrOfAgentType('inno',agTypeID=AGENT)
+#positions[:,1] = world.getAttrOfAgentType('imit',agTypeID=AGENT)
 #%% Scheduler
 iStep = 0
 fracList = list()
 fracPerSector = {1:[], 2:[], 3:[],4:[]}
 
-switched = world.getAgentAttr('switch',agTypeID=AGENT)
+switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
 
 
 # If results shall be plotted:
@@ -195,8 +195,8 @@ while True:
     tt =time.time()
     iStep+=1
     
-    # world.getAgentAttr is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getAgentAttr('switch',agTypeID=AGENT)
+    # world.getAttrOfAgentType is used to retrieve the attribute "switch" of all AGIDs
+    switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -214,16 +214,17 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
-    randValues  = np.random.random(len(nodesToIter))*1000
+    #nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
+    agentsToIter = world.filterAgents(AGENT, lambda a: a['switch'] == 0)
+    randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.    
-    for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(agentsToIter,randValues) :
         
         # switchFraction is recalculated for every agent as the sum of all its
         # friends that switched devided by its total number of friends
-        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
         inno, imit = agent.attr[['inno','imit']][0]
         
         # if the condition for an agent to switch is met, the agent attributes
@@ -235,7 +236,7 @@ while True:
     
     # each 50 steps, the visualization is updated       
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
     world.io.writeDataToFile(iStep, [AGENT])
     #time.sleep(.1)

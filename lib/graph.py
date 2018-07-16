@@ -112,10 +112,10 @@ class BaseGraph():
         storage space.
         """
         
-        self.maxNodes       = int(maxNodesPerType)
-        self.maxEdges       = int(maxEdgesPerType)
+        self.maxNodes       = np.int64(maxNodesPerType)
+        self.maxEdges       = np.int64(maxEdgesPerType)
         
-
+        self.lnID2dataIdx   = dict()
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
         ## im nodes dict stehen keine nodes sondern nodeArrays (stf)
@@ -130,19 +130,30 @@ class BaseGraph():
         self.getNodeTypeID = itertools.count(1).__next__
         self.getEdgeTypeID = itertools.count(1).__next__
         
-        #persistent nodeattributes
+        #persistent node attributes
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1)]
+        self.defaultNodeValues = (False, None,)
         #persistent edge attributes
         self.persEdgeAttr = [('active', np.bool_, 1),
                              ('source', np.int32, 1), 
                              ('target', np.int32, 1)]
+        self.defaultEdgeValues = (False, None, None)
         
     #%% NODES
     def _initNodeType(self, nodeName, attrDescriptor):
         
         nTypeID          = self.getNodeTypeID()
-        dt               = np.dtype(self.persNodeAttr + attrDescriptor)
+        
+        # enforcing that attributes are unique
+        uniqueAttributes = []
+        uniqueAttributesList = []
+        for attrDesc in self.persNodeAttr + attrDescriptor:
+            if attrDesc[0] not in uniqueAttributesList:
+                uniqueAttributesList.append(attrDesc[0])
+                uniqueAttributes.append(attrDesc)
+        
+        dt                  = np.dtype(uniqueAttributes)
         self.nodes[nTypeID] = NodeArray(self.maxNodes, nTypeID, dtype=dt)
         self.nodes[nTypeID]['active'] = False
 
@@ -168,9 +179,13 @@ class BaseGraph():
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
             except:
                 # list is given
-                return(getRefByList(self.maxNodes, lnIDs))
-                
-                
+#                try:
+                return getRefByList(self.maxNodes, lnIDs)
+#                except:
+#                    print(lnIDs)
+#                   
+#                    import pdb
+#                    pdb.set_trace()
             
 
 
@@ -183,11 +198,11 @@ class BaseGraph():
     def addNode(self, nTypeID, attributes=None, **kwProp):
         
         
-         if len(self.nodes[nTypeID].freeRows) > 0:
+         try:
              # use and old local node ID from the free row
              dataID = self.nodes[nTypeID].freeRows.pop()
              lnID   = dataID + nTypeID * self.maxNodes
-         else:
+         except:
              # generate a new local ID
              dataID   = self.nodes[nTypeID].getNewID()
              lnID = dataID + nTypeID * self.maxNodes
@@ -196,14 +211,17 @@ class BaseGraph():
 #         if attributes is not None:
 #             dataview[:] = (True,) + attributes
 #         else:
+         dataview['active'] = True
+         dataview['ID'] = lnID
          if any(kwProp):
-             dataview['active'] = True
              dataview[list(kwProp.keys())] = tuple(kwProp.values())
          elif attributes is not None:
              dataview[:] = (True,) + attributes
+         
              
          self.nodes[nTypeID].nodeList.append(lnID)
          
+         self.lnID2dataIdx[lnID] = dataID
          return lnID, dataID, dataview
      
     
@@ -216,8 +234,7 @@ class BaseGraph():
         nType = self.nodes[nTypeID]
         dataIDs = np.zeros(nNodes, dtype=np.int32)
         
-        if len(nType.freeRows) == 0:
-            
+        if len(nType.freeRows) == 0:  
             dataIDs[:] = [nType.getNewID() for x in range(nNodes)]  
         elif len(nType.freeRows) < nNodes:
             newIDs = [nType.getNewID() for x in range(nNodes - len(nType.freeRows))] 
@@ -238,40 +255,58 @@ class BaseGraph():
         return lnIDs
 
     def remNode(self, lnID):
-        #raise DeprecationWarning('not supported right now')
-        #raise NameError('sorry')
         agTypeID, dataID = self.getNodeDataRef(lnID)
-        #dataID = lnID - nTypeID * self.maxNodes
-        #print(dataID)
         self.nodes[agTypeID].freeRows.append(dataID)
-        self.nodes[agTypeID][self.persitentAttributes][dataID] = self.persitentValues
+        self.nodes[agTypeID][dataID:dataID+1][self.persitentAttributes] = self.defaultNodeValues
         self.nodes[agTypeID].nodeList.remove(lnID)
     
         for eTypeID in self.edges.keys():
             (_, targets) = self.outgoing(lnID, eTypeID)
-            [self.remEdge(eTypeID, lnID, target) for target in targets]
+            [self.remEdge(eTypeID, lnID, target) for target in targets.copy()]
             (_, sources) = self.incomming(lnID, eTypeID)
-            [self.remEdge(eTypeID, source, lnID) for source in sources]
+            [self.remEdge(eTypeID, source, lnID) for source in sources.copy()]
+
+#    def remNode(self, lnID):
+#        agTypeID, dataID = self.getNodeDataRef(lnID)
+#        self.nodes[agTypeID].freeRows.append(dataID)
+#        self.nodes[agTypeID][dataID:dataID+1][self.persitentAttributes] = self.defaultNodeValues
+#        self.nodes[agTypeID].nodeList.remove(lnID)
+#    
+#        for eTypeID in self.edges.keys():
+#            try:
+#                self.remOutgoingEdges(eTypeID, lnID, self.edges[eTypeID].nodesOut[lnID].copy())
+#            except:
+#                pass
+#            try:
+#                [self.remEdge(eTypeID, source, lnID) for source in self.edges[eTypeID].nodesIn[lnID].copy()]
+#            except:
+#                pass
     
     def isNode(self, lnIDs):
+        """
+        Checks if node is active
+        only one node type per time can be checked
+        """
+        nTypeIDs, dataIDs  = self.getNodeDataRef(lnIDs)        
+        return self.nodes[nTypeIDs]['active'][dataIDs]
+
+
+    def areNodes(self, lnIDs):
         """
         Checks if nodes are active
         only one node type per time can be checked
         """
         nTypeIDs, dataIDs  = self.getNodeDataRef(lnIDs)
         
-        try: 
-            return all(self.nodes[nTypeIDs]['active'][dataIDs])
-        except:
-            return self.nodes[nTypeIDs]['active'][dataIDs]
+        return np.all(self.nodes[nTypeIDs]['active'][dataIDs])
+                        
             
-            
-    def setAgentAttr(self, label, value, lnID, nTypeID=None):
+    def setAttrOfAgents(self, label, value, lnID, nTypeID=None):
         
         nTypeID, dataID = self.getEdgeDataRef(lnID)
         self.nodes[nTypeID][label][dataID] = value
     
-    def getAgentAttr(self, label=None, lnID=None, nTypeID=None):
+    def getAttrOfAgents(self, label=None, lnID=None, nTypeID=None):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
             return self.nodes[nTypeID][label][dataID]
@@ -363,11 +398,11 @@ class BaseGraph():
         eType = self.edges[eTypeID]
 
          
-        if len(self.edges[eTypeID].freeRows) > 0:
+        try:
             # use and old local node ID from the free row
             dataID = eType.freeRows.pop()
             leID   = dataID + eTypeID * self.maxEdges
-        else:
+        except:
             # generate a new local ID
             dataID   = eType.getNewID()
             leID = dataID + eTypeID * self.maxEdges
@@ -385,10 +420,10 @@ class BaseGraph():
             eType.edgesOut[source] = [dataID]
             eType.nodesOut[source] = [target]
         
-        if target in eType.edgesIn:
+        try:
             eType.edgesIn[target].append(dataID)
             eType.nodesIn[target].append(source)
-        else:
+        except:
             eType.edgesIn[target] = [dataID]     
             eType.nodesIn[target] = [source]
              
@@ -406,7 +441,7 @@ class BaseGraph():
         """
         if sources == []:
              raise(BaseException('Empty list given'))
-        if not (self.isNode(sources)) or not( self.isNode(targets)):
+        if not (self.areNodes(sources)) or not( self.areNodes(targets)):
             raise(BaseException('Nodes do not exist'))
         
         nEdges = len(sources)
@@ -415,8 +450,8 @@ class BaseGraph():
         dataIDs = np.zeros(nEdges, dtype=np.int32)
         
         nfreeRows = len(eType.freeRows)
+
         if nfreeRows == 0:
-            
             dataIDs[:] = [eType.getNewID() for x in range(nEdges)]  
         elif nfreeRows < nEdges:
             newIDs = [eType.getNewID() for x in range(nEdges - nfreeRows)] 
@@ -433,7 +468,7 @@ class BaseGraph():
         #updating edge dictionaries
         leIDs = dataIDs + eTypeID * self.maxEdges
         eType.edgeList.extend(leIDs.tolist())
-        for source, target, dataID in zip(sources,targets, dataIDs):
+        for source, target, dataID in zip(sources, targets, dataIDs):
             eType.eDict[(source, target)] = dataID
             
             try:
@@ -443,10 +478,10 @@ class BaseGraph():
                 eType.edgesOut[source] = [dataID]
                 eType.nodesOut[source] = [target]
             
-            if target in eType.edgesIn:
+            try:
                 eType.edgesIn[target].append(dataID)
                 eType.nodesIn[target].append(source)
-            else:
+            except:
                 eType.edgesIn[target] = [dataID]     
                 eType.nodesIn[target] = [source]
               
@@ -454,22 +489,49 @@ class BaseGraph():
             for attrKey in list(kwAttr.keys()):
                 eType[attrKey][dataIDs] = kwAttr[attrKey]
 
-    def remEdge(self, eTypeID, source, target):
+    def remOutgoingEdges(self, eTypeID, source, targets):
+        eType = self.edges[eTypeID]
+          
+        eType.edgesOut[source] = []
+        targets = eType.nodesOut.pop(source)
         
+        for target in targets:
+             dataID = eType.eDict.pop((source, target))
+             leID   = dataID + eTypeID * self.maxEdges
+             eType.edgeList.remove(leID)
+             eType[dataID:dataID+1]['active'] = False
+             eType.edgesIn[target].remove(dataID)
+             eType.nodesIn[target].remove(source)
+             
+    def remEdge(self, eTypeID, source, target):
         eType = self.edges[eTypeID]
         
-        dataID = eType.eDict[(source, target)]
+        dataID = eType.eDict.pop((source, target))
         leID   = dataID + eTypeID * self.maxEdges 
         eType.freeRows.append(dataID)
         eType[dataID:dataID+1]['active'] = False
-        del eType.eDict[(source, target)]
         eType.edgeList.remove(leID)
+        
         eType.edgesIn[target].remove(dataID)
         eType.edgesOut[source].remove(dataID)
         
         eType.nodesOut[source].remove(target)
         eType.nodesIn[target].remove(source)
-        
+#    
+#    def remEdges(self, eTypeID, source, target):
+#        eType = self.edges[eTypeID]
+#        
+#        dataID = eType.eDict[(source, target)]
+#        leID   = dataID + eTypeID * self.maxEdges 
+#        eType.freeRows.append(dataID)
+#        eType[dataID:dataID+1]['active'] = False
+#        del eType.eDict[(source, target)]
+#        eType.edgeList.remove(leID)
+#        eType.edgesIn[target].remove(dataID)
+#        eType.edgesOut[source].remove(dataID)
+#        
+#        eType.nodesOut[source].remove(target)
+#        eType.nodesIn[target].remove(source)
     def setEdgeAttr(self, leID, label, value, eTypeID=None):
         
         eTypeID, dataID = self.getEdgeDataRef(leID)
@@ -567,8 +629,9 @@ class ABMGraph(BaseGraph):
         self.queingMode = False
 
         # list of types
-        self.agTypeIDs = dict()
-        self.liTypeIDs = dict()
+        self.agTypeByID = dict()
+        self.agTypeByStr = dict()
+        self.liTypeByID = dict()
         self.node2EdgeType = dict()
         self.edge2NodeType = dict()
 
@@ -577,25 +640,23 @@ class ABMGraph(BaseGraph):
         self.__class2NodeType = dict()
         self.__ghostOfAgentClass   = dict()
         
-        if world.isParallel:
-            self.persitentAttributes = ['active', 'instance' 'gID']
-            self.persitentValues     = (False, None, -1)
-            self.persNodeAttr = [('active', np.bool_,1),
-                                 ('instance', np.object,1),
-                                 ('gID', np.int32,1)]
-        else:
-            self.persitentAttributes = ['active', 'instance', 'gID']
-            self.persitentValues     = False
-            self.persNodeAttr = [('active', np.bool_,1),
-                                 ('instance', np.object,1),
-                                 ('gID', np.int32,1)]
-
         #persistent nodeattributes
+        self.persitentAttributes = ['active', 'instance', 'gID', 'ID']
+        self.defaultNodeValues     = (False, None, -1, -1)
+        self.persNodeAttr = [('active', np.bool_,1),
+                             ('instance', np.object,1),
+                             ('gID', np.int32,1),
+                             ('ID', np.int32,1)]
+
+
+        
         
         #persistent edge attributes
         self.persEdgeAttr = [('active', np.bool_, 1),
                              ('source', np.int32, 1), 
                              ('target', np.int32, 1)]
+    
+        
     
     def addNodeType(self, 
                     agTypeIDIdx, 
@@ -607,7 +668,8 @@ class ABMGraph(BaseGraph):
         """ Create node type description"""
         
         agTypeID = TypeDescription(agTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.agTypeIDs[agTypeIDIdx] = agTypeID
+        self.agTypeByID[agTypeIDIdx] = agTypeID
+        self.agTypeByStr[typeStr]    = agTypeID
         # same agTypeID for ghost and non-ghost
         self.__agTypeID2Class[agTypeIDIdx]      = AgentClass, GhostAgentClass
         self.__class2NodeType[AgentClass]       = agTypeIDIdx
@@ -618,9 +680,9 @@ class ABMGraph(BaseGraph):
 
     def addLinkType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
-        liTypeIDIdx = len(self.liTypeIDs)+1
+        liTypeIDIdx = len(self.liTypeByID)+1
         liTypeID = TypeDescription(liTypeIDIdx, typeStr, staticProperties, dynamicProperties)
-        self.liTypeIDs[liTypeIDIdx] = liTypeID
+        self.liTypeByID[liTypeIDIdx] = liTypeID
         self.node2EdgeType[agTypeID1, agTypeID2] = liTypeIDIdx
         self.edge2NodeType[liTypeIDIdx] = agTypeID1, agTypeID2
         self._initEdgeType(typeStr, staticProperties + dynamicProperties)
@@ -630,11 +692,11 @@ class ABMGraph(BaseGraph):
     def getDTypeOfNodeType(self, agTypeID, kind):
         
         if kind == 'sta':
-            dtype = self.agTypeIDs[agTypeID].staProp
+            dtype = self.agTypeByID[agTypeID].staProp
         elif kind == 'dyn':
-            dtype = self.agTypeIDs[agTypeID].dynProp
+            dtype = self.agTypeByID[agTypeID].dynProp
         else:
-            dtype = self.agTypeIDs[agTypeID].staProp + self.agTypeIDs[agTypeID].dynProp
+            dtype = self.agTypeByID[agTypeID].staProp + self.agTypeByID[agTypeID].dynProp
         return dtype
     
     def getPropOfNodeType(self, agTypeID, kind):
@@ -776,10 +838,10 @@ if __name__ == "__main__":
     lnID4, _, dataview4 = bg.addNode(LOC, (4, np.random.random(2), 20 ))
     dataview1['gnID'] = 99
     dataview2['gnID'] = 88
-    bg.getAgentAttr(lnID=lnID1)
+    bg.getAttrOfAgentType(lnID=lnID1)
     bg.setNodeSeqAttr('gnID', [12,13], [lnID1, lnID2])                        
     print(bg.getNodeSeqAttr('gnID', [lnID1, lnID2]))
-    print(bg.getAgentAttr(lnID=lnID2))
+    print(bg.getAttrOfAgentType(lnID=lnID2))
     print(bg.getNodeSeqAttr('gnID', np.array([lnID1, lnID2])))
     
     #%% edges

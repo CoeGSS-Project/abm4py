@@ -99,9 +99,9 @@ for iAgent in range(N_AGENTS):
 
 #%% creation of spatial proximity network
   
-positions = world.getAgentAttr('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
 agIDList  = world.getAgentIDs(AGENT)
-innovationVal = world.getAgentAttr('inno', agTypeID=AGENT).astype(np.float64)
+innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
 def network_creation(agent, world):
     
@@ -121,7 +121,7 @@ def network_creation(agent, world):
     
     return weig
     
-for agent in world.iterNodes(AGENT):
+for agent in world.getAgents.byType(AGENT):
     weights = network_creation(agent, world)
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
@@ -131,7 +131,7 @@ for agent in world.iterNodes(AGENT):
 
     
     
-positions = world.getAgentAttr('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
 
 ##############################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -149,7 +149,7 @@ if DO_PLOT:
 while True:
     tt =time.time()
     iStep+=1
-    switched = world.getAgentAttr('switch',agTypeID=AGENT)
+    switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
     switchFraction = np.sum(switched) / N_AGENTS
     fracList.append(switchFraction)
     
@@ -161,9 +161,9 @@ while True:
     nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
-    for agent, randNum in zip(world.iterNodes(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(world.getAgents.byType(localIDs=nodesToIter),randValues) :
               
-        switchFraction = np.sum(agent.getPeerAttr('switch',LI_AA)) / N_FRIENDS
+        switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
         inno, imit = agent.attr[['inno','imit']][0]
         
         if randNum < inno + ( imit * ( switchFraction)):
@@ -172,6 +172,6 @@ while True:
             plotting.add(iStep,inno)
             
     if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAgentAttr('color',agTypeID=AGENT))
+        plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
     

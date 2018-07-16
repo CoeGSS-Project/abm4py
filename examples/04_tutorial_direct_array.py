@@ -101,7 +101,7 @@ def testMethod(f, info):
     
     
 def doStepDirect():
-    for agent in world.iterAgents():
+    for agent in world.getAgents():
         agent.attr['food'] -= 1
         if agent.attr['food'] <= 0:
             # agent.delete(world)
@@ -111,7 +111,7 @@ def doStepDirect():
 
 
 def doStepAttribute():
-    for agent in world.iterAgents():
+    for agent in world.getAgents():
         agent.food -= 1
         if agent.food <= 0:
             # agent.delete(world)
@@ -121,7 +121,7 @@ def doStepAttribute():
 
 
 def doStepItem():
-    for agent in world.iterAgents():
+    for agent in world.getAgents():
         agent['food'] -= 1
         if agent['food'] <= 0:
             agent.delete(world)

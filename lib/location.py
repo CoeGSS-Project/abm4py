@@ -5,54 +5,48 @@ Created on Tue Jul  3 15:51:31 2018
 
 @author: gcf
 """
-from .base_agent import BaseAgent, Entity
-from .traits import Neighborhood
+from .agent import  Agent
+from .traits import Parallel
 
-class Location(BaseAgent, Neighborhood):
+class Location(Agent):
 
     def getGlobID(self,world):
         return next(world.globIDGen)
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in list(kwProperties.keys()):
-            nID = -1
+            nID = None
         else:
             nID = kwProperties['nID']
 
 
-        BaseAgent.__init__(self, world, nID, **kwProperties)
-        Neighborhood.__init__(self, world, nID, **kwProperties)
+        Agent.__init__(self, world, nID, **kwProperties)
     
-#    def getConnectedLocation(self, liTypeID=1):
-#        """ 
-#        ToDo: check if not deprecated 
-#        """
-#        self.weights, _, nodeIDList = self.getLinkAttr('weig',liTypeID=liTypeID)
-#        
-#        return self.weights,  nodeIDList
 
-class GhostLocation(Entity):
+class GhostLocation(Agent, Parallel):
     
-    def getGlobID(self,world):
 
-        return -1
-
-    def __init__(self, world, owner, nID=-1, **kwProperties):
-
-        Entity.__init__(self,world, nID, **kwProperties)
-        self.mpiOwner = int(owner)
+   
+    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
         
-        self._setGraph(world.graph)
-        if nID is not -1:
-            self.nID = nID
-            self.attr, self.dataID = self._graph.getNodeView(nID)
-            self['instance'] = self
+        Agent.__init__(self, world, nID, **kwProperties)
+        
+        self.mpiOwner = int(mpiOwner)       
         self.gID = self.attr['gID'][0]
 
-    def register(self, world, parentEntity=None, liTypeID=None):
-        Entity.register(self, world, parentEntity, liTypeID, ghost= True)
+    def getGlobID(self,world):
+
+        return -1        
+
+    def register(self, world, parent_Entity=None, liTypeID=None):
+        Agent.register(self, world, parent_Entity, liTypeID, ghost= True)
 
     def registerChild(self, world, entity, liTypeID=None):
         world.addLink(liTypeID, self.nID, entity.nID)
         
-        entity.loc = self
+        #entity.loc = self
+        
+    def delete(self, world):
+        """ method to delete the agent from the simulation"""
+        world.graph.remNode(self.nID)
+        world.deRegisterAgent(self, ghost=True)        

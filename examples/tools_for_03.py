@@ -25,9 +25,9 @@ class PlotClass():
         plt.ion()
         self.fig = plt.figure('output')
         self.rankIDLayer = rankIDLayer
-        self.extend = world.getParameter('extend')
+        self.extend = world.getParameters()['extend']
         self.globalArray = np.zeros([self.extend, self.extend])
-            plt.clf()
+        plt.clf()
         
         
         self.gatherData(world)
@@ -42,7 +42,7 @@ class PlotClass():
 
     def gatherData(self, world):
        
-        parts = world.papi.comm.gather(world.getAgentAttr('height', agTypeID=1))
+        parts = world.papi.comm.gather(world.getAttrOfAgentType('height', agTypeID=1))
         if world.isRoot:
             for rank, part in enumerate(parts):
                 #print(rank)
