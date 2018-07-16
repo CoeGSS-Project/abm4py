@@ -53,6 +53,7 @@ W_SHEEP = 10. # Reproduction weight for sheep
 W_WOLF = 4.  # Reproduction weight for wolves
 APPETITE = .30  # Percentage of grass height that sheep consume
 
+DO_PLOT = False
 
 #%% Sheep class
 class Grass(Location, Neighborhood, Collective):
@@ -175,6 +176,20 @@ class Wolf(Agent):
         #world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
         
+#    def hunt(self):
+#        """ Jette
+#        
+#        The function hunt lets a wolf choose its prey randomly from a list
+#        of sheep around it. The sheep is pronounced dead and the wolf gains
+#        five units of weight.
+#        
+#        """
+#        sheepList = self.loc.getPeers(liTypeID=LINK_SHEEP)
+#        if len(sheepList) > 0:
+#            sheep = random.choice(sheepList)
+#            sheep.delete(world)
+#            self.attr['weight'] += 5.0
+            #print('sheep died')
     def hunt(self):
         """ Jette
         
@@ -189,7 +204,6 @@ class Wolf(Agent):
             sheep.delete(world)
             self.attr['weight'] += 5.0
             #print('sheep died')
-    
     def move(self, center, hunt=False):
         """ Jette
         
@@ -347,7 +361,9 @@ for iPack in range(N_PACKS):
 wolfPack.computeCenter()        
 
 del wolfPack, wolf 
-plott = tools.PlotClass(world)
+
+if DO_PLOT: 
+    plott = tools.PlotClass(world)
     
 #%%
 import tqdm
@@ -381,12 +397,14 @@ while True:
         
         
         
+        
     # This updates the plot.        
-    pos = world.getAttrOfAgentType('pos', agTypeID=SHEEP)
-    if pos is not None:
-        np.clip(pos, 0, EXTEND, out=pos)
-        pos = world.setAttrOfAgentType('pos', pos, agTypeID=SHEEP)
-        plott.update(world)
+    if DO_PLOT: 
+        pos = world.getAttrOfAgentType('pos', agTypeID=SHEEP)
+        if pos is not None:
+            np.clip(pos, 0, EXTEND, out=pos)
+            pos = world.setAttrOfAgentType('pos', pos, agTypeID=SHEEP)
+            plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.
