@@ -178,3 +178,30 @@ class SuperPowers():
             #warnings.warn('This is violating the current rules and data get lost')
 
             self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
+
+class Aggregator():
+    
+    def __init__(self, world, nID = -1, **kwProperties):
+        self.aggegationDict = dict()
+        self.__getAgent = world.getAgent
+    
+    def addLink(self, peerID, liTypeID, **kwpropDict):
+        """
+        This method adds a new connection to another node. Properties must be 
+        provided in the correct order and structure, bt also 
+        """
+        self._graph.addLink(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        try:
+            self.aggegationDict[liTypeID].append(self.__getAgent(peerID).attr)
+        except:
+            self.aggegationDict[liTypeID] = [self.__getAgent(peerID).attr]
+            
+    def remLink(self, peerID, liTypeID):
+        """
+        This method removes a link to another agent.
+        """
+        self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
+        self.aggegationDict[liTypeID].remove(self.__getAgent(peerID).attr)
+        
+    def aggregateItems(self, label, liTypeID):
+        return [item[label] for item in  self.aggegationDict[liTypeID]]

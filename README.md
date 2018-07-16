@@ -4,8 +4,7 @@ Agent-based modeling framework
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
-See deployment for notes on how to deploy the project on a live system.
+
 
 ### Prerequisites
 
@@ -51,7 +50,7 @@ Gesine Steudle
 
 ## License
 
-This project is licensed under the NU General Public License - see the file headers for details
+This project is licensed under the GNU General Public License - see the file headers for details
 
 ## Acknowledgments
 
