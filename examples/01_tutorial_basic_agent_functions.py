@@ -26,13 +26,12 @@ import tools_for_01 as tools
 #%%
 world = World(agentOutput=False)
 #%% register a new agent type with four attributes
-AGENT_ID = world.registerAgentType('agent' , AgentClass=Agent,
-                               staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.int16, 2)],
-                               dynamicProperties = [('age', np.int16, 1),
-                                                    ('name', np.str,10)])
+HUMANS = world.registerAgentType('human' , AgentClass=Agent,
+                                 staticProperties  = [('pos', np.int16, 2)],
+                                 dynamicProperties = [('age', np.int16, 1),
+                                                      ('name', np.str,10)])
 #%% register a link type to connect agents
-LINK = world.registerLinkType('link',AGENT_ID, AGENT_ID)
+LINK = world.registerLinkType('link',HUMANS, HUMANS)
 print(LINK)
 
 #%% create an agent called theodor
@@ -60,31 +59,35 @@ joana = Agent(world,
 joana.register(world)
 
 #%%
-tools.plotGraph(world, AGENT_ID, LINK, attrLabel= 'age')
+tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')
 
 # make new connection from clara to joana
 clara.addLink(joana.nID,LINK)
 #%%
-tools.plotGraph(world, AGENT_ID, LINK, attrLabel= 'age')
+tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')
 
-clara.getPeerAttr('age', LINK)
+# stf: Geht das auch im parallelen Fall? 
+print('Claras peers have the age of: ' + str(clara.getPeerAttr('age', LINK)))
 
 #%%
 #getting ages of everbody
-ages = world.getAgentAttr('age',agTypeID=AGENT_ID)
+ages = world.getAgentAttr('age',agTypeID=HUMANS)
 
-# get all canditates
-candidates = world.getAgent(agTypeID=AGENT_ID) 
-ages = world.getAgentAttr('age', agTypeID=AGENT_ID)
+# get all canditates:
+# stf: ages ist ein np.array, aber die IDs sind eine python Liste :-(
+# candidateIDs != joana.nID ergibt dann nämlich True, anstatt [True, True, False]
+# stf: ausserdem existiert zwar gID in dem np array, aber ist nicht gesetzt 
+candidateIDs = world.getAgentIDs(HUMANS)
+
+candidateIsJoana = [id == joana.nID for id in candidateIDs]
 
 # compute probability to connect for all other agents
-differenceInAge = np.abs(ages -joana.get('age'))
-probabilityToConnect = 1 / differenceInAge 
-probabilityToConnect[np.isinf(probabilityToConnect)] = 0
+differenceInAge = np.abs(ages - joana['age'])
+probabilityToConnect = 1 / (differenceInAge + 0.01) 
+probabilityToConnect[candidateIsJoana] = 0
 probabilityToConnect = probabilityToConnect / np.sum(probabilityToConnect)
-newIDToLink = np.random.choice(candidates, p=probabilityToConnect)
+newIDToLink = np.random.choice(candidateIDs, p = probabilityToConnect)
 
 # connect new agent
 joana.addLink(newIDToLink, LINK)
-tools.plotGraph(world, AGENT_ID, LINK, attrLabel= 'age')
-        
+tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')

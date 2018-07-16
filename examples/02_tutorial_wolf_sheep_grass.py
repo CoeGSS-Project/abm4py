@@ -94,10 +94,6 @@ class Sheep(Agent, Mobile):
         #print(kwAttr['pos'])
         Agent.__init__(self, world, **kwAttr)
         Mobile.__init__(self, world, **kwAttr)
-
-    def register(self,world):
-
-        Agent.register(self, world)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
@@ -151,11 +147,9 @@ class Sheep(Agent, Mobile):
         # this produces a new sheep which is registered to the world
         # and the old sheep is back to initial weight.
         if self.attr['weight'] > W_SHEEP and len(self.loc.getPeerIDs(LINK_SHEEP))>0:
-            newSheep = Sheep(world,
-                             pos=self.attr['pos'],
-                             weight=1.0)
-            newSheep.register(world)
-            
+            world.registerAgent(Sheep(world,
+                                      pos=self.attr['pos'],
+                                      weight=1.0))
             self.attr['weight'] = 1.0
         
         # If a sheep starves to death it is deleted from the world.
@@ -167,10 +161,7 @@ class Wolf(Agent):
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
         Agent.__init__(self, world, **kwAttr)
-
-
-    def register(self,world):
-        Agent.register(self, world)
+        world.registerAgent(self)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
@@ -231,7 +222,7 @@ class Wolf(Agent):
             newWolf = Wolf(world,
                            pos=self.attr['pos'],
                            weight=2.5)
-            newWolf.register(world)
+            world.registerAgent(newWolf)
             wolfPack.join('wolfs',newWolf)
             self.attr['weight'] = 2.5
         
@@ -259,7 +250,7 @@ class WolfPack(Agent, Collective):
         
         newPack = WolfPack(world,
                            center=self.attr['center'][0])
-        newPack.register(world)
+        world.registerAgent(newPack)
         
         for wolf in self.iterGroup('wolfs'):
             if random.random() > .5:
@@ -306,7 +297,7 @@ for x in range(EXTEND):
         grass = Grass(world, 
                       pos=(x,y),
                       height=random.random())
-        grass.register(world)
+        world.registerAgent(grass)
         world.registerLocation(grass, x,y)
         IDArray[x,y] = grass.nID
 timePerAgent = (time.time() -tt ) / world.nAgents(GRASS)
@@ -325,16 +316,14 @@ locDict = world.getLocationDict()
 for iSheep in range(N_SHEEPS):
     (x,y) = np.random.randint(0,EXTEND,2)
     
-    sheep = Sheep(world,
-                  pos=(x,y),
-                  weight=1.0)
-    sheep.register(world)
+    world.registerAgent(Sheep(world,
+                              pos=(x,y),
+                              weight=1.0))
     
-del sheep
 for iPack in range(N_PACKS):
     wolfPack = WolfPack(world,
                         center=(50,50))
-    wolfPack.register(world)
+    world.registerAgent(wolfPack)
     
     for iWolf in range(int(N_WOLFS/N_PACKS)):
         (x,y) = wolfPack.attr['center'][0] + np.random.randint(-1,2,2)
@@ -342,17 +331,17 @@ for iPack in range(N_PACKS):
         wolf = Wolf(world,
                       pos=(x,y),
                       weight=1.0)
-        wolf.register(world)
+        world.registerAgent(wolf)
         wolfPack.join('wolfs',wolf)
 
 wolfPack.computeCenter()        
 
 del wolfPack, wolf 
-plott = tools.PlotClass(world)
+# plott = tools.PlotClass(world)
     
 #%%
 iStep = 0
-while True:
+while iStep < 10:
     iStep +=1
     tt = time.time()
     # Every five steps the grass grows.
@@ -384,7 +373,7 @@ while True:
     if pos is not None:
         np.clip(pos, 0, EXTEND, out=pos)
         pos = world.setAgentAttr('pos', pos, agTypeID=SHEEP)
-        plott.update(world)
+        # plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these
     # the number of hunting wolves as strings in the console.

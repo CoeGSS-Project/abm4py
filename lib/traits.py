@@ -166,15 +166,9 @@ class SuperPowers():
         # execution
         assert world.isParallel == False
 
-    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None, force=False):
+    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None):
         """
         Set the attributes of all connected nodes of an specified agTypeID
         or connected by a specfic edge type
         """
-        if not force:
-            raise Exception
-        else:
-            #import warnings
-            #warnings.warn('This is violating the current rules and data get lost')
-
-            self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
+        self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    

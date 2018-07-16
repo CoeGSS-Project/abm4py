@@ -93,8 +93,7 @@ world = World(simNo,
 
 # register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerAgentType('agent' , AgentClass=Person,
-                               staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.float32, 2),
+                               staticProperties  = [('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('inno', np.float16,1)],
                                dynamicProperties = [('switch', np.int16, 1),

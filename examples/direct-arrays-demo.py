@@ -28,29 +28,30 @@ import random
 import time
 
 home = os.path.expanduser("~")
-sys.path.append('../lib/')
 
-import lib_gcfabm as LIB #, Agent, World,  h5py, MPI
-import core as core
+sys.path.append('../')
 
-N_AGENTS = 100000
+from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from lib.traits import Mobile
+from lib import core
+
+N_AGENTS = 10
 N_STEPS = 1000
 
 random.seed(1)
 
 # initialization of the world instance, with no 
 simNo, outputPath = core.setupSimulationEnvironment()
-world = LIB.World(simNo,
-                  outputPath,
-                  spatial=False,
-                  maxNodes = N_AGENTS,
-                  maxLinks = 0,
-                  nSteps=N_STEPS)
+world = World(simNo,
+              outputPath,
+              maxNodes = N_AGENTS,
+              maxLinks = 0,
+              nSteps=N_STEPS)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerNodeType('agents', AgentClass=LIB.Agent,
-                               staticProperties = [('gID', np.int32, 1)],
-                               dynamicProperties = [('food', np.int32, 1),
+AGENT = world.registerAgentType('agents', AgentClass=Agent,
+                                # staticProperties = [('gID', np.int32, 1)],
+                                dynamicProperties = [('food', np.int32, 1),
                                                     ('karma', np.int32, 1),
                                                     ('heaven', np.bool_, 1),
                                                     ('diedThisStep', np.bool_, 1)])
@@ -66,16 +67,16 @@ for _ in range(N_AGENTS):
 
     # The init of LIB.Agent requires either the definition of all attributes 
     # that are registered (above) or none.
-    agent = LIB.Agent(world,
-                      food = food,
-                      karma = karma,
-                      heaven = False,
-                      diedThisStep = False)
+    agent = Agent(world,
+                  food = food,
+                  karma = karma,
+                  heaven = False,
+                  diedThisStep = False)
     ##############################################
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures
-    agent.register(world)
+    world.registerAgent(agent)
 
 
     
@@ -188,9 +189,21 @@ def doStepNumpy():
 # testMethod(doStepDirect, "direct")
 # print(sys.argv[1])
     
-if sys.argv[1] == "numpy":
-    testMethod(doStepNumpy, 'numpy')
-elif sys.argv[1] == "nd":
-    testMethod(doStepNumpyDirect, 'numpy direct')
-else:
-    testMethod(doStepItem, 'simple')
+# if sys.argv[1] == "numpy":
+#     testMethod(doStepNumpy, 'numpy')
+# elif sys.argv[1] == "nd":
+#     testMethod(doStepNumpyDirect, 'numpy direct')
+# else:
+#     testMethod(doStepItem, 'simple')
+
+all = world.graph.nodes[AGENT]
+
+def incrFood(row):
+    print(row)
+    r = row['food'] + 1
+    print(r)
+    return r
+
+print(all['food'])
+t = world.setAttrsForTypeVectorized(AGENT, 'food', np.vectorize(incrFood))
+print(all['food'])

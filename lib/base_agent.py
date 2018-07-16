@@ -76,12 +76,12 @@ class Entity():
         """ Makes the class variable _graph available at the first init of an entity"""
         cls._graph = graph
 
-    def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
+    # def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
-        world.registerAgent(self, self.agTypeID, ghost=ghost)
+    #     world.registerAgent(self, self.agTypeID, ghost=ghost)
 
-        if parentEntity is not None:
-            self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
+    #     if parentEntity is not None:
+    #         self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""

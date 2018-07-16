@@ -297,7 +297,23 @@ class World:
             else:
                 return [self.__entDict[agentID] for agentID in self.__nodeDict[agTypeID]]
 
-    def filterAgents(self, agTypeID, attr, operator, value = None, compareAttr=None):
+
+    def filterAgents(self, nodesTypeID, func):
+        # array = self.graph.nodes[nodesTypeID]
+        # active = array[array['active']]
+        # return active[func(active)]['instance']
+        array = self.graph.nodes[nodesTypeID]
+        mask = array['active'] & func(array)
+        return array['instance'][mask]
+
+    def filterAgentsFull(self, nodesTypeID, func):
+        array = self.graph.nodes[nodesTypeID]
+        mask = array['active'] & func(array)
+        return array['instance'][mask]
+
+
+    
+    def filterAgents_old(self, agTypeID, attr, operator, value = None, compareAttr=None):
         """
         Method for quick filtering nodes according to comparison of attributes
         allowed operators are:
@@ -333,9 +349,8 @@ class World:
         elif operator=='egt':
             boolArr = values >= compareValue    
             
-        lnIDs = np.where(boolArr)[0] + (self.maxNodes * agTypeID)
+        return self.graph.nodes[agTypeID]['instance'][np.where(boolArr)[0]]
         
-        return lnIDs
         
 
     def iterNodes(self, agTypeID=None, localIDs=None, ghosts = False):
@@ -356,6 +371,10 @@ class World:
 
         return  [self.__entDict[i] for i in nodeList]
 
+    def setAttrsForTypeVectorized(self, nodesTypeID, attr, vfunc):
+        array = self.graph.nodes[nodesTypeID]
+        array['active'][attr] = vfunc(array[array['active']])    
+    
     def setAttrsForType(self, nodesTypeID, func):
         """
         This function allows to manipulate the underlaying np.array directly, e.g.
@@ -366,13 +385,16 @@ class World:
         dimensions.
 
         Use case: Increase the age for all agents by one:
-        setAttrsForType(AGENT, lambda a: a['age'] += 1)
+        def increaseAge(agents):
+            agents['age'] += 1
+            return agents
+
+        setAttrsForType(AGENT, increaseAge)
 
         see also: setAttrsForFilteredType/Array
         """    
         array = self.graph.nodes[nodesTypeID]
-        mask = (array['active'] == True) 
-        array[mask] = func(array[mask])
+        array['active'] = func(array['active'])
 
     def setAttrsForFilteredType(self, nodesTypeID, filterFunc, setFunc):
         """
@@ -380,18 +402,24 @@ class World:
         subset is formed by the filterFunc.
 
         filterFunc is a function that gets an (structed) np.array and must return an boolean array with
-        the same length.
+        the same length. For performance reasons, the function gets the complete underlaying array, 
+        which can contain unused rows (the 'active' column is set to False for those rows).
 
         setFunc is a function that gets an array that contains the rows where the boolean array returned
         by the filterFunc is True, and must return an array with the same dimensions. 
 
         Use case: All agents without food are dying:
-        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, lambda a: a['alive'] = False)
+
+        def dieAgentDie(deadAgents):
+          deadAgents['alive'] = False
+          return deadAgents
+
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, dieAgentDie)
 
         see also: setAttrForType and setAttrsForFilteredArray
         """    
         array = self.graph.nodes[nodesTypeID]
-        mask = (array['active'] == True) & filterFunc(array) 
+        mask = array['active'] & filterFunc(array) 
         array[mask] = setFunc(array[mask])
 
     def setAttrsForFilteredArray(self, array, filterFunc, setFunc):
@@ -409,22 +437,27 @@ class World:
 
         Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
 
-        def heavenOrHell(array):
-            setAttrsForFilteredArray(array, lambda a: a['karma'] > 10 , lambda a: a['heaven'] = True)
-            array['alive'] = False
-            return array
+        def goToHeaven(angels):
+            angels['heaven'] = True
+            return angels
 
-    setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
+        def heavenOrHell(deadAgents):
+            setAttrsForFilteredArray(deadAgents, lambda a: a['karma'] > 10 , goToHeaven)
+            deadAgents['alive'] = False
+            return deadAgents
 
-    see also: setAttrForType and setAttrsForFilteredType
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
+        
+        see also: setAttrForType and setAttrsForFilteredType
         """    
-        mask = (array['active'] == True) & filterFunc(array) 
+        mask = array['active'] & filterFunc(array) 
         array[mask] = setFunc(array[mask])
 
 
-    def deleteAgentsFilteredType(self, nodesTypeID, filterFunc):
+    def deleteAgentsIf(self, nodesTypeID, filterFunc):
+        """
+        """
         array = self.graph.nodes[nodesTypeID]
-        # array['active'][array['active'] == True & filterFunc(array)] = False
         filtered = array[array['active'] == True & filterFunc(array)]
         if len(filtered) > 0:
             for aID in np.nditer(filtered['gID']):
@@ -532,7 +565,7 @@ class World:
 
         return  liTypeIDIdx
 
-    def registerAgent(self, agent, typ, ghost=False): #TODO rename agent to entity?
+    def registerAgent(self, agent, ghost=False): #TODO rename agent to entity?
         """
         Method to register instances of nodes
         -> update of:
@@ -551,12 +584,12 @@ class World:
             self.__loc2glob[agent.nID] = agent.gID
 
         if ghost:
-            self.__ghostNodeDict[typ].append(agent.nID)
-            self.__ghostDataDict[typ].append(agent.dataID)
+            self.__ghostNodeDict[agent.agTypeID].append(agent.nID)
+            self.__ghostDataDict[agent.agTypeID].append(agent.dataID)
         
         else:
-            self.__nodeDict[typ].append(agent.nID)
-            self.__dataDict[typ].append(agent.dataID)
+            self.__nodeDict[agent.agTypeID].append(agent.nID)
+            self.__dataDict[agent.agTypeID].append(agent.dataID)
 
     def deRegisterAgent(self, agent, ghost):
         """
