@@ -227,14 +227,14 @@ class World:
         Method to write values of a sequence of links at once
         Return type is numpy array
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
+        return self.graph.getEdgeSeqAttr(label, lnIDs=localLinkIDList)
         
     def getAttrOfLinkType(self, label, liTypeID):
         """
         Method to write values of all links of a type at once
         Return type is numpy array
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
+        return self.graph.getEdgeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
         
     def setAttrOfLinks(self, label, valueList, localLinkIDList):
         """
