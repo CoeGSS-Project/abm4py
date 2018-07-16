@@ -29,22 +29,16 @@ class PlotClass():
         extend = world.getParameters()['extend']
         
         
-        localNodeIDList=world.filterAgents(2, 'sick', 'eq', True)
-        if len(localNodeIDList) > 0: 
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
-            #print(pos.shape)
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'], 2)
+        if len(pos) > 0:
             self.h_sicks = plt.scatter(pos[:,1],pos[:,0], c='r', s = 35, marker='s',zorder=2)
         
-        localNodeIDList=world.filterAgents(2, 'sick', 'eq', False)
-        if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
-            #print(pos.shape)
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'] == False, 2)
+        if len(pos) > 0:
             self.h_healths = plt.scatter(pos[:,1],pos[:,0], c='g', s = 35, marker='s',zorder=2)
         
-        localNodeIDList=world.filterAgents(2, 'remainingImmunity', 'gt', 0)
-        if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
-            #print(pos.shape)
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['remainingImmunity'], 2)
+        if len(pos) > 0:
             self.h_immunes = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
         
         
@@ -68,38 +62,28 @@ class PlotClass():
         plt.legend(['number of sick people', 'number of healthy people', 'number of immune people'])
         
     def update(self, world):
-        localNodeIDList=world.filterAgents(2, 'sick', 'eq', True)
-        if len(localNodeIDList) > 0: 
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'], 2)
+        if len(pos) > 0:
             self.h_sicks.set_offsets(np.c_[pos[:,1],pos[:,0]])
-            
-        
-        localNodeIDList=world.filterAgents(2, 'sick', 'eq', False)
-        if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
-            self.h_healths.set_offsets(np.c_[pos[:,1],pos[:,0]])
-            
-        
-        localNodeIDList=world.filterAgents(2, 'remainingImmunity', 'gt', 0)
-        if len(localNodeIDList) > 0:
-            pos = world.getAttrOfAgentType('pos', localNodeIDList)
-            # self.h_immunes = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
-            self.h_immunes.set_offsets(np.c_[pos[:,1],pos[:,0]])
 
-#        
-#        
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'] == False, 2)
+        if len(pos) > 0:
+            self.h_healths.set_offsets(np.c_[pos[:,1],pos[:,0]])
+
+        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['remainingImmunity'], 2)
+        if len(pos) > 0:
+            self.h_immunes.set_offsets(np.c_[pos[:,1],pos[:,0]])
         
         plt.draw()
         
         self.sicks.popleft()
-        self.sicks.append(len(world.filterAgents(2, 'sick', 'eq', True)))
+        self.sicks.append(world.countAgents(lambda a: a['sick'], 2))
         
         self.healths.popleft()
-        self.healths.append(len(world.filterAgents(2, 'sick', 'eq', False)))
+        self.healths.append(world.countAgents(lambda a: a['sick'] == False, 2))
         
         self.immunes.popleft()
-        self.immunes.append(len(world.filterAgents(2, 'remainingImmunity', 'gt', 0)))
-
+        self.immunes.append(world.countAgents(lambda a: a['remainingImmunity'] == False, 2))
                     
         self.timeSicks[0].set_ydata(self.sicks)
         self.timeHealths[0].set_ydata(self.healths)

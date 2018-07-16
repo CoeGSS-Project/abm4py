@@ -504,7 +504,6 @@ class BaseGraph():
              eType.nodesIn[target].remove(source)
              
     def remEdge(self, eTypeID, source, target):
-        
         eType = self.edges[eTypeID]
         
         dataID = eType.eDict.pop((source, target))

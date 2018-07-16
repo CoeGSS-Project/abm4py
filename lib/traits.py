@@ -183,18 +183,12 @@ class SuperPowers():
         # execution
         assert world.isParallel == False
 
-    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None, force=False):
+    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None):
         """
         Set the attributes of all connected nodes of an specified agTypeID
         or connected by a specfic edge type
         """
-        if not force:
-            raise Exception
-        else:
-            #import warnings
-            #warnings.warn('This is violating the current rules and data get lost')
-
-            self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
+        self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
 
 class Aggregator():
     """
@@ -234,5 +228,3 @@ class Aggregator():
         self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
         self.aggegationDict[liTypeID].remove(self.__getAgent(peerID).attr)
         
-#    def aggregateItems(self, label, liTypeID):
-#        return [item[label] for item in  self.aggegationDict[liTypeID]]

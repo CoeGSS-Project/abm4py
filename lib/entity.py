@@ -76,7 +76,7 @@ class _Entity():
 
     def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
-        world.registerAgent(self, self.agTypeID, ghost=ghost)
+        world.registerAgent(self, ghost=ghost)
 
         if parentEntity is not None:
             self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
@@ -85,10 +85,3 @@ class _Entity():
         """ method to delete the agent from the simulation"""
         world.graph.remNode(self.nID)
         world.deRegisterAgent(self, ghost=False)
-
-    
-
-
-        
-
-    

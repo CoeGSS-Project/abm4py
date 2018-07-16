@@ -84,6 +84,7 @@ class Agent(_Entity):
     def getAttrOfLink(self, prop, liTypeID):
         """
         This method accesses the values of outgoing links
+        (stf) Improve documentation and/or simplify function
         """
         (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, liTypeID)
 

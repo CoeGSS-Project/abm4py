@@ -56,7 +56,8 @@ LIFESPAN = 2600             # Lifespan of an agent, 2600 weeks = 50 years
 CARRYING_CAPACITY = 300
 CHANCE_REPRODUCE = 1
 IMMUNITY_DURATION = 52
-MAX_AGENTS = max(CARRYING_CAPACITY, EXTEND**2)
+# MAX_AGENTS = max(CARRYING_CAPACITY, EXTEND**2)
+MAX_AGENTS = 10000
 
 #%% People class
 class People(Agent, Mobile):
@@ -73,7 +74,7 @@ class People(Agent, Mobile):
 
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_PEOPLE, self.nID, self.loc.nID)
+        # world.addLink(LINK_PEOPLE, self.nID, self.loc.nID)
         world.addLink(LINK_PEOPLE, self.loc.nID, self.nID)
         
     def getSick(self):
@@ -146,7 +147,7 @@ class People(Agent, Mobile):
                 self.delete(world)
                 
     def reproduce(self):
-        if world.nAgents() < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
+        if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
             newPerson = People(world, pos=self.attr['pos'], age=1)
             newPerson.getHealthy()
             newPerson.register(world)
@@ -239,7 +240,7 @@ for iPeople in range(N_PEOPLE):
     
 del people
 
-for people in world.random.entity(PEOPLE,10):
+for people in world.random.nChoiceOfType(10, PEOPLE):
     people.getSick()
 
 
@@ -251,7 +252,7 @@ iStep = 0
 while True:
     iStep +=1
     tt = time.time()
-    for people in world.iterNodes(agTypeID=PEOPLE):
+    for people in world.getAgents.byType(PEOPLE):
         people.getOlder()
         people.move()
         

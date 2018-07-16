@@ -1703,7 +1703,7 @@ class Random():
         self.__agentsByType   = __agentsByType
         
 
-    def nChoiceOfType(self, agTypeID, nChoice=1):
+    def nChoiceOfType(self, nChoice, agTypeID):
         return random.sample(self.__agentsByType[agTypeID],nChoice)
     
     
