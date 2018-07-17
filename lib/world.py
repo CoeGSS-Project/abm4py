@@ -198,56 +198,56 @@ class World:
 #%% Global Agent scope
         
 
-    def getAttrOfAgentsIDs(self, label, localIDList):
-        return self.graph.getNodeSeqAttr(label, lnIDs=localIDList)
+    def getAttrOfAgents(self, attribute, localIDList):
+        return self.graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
 
-    def getAttrOfAgentType(self, label, agTypeID):
+    def getAttrOfAgentType(self, attribute, agTypeID):
         """
         Method to read attributes of node sequences at once
         Return type is numpy array
         Only return non-ghost agent properties
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=self.__agentIDsByType[agTypeID])
+        return self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
     
-    def setAttrOfAgents(self, label, valueList, localIDList):
+    def setAttrOfAgents(self, attribute, valueList, localIDList):
         """
         Method to write values of node sequences at once
         Return type is numpy array
         """
-        self.graph.setNodeSeqAttr(label, valueList, lnIDs=localIDList)
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
 
-    def setAttrOfAgentType(self, label, valueList, agTypeID):
+    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
         """
         Method to write values of all agents of a type at once
         Return type is numpy array
         """
-        self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
             
-    def getAttrOfLinks(self, label, localLinkIDList):
+    def getAttrOfLinks(self, attribute, localLinkIDList):
         """
         Method to retrieve all properties of all entities in the localLinkIDList
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=localLinkIDList)
+        return self.graph.getEdgeSeqAttr(attribute, lnIDs=localLinkIDList)
         
-    def getAttrOfLinkType(self, label, liTypeID):
+    def getAttrOfLinkType(self, attribute, liTypeID):
         """
         Method to retrieve all properties of all entities of one liTypeID
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
+        return self.graph.getEdgeSeqAttr(attribute, lnIDs=self.linkDict[liTypeID])
         
-    def setAttrOfLinks(self, label, valueList, localLinkIDList):
+    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
         """
         Method to write values of a sequence of links at once
         Return type is numpy array
         """
-        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
+        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
         
-    def setAttrOfLinkType(self, label, valueList, liTypeID):
+    def setAttrOfLinkType(self, attribute, valueList, liTypeID):
         """
         Method to write values of all links of a type at once
         Return type is numpy array
         """
-        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
+        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=self.linkDict[liTypeID])            
 
 
 #%% Agent access 
@@ -291,7 +291,7 @@ class World:
         return np.sum(mask)
 
     
-    def getAttrOfFilteredAgentType(self, attr, func, agTypeID):
+    def getAttrOfFilteredAgentType(self, attribute, func, agTypeID):
         """
         This function allows to access a sub-selection of agents that is defined 
         by a filter function that is action on agent properties.
@@ -301,11 +301,11 @@ class World:
         """
         array = self.graph.nodes[agTypeID]
         mask = array['active'] & func(array)
-        return array[attr][mask]
+        return array[attribute][mask]
 
-    def setAttrsForTypeVectorized(self, agTypeID, attr, vfunc):
+    def setAttrsForTypeVectorized(self, agTypeID, attribute, vfunc):
         array = self.graph.nodes[agTypeID]
-        array['active'][attr] = vfunc(array[array['active']])    
+        array['active'][attribute] = vfunc(array[array['active']])    
     
     def setAttrsForType(self, agTypeID, func):
         """
@@ -508,7 +508,7 @@ class World:
 
         return  liTypeIDIdx
 
-    def registerAgent(self, agent, ghost=False): #TODO rename agent to entity?
+    def registerAgent(self, agent, ghost=False): 
         """
         Method to register instances of Agents
         """
@@ -556,6 +556,7 @@ class World:
             self.__agendDataIDsList[agTypeID].remove(agent.dataID)
             self.__nAgentsByType[agTypeID] -=1
             #print(self.__agentIDsByType[agTypeID])
+    
     def registerRecord(self, name, title, colLables, style ='plot', mpiReduce=None):
         """
         Creation of of a new record instance. 
