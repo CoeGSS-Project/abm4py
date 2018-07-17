@@ -197,56 +197,69 @@ class World:
 
 #%% Global Agent scope
         
-    def getAttrOfAgents(self, label, localIDList):
-        return self.graph.getNodeSeqAttr(label, lnIDs=localIDList)
+    def getAttrOfAgents(self, attribute, localIDList):
+        return self.graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
 
-    def getAttrOfAgentType(self, label, agTypeID):
+    def getAttrOfAgentType(self, attribute, agTypeID):
         """
         Method to read attributes of node sequences at once
-        Return type is numpy array
+        gitgeturn type is numpy array
         Only return non-ghost agent properties
         """
-        return self.graph.getNodeSeqAttr(label, lnIDs=self.__agentIDsByType[agTypeID])
+        return self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
     
-    def setAttrOfAgents(self, label, valueList, localIDList=None, agTypeID=None):
+    def getAttrOfFilteredAgents(self, attribute, agTypeID, func):
+        """
+        This function allows to access the attributes of a sub-selection of agents 
+        that is defined  by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
+        """
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        #maskedArray = array[mask]
+        return array[attribute][mask]
+    
+    def setAttrOfAgents(self, attribute, valueList, localIDList=None, agTypeID=None):
         """
         Method to write values of node sequences at once
         Return type is numpy array
         """
-        self.graph.setNodeSeqAttr(label, valueList, lnIDs=localIDList)
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
 
-    def setAttrOfAgentType(self, label, valueList, agTypeID):
+    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
         """
         Method to write values of all agents of a type at once
         Return type is numpy array
         """
-        self.graph.setNodeSeqAttr(label, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
             
     def getAttrOfLinks(self, label, localLinkIDList=None, liTypeID=None):
         """
         Method to write values of a sequence of links at once
         Return type is numpy array
         """
-        return self.graph.getEdgeSeqAttr(label, lnIDs=localLinkIDList)
+        return self.graph.getEdgeSeqAttr(attribute, lnIDs=localLinkIDList)
         
-    def getAttrOfLinkType(self, label, liTypeID):
+    def getAttrOfLinkType(self, attribute, liTypeID):
         """
         Method to write values of all links of a type at once
         Return type is numpy array
         """
-        return self.graph.getEdgeSeqAttr(label, lnIDs=self.linkDict[liTypeID])
+        return self.graph.getEdgeSeqAttr(attribute, lnIDs=self.linkDict[liTypeID])
         
-    def setAttrOfLinks(self, label, valueList, localLinkIDList):
+    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
         """
         Method to retrieve all properties of all entities of one liTypeID
         """
-        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=localLinkIDList)
+        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
         
-    def setAttrOfLinkType(self, label, valueList, liTypeID):
+    def setAttrOfLinkType(self, attribute, valueList, liTypeID):
         """
         Method to retrieve all properties of all entities of one liTypeID
         """
-        self.graph.setEdgeSeqAttr(label, valueList, lnIDs=self.linkDict[liTypeID])            
+        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=self.linkDict[liTypeID])            
 
 
 #%% Agent access 
@@ -264,6 +277,7 @@ class World:
     def getAgent(self, agentID):    
         return self.__allAgentDict[agentID]
 
+    
 
     def filterAgents(self, agTypeID, func):
         """

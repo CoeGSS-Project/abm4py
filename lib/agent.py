@@ -51,19 +51,18 @@ class Agent(_Entity):
         As default, only outgoing connctions are considered, but can be changed
         by setting mode ='in'.
         """
-        if liTypeID is None:
-            
+        if liTypeID is None: 
             liTypeID = self._graph.node2EdgeType[self.agTypeID, agTypeID]
         else:
             assert agTypeID is None
         
         
         if mode=='out':            
-            eList, nodeList  = self._graph.outgoing(self.nID, liTypeID)
+            peerIDs  = self._graph.outgoingIDs(self.nID, liTypeID)
         elif mode == 'in':
-            eList, nodeList  = self._graph.incomming(self.nID, liTypeID)
+            peerIDs  = self._graph.incommingIDs(self.nID, liTypeID)
         
-        return nodeList
+        return peerIDs
 
     def getLinkIDs(self, liTypeID):
         """
@@ -74,43 +73,44 @@ class Agent(_Entity):
         return eList
     
         
-    def getAttrOfPeers(self, prop, liTypeID):
+    def getAttrOfPeers(self, attribute, liTypeID):
         """
         This method returns the attributes of all connected nodes connected 
         by a specfic edge type.
         """
-        return self._graph.getOutNodeValues(self.nID, liTypeID, attr=prop)
+        return self._graph.getOutNodeValues(self.nID, liTypeID, attr=attribute)
 
 
-                                   
+#self.weights, linkReferences, connectedNodes = self.getAttrOfLink('weig',liTypeID=CON_LL)                                   
 
-    def getAttrOfLink(self, prop, liTypeID):
+#    def getAttrOfLink(self, attribute, liTypeID):
+#        """
+#        This method accesses the values of outgoing links
+#        """
+#        (eTypeID, dataID), (nTypeID, dataIDs)  = self._graph.outgoing(self.nID, liTypeID)
+#        
+#        nIDList = self._graph.nodes[nTypeID]['ID'][dataIDs]
+#        
+#        edgesValues = self._graph.getEdgeSeqAttr(label=attribute, 
+#                                                 eTypeID=eTypeID, 
+#                                                 dataIDs=dataID)
+#
+#        
+#
+#        return edgesValues, (eTypeID, dataID), nIDList
+
+    def getAttrOfLink(self, attribute, liTypeID):
         """
         This method accesses the values of outgoing links
         """
-        (eTypeID, dataID), nIDList  = self._graph.outgoing(self.nID, liTypeID)
-
-        edgesValues = self._graph.getEdgeSeqAttr(label=prop, 
-                                                 eTypeID=eTypeID, 
-                                                 dataIDs=dataID)
-
+        return self._graph.getOutEdgeValues(self.nID, liTypeID, attribute)
         
-
-        return edgesValues, (eTypeID, dataID), nIDList
-
-    def setAttrOfLink(self, prop, values, liTypeID):
+    def setAttrOfLink(self, attribute, values, liTypeID):
         """
         This method changes the attributes of outgoing links
         """
-        (eTypeID, dataID), _  = self._graph.outgoing(self.nID, liTypeID)
+        self._graph.setOutEdgeValues(self.nID, liTypeID, attribute, values)
         
-        self._graph.setEdgeSeqAttr(label=prop, 
-                                   values=values,
-                                   eTypeID=eTypeID, 
-                                   dataIDs=dataID)
-
-
-
 
     def addLink(self, peerID, liTypeID, **kwpropDict):
         """

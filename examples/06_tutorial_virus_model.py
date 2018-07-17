@@ -73,7 +73,6 @@ class People(Agent, Mobile):
 
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_PEOPLE, self.nID, self.loc.nID)
         world.addLink(LINK_PEOPLE, self.loc.nID, self.nID)
         
     def getSick(self):
@@ -135,7 +134,7 @@ class People(Agent, Mobile):
         if random.random() < INFECTIOUSNESS:
             for peopleID in self.loc.getPeerIDs(LINK_PEOPLE):
                 people = self.getAgent(peopleID)   
-                if people.attr['remainingImmunity']==0 and not people.attr['sick']:
+                if people['remainingImmunity']==0 and not people.attr['sick']:
                     people.getSick()
                 
     def recoverOrDie(self):
@@ -146,8 +145,8 @@ class People(Agent, Mobile):
                 self.delete(world)
                 
     def reproduce(self):
-        if world.nAgents() < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
-            newPerson = People(world, pos=self.attr['pos'], age=1)
+        if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
+            newPerson = People(world, pos=self['pos'], age=1)
             newPerson.getHealthy()
             newPerson.register(world)
                 
@@ -239,7 +238,7 @@ for iPeople in range(N_PEOPLE):
     
 del people
 
-for people in world.random.entity(PEOPLE,10):
+for people in world.random.nChoiceOfType(PEOPLE,10):
     people.getSick()
 
 
@@ -251,7 +250,7 @@ iStep = 0
 while True:
     iStep +=1
     tt = time.time()
-    for people in world.iterNodes(agTypeID=PEOPLE):
+    for people in world.getAgents.byType(agTypeID=PEOPLE):
         people.getOlder()
         people.move()
         

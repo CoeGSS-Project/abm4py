@@ -478,7 +478,7 @@ class BaseGraph():
         
             try:
                 eType.edgesOut[source].append(dataID)
-                eType.nodesOut[source].append(trgDataID)
+                eType.nodesOut[source][1].append(trgDataID)
             except:
                 eType.edgesOut[source] = [dataID]
                 eType.nodesOut[source] = trgNodeTypeID, [trgDataID]
@@ -589,7 +589,7 @@ class BaseGraph():
     def outgoing(self, lnID, eTypeID):
         """ Returns the dataIDs of all outgoing edges of the specified type"""
         try: 
-            print (eTypeID, self.edges[eTypeID].edgesOut[lnID]) , self.edges[eTypeID].nodesOut[lnID]
+            #print (eTypeID, self.edges[eTypeID].edgesOut[lnID]) , self.edges[eTypeID].nodesOut[lnID]
             return (eTypeID, self.edges[eTypeID].edgesOut[lnID]) , self.edges[eTypeID].nodesOut[lnID]
         except:
             return (None, []), (None, [])
@@ -605,7 +605,7 @@ class BaseGraph():
         """ Returns the dataIDs of all outgoing edges of the specified type"""
         try:
             nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
-            return self.nodes[nTypeID]['ID'][dataIDs] 
+            return self.nodes[nTypeID]['ID'][dataIDs]
         except:
             return []
         
@@ -623,6 +623,14 @@ class BaseGraph():
             
             nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
             return self.nodes[nTypeID]['instance'][dataIDs] 
+        except:
+            return []
+
+    def incommingInstance(self, lnID, eTypeID):
+        """ Returns the dataIDs of all outgoing edges of the specified type"""
+        try:
+            nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
+            return self.nodes[nTypeID]['ID'][dataIDs] 
         except:
             return []
         
@@ -725,6 +733,8 @@ class ABMGraph(BaseGraph):
 
         return liTypeIDIdx
 
+
+    #%% NODE ACCESS
     def getDTypeOfNodeType(self, agTypeID, kind):
         
         if kind == 'sta':
@@ -764,8 +774,6 @@ class ABMGraph(BaseGraph):
         """
         nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
         
-        #nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)
-        
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]
         else:
@@ -777,9 +785,7 @@ class ABMGraph(BaseGraph):
         specifice edge type and outward direction
         """
         nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
-        
-        #nTypeID, dataIDs = self.getNodeDataRef(nIDsOut)     
-        
+            
         self.nodes[nTypeID][attr][dataIDs] = values
         
 
@@ -789,9 +795,7 @@ class ABMGraph(BaseGraph):
         specifice edge type and inward direction
         """
         nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
-        
-        #nTypeID, dataIDs = self.getNodeDataRef(nIDsIn)
-        
+           
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]
         else:
@@ -803,10 +807,57 @@ class ABMGraph(BaseGraph):
         specifice edge type and inward direction
         """
         nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
-        
-        #nTypeID, dataIDs = self.getNodeDataRef(nIDsIn)
-        
+
         self.edges[eTypeID][attr][dataIDs] = values
+
+
+    #%%  EDGE ACCESS
+    
+    def getOutEdgeValues(self, leID, eTypeID, attr=None):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and outward direction
+        """
+        dataIDs = self.edges[eTypeID].edgesOut[leID]
+        
+        if attr:
+            return self.edges[eTypeID][dataIDs][attr]
+        else:
+            return self.edges[eTypeID][dataIDs]
+
+    def setOutEdgeValues(self, leID, eTypeID, attr, values):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and outward direction
+        """
+        dataIDs = self.edges[eTypeID].edgesOut[leID]
+        self.edges[eTypeID][attr][dataIDs] = values
+        
+
+    def getInEdgeValues(self, leID, eTypeID, attr=None):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and inward direction
+        """
+        dataIDs = self.edges[eTypeID].edgesIn[leID]
+        
+        #eTypeID, dataIDs = self.getNodeDataRef(nIDsIn)
+        
+        if attr:
+            return self.edges[eTypeID][dataIDs][attr]
+        else:
+            return self.edges[eTypeID][dataIDs]
+
+    def setInEdgeValues(self, leID, eTypeID, attr, values):
+        """
+        Method to read the attributes of connected nodes via a 
+        specifice edge type and inward direction
+        """
+        dataIDs = self.edges[eTypeID].edgesIn[leID]
+        self.edges[eTypeID][attr][dataIDs] = values
+        
+
+
         
     def getNodeView(self, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
