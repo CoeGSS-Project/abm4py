@@ -122,13 +122,12 @@ class Mobile():
         self._setLocationDict(world.getLocationDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
+        # remove old link
         self['pos'] = [ newX, newY]
-        #self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
-        
-        self.loc = self.locDict[(newX, newY)]
-        
-        #self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+       
+        # add new link and location
+        self.loc = self.locDict[(newX, newY)]      
         self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod
@@ -215,7 +214,7 @@ class Aggregator():
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure, bt also 
         """
-        self._graph.addLink(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
         try:
             self.aggegationDict[liTypeID].append(self.__getAgent(peerID).attr)
         except:

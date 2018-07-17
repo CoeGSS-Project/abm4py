@@ -126,8 +126,8 @@ class World:
         
         
         # re-direct of graph functionality 
-        self.addLink        = self.graph.addLink
-        self.addLinks       = self.graph.addLinks
+        self.addLink        = self.graph.addEdge
+        self.addLinks       = self.graph.addEdges
         self.delLinks       = self.graph.remEdge
 
         self.addNode     = self.graph.addNode
@@ -201,15 +201,30 @@ class World:
     def getAttrOfAgents(self, attribute, localIDList):
         return self.graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
 
+
     def getAttrOfAgentType(self, attribute, agTypeID):
         """
         Method to read attributes of node sequences at once
-        Return type is numpy array
+        gitgeturn type is numpy array
         Only return non-ghost agent properties
         """
         return self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
     
+    def getAttrOfFilteredAgents(self, attribute, agTypeID, func):
+        """
+        This function allows to access the attributes of a sub-selection of agents 
+        that is defined  by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
+        """
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        #maskedArray = array[mask]
+        return array[attribute][mask]
+    
     def setAttrOfAgents(self, attribute, valueList, localIDList):
+
         """
         Method to write values of node sequences at once
         Return type is numpy array
@@ -265,6 +280,7 @@ class World:
     def getAgent(self, agentID):    
         return self.__allAgentDict[agentID]
 
+    
 
     def filterAgents(self, func, agTypeID):
         """
@@ -499,7 +515,7 @@ class World:
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         
-        liTypeIDIdx = self.graph.addLinkType( agTypeStr, 
+        liTypeIDIdx = self.graph.addEdgeType( agTypeStr, 
                                                staticProperties, 
                                                dynamicProperties, 
                                                agTypeID1, 

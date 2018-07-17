@@ -487,7 +487,7 @@ class Spatial():
 
             
         #eStart = self.world.graph.ecount()
-        self.world.graph.addLinks(liTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
+        self.world.graph.addEdges(liTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
 #        eStart = 0

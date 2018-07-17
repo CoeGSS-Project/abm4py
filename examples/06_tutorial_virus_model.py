@@ -74,7 +74,6 @@ class People(Agent, Mobile):
 
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        # world.addLink(LINK_PEOPLE, self.nID, self.loc.nID)
         world.addLink(LINK_PEOPLE, self.loc.nID, self.nID)
         
     def getSick(self):
@@ -129,14 +128,14 @@ class People(Agent, Mobile):
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
-        
+        #print(self.nID)
         Mobile.move(self, newX, newY, LINK_PEOPLE)
         
     def infect(self):
         if random.random() < INFECTIOUSNESS:
             for peopleID in self.loc.getPeerIDs(LINK_PEOPLE):
                 people = self.getAgent(peopleID)   
-                if people.attr['remainingImmunity']==0 and not people.attr['sick']:
+                if people['remainingImmunity']==0 and not people.attr['sick']:
                     people.getSick()
                 
     def recoverOrDie(self):
@@ -144,11 +143,13 @@ class People(Agent, Mobile):
             if np.random.random(1) < CHANCE_RECOVER:
                 self.becomeImmune()
             else:
+                #print('Person died')
                 self.delete(world)
                 
     def reproduce(self):
         if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
-            newPerson = People(world, pos=self.attr['pos'], age=1)
+
+            newPerson = People(world, pos=self['pos'], age=1)
             newPerson.getHealthy()
             newPerson.register(world)
                 
@@ -253,8 +254,9 @@ while True:
     iStep +=1
     tt = time.time()
     for people in world.getAgents.byType(PEOPLE):
-        people.getOlder()
         people.move()
+        people.getOlder()
+        
         
         if people['sick']:
             people.recoverOrDie()
@@ -262,15 +264,8 @@ while True:
             people.infect()
         else:
             people.reproduce()
-            
-        
-    
-#    [sheep.step(world) for sheep in world.iterNodes(agTypeID=SHEEP)]
-       
-        
-    
-        
-        
+              
+     
     # This updates the plot.        
     pos = world.getAttrOfAgentType('pos', agTypeID=PEOPLE)
     if pos is not None:
