@@ -174,7 +174,7 @@ class BaseAgent(Entity):
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure
         """
-        self._graph.addLink(liTypeID, self.nID, friendID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.nID, friendID, attributes = tuple(kwpropDict.values()))
 
     def remLink(self, friendID=None, liTypeID=None):
         """

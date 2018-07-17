@@ -126,8 +126,8 @@ class World:
         
         
         # re-direct of graph functionality 
-        self.addLink        = self.graph.addLink
-        self.addLinks       = self.graph.addLinks
+        self.addLink        = self.graph.addEdge
+        self.addLinks       = self.graph.addEdges
         self.delLinks       = self.graph.remEdge
 
         self.addNode     = self.graph.addNode
@@ -514,7 +514,7 @@ class World:
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         
-        liTypeIDIdx = self.graph.addLinkType( agTypeStr, 
+        liTypeIDIdx = self.graph.addEdgeType( agTypeStr, 
                                                staticProperties, 
                                                dynamicProperties, 
                                                agTypeID1, 

@@ -214,7 +214,7 @@ class Aggregator():
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure, bt also 
         """
-        self._graph.addLink(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
         try:
             self.aggegationDict[liTypeID].append(self.__getAgent(peerID).attr)
         except:

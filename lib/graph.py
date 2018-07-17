@@ -385,7 +385,7 @@ class BaseGraph():
         print ((source, target))
         return self.edges[eTypeID].eDict[(source, target)]
 
-    def addLink(self, eTypeID, source, target, attributes = None):
+    def addEdge(self, eTypeID, source, target, attributes = None):
         """ 
         Adding a new connecting edge between source and target of
         the specified type
@@ -437,7 +437,7 @@ class BaseGraph():
          
         return leID, dataID, dataview
 
-    def addLinks(self, eTypeID, sources, targets, **kwAttr):
+    def addEdges(self, eTypeID, sources, targets, **kwAttr):
         """
         Method to create serveral edges at once
         Attribures are given as list or array per key word
@@ -721,7 +721,7 @@ class ABMGraph(BaseGraph):
             self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
-    def addLinkType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
+    def addEdgeType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
         liTypeIDIdx = len(self.liTypeByID)+1
         liTypeID = TypeDescription(liTypeIDIdx, typeStr, staticProperties, dynamicProperties)

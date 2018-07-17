@@ -118,7 +118,7 @@ class Agent(_Entity):
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure
         """
-        self._graph.addLink(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
 
     def remLink(self, peerID, liTypeID):
         """
