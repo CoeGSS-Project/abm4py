@@ -215,7 +215,7 @@ while True:
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
     #nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
-    agentsToIter = world.filterAgents(AGENT, lambda a: a['switch'] == 0)
+    agentsToIter = world.filterAgents(lambda a: a['switch'] == 0, AGENT, )
     randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents

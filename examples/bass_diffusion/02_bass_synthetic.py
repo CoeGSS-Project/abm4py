@@ -337,7 +337,7 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    agentsToIter = world.filterAgents(AGENT, lambda a: a['switch'] == 0)
+    agentsToIter = world.filterAgents(lambda a: a['switch'] == 0, AGENT)
     randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
@@ -346,7 +346,7 @@ while True:
         
         # dynamic of the agent
         switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
-        inno, imit = agent.attr[['inno','imit']][0]
+        inno, imit = agent[['inno','imit']]
         
         # if the condition for an agent to switch is met, the agent attributes
         # "switch" and "color" are altered
