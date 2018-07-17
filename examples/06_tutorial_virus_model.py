@@ -56,7 +56,8 @@ LIFESPAN = 2600             # Lifespan of an agent, 2600 weeks = 50 years
 CARRYING_CAPACITY = 300
 CHANCE_REPRODUCE = 1
 IMMUNITY_DURATION = 52
-MAX_AGENTS = max(CARRYING_CAPACITY, EXTEND**2)
+# MAX_AGENTS = max(CARRYING_CAPACITY, EXTEND**2)
+MAX_AGENTS = 10000
 
 #%% People class
 class People(Agent, Mobile):
@@ -127,7 +128,7 @@ class People(Agent, Mobile):
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
-        
+        #print(self.nID)
         Mobile.move(self, newX, newY, LINK_PEOPLE)
         
     def infect(self):
@@ -142,10 +143,12 @@ class People(Agent, Mobile):
             if np.random.random(1) < CHANCE_RECOVER:
                 self.becomeImmune()
             else:
+                #print('Person died')
                 self.delete(world)
                 
     def reproduce(self):
         if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
+
             newPerson = People(world, pos=self['pos'], age=1)
             newPerson.getHealthy()
             newPerson.register(world)
@@ -238,7 +241,7 @@ for iPeople in range(N_PEOPLE):
     
 del people
 
-for people in world.random.nChoiceOfType(PEOPLE,10):
+for people in world.random.nChoiceOfType(10, PEOPLE):
     people.getSick()
 
 
@@ -250,9 +253,10 @@ iStep = 0
 while True:
     iStep +=1
     tt = time.time()
-    for people in world.getAgents.byType(agTypeID=PEOPLE):
-        people.getOlder()
+    for people in world.getAgents.byType(PEOPLE):
         people.move()
+        people.getOlder()
+        
         
         if people['sick']:
             people.recoverOrDie()
@@ -260,15 +264,8 @@ while True:
             people.infect()
         else:
             people.reproduce()
-            
-        
-    
-#    [sheep.step(world) for sheep in world.iterNodes(agTypeID=SHEEP)]
-       
-        
-    
-        
-        
+              
+     
     # This updates the plot.        
     pos = world.getAttrOfAgentType('pos', agTypeID=PEOPLE)
     if pos is not None:

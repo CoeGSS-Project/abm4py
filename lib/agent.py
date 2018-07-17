@@ -102,6 +102,7 @@ class Agent(_Entity):
     def getAttrOfLink(self, attribute, liTypeID):
         """
         This method accesses the values of outgoing links
+        (stf) Improve documentation and/or simplify function
         """
         return self._graph.getOutEdgeValues(self.nID, liTypeID, attribute)
         

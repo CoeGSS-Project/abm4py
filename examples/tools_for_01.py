@@ -23,40 +23,37 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import collections  as mc
+from matplotlib import collections as mc
 
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
     positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
     
     #print(nAgents)
-    plt.figure('graph')
+    plt.ion()
+    fig = plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
     for agent in world.getAgents.byType(agentTypeID):
         pos = agent.attr['pos'][0]
-        
-        
-        
-        
-        
-        peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
-        if len(peerDataIDs)> 0:
+        peerDataIDs = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
+        if len(peerDataIDs) > 0:
             peerPositions = positions[peerDataIDs]
             for peerPos in peerPositions:
-                
                 linesToDraw.append([[pos[0], pos[1]], [peerPos[0], peerPos[1]]])
+
     lc = mc.LineCollection(linesToDraw, colors='b', lw=.1) 
     if attrLabel is not None:
         values = world.getAttrOfAgentType(attrLabel, agTypeID=agentTypeID)
         values = values / np.max(values)
         #print(values)
-        plt.scatter(positions[:,0], positions[:,1], s = 15, c = values,zorder=2)
+        plt.scatter(positions[:, 0], positions[:, 1], s = 15, c = values, zorder = 2)
     else:
-        plt.scatter(positions[:,0], positions[:,1], s = 15, zorder=2)
+        plt.scatter(positions[:, 0], positions[:, 1], s = 15, zorder = 2)
     ax.add_collection(lc)
     ax.autoscale()
     ax.margins(0.1)      
-    plt.tight_layout()  
+    plt.tight_layout()
     #plt.colorbar()
     plt.draw()
+    fig.canvas.flush_events()

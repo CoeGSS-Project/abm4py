@@ -429,7 +429,7 @@ class Spatial():
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
-                            self.world.registerAgent(loc,agTypeID,ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
+                            self.world.registerAgent(loc, ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
                             
                             #self.world.registerLocation(loc, xDst, yDst)
                             ghostLocationList.append(loc)
@@ -1703,7 +1703,7 @@ class Random():
         self.__agentsByType   = __agentsByType
         
 
-    def nChoiceOfType(self, agTypeID, nChoice=1):
+    def nChoiceOfType(self, nChoice, agTypeID):
         return random.sample(self.__agentsByType[agTypeID],nChoice)
     
     

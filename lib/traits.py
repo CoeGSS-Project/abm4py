@@ -122,13 +122,12 @@ class Mobile():
         self._setLocationDict(world.getLocationDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
+        # remove old link
         self['pos'] = [ newX, newY]
-        #self.remLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
-        
-        self.loc = self.locDict[(newX, newY)]
-        
-        #self.addLink(friendID=self.loc.nID, liTypeID=spatialLinkTypeID)
+       
+        # add new link and location
+        self.loc = self.locDict[(newX, newY)]      
         self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod
@@ -183,18 +182,12 @@ class SuperPowers():
         # execution
         assert world.isParallel == False
 
-    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None, force=False):
+    def setPeerAttr(self, prop, values, liTypeID=None, agTypeID=None):
         """
         Set the attributes of all connected nodes of an specified agTypeID
         or connected by a specfic edge type
         """
-        if not force:
-            raise Exception
-        else:
-            #import warnings
-            #warnings.warn('This is violating the current rules and data get lost')
-
-            self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
+        self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
 
 class Aggregator():
     """
@@ -234,5 +227,3 @@ class Aggregator():
         self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
         self.aggegationDict[liTypeID].remove(self.__getAgent(peerID).attr)
         
-#    def aggregateItems(self, label, liTypeID):
-#        return [item[label] for item in  self.aggegationDict[liTypeID]]
