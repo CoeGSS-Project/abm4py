@@ -64,6 +64,26 @@ class Grass(Location, Neighborhood, Collective):
         Location.__init__(self, world, **kwAttr) #hier stand LIB.Agent, warum?
         Neighborhood.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
+
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'grass'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = [('height', np.float32, 1)]     
+        return classDesc
         
     def add(self, value):
         
@@ -99,7 +119,28 @@ class Sheep(Agent, Mobile):
         self.loc = locDict[(x,y)]
         #world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
-        
+    
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'sheep'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = [('weight', np.float32, 1)]     
+        return classDesc
+
+    
     def eat(self):
         """ Jette
         
@@ -167,6 +208,26 @@ class Wolf(Agent, Mobile):
         self.loc = locDict[(x,y)]
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
 
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'wolf'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = [('weight', np.float32, 1)]     
+        return classDesc
+    
     def hunt(self):
         """ 
         
@@ -232,6 +293,28 @@ class WolfPack(Agent, Collective):
         Collective.__init__(self, world, **kwAttr)
         
         self.registerGroup('wolfs', [])
+
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'wolf'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  []          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = [('center', np.float32, 2),
+                                          ('nWolfs', np.int16, 1)]   
+        return classDesc
+
         
     def computeCenter(self):
         self.attr['center'] = np.mean(np.asarray([wolf.attr['pos'] for wolf in self.iterGroup('wolfs')]),axis=0)
@@ -259,23 +342,13 @@ world = World(agentOutput=False,
 
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
-GRASS = world.registerAgentType('grass' , AgentClass=Grass,
-                               staticProperties  = [('pos', np.int16, 2)],
-                               dynamicProperties = [('height', np.float32, 1)])
+GRASS = world.registerAgentType(Grass)
 
-SHEEP = world.registerAgentType('sheep' , AgentClass=Sheep,
-                               staticProperties  = [('pos', np.int16, 2)],
-                               dynamicProperties = [('weight', np.float32, 1)])
+SHEEP = world.registerAgentType(Sheep)
 
+WOLF = world.registerAgentType(Wolf)
 
-WOLF = world.registerAgentType('wolf' , AgentClass=Wolf,
-                               staticProperties  = [('pos', np.int16, 2)],
-                               dynamicProperties = [('weight', np.float32, 1)])
-
-WOLFPACK = world.registerAgentType('wolfPack' , AgentClass=WolfPack,
-                               staticProperties  = [],
-                               dynamicProperties = [('center', np.float32, 2),
-                                                    ('nWolfs', np.int16, 1)])
+WOLFPACK = world.registerAgentType(WolfPack)
 
 #%% register a link type to connect agents
 LINK_SHEEP = world.registerLinkType('grassLink', SHEEP, GRASS)

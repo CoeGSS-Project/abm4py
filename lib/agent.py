@@ -33,14 +33,28 @@ class Agent(_Entity):
     """
     def __init__(self, world, nID = None, **kwProperties):
         self.__getNode = world.getAgent
-#        if 'nID' not in list(kwProperties.keys()):
-#            nID = None
-#        else:
-#            nID = kwProperties['nID']
-
-        # init of the Entity class to init storage
         _Entity.__init__(self, world, nID, **kwProperties)
 
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'Agent'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  []          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = []     
+        return classDesc
+    
     def getPeers(self, liTypeID):
         return self._graph.getOutNodeValues(self.nID, liTypeID, attr='instance')
     

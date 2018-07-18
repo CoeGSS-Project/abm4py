@@ -53,6 +53,27 @@ class Grass(Location, Collective, Parallel, Neighborhood):
         Collective.__init__(self, world, **kwAttr)
         Parallel.__init__(self, world, **kwAttr)
         Neighborhood.__init__(self, world, **kwAttr)
+    
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'Grass'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = [('height', np.float32, 1)]     
+        return classDesc
+ 
     def add(self, value):
         
         self.attr['height'] += value
@@ -95,9 +116,9 @@ else:
     print('non-parallel mode')
     
 world.setParameter('extend', EXTEND)
-GRASS = world.registerAgentType('grass' , AgentClass=Grass, GhostAgentClass=GhostGrass,
-                               staticProperties  = [('pos', np.int16, 2)],
-                               dynamicProperties = [('height', np.float32, 1)])
+GRASS = world.registerAgentType(AgentClass=Grass, GhostAgentClass=GhostGrass)
+                                
+
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 
 connBluePrint = world.spatial.computeConnectionList(radius=RADIUS)

@@ -43,8 +43,8 @@ class _Entity(object):
 
             self.get = self.attr.__getitem__
             self.set = self.attr.__setitem__
-            self.__getitem__ = self.attr.__getitem__
-            self.__setitem__ = self.attr.__setitem__
+#            self.__getitem__ = self.attr.__getitem__
+#            self.__setitem__ = self.attr.__setitem__
         # connects the agent to an existing node
         else:
             self.nID = nID
@@ -53,11 +53,11 @@ class _Entity(object):
             self['instance'] = self
             
 
-#    def __getitem__(self, a):
-#        return self.attr.__getitem__(a)
-#
-#    def __setitem__(self, a, value):
-#        self.attr.__setitem__(a, value)
+    def __getitem__(self, a):
+        return self.attr.__getitem__(a)
+
+    def __setitem__(self, a, value):
+        self.attr.__setitem__(a, value)
 
 
 #    def __getattr__(self, a):

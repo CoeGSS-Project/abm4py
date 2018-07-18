@@ -70,6 +70,30 @@ class People(Agent, Mobile):
         
         self.getAgent = world.getAgent
 
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'Location'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  []          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] =   [('pos', np.int16, 2),
+                                            ('sick', np.bool,1),
+                                            ('remainingImmunity', np.int16),
+                                            ('sickTime', np.int16),
+                                            ('age', np.int16)]    
+        return classDesc
+    
     def register(self,world):
 
         Agent.register(self, world)
@@ -161,17 +185,11 @@ world = World(agentOutput=False,
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
 
-PATCH = world.registerAgentType('patch' , AgentClass=Location,
+PATCH = world.registerAgentType(Location,
                                staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [])
 
-PEOPLE = world.registerAgentType('people' , AgentClass=People,
-                               staticProperties  = [],
-                               dynamicProperties = [('pos', np.int16, 2),
-                                                    ('sick', np.bool,1),
-                                                    ('remainingImmunity', np.int16),
-                                                    ('sickTime', np.int16),
-                                                    ('age', np.int16)])
+PEOPLE = world.registerAgentType(People)
                     
 
 

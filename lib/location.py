@@ -10,8 +10,6 @@ from .traits import Parallel
 
 class Location(Agent):
 
-    def getGlobID(self,world):
-        return next(world.globIDGen)
 
     def __init__(self, world, **kwProperties):
         if 'nID' not in list(kwProperties.keys()):
@@ -21,6 +19,29 @@ class Location(Agent):
 
 
         Agent.__init__(self, world, nID, **kwProperties)
+
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'Location'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  []          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] = []     
+        return classDesc
+
+    def getGlobID(self,world):
+        return next(world.globIDGen)
     
 
 class GhostLocation(Agent, Parallel):

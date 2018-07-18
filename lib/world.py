@@ -438,8 +438,7 @@ class World:
         exec(compile(source, "", "exec"))
         setattr(self, name, types.MethodType(locals()[name], self))
 
-        
-    def registerAgentType(self, agTypeStr, AgentClass, GhostAgentClass=None, staticProperties = [], dynamicProperties = []):
+    def registerAgentType(self, AgentClass, GhostAgentClass=None , agTypeStr = None, staticProperties=None, dynamicProperties=None):
         """
         Method to register a node type:
         - Registers the properties of each agTypeID for other purposes, e.g. I/O
@@ -452,8 +451,16 @@ class World:
             - ghostNodeDict
         - enumerations
         """
+        descDict = AgentClass.__descriptor__()
         
-        # type is an required property
+        # setting defaults if required
+        if agTypeStr is None:
+            agTypeStr = descDict['nameStr']
+        if staticProperties is None:
+            staticProperties = descDict['staticProperties'] 
+        if dynamicProperties is None:
+            dynamicProperties = descDict['dynamicProperties']
+
         #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
         
         # add properties we need for the framework (like gID) automatically (stf)
@@ -461,15 +468,6 @@ class World:
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 
         agTypeIDIdx = len(self.graph.agTypeByID)+1
-
-#        if self.isParallel:
-#            globalIDset = False
-#            for item in staticProperties:
-#                if item[0] == 'gID':
-#                    globalIDset = True
-#            if not globalIDset:
-#                staticProperties = [('gID', np.int32, 1)] + staticProperties
-#            print(staticProperties)
                 
         self.graph.addNodeType(agTypeIDIdx, 
                                agTypeStr, 
