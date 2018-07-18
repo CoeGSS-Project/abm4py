@@ -36,7 +36,7 @@ END = '\033[0m'
  #%% Setup
 N_AGENTS   = 50000
 REF_LENGTH = 1000
-n_REPEAT   = 50
+n_REPEAT   = 30
 #%% register a new agent type with four attributes
 world = World(agentOutput=False,
           maxNodes=100000,
@@ -54,69 +54,13 @@ for iAgent in range(N_AGENTS):
     agent = Agent(world)
     agent.register(world)
 
-#%% METHOD: agent[]
-print('################### Assignment method: "agent[]" ###################')        
-print('Assigning single integer', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent['integer'] = i+iTry
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print('Assigning double integer', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent['integer_x2'] = i,i+iTry
-    timeReq.append(time.time() -tt)
-print('Average: '+ BOLD + ' {:3.4f}'.format(np.mean(timeReq[1:])) + END +' s STD: {:3.4f} s'.format(np.std(timeReq[1:])))
-
-print('Assigning single float', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent['float'] = i+iTry
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
-
-print('Assigning double float', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent['float_x2'] = i,i+iTry
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
-
-print('Assigning float and interger seperately', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent['float'] = iTry
-        agent['integer'] = i+iTry
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
-
-print('Assigning float and interger jointly', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent[['float', 'integer']] = iTry, i+iTry
-        
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
 #%% METHOD: agent.attr[]
 print('################### Assignment method: "agent.attr[]" ###################')        
 print('Assigning single integer', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.attr['integer'] = i+iTry
@@ -125,7 +69,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning double integer', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.attr['integer_x2'] = i,i+iTry
@@ -134,7 +78,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning single float', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.attr['float'] = i+iTry
@@ -143,7 +87,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning double float', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.attr['float_x2'] = i,i+iTry
@@ -152,7 +96,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning float and interger seperately', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.attr['float'] = iTry
@@ -160,21 +104,79 @@ for iTry in range(30):
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print('Assigning float and interger jointly', end=' ')    
+#print('Assigning float and interger jointly', end=' ')    
+#timeReq = list()
+#for iTry in range(n_REPEAT):
+#    tt = time.time()
+#    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+#        agent.attr[['float', 'integer']] = iTry, i+iTry
+#        
+#    timeReq.append(time.time() -tt)
+#print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
+#%% METHOD: agent[]
+print('################### Assignment method: "agent[]" ###################')        
+print('Assigning single integer', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent.attr[['float', 'integer']] = iTry, i+iTry
-        
+        agent['integer'] = i+iTry
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
+print('Assigning double integer', end=' ')    
+timeReq = list()
+for iTry in range(n_REPEAT):
+    tt = time.time()
+    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+        agent['integer_x2'] = i,i+iTry
+    timeReq.append(time.time() -tt)
+print('Average: '+ BOLD + ' {:3.4f}'.format(np.mean(timeReq[1:])) + END +' s STD: {:3.4f} s'.format(np.std(timeReq[1:])))
+
+print('Assigning single float', end=' ')    
+timeReq = list()
+for iTry in range(n_REPEAT):
+    tt = time.time()
+    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+        agent['float'] = i+iTry
+    timeReq.append(time.time() -tt)
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
+print('Assigning double float', end=' ')    
+timeReq = list()
+for iTry in range(n_REPEAT):
+    tt = time.time()
+    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+        agent['float_x2'] = i,i+iTry
+    timeReq.append(time.time() -tt)
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
+print('Assigning float and interger seperately', end=' ')    
+timeReq = list()
+for iTry in range(n_REPEAT):
+    tt = time.time()
+    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+        agent['float'] = iTry
+        agent['integer'] = i+iTry
+    timeReq.append(time.time() -tt)
+print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+
+#print('Assigning float and interger jointly', end=' ')    
+#timeReq = list()
+#for iTry in range(n_REPEAT):
+#    tt = time.time()
+#    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+#        agent[['float', 'integer']] = iTry, i+iTry
+#        
+#    timeReq.append(time.time() -tt)
+#print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
 #%% METHOD: agent.set
 print('################### Assignment method: "agent.set()" ###################')        
 print('Assigning single integer', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.set('integer', i+iTry)
@@ -183,7 +185,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning double integer', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.set('integer_x2', (i,i+iTry))
@@ -192,7 +194,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning single float', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.set('float', i+iTry)
@@ -201,7 +203,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning double float', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.set('float_x2', (i,i+iTry))
@@ -210,7 +212,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 
 print('Assigning float and interger seperately', end=' ')    
 timeReq = list()
-for iTry in range(30):
+for iTry in range(n_REPEAT):
     tt = time.time()
     for i, agent in enumerate(world.getAgents.byType(AGENT)):
         agent.set('float', iTry)
@@ -218,12 +220,12 @@ for iTry in range(30):
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print('Assigning float and interger jointly', end=' ')    
-timeReq = list()
-for iTry in range(30):
-    tt = time.time()
-    for i, agent in enumerate(world.getAgents.byType(AGENT)):
-        agent.set(['float', 'integer'], (iTry, i+iTry))
-        
-    timeReq.append(time.time() -tt)
-print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
+#print('Assigning float and interger jointly', end=' ')    
+#timeReq = list()
+#for iTry in range(n_REPEAT):
+#    tt = time.time()
+#    for i, agent in enumerate(world.getAgents.byType(AGENT)):
+#        agent.set(['float', 'integer'], (iTry, i+iTry))
+#        
+#    timeReq.append(time.time() -tt)
+#print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))

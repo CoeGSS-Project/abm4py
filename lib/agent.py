@@ -81,28 +81,9 @@ class Agent(_Entity):
         return self._graph.getOutNodeValues(self.nID, liTypeID, attr=attribute)
 
 
-#self.weights, linkReferences, connectedNodes = self.getAttrOfLink('weig',liTypeID=CON_LL)                                   
-
-#    def getAttrOfLink(self, attribute, liTypeID):
-#        """
-#        This method accesses the values of outgoing links
-#        """
-#        (eTypeID, dataID), (nTypeID, dataIDs)  = self._graph.outgoing(self.nID, liTypeID)
-#        
-#        nIDList = self._graph.nodes[nTypeID]['ID'][dataIDs]
-#        
-#        edgesValues = self._graph.getEdgeSeqAttr(label=attribute, 
-#                                                 eTypeID=eTypeID, 
-#                                                 dataIDs=dataID)
-#
-#        
-#
-#        return edgesValues, (eTypeID, dataID), nIDList
-
     def getAttrOfLink(self, attribute, liTypeID):
         """
         This method accesses the values of outgoing links
-        (stf) Improve documentation and/or simplify function
         """
         return self._graph.getOutEdgeValues(self.nID, liTypeID, attribute)
         
@@ -144,7 +125,7 @@ class GhostAgent(_Entity, Parallel):
         
         _Entity.__init__(self, world, nID, **kwProperties)
         self.mpiOwner = int(mpiOwner)       
-        self.gID = self.attr['gID'][0]
+        self.gID = self.attr['gID']
         
         
     def register(self, world, parentEntity=None, liTypeID=None):

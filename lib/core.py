@@ -308,7 +308,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     if liTypeID is not None:
         for agent in world.getAgents.byType(agentTypeID):
             
-            pos = agent.attr['pos'][0]
+            pos = agent.attr['pos']
             peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
@@ -334,14 +334,14 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.draw()
     fig.canvas.flush_events()
 
-def firstElementDeco(fun):
-    """ 
-    Decorator that returns the first element
-    ToDo: if possible find better way
-    """
-    def helper(arg):
-        return fun(arg)[0]
-    return helper
+#def firstElementDeco(fun):
+#    """ 
+#    Decorator that returns the first element
+#    ToDo: if possible find better way
+#    """
+#    def helper(arg):
+#        return fun(arg)[0]
+#    return helper
 
 
 def initLogger(debug, outputPath):
@@ -1468,7 +1468,7 @@ class PAPI():
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             #print owner
-            x,y   = ghLoc.attr['pos'][0]
+            x,y   = ghLoc.attr['pos']
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
                 self.mpiRecvIDList[(locNodeType, owner)] = list()

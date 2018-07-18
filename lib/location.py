@@ -32,7 +32,7 @@ class GhostLocation(Agent, Parallel):
         Agent.__init__(self, world, nID, **kwProperties)
         
         self.mpiOwner = int(mpiOwner)       
-        self.gID = self.attr['gID'][0]
+        self.gID = self.attr['gID']
 
     def getGlobID(self,world):
 

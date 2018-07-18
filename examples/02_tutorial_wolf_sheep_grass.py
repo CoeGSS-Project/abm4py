@@ -44,6 +44,7 @@ from lib import core
 
 import tools_for_02 as tools
 
+
 #%% SETUP
 EXTEND = 100
 N_SHEEPS = 300
@@ -122,7 +123,7 @@ class Sheep(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = self['pos'] + [ dx, dy]
+        newX, newY = self.attr['pos']+ [ dx, dy]
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
@@ -157,32 +158,17 @@ class Sheep(Agent, Mobile):
         elif self.attr['weight'] < 0:
             self.delete(world)        
         
-class Wolf(Agent):
+class Wolf(Agent, Mobile):
 
     def __init__(self, world, **kwAttr):
-        #print(kwAttr['pos'])
         Agent.__init__(self, world, **kwAttr)
+        Mobile.__init__(self, world, **kwAttr)
         world.registerAgent(self)
         self.loc = locDict[(x,y)]
-        #world.addLink(LINK_WOLF, self.nID, self.loc.nID)
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
-        
-#    def hunt(self):
-#        """ Jette
-#        
-#        The function hunt lets a wolf choose its prey randomly from a list
-#        of sheep around it. The sheep is pronounced dead and the wolf gains
-#        five units of weight.
-#        
-#        """
-#        sheepList = self.loc.getPeers(liTypeID=LINK_SHEEP)
-#        if len(sheepList) > 0:
-#            sheep = random.choice(sheepList)
-#            sheep.delete(world)
-#            self.attr['weight'] += 5.0
-            #print('sheep died')
+
     def hunt(self):
-        """ Jette
+        """ 
         
         The function hunt lets a wolf choose its prey randomly from a list
         of sheep around it. The sheep is pronounced dead and the wolf gains
@@ -196,7 +182,7 @@ class Wolf(Agent):
             self.attr['weight'] += 5.0
             #print('sheep died')
     def move(self, center, hunt=False):
-        """ Jette
+        """ 
         
         The function move lets the wolves move in the same way as sheep. 
         The wolf though only looses 0.02 units of weight.
@@ -212,12 +198,7 @@ class Wolf(Agent):
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
-        self.attr['pos'] = [ newX, newY]
-        #world.delLinks(LINK_WOLF, self.nID, self.loc.nID)
-        world.delLinks(LINK_WOLF, self.loc.nID, self.nID)
-        self.loc =  locDict[( newX, newY)]
-        #world.addLink(LINK_WOLF, self.nID, self.loc.nID)
-        world.addLink(LINK_WOLF, self.loc.nID, self.nID)
+        Mobile.move(self, newX, newY, LINK_WOLF)
         self.attr['weight'] -= .02
 
     def step(self, world, wolfPack):
@@ -253,16 +234,16 @@ class WolfPack(Agent, Collective):
         self.registerGroup('wolfs', [])
         
     def computeCenter(self):
-        self.attr['center'] = np.mean(np.asarray([wolf.attr['pos'][0] for wolf in self.iterGroup('wolfs')]),axis=0)
+        self.attr['center'] = np.mean(np.asarray([wolf.attr['pos'] for wolf in self.iterGroup('wolfs')]),axis=0)
         
         
-        return self.attr['center'][0]
+        return self.attr['center']
     
     
     def separate(self, world):
         
         newPack = WolfPack(world,
-                           center=self.attr['center'][0])
+                           center=self.attr['center'])
         world.registerAgent(newPack)
         
         for wolf in self.iterGroup('wolfs'):

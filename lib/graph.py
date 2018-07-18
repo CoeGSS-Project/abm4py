@@ -222,7 +222,7 @@ class BaseGraph():
          self.nodes[nTypeID].nodeList.append(lnID)
          
          self.lnID2dataIdx[lnID] = dataID
-         return lnID, dataID, dataview
+         return lnID, dataID, dataview[0]
      
     
     def addNodes(self, nTypeID, nNodes, **kwAttr):
@@ -860,7 +860,7 @@ class ABMGraph(BaseGraph):
         
     def getNodeView(self, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
-        return self.nodes[nTypeID][dataID:dataID+1].view(), dataID
+        return self.nodes[nTypeID][dataID:dataID+1].view()[0], dataID
 
     def agTypeID2Class(self, agTypeIDID):
         return self.__agTypeID2Class[agTypeIDID]

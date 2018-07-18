@@ -30,11 +30,11 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 import sys 
 import os
 import numpy as np
-import logging as lg
+
 import time
 import random
-import h5py
-from math import sqrt
+
+
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
@@ -123,7 +123,7 @@ class People(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-1,2,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0] 
+        newX, newY = (self.attr['pos'] + [ dx, dy])
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
@@ -153,30 +153,6 @@ class People(Agent, Mobile):
             newPerson.getHealthy()
             newPerson.register(world)
                 
-        
-#    def step(self, world):
-#        
-#        self.eat()
-#        if random.random() > sqrt(self['height']):
-#            self.move()
-#        
-#        # If a sheep has enough weight and at least one other sheep close 
-#        # this produces a new sheep which is registered to the world
-#        # and the old sheep is back to initial weight.
-#        if self.attr['weight'] > W_SHEEP and len(self.loc.getPeerIDs(LINK_SHEEP))>0:
-#            newSheep = Sheep(world,
-#                             pos=self.attr['pos'],
-#                             weight=1.0)
-#            newSheep.register(world)
-#            
-#            self.attr['weight'] = 1.0
-#        
-#        # If a sheep starves to death it is deleted from the world.
-#        elif self.attr['weight'] < 0:
-#            self.delete(world)        
-#        
-
-        
 #%%
 world = World(agentOutput=False,
                   maxNodes=MAX_AGENTS,

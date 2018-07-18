@@ -80,12 +80,12 @@ class Grass(Agent):
         if self.attr['height'] < 0.1:
             for neigLoc in self.iterNeighborhood(ROOTS):
                 if neigLoc.attr['height'] > 0.9:
-                    self.attr['height'] += 0.05
+                    self['height'] += 0.05
                     
-                    if self.attr['height'] > 0.1:
+                    if self['height'] > 0.1:
                         break
                     
-        self.attr['height'] = min(self.attr['height']*1.1, 1.)
+        self['height'] = min(self['height']*1.1, 1.)
 #%%
 world = World(agentOutput=False,
                   maxNodes=100000,
