@@ -24,24 +24,16 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 
 #%% load modules
-
-import sys 
-import os
 import numpy as np
-import logging as lg
 import time
 import random
-import h5py
 from math import sqrt
-import matplotlib.pyplot as plt
-home = os.path.expanduser("~")
-sys.path.append('../')
 
 
-from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.traits import GridNode, Mobile
-from lib.future_traits import Collective
-from lib import core
+
+from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import  Mobile
+from gcfabm.future_traits import Collective
 
 import tools_for_02 as tools
 

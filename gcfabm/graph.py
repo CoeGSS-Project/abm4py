@@ -259,7 +259,7 @@ class BaseGraph():
     def remNode(self, lnID):
         agTypeID, dataID = self.getNodeDataRef(lnID)
         self.nodes[agTypeID].freeRows.append(dataID)
-        self.nodes[agTypeID][dataID:dataID+1][self.persitentAttributes] = self.defaultNodeValues
+        self.nodes[agTypeID][dataID:dataID+1]['active'] = False
         self.nodes[agTypeID].nodeList.remove(lnID)
     
         for eTypeID in self.edges.keys():
@@ -686,7 +686,7 @@ class ABMGraph(BaseGraph):
         
         #persistent nodeattributes
         self.persitentAttributes = ['active', 'instance', 'gID', 'ID']
-        self.defaultNodeValues     = (False, None, -1, -1)
+        #self.defaultNodeValues     = (False, None, -2, -2)
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1),
                              ('gID', np.int32,1),

@@ -26,25 +26,12 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 
 #%% load modules
-
-import sys 
-import os
 import numpy as np
-
 import time
 import random
 
-
-import matplotlib.pyplot as plt
-home = os.path.expanduser("~")
-sys.path.append('../')
-
-
-from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.traits import  Mobile
-from lib.future_traits import Collective
-from lib import core
-
+from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import  Mobile
 import tools_for_06 as tools
 
 #%% SETUP

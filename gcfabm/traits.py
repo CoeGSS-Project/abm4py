@@ -29,7 +29,7 @@ class Parallel():
         - global ID: self.gID
         - 
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         
         # adding properties to the attributes
         gID = self.getGlobID(world)
@@ -66,7 +66,7 @@ class GridNode():
     registers itself in the location dictionary, found in the world
     (see world.getLocationDict())
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         self.__getAgent = world.getAgent
         
         
@@ -92,7 +92,7 @@ class Mobile():
     this does not work in the parallel version
     """
  
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         """ assert that position is declared as an agent's attribute, since 
          moving relates to the 'pos' attribute """
         #TODO can be made more general"
@@ -127,7 +127,7 @@ class SuperPowers():
     Use carefully and not in parallel mode.
     """
     
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         # check that the framework is not parallelized since the writing of 
         # attributes from other agents violates the consistency of parallel
         # execution
@@ -156,7 +156,7 @@ class Aggregator():
     
     """
     
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, nID = None, **kwProperties):
         self.aggegationDict = dict()
         self.__getAgent = world.getAgent
     

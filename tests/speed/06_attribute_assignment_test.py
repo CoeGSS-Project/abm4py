@@ -24,12 +24,10 @@ along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 import sys 
 import numpy as np
 import time
-import random
-sys.path.append('../../')
 
-from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from lib.traits import Mobile
-from lib import core
+from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import Mobile
+from gcfabm import core
 
 BOLD = '\033[1m'
 END = '\033[0m'
@@ -42,7 +40,7 @@ world = World(agentOutput=False,
           maxNodes=100000,
           maxLinks=50000)
 
-AGENT = world.registerAgentType('agent', AgentClass=Agent,
+AGENT = world.registerAgentType(AgentClass=Agent,
                                          staticProperties  = [],
                                          dynamicProperties = [('integer', np.int64, 1),
                                                               ('integer_x2', np.int64, 2),

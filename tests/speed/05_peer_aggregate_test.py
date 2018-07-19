@@ -25,22 +25,13 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 #%% load modules
 
-import sys 
-import os
 import numpy as np
-import logging as lg
 import time
 import random
-import h5py
-from math import sqrt
-import matplotlib.pyplot as plt
-home = os.path.expanduser("~")
-sys.path.append('../../')
 
+from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import Aggregator
 
-from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.traits import Aggregator
-from lib import core
 
 #import tools_for_02 as tools
 
@@ -93,13 +84,13 @@ world = World(agentOutput=False,
 
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
-PATCH = world.registerAgentType('PATCH' , AgentClass=Patch,
-                               staticProperties  = [('pos', np.int16, 2)],
+PATCH = world.registerAgentType(AgentClass=Patch,
+                               staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [('sumGrass', np.float64, 1)])
 
 
-GRASS = world.registerAgentType('flower' , AgentClass=Grass,
-                               staticProperties  = [('pos', np.int16, 2)],
+GRASS = world.registerAgentType(AgentClass=Grass,
+                               staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [('height', np.float64, 1)])
 #%% register a link type to connect agents
 
@@ -115,7 +106,7 @@ for x in range(EXTEND):
     for y in range(EXTEND):
         
         patch = Patch(world, 
-                      pos=(x,y),
+                      coord=(x,y),
                       sumGrass=0)
         patch.register(world)
         world.registerLocation(patch, x,y)
@@ -123,13 +114,14 @@ for x in range(EXTEND):
         
         for i in range(GRASS_PER_PATCH):
             grass = Grass(world,
-                          pos= (x,y),
+                          coord= (x,y),
                           height = random.random())
             grass.register(world)
             patch.addLink(grass.nID, ROOTS)
         
-connBluePrint = world.spatial.computeConnectionList(radius=4.5)
-world.spatial.connectLocations(IDArray, connBluePrint, PATCHWORK, Patch)
+world.registerGrid(PATCH, PATCHWORK)        
+connBluePrint = world.grid.computeConnectionList(radius=4.5)
+world.grid.connectNodes(IDArray, connBluePrint, PATCHWORK, Patch)
 print('init Patches in: ' + str(time.time() - tt))
 
 

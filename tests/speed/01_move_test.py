@@ -24,11 +24,10 @@ import sys
 import numpy as np
 import time
 import random
-sys.path.append('../../')
 
-from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from lib.traits import Mobile
-from lib import core
+from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import Mobile
+from gcfabm import core
 
 
 
@@ -42,13 +41,13 @@ class Walker(Agent, Mobile):
 
     def register(self,world):
         Agent.register(self, world)
-        self.loc = world.getLocationDict()[tuple(self.get('pos'))]
+        self.loc = world.getLocationDict()[tuple(self.get('coord'))]
         #world.addLink(ANCHOR, self.nID, self.loc.nID)
         world.addLink(ANCHOR, self.loc.nID, self.nID)
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])
+        newX, newY = (self.attr['coord'] + [ dx, dy])
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
@@ -64,8 +63,8 @@ class Walker(Agent, Mobile):
        
  #%% Setup
 EXTEND   = 50
-DO_PLOT = False
-N_WALKERS = 5000
+DO_PLOT = True
+N_WALKERS = 50
 N_STEPS   = 100
        
 world = World(agentOutput=False,
@@ -75,22 +74,23 @@ world = World(agentOutput=False,
 #%% register a new agent type with four attributes
 nodeMap = np.zeros([EXTEND, EXTEND])
 
-LOC = world.registerAgentType('location' , AgentClass=Location,
-                               staticProperties  = [('pos', np.int16, 2)],
+LOC = world.registerAgentType(AgentClass=Location,
+                               staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [('property', np.float32, 1)])
 
 LINK = world.registerLinkType('link',LOC, LOC, dynamicProperties = [('weig', np.float32, 1)])
 
 
-WKR = world.registerAgentType('walker' , AgentClass=Walker,
-                               dynamicProperties =  [('pos', np.int16, 2)])
+WKR = world.registerAgentType(AgentClass=Walker,
+                               dynamicProperties =  [('coord', np.int16, 2)])
 
 ANCHOR  = world.registerLinkType('link',LOC, WKR)
 
 tt = time.time()
 
-connList      = world.spatial.computeConnectionList(radius=1.5)
-connBluePrint = world.spatial.initSpatialLayer(nodeMap, connList, Location, LINK)
+world.registerGrid(LOC, LINK)
+connList      = world.grid.computeConnectionList(radius=1.5)
+connBluePrint = world.grid.init(nodeMap, connList, Location)
 
 world.setAttrOfAgentType('property', 0., agTypeID=LOC)
 print('Spatial layer created in ' + str(time.time() -tt) )   
@@ -103,7 +103,7 @@ for iWalker in range(N_WALKERS):
 
     loc = random.choice(locList)    
     walker = Walker(world,
-                  pos=tuple(loc.attr['pos']))
+                  coord=tuple(loc.attr['coord']))
     walker.loc = loc
     walker.register(world)
 print('Walkers created in ' + str(time.time() -tt) )   

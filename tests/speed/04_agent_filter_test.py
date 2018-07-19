@@ -21,15 +21,13 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
 """
 
-import sys 
 import numpy as np
 import time
 import random
-sys.path.append('../../')
 
-from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from lib.traits import Mobile
-from lib import core
+from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import Mobile
+from gcfabm import core
 
  #%% Setup
 N_AGENTS   = 50000
@@ -40,7 +38,7 @@ world = World(agentOutput=False,
           maxNodes=100000,
           maxLinks=500000)
 
-AGENT = world.registerAgentType('agent' , AgentClass=Agent,
+AGENT = world.registerAgentType(AgentClass=Agent,
                                staticProperties  = [('randNum')],
                                dynamicProperties = [])
 

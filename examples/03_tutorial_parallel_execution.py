@@ -22,22 +22,14 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import sys 
-import os
 import numpy as np
-import logging as lg
 import time
 import random
-import h5py
-from math import sqrt
-import matplotlib.pyplot as plt
-home = os.path.expanduser("~")
-sys.path.append('../')
 
-from lib import World, Agent, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
-from lib.traits import Mobile, Parallel
-from lib.future_traits import Collective
-from lib import core
+from gcfabm import World, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
+from gcfabm.traits import Parallel
+from gcfabm.future_traits import Collective
+from gcfabm import core
 
 import tools_for_03 as tools
 
