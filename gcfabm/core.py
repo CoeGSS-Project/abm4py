@@ -1048,6 +1048,7 @@ class IO():
         """
         Initializes the internal data structure for later I/O
         """
+        from .misc import Record
         lg.info('start init of the node file')
 
         for agTypeID in agTypeIDs:
@@ -1089,7 +1090,7 @@ class IO():
 
             dataIDS = world.getDataIDs(agTypeID)
             # static data
-            staticRec  = self.Record(nAgents, 
+            staticRec  = Record(nAgents, 
                                      dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
@@ -1109,7 +1110,7 @@ class IO():
                 #check if first property of first entity is string
                 try:
                      
-                    entProp = self._graph.getNodeSeqAttr(label=attr, nTypeID=agTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                    entProp = self._graph.getAttrOfNodesIdx(label=attr, nTypeID=agTypeID, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
                     raise BaseException
@@ -1126,7 +1127,7 @@ class IO():
 
             dataIDS = world.getDataIDs(agTypeID)
             # dynamic data
-            dynamicRec = self.Record(nAgents, 
+            dynamicRec = Record(nAgents, 
                                      dataIDS, 
                                      nAgentsGlob, 
                                      loc2GlobIdx, 
@@ -1144,7 +1145,7 @@ class IO():
 
             for attr, nProp in zip(attributes, sizes):
                 #check if first property of first entity is string
-                entProp = self._graph.getNodeSeqAttr(attr, 
+                entProp = self._graph.getAttrOfNodesIdx(attr, 
                                                      nTypeID=agTypeID,
                                                      dataIDs=staticRec.ag2FileIdx[0])
                 if not isinstance(entProp,str):

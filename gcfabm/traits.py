@@ -81,6 +81,10 @@ class GridNode():
        
     def getGridPeers(self):
         return self._graph.nodes[self.gridPeers[0]]['instance'][self.gridPeers[1]]
+
+    def getAttrOfGridPeers(self, attribute):
+        return self._graph.nodes[self.gridPeers[0]][attribute][self.gridPeers[1]]
+        
         
 class Mobile():
     """

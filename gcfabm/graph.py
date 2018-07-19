@@ -312,7 +312,11 @@ class BaseGraph():
         array = self.nodes[nTypeID]
         array[label][array['active']] = values  
             
-
+    def getAttrOfNodesIdx(self, label, nTypeID, dataIDs):
+        if label:
+            return self.nodes[nTypeID][label][dataIDs]
+        else:
+            return self.nodes[nTypeID][dataIDs]
     
     def getAttrOfNodesSeq(self, label, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
