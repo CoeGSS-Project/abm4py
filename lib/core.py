@@ -378,6 +378,7 @@ class Spatial():
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
+        self.spatialMask = ~np.isnan(rankArray)
         agTypeID = self.world.graph.class2NodeType(LocClassObject)
         if self.world.isParallel:
             GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)

@@ -123,6 +123,7 @@ class Mobile():
         
     def move(self, newX, newY, spatialLinkTypeID):
         # remove old link
+        assert (newX, newY) in self.locDict.keys()
         self['pos'] = [ newX, newY]
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
        
@@ -141,6 +142,10 @@ class Mobile():
 #    def move(self, newPosition, spatialLinkTypeID):
 #        """ not yet implemented"""
 #        pass
+
+
+#class CollectiveNew():
+#    
 
 class Collective():
     """

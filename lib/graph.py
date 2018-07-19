@@ -435,7 +435,7 @@ class BaseGraph():
         else:
             dataview[['active', 'source', 'target']] = (True, source, target)
          
-        return leID, dataID, dataview
+        return leID, dataID, dataview, eType.edgesOut[source]
 
     def addEdges(self, eTypeID, sources, targets, **kwAttr):
         """

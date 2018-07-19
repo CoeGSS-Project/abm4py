@@ -113,9 +113,8 @@ class World:
         lg.debug('Init Globals done')##OPTPRODUCTION
         
         # ======== IO ========
-        if self.agentOutput:
-            self.io = core.IO(self, nSteps, self.para['outPath'])
-            lg.debug('Init IO done')##OPTPRODUCTION
+        self.io = core.IO(self, nSteps, self.para['outPath'])
+        lg.debug('Init IO done')##OPTPRODUCTION
         
         # ======== SPATIAL LAYER ========
         if self.isSpatial:
@@ -183,7 +182,7 @@ class World:
 
     # saving enumerations
     def saveParameters(self, fileName= 'simulation_parameters'):
-        core.saveObj(self.para, self.para['outPath'] + '/' + fileName)
+        self.io.saveObj(self.para, self.para['outPath'] + '/' + fileName)
        
     def getEnums(self):
         """ 
@@ -193,7 +192,7 @@ class World:
 
     def saveEnumerations(self, fileName= 'enumerations'):
         # saving enumerations
-        core.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
+        self.io.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
 
 #%% Global Agent scope
         
