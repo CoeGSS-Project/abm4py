@@ -74,12 +74,26 @@ def writeAdjFile(world,fileName, agTypeID):
         fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
     fid.close()
 
+class Dakota():
+    def __init__(self):
+        self.isActive = False
+
+    def overwriteParameters(self, simNo, parameterDict):
+        self.isActive = True
+        self.simNo  = simNo
+        self.params = parameterDict
+        
+    
+dakota = Dakota()
+
 
 def setupSimulationEnvironment(mpiComm=None, simNo=None):
     """
     Reads an existng or creates a new environment file
     Returns simulation number and outputPath
     """
+    if dakota.isActive:
+        simNo = dakota.simNo
     if (mpiComm is None) or (mpiComm.rank == 0):
         # get simulation number from file
         try:
