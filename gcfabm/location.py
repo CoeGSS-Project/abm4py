@@ -5,6 +5,7 @@ Created on Tue Jul  3 15:51:31 2018
 
 @author: gcf
 """
+import numpy as np
 from .agent import  Agent
 from .traits import Parallel, GridNode
 
@@ -35,7 +36,7 @@ class Location(GridNode, Agent):
         classDesc['nameStr'] = 'Location'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  []          
+        classDesc['staticProperties'] =  [('coord', np.int32, 2)]          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
         classDesc['dynamicProperties'] = []     

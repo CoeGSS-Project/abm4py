@@ -259,21 +259,22 @@ def convertStr(string):
         except:
             return string
 
-def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
+def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
     positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
     
-    #print(nAgents)
-    plt.ion()
-    fig= plt.figure('graph')
-    plt.clf()
-    ax = plt.subplot(111)
+    if ax is None:
+        plt.ion()
+        fig= plt.figure('graph')
+        plt.clf()
+        ax = plt.subplot(111)
+        
     if liTypeID is not None:
         for agent in world.getAgents.byType(agentTypeID):
             
-            pos = agent.attr['pos']
+            pos = agent.attr['coord']
             peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
@@ -297,7 +298,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.tight_layout()  
     
     plt.draw()
-    fig.canvas.flush_events()
+    #fig.canvas.flush_events()
 
 #def firstElementDeco(fun):
 #    """ 
@@ -353,18 +354,19 @@ class Grid():
                     connList.append((x,y,weig))
         return connList
 
-    def init(self, rankArray, connList, LocClassObject):
+    def init(self, gridMask, connList, LocClassObject, rankArray=None):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
 
         """
-        self.spatialMask = ~np.isnan(rankArray)
+        self.gridMask  = ~np.isnan(gridMask)
+        self.GridNodeClass = LocClassObject
         agTypeID = self.world.graph.class2NodeType(LocClassObject)
         if self.world.isParallel:
             GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
-        nodeArray = ((rankArray * 0) +1)
+        nodeArray = ((gridMask * 0) +1)
         #print rankArray
         IDArray = nodeArray * np.nan
         #print IDArray
@@ -374,17 +376,17 @@ class Grid():
         xMax = nodeArray.shape[0]
         yMax = nodeArray.shape[1]
         ghostLocationList = list()
-        lg.debug('rank array: ' + str(rankArray)) ##OPTPRODUCTION
+        lg.debug('rank array: ' + str(gridMask)) ##OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
-        self.world.cellMapIds = np.where(rankArray == mpiRank)
+        self.world.cellMapIds = np.where(gridMask == mpiRank)
 
         # create vertices
         for x in range(nodeArray.shape[0]):
             for y in range(nodeArray.shape[1]):
 
                 # only add an vertex if spatial location exist
-                if not np.isnan(rankArray[x,y]) and rankArray[x,y] == mpiRank:
-
+                if gridMask[x,y] and (~self.world.isParallel or rankArray[x,y] == mpiRank):
+                    
                     loc = LocClassObject(self.world, coord = [x, y])
                     IDArray[x,y] = loc.nID
                     
@@ -406,9 +408,9 @@ class Grid():
                     if xDst >= xOrg and xDst < xMax and yDst >= yOrg and yDst < yMax:
     
     
-                        if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != mpiRank:  # location lives on another process
+                        if np.isnan(IDArray[xDst,yDst]) and not np.isnan(gridMask[xDst,yDst]) and gridMask[xDst,yDst] != mpiRank:  # location lives on another process
                             
-                            loc = GhstLocClassObject(self.world, mpiOwner=rankArray[xDst,yDst], coord= (xDst, yDst))
+                            loc = GhstLocClassObject(self.world, mpiOwner=gridMask[xDst,yDst], coord= (xDst, yDst))
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
@@ -469,10 +471,13 @@ class Grid():
             fullWeightList.extend(weig)
 
 
-            
+    
         #eStart = self.world.graph.ecount()
-        self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
-
+        if 'weig' in self.GridNodeClass.__descriptor__()['staticProperties'] or \
+           'weig' in self.GridNodeClass.__descriptor__()['dynamicProperties'] :
+           self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
+        else:
+            self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList)
 
 #        eStart = 0
 #        ii = 0
