@@ -41,6 +41,9 @@ from .world import World
 from .agent import Agent, GhostAgent
 from .location import Location, GhostLocation
 from . import core
+from . import misc
+from . import traits
+from . import future_traits
 #        
 #if __name__ == '__main__':
 #    

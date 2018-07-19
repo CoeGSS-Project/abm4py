@@ -33,10 +33,10 @@ class PlotClass():
         
         self.hh_area = plt.pcolormesh(grass, cmap='summer_r',zorder=-1)
         
-        pos = world.getAttrOfAgentType('pos', agTypeID = 2)
+        coord = world.getAttrOfAgentType('coord', agTypeID = 2)
         #print(pos.shape)
-        self.hh_sheeps = plt.scatter(pos[:,1],pos[:,0], c='w', s = 35, marker='s',zorder=2)
-        self.hh_wolfs  = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=2)
+        self.hh_sheeps = plt.scatter(coord[:,1],coord[:,0], c='w', s = 35, marker='s',zorder=2)
+        self.hh_wolfs  = plt.scatter(coord[:,1],coord[:,0], c='k', s = 35, marker='s',zorder=2)
         plt.xlim(0, extend)
         plt.ylim(0, extend)
         plt.clim(0,1)
@@ -58,11 +58,11 @@ class PlotClass():
         
     def update(self, world):
 
-        pos = world.getAttrOfAgentType('pos', agTypeID = 2)
+        coord = world.getAttrOfAgentType('coord', agTypeID = 2)
         
-        self.hh_sheeps.set_offsets(np.c_[pos[:,1],pos[:,0]])
-        pos = world.getAttrOfAgentType('pos', agTypeID = 3)
-        self.hh_wolfs.set_offsets(np.c_[pos[:,1],pos[:,0]])
+        self.hh_sheeps.set_offsets(np.c_[coord[:,1],coord[:,0]])
+        coord = world.getAttrOfAgentType('coord', agTypeID = 3)
+        self.hh_wolfs.set_offsets(np.c_[coord[:,1],coord[:,0]])
         grass = world.getAttrOfAgentType('height', agTypeID=1)
         self.hh_area.set_array(grass)
         plt.draw()

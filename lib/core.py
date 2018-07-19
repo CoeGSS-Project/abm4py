@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Copyright (c) 2017
@@ -25,7 +25,6 @@ import os
 import numpy as np
 import itertools
 import pandas as pd
-#import seaborn as sns
 import pickle
 import time
 
@@ -53,26 +52,13 @@ except:
 
 import h5py
 import logging as lg
-from numba import njit
+
 from collections import OrderedDict
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
 
-def writeAdjFile(world,fileName, agTypeID):
-    #graph.to_undirected()
-    #edgeTypeID = world.graph.node2EdgeType[agTypeID, agTypeID]
-    adjList, nLinks = world.graph.getAdjList(agTypeID)
-    fid = open(fileName,'w')
-    fid.write('% Adjecency file created by gcfABM \n')
-    fid.write(str(world.nAgents(agTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
-    fid.write('% Adjecencies of verteces \n')
-    
-    popList = world.agentAttr('population', agTypeID=agTypeID).tolist()
 
-    for adjline, popu in zip(adjList, popList):
-        fid.write(''.join([str(int(popu*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
-    fid.close()
 
 
 def setupSimulationEnvironment(mpiComm=None, simNo=None):
@@ -194,30 +180,9 @@ def formatPropertyDefinition(propertyList):
         
     return propertyList
 
-@njit
-def weightingFunc(x,y):
-    return 1./((x**2. +y**2.)**.5)
 
-@njit
-def distance(x,y):
-    return (x**2. +y**2.)**.5
 
-def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2):
-    """
-    Method for easy computing a connections list of regular grids
-    """
-    connList = []
 
-    intRad = int(radius)
-    for x in range(-intRad,intRad+1):
-        for y in range(-intRad,intRad+1):
-            if distance(x,y) <= radius:
-                if x**2 +y**2 > 0:
-                    weig  = weightingFunc(x,y)
-                else:
-                    weig = ownWeight
-                connList.append((x,y,weig))
-    return connList
 
 #def cartesian2(arrays):
 #    arrays = [np.asarray(a) for a in arrays]
@@ -298,7 +263,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.ion()
@@ -362,16 +327,33 @@ def initLogger(debug, outputPath):
     if mpiRank == 0:
         print('log files created')
 
-class Spatial():
-
-    def __init__(self, world):
-        self.world = world # make world availabel in class random
-
-    def computeConnectionList(self, radius=1, weightingFunc = weightingFunc, ownWeight =2):
+class Grid():
+    from .misc import weightingFunc, distance
+    def __init__(self, world, nodeTypeID, linkTypeID):
         
-        return computeConnectionList(radius, weightingFunc, ownWeight)
+        self.world = world # make world availabel in class random
+        self.gNodeTypeID = nodeTypeID
+        self.gLinkTypeID = linkTypeID
+        
+    @staticmethod
+    def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2, distance_func = distance):
+        """
+        Method for easy computing a connections list of regular grids
+        """
+        connList = []
+    
+        intRad = int(radius)
+        for x in range(-intRad,intRad+1):
+            for y in range(-intRad,intRad+1):
+                if distance_func(x,y) <= radius:
+                    if x**2 +y**2 > 0:
+                        weig  = weightingFunc(x,y)
+                    else:
+                        weig = ownWeight
+                    connList.append((x,y,weig))
+        return connList
 
-    def initSpatialLayer(self, rankArray, connList, LocClassObject, liTypeID):
+    def init(self, rankArray, connList, LocClassObject):
 
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
@@ -403,10 +385,10 @@ class Spatial():
                 # only add an vertex if spatial location exist
                 if not np.isnan(rankArray[x,y]) and rankArray[x,y] == mpiRank:
 
-                    loc = LocClassObject(self.world, pos = [x, y])
+                    loc = LocClassObject(self.world, coord = [x, y])
                     IDArray[x,y] = loc.nID
                     
-                    self.world.registerLocation(loc, x, y)          # only for real cells
+                    #self.world.registerLocation(loc, x, y)          # only for real cells
                     #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
 
@@ -426,20 +408,21 @@ class Spatial():
     
                         if np.isnan(IDArray[xDst,yDst]) and not np.isnan(rankArray[xDst,yDst]) and rankArray[xDst,yDst] != mpiRank:  # location lives on another process
                             
-                            loc = GhstLocClassObject(self.world, mpiOwner=rankArray[xDst,yDst], pos= (xDst, yDst))
+                            loc = GhstLocClassObject(self.world, mpiOwner=rankArray[xDst,yDst], coord= (xDst, yDst))
                             #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
                             IDArray[xDst,yDst] = loc.nID
                             
-                            self.world.registerAgent(loc, ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
-                            
+                            #self.world.registerAgent(loc, ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
+                            loc.register(self.world)
                             #self.world.registerLocation(loc, xDst, yDst)
                             ghostLocationList.append(loc)
+        
         self.world.graph.IDArray = IDArray
 
-        self.connectLocations(IDArray, connList, liTypeID, agTypeID, ghostLocationList)
+        self.connectNodes(IDArray, connList, agTypeID, ghostLocationList)
 
 
-    def connectLocations(self, IDArray, connList, liTypeID, agTypeID, ghostLocationList=None):
+    def connectNodes(self, IDArray, connList, agTypeID, ghostLocationList=None):
         
         xOrg = 0
         yOrg = 0
@@ -488,7 +471,7 @@ class Spatial():
 
             
         #eStart = self.world.graph.ecount()
-        self.world.graph.addEdges(liTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
+        self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
 
 
 #        eStart = 0
@@ -1035,70 +1018,6 @@ class GlobalRecord():
 
 class IO():
 
-    class synthInput():
-        """ MPI conform loading of synthetic population data"""
-        pass # ToDo
-
-
-    class Record():
-        """ 
-        This calls manages the translation of different graph attributes to
-        the output format as a numpy array. Vectora of values automatically get
-        assigned the propper matrix dimensions and indices.
-
-        So far, only integer and float are supported
-        """
-        def __init__(self, 
-                     nAgents, 
-                     agIds, 
-                     nAgentsGlob, 
-                     loc2GlobIdx, 
-                     agTypeID, 
-                     timeStepMag):
-            
-            self.ag2FileIdx = agIds
-            self.nAgents = nAgents
-            self.nAttr = 0
-            self.attributeList = list()
-            self.attrIdx = dict()
-            self.header = list()
-            self.timeStep = 0
-            self.nAgentsGlob = nAgentsGlob
-            self.loc2GlobIdx = loc2GlobIdx
-            self.agTypeID    = agTypeID
-            self.timeStepMag = timeStepMag
-
-
-        def addAttr(self, name, nProp):
-            attrIdx = list(range(self.nAttr,self.nAttr+nProp))
-            self.attributeList.append(name)
-            self.attrIdx[name] = attrIdx
-            self.nAttr += len(attrIdx)
-            self.header += [name] * nProp
-
-        def initStorage(self, dtype):
-            #print dtype
-            self.data = np.zeros([self.nAgents, self.nAttr ], dtype=dtype)
-
-        def addData(self, timeStep, nodeData):
-            self.timeStep = timeStep
-            self.data = nodeData[self.ag2FileIdx][self.attributeList]
-
-        def writeData(self, h5File, folderName=None):
-            #print self.header
-            if folderName is None:
-                path = '/' + str(self.agTypeID)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
-                #print 'IO-path: ' + path
-                self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
-                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
-            else:
-                path = '/' + str(self.agTypeID)+ '/' + folderName
-                #print 'IO-path: ' + path
-                self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
-                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
-
-        
-
     #%% Init of the IO class
     def __init__(self, world, nSteps, outputPath = '.', inputPath = '.'): # of IO
 
@@ -1106,17 +1025,18 @@ class IO():
         self.outputPath  = outputPath
         self._graph      = world.graph
         
-        if mpiSize ==1:
-        
-            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
-                                         'w')
-        else:
-            self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
-                                     'w',
-                                     driver='mpio',
-                                     comm=world.papi.comm)
-                                     #libver='latest',
-                                     #info = world.papi.info)
+        if world.agentOutput:
+            if mpiSize ==1:
+            
+                self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+                                             'w')
+            else:
+                self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
+                                         'w',
+                                         driver='mpio',
+                                         comm=world.papi.comm)
+                                         #libver='latest',
+                                         #info = world.papi.info)
             
         self.comm        = comm
         self.dynamicData = dict()
@@ -1307,6 +1227,23 @@ class IO():
         with open(name + '.pkl', 'rb') as f:
             return pickle.load(f)
 
+
+    def writeAdjFile(self ,fileName, agTypeID, attrForWeight):
+        #graph.to_undirected()
+        #edgeTypeID = world.graph.node2EdgeType[agTypeID, agTypeID]
+        adjList, nLinks = self._graph.getAdjList(agTypeID)
+        fid = open(fileName,'w')
+        fid.write('% Adjecency file created by gcfABM \n')
+        fid.write(str(self._graph.nCount(agTypeID)) + ' ' + str(nLinks//2) + ' 010 \n' )
+        fid.write('% Adjecencies of verteces \n')
+        
+        
+        weigList = self.graph.getAttrOfAgentType(attrForWeight, agTypeID).tolist()
+    
+        for adjline, weig in zip(adjList, weigList):
+            fid.write(''.join([str(int(weig*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')
+        fid.close()
+
 class PAPI():
     """
     Parallel Agent Passing Interface
@@ -1469,7 +1406,7 @@ class PAPI():
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             #print owner
-            x,y   = ghLoc.attr['pos']
+            x,y   = ghLoc.attr['coord']
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
                 self.mpiRecvIDList[(locNodeType, owner)] = list()

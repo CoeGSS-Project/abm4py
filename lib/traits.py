@@ -19,8 +19,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
-
-
 """
 
 class Parallel():
@@ -38,32 +36,12 @@ class Parallel():
         self.attr['gID'] = gID
         self.gID = gID
          #kwProperties['gID'] = self.gID
-        
-        #self.attr['gID'] = self.gID
-        
-        # if nID is -1, the agent is generated emtpy and receives its properties
-        # and IDs later by mpi communication
-#        if nID is not -1:
-#            self.nID = nID
-#            self.attr, self.dataID = self._graph.getNodeView(nID)
-#            self.mpiOwner =  int(world.mpiRank)
-#            self.mpiOwner = int(world.mpiRank)
+
         self.mpiPeers = list()
 
     def getGlobID(self,world):
         return next(world.globIDGen)
-# from location
-#    def registerChild(self, world, entity, liTypeID=None):
-#        world.addLink(liTypeID, self.nID, entity.nID)
-#        entity.loc = self
-#
-#        if len(self.mpiPeers) > 0: # node has ghosts on other processes
-#            for mpiPeer in self.mpiPeers:
-#                #print 'adding node ' + str(entity.nID) + ' as ghost'
-#                agTypeID = world.graph.class2NodeType(entity.__class__)
-#                world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
-#
-#        return self.mpiPeers
+
 
     def registerChild(self, world, entity, liTypeID):
         """
@@ -82,32 +60,34 @@ class Parallel():
         return self.mpiPeers
 
 
-class Neighborhood():
+class GridNode():
     """
-    This enhancement allows agents to iterate over neigboring instances and thus
-    funtion as collectives of agents. 
+    This enhancement identifies the agent as part of a grid. Currently, it only
+    registers itself in the location dictionary, found in the world
+    (see world.getLocationDict())
     """
     def __init__(self, world, nID = -1, **kwProperties):
         self.__getAgent = world.getAgent
-        self.Neighborhood = dict()
-    
-    def getNeighbor(self, peerID):
-        return self.__getAgent(peerID)
-    
-    def reComputeNeighborhood(self, liTypeID):
-        #self.Neighborhood[liTypeID] = [self.getNeighbor(ID) for ID in self.getPeerIDs(liTypeID)]
-        self.Neighborhood[liTypeID] = self.getAttrOfPeers('instance', liTypeID= liTypeID)
         
-    def iterNeighborhood(self, liTypeID):
-        return iter(self.Neighborhood[liTypeID])
+        
+    def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
+        
+        world.registerAgent(self, ghost=ghost)
+        world.registerLocation(self, *self.attr['coord'])
+        self.gridPeers  = world.graph._addNoneEdge(self.attr['ID'])
+        
+        if parentEntity is not None:
+            self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
+       
+    def getGridPeers(self):
+        return self._graph.nodes[self.gridPeers[0]]['instance'][self.gridPeers[1]]
         
 class Mobile():
     """
     This enhancemement allows agents to move in the spatial domain. Currently
     this does not work in the parallel version
     """
-    
-    
+ 
     def __init__(self, world, nID = -1, **kwProperties):
         """ assert that position is declared as an agent's attribute, since 
          moving relates to the 'pos' attribute """
@@ -117,14 +97,14 @@ class Mobile():
         if world.isParallel:
             raise(BaseException('Mobile agents are not working in parallel'))
             
-        assert 'pos' in kwProperties.keys()
+        assert 'coord' in kwProperties.keys()
         
         self._setLocationDict(world.getLocationDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
         # remove old link
         assert (newX, newY) in self.locDict.keys()
-        self['pos'] = [ newX, newY]
+        self['coord'] = [ newX, newY]
         self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
        
         # add new link and location
@@ -135,45 +115,7 @@ class Mobile():
     def _setLocationDict(cls, locDict):
         """ Makes the class variable _graph available at the first init of an entity"""
         cls.locDict = locDict
-                
-#    def _moveNormal(self, newPosition):
-#        self.attr['pos'] = newPosition
-#        
-#    def move(self, newPosition, spatialLinkTypeID):
-#        """ not yet implemented"""
-#        pass
-
-
-#class CollectiveNew():
-#    
-
-class Collective():
-    """
-    This enhancement allows agents to iterate over member instances and thus
-    funtion as collectives of agents. Examples could be a pack of wolf or 
-    an household of persons.
-    """
-    def __init__(self, world, nID = -1, **kwProperties):
-        self.__getAgent = world.getAgent
-        self.groups = dict()
-        
-    def getMember(self, peerID):
-        return self.__getAgent(agentID=peerID)
-    
-    def iterMembers(self, peerIDs):
-        return [self.__getAgent(agentID=peerID) for peerID in peerIDs]
- 
-    def registerGroup(self, groupName, members):
-        self.groups[groupName] = members
-        
-    def iterGroup(self, groupName):
-        return iter(self.groups[groupName])
-    
-    def join(self, groupName, agent):
-        self.groups[groupName].append(agent)
-        
-    def leave(self, groupName, agent):
-        self.groups[groupName].remove(agent)        
+                      
 
 class SuperPowers():
     """
@@ -204,7 +146,7 @@ class Aggregator():
     remove the attributes again. ATTENTION: world.addLink(s), does not support
     this additional feature!!
     
-    Derive a new Class wie **ClassNewClass(Aggregator, Agent)**.
+    Derive a new Class like **ClassNewClass(Aggregator, Agent)**.
     
     aggregateItems
     

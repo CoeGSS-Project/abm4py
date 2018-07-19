@@ -6,9 +6,9 @@ Created on Tue Jul  3 15:51:31 2018
 @author: gcf
 """
 from .agent import  Agent
-from .traits import Parallel
+from .traits import Parallel, GridNode
 
-class Location(Agent):
+class Location(GridNode, Agent):
 
 
     def __init__(self, world, **kwProperties):
@@ -19,6 +19,7 @@ class Location(Agent):
 
 
         Agent.__init__(self, world, nID, **kwProperties)
+        GridNode.__init__(self, world, nID, **kwProperties)
 
     def __descriptor__():
         """

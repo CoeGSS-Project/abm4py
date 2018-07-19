@@ -39,7 +39,8 @@ sys.path.append('../')
 
 
 from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.traits import Neighborhood, Collective, Mobile
+from lib.traits import GridNode, Mobile
+from lib.future_traits import Collective
 from lib import core
 
 import tools_for_02 as tools
@@ -57,12 +58,11 @@ APPETITE = .30  # Percentage of grass height that sheep consume
 DO_PLOT = True
 
 #%% Sheep class
-class Grass(Location, Neighborhood, Collective):
+class Grass(Location , Collective):
 
     def __init__(self, world, **kwAttr):
-        #print(kwAttr['pos'])
+        #print(kwAttr['coord'])
         Location.__init__(self, world, **kwAttr) #hier stand LIB.Agent, warum?
-        Neighborhood.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
 
     def __descriptor__():
@@ -79,7 +79,7 @@ class Grass(Location, Neighborhood, Collective):
         classDesc['nameStr'] = 'grass'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        classDesc['staticProperties'] =  [('coord', np.int16, 2)]          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
         classDesc['dynamicProperties'] = [('height', np.float32, 1)]     
@@ -99,7 +99,7 @@ class Grass(Location, Neighborhood, Collective):
         """
                 
         if self.attr['height'] < 0.1:
-            for neigLoc in self.iterNeighborhood(ROOTS):
+            for neigLoc in self.getGridPeers():
                 if neigLoc.attr['height'] > 0.9:
                     self.attr['height'] += 0.05
                     
@@ -113,7 +113,7 @@ class Sheep(Agent, Mobile):
 
 
     def __init__(self, world, **kwAttr):
-        #print(kwAttr['pos'])
+        #print(kwAttr['coord'])
         Agent.__init__(self, world, **kwAttr)
         Mobile.__init__(self, world, **kwAttr)
         self.loc = locDict[(x,y)]
@@ -134,7 +134,7 @@ class Sheep(Agent, Mobile):
         classDesc['nameStr'] = 'sheep'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        classDesc['staticProperties'] =  [('coord', np.int16, 2)]          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
         classDesc['dynamicProperties'] = [('weight', np.float32, 1)]     
@@ -164,13 +164,13 @@ class Sheep(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = self.attr['pos']+ [ dx, dy]
+        newX, newY = self.attr['coord']+ [ dx, dy]
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
         
-#        self.attr['pos'] = [ newX, newY]
+#        self.attr['coord'] = [ newX, newY]
 #        world.delLinks(LINK_SHEEP, self.nID, self.loc.nID)
 #        world.delLinks(LINK_SHEEP, self.loc.nID, self.nID)
 #        self.loc =  locDict[( newX, newY)]
@@ -191,7 +191,7 @@ class Sheep(Agent, Mobile):
         # and the old sheep is back to initial weight.
         if self.attr['weight'] > W_SHEEP and len(self.loc.getPeerIDs(LINK_SHEEP))>0:
             world.registerAgent(Sheep(world,
-                                      pos=self.attr['pos'],
+                                      coord=self.attr['coord'],
                                       weight=1.0))
             self.attr['weight'] = 1.0
         
@@ -222,7 +222,7 @@ class Wolf(Agent, Mobile):
         classDesc['nameStr'] = 'wolf'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        classDesc['staticProperties'] =  [('coord', np.int16, 2)]          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
         classDesc['dynamicProperties'] = [('weight', np.float32, 1)]     
@@ -248,7 +248,7 @@ class Wolf(Agent, Mobile):
         The function move lets the wolves move in the same way as sheep. 
         The wolf though only looses 0.02 units of weight.
         """
-        pos = self['pos']
+        pos = self['coord']
         delta =  pos - center
         
         bias = np.clip((.5*delta)**3 / np.sqrt(np.sum( delta**2)),a_min = -5, a_max=5).astype(np.int)
@@ -264,7 +264,7 @@ class Wolf(Agent, Mobile):
 
     def step(self, world, wolfPack):
         
-        self.move(center)
+        self.move(wolfPack.attr['center'])
             
         # If the wolves weight goes below 1 unit it starts hunting.
         if self.attr['weight'] < 1.5:
@@ -275,7 +275,7 @@ class Wolf(Agent, Mobile):
         # The paternal wolf's weight goes down to 2.5 units.
         if self.attr['weight'] > W_WOLF and len(self.loc.getPeerIDs(LINK_WOLF))>0:
             newWolf = Wolf(world,
-                           pos=self.attr['pos'],
+                           coord=self.attr['coord'],
                            weight=2.5)
             world.registerAgent(newWolf)
             wolfPack.join('wolfs',newWolf)
@@ -317,7 +317,8 @@ class WolfPack(Agent, Collective):
 
         
     def computeCenter(self):
-        self.attr['center'] = np.mean(np.asarray([wolf.attr['pos'] for wolf in self.iterGroup('wolfs')]),axis=0)
+        self.attr['nWolfs'] = len(self.groups['wolfs'])
+        self.attr['center'] = np.mean(np.asarray([wolf.attr['coord'] for wolf in self.iterGroup('wolfs')]),axis=0)
         
         
         return self.attr['center']
@@ -335,12 +336,23 @@ class WolfPack(Agent, Collective):
                 newPack.join('wolfs', wolf)
         newPack.computeCenter()
         
-#%%
+    def step(self):
+        self.computeCenter()   
+        
+        
+        
+        [wolf.step(world, self) for wolf in self.iterGroup('wolfs')]
+            
+        if self.attr['nWolfs'] > 20:
+            self.separate(world)
+#%% Register of the world class
 world = World(agentOutput=False,
                   maxNodes=100000,
                   maxLinks=200000)
 
 world.setParameter('extend', EXTEND)
+
+
 #%% register a new agent type with four attributes
 GRASS = world.registerAgentType(Grass)
 
@@ -350,11 +362,16 @@ WOLF = world.registerAgentType(Wolf)
 
 WOLFPACK = world.registerAgentType(WolfPack)
 
+
 #%% register a link type to connect agents
 LINK_SHEEP = world.registerLinkType('grassLink', SHEEP, GRASS)
 LINK_WOLF = world.registerLinkType('grassLink', WOLF, GRASS)
 
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
+
+#%% adding the grid to world
+world.registerGrid(GRASS, ROOTS)
+
 IDArray = np.zeros([EXTEND, EXTEND])
 
 tt = time.time()
@@ -362,20 +379,16 @@ for x in range(EXTEND):
     for y in range(EXTEND):
         
         grass = Grass(world, 
-                      pos=(x,y),
+                      coord=(x,y),
                       height=random.random())
-        world.registerAgent(grass)
-        world.registerLocation(grass, x,y)
+        grass.register(world)
+        
         IDArray[x,y] = grass.nID
 timePerAgent = (time.time() -tt ) / world.nAgents(GRASS)
 print(timePerAgent)
-connBluePrint = world.spatial.computeConnectionList(radius=1.5)
-world.spatial.connectLocations(IDArray, connBluePrint, ROOTS, Grass)
+connBluePrint = world.grid.computeConnectionList(radius=1.5)
+world.grid.connectNodes(IDArray, connBluePrint, ROOTS, Grass)
 
-for grass in world.getAgents.byType(GRASS):
-    grass.reComputeNeighborhood(ROOTS)
-
-del grass
 
 # Jette: Sheep and wolves are assigned locations and registered to the world.
 
@@ -384,7 +397,7 @@ for iSheep in range(N_SHEEPS):
     (x,y) = np.random.randint(0,EXTEND,2)
     
     world.registerAgent(Sheep(world,
-                              pos=(x,y),
+                              coord=(x,y),
                               weight=1.0))
     
 for iPack in range(N_PACKS):
@@ -396,7 +409,7 @@ for iPack in range(N_PACKS):
         (x,y) = wolfPack.attr['center'][0] + np.random.randint(-1,2,2)
         
         wolf = Wolf(world,
-                      pos=(x,y),
+                      coord=(x,y),
                       weight=1.0)
         world.registerAgent(wolf)
         wolfPack.join('wolfs',wolf)
@@ -428,25 +441,18 @@ while True:
         
     
     
-    for wolfPack in world.getAgents.byType(WOLFPACK):
-        center = wolfPack.computeCenter()   
-        
-        wolfPack.attr['nWolfs'] = len(wolfPack.groups['wolfs'])
-        
-        [wolf.step(world, wolfPack) for wolf in wolfPack.iterGroup('wolfs')]
-            
-        if wolfPack.attr['nWolfs'] > 20:
-            wolfPack.separate(world)
+    [wolfPack.step()  for wolfPack in world.getAgents.byType(WOLFPACK)]
+
         
         
         
         
     # This updates the plot.        
     if DO_PLOT: 
-        pos = world.getAttrOfAgentType('pos', agTypeID=SHEEP)
+        pos = world.getAttrOfAgentType('coord', agTypeID=SHEEP)
         if pos is not None:
             np.clip(pos, 0, EXTEND, out=pos)
-            pos = world.setAttrOfAgentType('pos', pos, agTypeID=SHEEP)
+            pos = world.setAttrOfAgentType('coord', pos, agTypeID=SHEEP)
             plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these

@@ -30,18 +30,18 @@ class PlotClass():
         
         
 
-        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'], 2)
-        if len(pos) > 0:
-            self.h_sicks = plt.scatter(pos[:,1],pos[:,0], c='r', s = 35, marker='s',zorder=2)
+        coord = world.getAttrOfFilteredAgentType('coord', lambda a: a['sick'], 2)
+        if len(coord) > 0:
+            self.h_sicks = plt.scatter(coord[:,1],coord[:,0], c='r', s = 35, marker='s',zorder=2)
         
-        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'] == False, 2)
-        if len(pos) > 0:
-            self.h_healths = plt.scatter(pos[:,1],pos[:,0], c='g', s = 35, marker='s',zorder=2)
+        coord = world.getAttrOfFilteredAgentType('coord', lambda a: a['sick'] == False, 2)
+        if len(coord) > 0:
+            self.h_healths = plt.scatter(coord[:,1],coord[:,0], c='g', s = 35, marker='s',zorder=2)
         
 
-        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['remainingImmunity'] > 0, 2)
-        if len(pos) > 0:
-            self.h_immunes = plt.scatter(pos[:,1],pos[:,0], c='k', s = 35, marker='s',zorder=3)
+        coord = world.getAttrOfFilteredAgentType('coord', lambda a: a['remainingImmunity'] > 0, 2)
+        if len(coord) > 0:
+            self.h_immunes = plt.scatter(coord[:,1],coord[:,0], c='k', s = 35, marker='s',zorder=3)
         else:
             self.h_immunes = plt.scatter([],[], c='k', s = 35, marker='s',zorder=3)
 
@@ -66,17 +66,17 @@ class PlotClass():
         
     def update(self, world):
 
-        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'], 2)
-        if len(pos) > 0:
-            self.h_sicks.set_offsets(np.c_[pos[:,1],pos[:,0]])
+        coord = world.getAttrOfFilteredAgentType('coord', lambda a: a['sick'], 2)
+        if len(coord) > 0:
+            self.h_sicks.set_offsets(np.c_[coord[:,1],coord[:,0]])
 
-        pos = world.getAttrOfFilteredAgentType('pos', lambda a: a['sick'] == False, 2)
-        if len(pos) > 0:
-            self.h_healths.set_offsets(np.c_[pos[:,1],pos[:,0]])
+        coord = world.getAttrOfFilteredAgentType('coord', lambda a: a['sick'] == False, 2)
+        if len(coord) > 0:
+            self.h_healths.set_offsets(np.c_[coord[:,1],coord[:,0]])
 
 
-        if len(pos) > 0:
-            self.h_immunes.set_offsets(np.c_[pos[:,1],pos[:,0]])
+        if len(coord) > 0:
+            self.h_immunes.set_offsets(np.c_[coord[:,1],coord[:,0]])
         
         plt.draw()
         

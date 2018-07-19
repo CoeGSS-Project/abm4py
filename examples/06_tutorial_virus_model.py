@@ -41,7 +41,8 @@ sys.path.append('../')
 
 
 from lib import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from lib.traits import Neighborhood, Collective, Mobile
+from lib.traits import  Mobile
+from lib.future_traits import Collective
 from lib import core
 
 import tools_for_06 as tools
@@ -64,7 +65,7 @@ class People(Agent, Mobile):
 
 
     def __init__(self, world, **kwAttr):
-        #print(kwAttr['pos'])
+        #print(kwAttr['coord'])
         Agent.__init__(self, world, **kwAttr)
         Mobile.__init__(self, world, **kwAttr)
         
@@ -87,7 +88,7 @@ class People(Agent, Mobile):
         classDesc['staticProperties'] =  []          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
-        classDesc['dynamicProperties'] =   [('pos', np.int16, 2),
+        classDesc['dynamicProperties'] =   [('coord', np.int16, 2),
                                             ('sick', np.bool,1),
                                             ('remainingImmunity', np.int16),
                                             ('sickTime', np.int16),
@@ -147,7 +148,7 @@ class People(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-1,2,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])
+        newX, newY = (self.attr['coord'] + [ dx, dy])
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
@@ -173,7 +174,9 @@ class People(Agent, Mobile):
     def reproduce(self):
         if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
 
-            newPerson = People(world, pos=self['pos'], age=1)
+            newPerson = People(world, 
+                               coord=self['coord'], 
+                               age=1)
             newPerson.getHealthy()
             newPerson.register(world)
                 
@@ -186,7 +189,7 @@ world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
 
 PATCH = world.registerAgentType(Location,
-                               staticProperties  = [('pos', np.int16, 2)],
+                               staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [])
 
 PEOPLE = world.registerAgentType(People)
@@ -199,7 +202,7 @@ PATCHWORK = world.registerLinkType('patchwork', PATCH, PATCH, staticProperties=[
 
 LINK_PEOPLE = world.registerLinkType('patchLink', PEOPLE, PATCH)
 
-
+world.registerGrid(PATCH, PATCHWORK)
 
 IDArray = np.zeros([EXTEND, EXTEND])
 
@@ -208,14 +211,13 @@ for x in range(EXTEND):
     for y in range(EXTEND):
         
         patch = Location(world, 
-                      pos=(x,y))
+                      coord=(x,y))
         patch.register(world)
-        world.registerLocation(patch, x,y)
         IDArray[x,y] = patch.nID
         
 
-connBluePrint = world.spatial.computeConnectionList(radius=2.5)
-world.spatial.connectLocations(IDArray, connBluePrint, PATCHWORK, Location)
+connBluePrint = world.grid.computeConnectionList(radius=2.5)
+world.grid.connectNodes(IDArray, connBluePrint, PATCHWORK, Location)
 
 
 # Sheep and wolves are assigned locations and registered to the world.
@@ -225,7 +227,7 @@ for iPeople in range(N_PEOPLE):
     (x,y) = np.random.randint(0,EXTEND,2)
     
     people = People(world,
-                  pos=(x,y),
+                  coord=(x,y),
                   age=np.random.randint(0, LIFESPAN, 1),
                   sickTime=0,
                   remainingImmunity=0,
@@ -261,10 +263,10 @@ while True:
               
      
     # This updates the plot.        
-    pos = world.getAttrOfAgentType('pos', agTypeID=PEOPLE)
-    if pos is not None:
-        np.clip(pos, 0, EXTEND, out=pos)
-        pos = world.setAttrOfAgentType('pos', pos, agTypeID=PEOPLE)
+    coord = world.getAttrOfAgentType('coord', agTypeID=PEOPLE)
+    if coord is not None:
+        np.clip(coord, 0, EXTEND, out=coord)
+        world.setAttrOfAgentType('coord', coord, agTypeID=PEOPLE)
         plott.update(world)
     
     # This gives the number of sheep, the number of wolves and of these

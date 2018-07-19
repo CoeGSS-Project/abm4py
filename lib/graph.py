@@ -168,6 +168,8 @@ class BaseGraph():
         """ 
         calculates the node type ID from local ID
         ONLY on node type per call
+        
+        returns: (nodeTypeID, dataID)
         """
         try: 
             # array is given
@@ -288,7 +290,7 @@ class BaseGraph():
         only one node type per time can be checked
         """
         nTypeIDs, dataIDs  = self.getNodeDataRef(lnIDs)        
-        return self.nodes[nTypeIDs]['active'][dataIDs], nTypeIDs, dataIDs
+        return self.nodes[nTypeIDs]['active'][dataIDs]
 
 
     def areNodes(self, lnIDs):
@@ -300,52 +302,47 @@ class BaseGraph():
         
         return np.all(self.nodes[nTypeIDs]['active'][dataIDs])
                         
+    def getAttrOfNodeType(self, label, nTypeID):
+
+        array = self.nodes[nTypeID]
+        return array[label][array['active']]
+ 
+    def setAttrOfNodeType(self, label, values, nTypeID):
+
+        array = self.nodes[nTypeID]
+        array[label][array['active']] = values  
             
-    def setAttrOfAgents(self, label, value, lnID, nTypeID=None):
-        
-        nTypeID, dataID = self.getEdgeDataRef(lnID)
-        self.nodes[nTypeID][label][dataID] = value
+
     
-    def getAttrOfAgents(self, label=None, lnID=None, nTypeID=None):
+    def getAttrOfNodesSeq(self, label, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
         if label:
             return self.nodes[nTypeID][label][dataID]
         else:
             return self.nodes[nTypeID][dataID]
+
+    def setAttrOfNodesSeq(self, label, values, lnIDs):
         
+        nTypeID, dataID = self.getNodeDataRef(lnIDs)
+        self.nodes[nTypeID][label][dataID] = values
         
-    def setNodeSeqAttr(self, label, values, lnIDs=None, nTypeID=None, dataIDs=None):
+    def setNodeSeqAttr(self, label, values, lnIDs):
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
         Label is a either string or list of strings
         """
-        if nTypeID is None:
-            nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
+        nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
-        if isinstance(label, list):
-            # label is a list of string
-            dtype2 = np.dtype({name:self.nodes[nTypeID]._data.dtype.fields[name] for name in label})
-                
-            view = np.ndarray(self.nodes[nTypeID]._data.shape, 
-                              dtype2, 
-                              self.nodes[nTypeID]._data, 
-                              0, 
-                              self.nodes[nTypeID]._data.strides) 
-            #print view[dataIDs].dtype
-            view[dataIDs] = values
-        else:
-            #label is a singel string
-            self.nodes[nTypeID][label][dataIDs]= values
+        self.nodes[nTypeID][label][dataIDs] = values
             
-    def getNodeSeqAttr(self, label, lnIDs=None, nTypeID=None, dataIDs=None):
+    def getNodeSeqAttr(self, label, lnIDs):
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
         label is a either string or list of strings
         """     
         if lnIDs==[]:
             return None
-        if nTypeID is None:
-            nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
+        nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
         if label:
             return self.nodes[nTypeID][label][dataIDs]
@@ -392,10 +389,11 @@ class BaseGraph():
         Attributes can be given optionally with the correct structured
         tuple
         """
-        sourceIsNode, srcNodeTypeID, srcDataID = self.isNode(source)
-        targetIsNode, trgNodeTypeID, trgDataID = self.isNode(target)
-        
-        if not (sourceIsNode) or not(targetIsNode):
+        srcNodeTypeID, srcDataID = self.getNodeDataRef(source)   
+        trgNodeTypeID, trgDataID = self.getNodeDataRef(target)   
+
+        if not (self.nodes[srcNodeTypeID]['active'][srcDataID]) or \
+           not(self.nodes[trgNodeTypeID]['active'][trgDataID]):
             raise ValueError('Nodes do not exist')
 
         eType = self.edges[eTypeID]
@@ -434,8 +432,7 @@ class BaseGraph():
             dataview[:] = (True, source, target) + attributes
         else:
             dataview[['active', 'source', 'target']] = (True, source, target)
-         
-        return leID, dataID, dataview, eType.edgesOut[source]
+    
 
     def addEdges(self, eTypeID, sources, targets, **kwAttr):
         """
@@ -699,7 +696,18 @@ class ABMGraph(BaseGraph):
                              ('source', np.int32, 1), 
                              ('target', np.int32, 1)]
     
-        
+    def _addNoneEdge(self, source):
+        """
+        Method to create the empty nodesOut dict and returns a pointer
+        to it. Used by the GridNode trait (see traits.py)
+        """
+        nTypeID, _ = self.getNodeDataRef(source)
+        linkTypeID = self.node2EdgeType[(nTypeID,nTypeID)]
+        eType = self.edges[linkTypeID]
+        eType.edgesOut[source] = []
+        eType.nodesOut[source] = nTypeID, []
+
+        return  eType.nodesOut[source]
     
     def addNodeType(self, 
                     agTypeIDIdx, 
@@ -733,7 +741,7 @@ class ABMGraph(BaseGraph):
         return liTypeIDIdx
 
 
-    #%% NODE ACCESS
+    #%% RELATIVE NODE ACCESS
     def getDTypeOfNodeType(self, agTypeID, kind):
         
         if kind == 'sta':

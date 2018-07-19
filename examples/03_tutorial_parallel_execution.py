@@ -35,7 +35,8 @@ home = os.path.expanduser("~")
 sys.path.append('../')
 
 from lib import World, Agent, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
-from lib.traits import Neighborhood, Collective, Mobile, Parallel
+from lib.traits import Mobile, Parallel
+from lib.future_traits import Collective
 from lib import core
 
 import tools_for_03 as tools
@@ -45,15 +46,14 @@ EXTEND = 20
 RADIUS = 1.5
 
 #%% Class definition
-class Grass(Location, Collective, Parallel, Neighborhood):
+class Grass(Location, Collective, Parallel):
 
     def __init__(self, world, **kwAttr):
         #print(kwAttr['pos'])
         Location.__init__(self, world, **kwAttr)
         Collective.__init__(self, world, **kwAttr)
         Parallel.__init__(self, world, **kwAttr)
-        Neighborhood.__init__(self, world, **kwAttr)
-    
+
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
@@ -68,7 +68,7 @@ class Grass(Location, Collective, Parallel, Neighborhood):
         classDesc['nameStr'] = 'Grass'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  [('pos', np.int16, 2)]          
+        classDesc['staticProperties'] =  [('coord', np.int16, 2)]          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
         classDesc['dynamicProperties'] = [('height', np.float32, 1)]     
@@ -81,7 +81,7 @@ class Grass(Location, Collective, Parallel, Neighborhood):
 
     def grow(self):
         currHeight = self.attr['height']
-        for neigLoc in self.iterNeighborhood(ROOTS):
+        for neigLoc in self.getGridPeers():
             if neigLoc['height'] > 2*currHeight:
                 self['height'] *= ((random.random()*.8)+1)
                 break
@@ -121,12 +121,13 @@ GRASS = world.registerAgentType(AgentClass=Grass, GhostAgentClass=GhostGrass)
 
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 
-connBluePrint = world.spatial.computeConnectionList(radius=RADIUS)
-world.spatial.initSpatialLayer(rankIDLayer, connBluePrint, Grass, ROOTS)
+world.registerGrid(GRASS, ROOTS)
+connBluePrint = world.grid.computeConnectionList(radius=RADIUS)
+world.grid.init(rankIDLayer, connBluePrint, Grass)
 
 for grass in world.getAgents.byType(GRASS):
-    grass.reComputeNeighborhood(ROOTS)
-    if np.all(grass['pos'] < 8):
+
+    if np.all(grass['coord'] < 8):
         grass['height'] = random.random()+ 13.1    
     else:
         grass['height'] = random.random()+ 0.1

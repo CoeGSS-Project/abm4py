@@ -33,7 +33,6 @@ class World:
     def __init__(self,
                  simNo=None,
                  outPath='.',
-                 spatial=True,
                  nSteps=1,
                  maxNodes=1e3,
                  maxLinks=1e5,
@@ -56,7 +55,6 @@ class World:
             else:
                 self.isRoot = True
         
-        self.isSpatial = spatial
                 
         # ======== GRAPH ========
         self.graph    = ABMGraph(self, maxNodes, maxLinks)
@@ -116,10 +114,6 @@ class World:
         self.io = core.IO(self, nSteps, self.para['outPath'])
         lg.debug('Init IO done')##OPTPRODUCTION
         
-        # ======== SPATIAL LAYER ========
-        if self.isSpatial:
-            self.spatial  = core.Spatial(self)
-        
         # ======== RANDOM ========
         self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__agentsByType)
         
@@ -150,6 +144,8 @@ class World:
         
     def _entByLocID(self, locID):
         return self.__allAgentDict[locID]
+
+    
     
 #%% General Infromation methods
     def nAgents(self, agTypeID, ghosts=False):
@@ -194,13 +190,20 @@ class World:
         # saving enumerations
         self.io.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
 
-#%% Global Agent scope
+#%% Global scope of agent attributes
         
 
     def getAttrOfAgents(self, attribute, localIDList):
         return self.graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
 
+    def setAttrOfAgents(self, attribute, valueList, localIDList):
 
+        """
+        Method to write values of node sequences at once
+        Return type is numpy array
+        """
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
+    
     def getAttrOfAgentType(self, attribute, agTypeID):
         """
         Method to read attributes of node sequences at once
@@ -208,7 +211,17 @@ class World:
         Only return non-ghost agent properties
         """
         return self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
-    
+        #return self.graph.getAttrOfNodeType(attribute, agTypeID)
+
+
+    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
+        """
+        Method to write values of all agents of a type at once
+        Return type is numpy array
+        """
+        self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
+        #self.graph.setAttrOfNodeType(attribute, valueList, agTypeID)  
+        
     def getAttrOfFilteredAgents(self, attribute, agTypeID, func):
         """
         This function allows to access the attributes of a sub-selection of agents 
@@ -222,20 +235,20 @@ class World:
         #maskedArray = array[mask]
         return array[attribute][mask]
     
-    def setAttrOfAgents(self, attribute, valueList, localIDList):
+    def setAttrOfFilteredAgents(self, attribute, value, agTypeID, func):
+        """
+        This function allows to access the attributes of a sub-selection of agents 
+        that is defined  by a filter function that is action on agent properties.
 
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
         """
-        Method to write values of node sequences at once
-        Return type is numpy array
-        """
-        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        #maskedArray = array[mask]
+        array[attribute][mask] = value
 
-    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
-        """
-        Method to write values of all agents of a type at once
-        Return type is numpy array
-        """
-        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])           
+         
             
     def getAttrOfLinks(self, attribute, localLinkIDList):
         """
@@ -429,6 +442,11 @@ class World:
 
 
 #%% Register methods
+    def registerGrid(self, GridNodeType, GridLinkType):
+        # ======== GRID LAYER ========
+        self.grid  = core.Grid(self, GridNodeType, GridLinkType)
+        
+    
     def __addIterNodeFunction(self, agTypeStr, nodeTypeId):
         name = "iter" + agTypeStr.capitalize()
         source = """def %NAME%(self):
@@ -581,6 +599,8 @@ class World:
         if mpiReduce is not None:
             self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
             self.globalRecord[name].glob = self.graph.glob
+
+    
             
     def registerLocation(self, location, x, y):
 
