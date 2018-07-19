@@ -35,7 +35,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.clf()
     ax = plt.subplot(111)
     for agent in world.getAgents.byType(agentTypeID):
-        pos = agent.attr['pos'][0]
+        pos = agent.attr['pos']
         peerDataIDs = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
         if len(peerDataIDs) > 0:
             peerPositions = positions[peerDataIDs]

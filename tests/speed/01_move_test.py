@@ -48,7 +48,7 @@ class Walker(Agent, Mobile):
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0]
+        newX, newY = (self.attr['pos'] + [ dx, dy])
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
@@ -103,7 +103,7 @@ for iWalker in range(N_WALKERS):
 
     loc = random.choice(locList)    
     walker = Walker(world,
-                  pos=tuple(loc.attr['pos'][0]))
+                  pos=tuple(loc.attr['pos']))
     walker.loc = loc
     walker.register(world)
 print('Walkers created in ' + str(time.time() -tt) )   

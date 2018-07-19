@@ -22,9 +22,8 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from .core import firstElementDeco
 
-class _Entity():
+class _Entity(object):
     """
     Enitity is the storage structure of all agents and contains the basic 
     methods to create and delete itself.
@@ -42,8 +41,10 @@ class _Entity():
             self['instance'] = self
             self.__getNode = world.getAgent
 
-            self.get = firstElementDeco(self.attr.__getitem__)
+            self.get = self.attr.__getitem__
             self.set = self.attr.__setitem__
+#            self.__getitem__ = self.attr.__getitem__
+#            self.__setitem__ = self.attr.__setitem__
         # connects the agent to an existing node
         else:
             self.nID = nID
@@ -53,7 +54,7 @@ class _Entity():
             
 
     def __getitem__(self, a):
-        return self.attr.__getitem__(a)[0]
+        return self.attr.__getitem__(a)
 
     def __setitem__(self, a, value):
         self.attr.__setitem__(a, value)

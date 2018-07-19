@@ -30,11 +30,11 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 import sys 
 import os
 import numpy as np
-import logging as lg
+
 import time
 import random
-import h5py
-from math import sqrt
+
+
 import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
@@ -70,6 +70,30 @@ class People(Agent, Mobile):
         
         self.getAgent = world.getAgent
 
+    def __descriptor__():
+        """
+        This desriptor defines the agent attributes that are saved in the 
+        agent graph an can be shared/viewed by other agents and acessed via 
+        the global scope of the world class.
+        All static and dynamic attributes can be accessed by the agent by:
+            1) agent.get('attrLabel') / agent.set('attrLabel', value)
+            2) agent.attr['attrLabel']
+            3) agent.attr['attrLabel']
+        """
+        classDesc = dict()
+        classDesc['nameStr'] = 'Location'
+        # Static properites can be re-assigned during runtime, but the automatic
+        # IO is only logging the initial state
+        classDesc['staticProperties'] =  []          
+        # Dynamic properites can be re-assigned during runtime and are logged 
+        # per defined time step intervall (see core.IO)
+        classDesc['dynamicProperties'] =   [('pos', np.int16, 2),
+                                            ('sick', np.bool,1),
+                                            ('remainingImmunity', np.int16),
+                                            ('sickTime', np.int16),
+                                            ('age', np.int16)]    
+        return classDesc
+    
     def register(self,world):
 
         Agent.register(self, world)
@@ -123,7 +147,7 @@ class People(Agent, Mobile):
         
         """
         (dx,dy) = np.random.randint(-1,2,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0] 
+        newX, newY = (self.attr['pos'] + [ dx, dy])
         #warum oben runde und hier eckige Klammern um dx, dy
         
         newX = min(max(0,newX), EXTEND-1)
@@ -153,30 +177,6 @@ class People(Agent, Mobile):
             newPerson.getHealthy()
             newPerson.register(world)
                 
-        
-#    def step(self, world):
-#        
-#        self.eat()
-#        if random.random() > sqrt(self['height']):
-#            self.move()
-#        
-#        # If a sheep has enough weight and at least one other sheep close 
-#        # this produces a new sheep which is registered to the world
-#        # and the old sheep is back to initial weight.
-#        if self.attr['weight'] > W_SHEEP and len(self.loc.getPeerIDs(LINK_SHEEP))>0:
-#            newSheep = Sheep(world,
-#                             pos=self.attr['pos'],
-#                             weight=1.0)
-#            newSheep.register(world)
-#            
-#            self.attr['weight'] = 1.0
-#        
-#        # If a sheep starves to death it is deleted from the world.
-#        elif self.attr['weight'] < 0:
-#            self.delete(world)        
-#        
-
-        
 #%%
 world = World(agentOutput=False,
                   maxNodes=MAX_AGENTS,
@@ -185,17 +185,11 @@ world = World(agentOutput=False,
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
 
-PATCH = world.registerAgentType('patch' , AgentClass=Location,
+PATCH = world.registerAgentType(Location,
                                staticProperties  = [('pos', np.int16, 2)],
                                dynamicProperties = [])
 
-PEOPLE = world.registerAgentType('people' , AgentClass=People,
-                               staticProperties  = [],
-                               dynamicProperties = [('pos', np.int16, 2),
-                                                    ('sick', np.bool,1),
-                                                    ('remainingImmunity', np.int16),
-                                                    ('sickTime', np.int16),
-                                                    ('age', np.int16)])
+PEOPLE = world.registerAgentType(People)
                     
 
 

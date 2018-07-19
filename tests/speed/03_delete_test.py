@@ -48,7 +48,7 @@ class Walker(Agent, Mobile):
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)
-        newX, newY = (self.attr['pos'] + [ dx, dy])[0]
+        newX, newY = (self.attr['pos'] + [ dx, dy])
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
