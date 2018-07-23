@@ -31,7 +31,7 @@ from gcfabm.traits import Parallel
 from gcfabm.future_traits import Collective
 from gcfabm import core
 
-import tools_for_03 as tools
+import tools_for_05 as tools
 
 #%% SETUP
 EXTEND = 20
@@ -91,10 +91,13 @@ world = World(agentOutput=False,
               mpiComm=core.comm,
               maxNodes=100000,
               maxLinks=200000)
-
+print(world.isParallel)
+print(core.mpiRank)
+print(core.mpiSize)
 rankIDLayer = np.zeros([EXTEND, EXTEND]).astype(int)
 if world.isParallel:
     print('parallel mode')
+    print(core.mpiRank)
     if core.mpiSize == 4:
     
         rankIDLayer[EXTEND//2:,:EXTEND//2] = 1
@@ -103,19 +106,18 @@ if world.isParallel:
 
     elif core.mpiSize == 2:
         rankIDLayer[EXTEND//2:,:] = 1
-        
+    print(rankIDLayer)
 else:
     print('non-parallel mode')
     
 world.setParameter('extend', EXTEND)
 GRASS = world.registerAgentType(AgentClass=Grass, GhostAgentClass=GhostGrass)
                                 
-
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 
 world.registerGrid(GRASS, ROOTS)
 connBluePrint = world.grid.computeConnectionList(radius=RADIUS)
-world.grid.init(rankIDLayer, connBluePrint, Grass)
+world.grid.init((rankIDLayer*0)+1, connBluePrint, Grass, rankIDLayer)
 
 for grass in world.getAgents.byType(GRASS):
 

@@ -29,13 +29,11 @@ import time
 import random
 from math import sqrt
 
-
-
 from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
 from gcfabm.traits import  Mobile
 from gcfabm.future_traits import Collective
 
-import tools_for_02 as tools
+import tools_for_03 as tools
 
 
 #%% SETUP

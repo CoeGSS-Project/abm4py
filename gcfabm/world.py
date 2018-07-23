@@ -48,6 +48,7 @@ class World:
             self.mpiRank = core.mpiRank
             self.mpiSize = core.mpiSize
             if self.isParallel:
+                print('parallel mode enabled')
                 if self.mpiRank == 0:
                     self.isRoot = True
                 else:
