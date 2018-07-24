@@ -129,6 +129,9 @@ class World:
       
         self.getAgents  = core.AgentAccess(self)
 
+        if core.dakota.isActive:
+            self.simNo = core.dakota.simNo
+            self.setParameters(core.dakota.params)
 
 
     def _globIDGen(self):
@@ -158,9 +161,15 @@ class World:
     def nLinks(self, liTypeID):
        return self.graph.eCount(eTypeID=liTypeID)  
 
+    def getParameter(self, paraName):
+        """
+        Returns a single simulation parameter
+        """
+        return self.para[paraName]
+
     def getParameters(self):
         """
-        Returns a dictionary of all simulations parameters or a single value
+        Returns a dictionary of all simulations parameters 
         """
         return self.para
 
@@ -168,7 +177,11 @@ class World:
         """
         This method is used to set parameters of the simulation
         """
-        self.para[paraName] = paraValue
+        if core.dakota.isActive:
+            if core.dakota.params.get(paraName):
+                self.para[paraName] = core.dakota.params[paraName]
+        else:
+            self.para[paraName] = paraValue
 
     def setParameters(self, parameterDict):
         """
