@@ -392,7 +392,10 @@ class Grid():
         ghostLocationList = list()
         lg.debug('rank array: ' + str(gridMask)) ##OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
-        self.world.cellMapIds = np.where(gridMask == self.world.mpiRank)
+        if mpiRankArray is not None:
+            self.world.cellMapIds = np.where(mpiRankArray == self.world.mpiRank)
+        else:
+            self.world.cellMapIds = np.where(gridMask)
 
         # create vertices
         for x in range(xMax):
@@ -1471,7 +1474,7 @@ class PAPI():
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
             for entity in [self.world.getAgent(agentID=i) for i in lnIDList]:
-                entity.mpiPeers.append(mpiDest)
+                entity.mpiGhostRanks.append(mpiDest)
 
             # send requested global IDs
             lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
