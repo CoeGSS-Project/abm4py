@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 from .graph import ABMGraph
-from . import core
+from . import core, misc
 
 import logging as lg
 import numpy as np
@@ -38,7 +38,8 @@ class World:
                  maxLinks=1e5,
                  debug=False,
                  mpiComm=None,
-                 agentOutput=False):
+                 agentOutput=False,
+                 linkOutput=False):
 
         if mpiComm is None:
             self.isParallel = False
@@ -76,6 +77,7 @@ class World:
         self.para['outPath'] = outPath # is not graph, move to para
         # TODO put to parameters                    
         self.agentOutput = agentOutput
+        self.linkOutput  = linkOutput
         self.simNo     = simNo
         self.timeStep  = 0    
         self.maxNodes  = int(maxNodes)
@@ -192,7 +194,7 @@ class World:
 
     # saving enumerations
     def saveParameters(self, fileName= 'simulation_parameters'):
-        self.io.saveObj(self.para, self.para['outPath'] + '/' + fileName)
+        misc.saveObj(self.para, self.para['outPath'] + '/' + fileName)
        
     def getEnums(self):
         """ 
@@ -202,7 +204,7 @@ class World:
 
     def saveEnumerations(self, fileName= 'enumerations'):
         # saving enumerations
-        self.io.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
+        misc.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
 
 #%% Global scope of agent attributes
         
@@ -437,7 +439,7 @@ class World:
                 agent.delete(self)
 
     #%% Local and global IDs            
-    def getDataIDs(self, agTypeID):
+    def getAgentDataIDs(self, agTypeID):
         return self.__agendDataIDsList[agTypeID]
 
     def glob2Loc(self, globIdx):
@@ -547,6 +549,11 @@ class World:
             - edge2NodeType
         - update of enumerations
         """
+        if ('source', np.int32, 1) not in staticProperties:
+            staticProperties.append(('source', np.int32, 1))
+        if ('target', np.int32, 1) not in staticProperties:
+            staticProperties.append(('target', np.int32, 1))
+                             
         staticProperties  = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
@@ -706,7 +713,8 @@ class World:
         if self.getParameters()['writeAgentFile']:
             self.io.finalizeAgentFile()
 
-        
+        if self.getParameters()['writeLinkFile']:
+            self.io.finalizeLinkFile()
 if __name__ == '__main__':
     
     pass
