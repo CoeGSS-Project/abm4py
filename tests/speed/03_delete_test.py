@@ -56,8 +56,8 @@ N_WALKERS = 500
 N_STEPS   = 100
        
 world = World(agentOutput=False,
-          maxNodes=100000,
-          maxLinks=200000)
+              maxNodes=100000,
+              maxLinks=200000)
 
 #%% register a new agent type with four attributes
 nodeMap = np.zeros([EXTEND, EXTEND])
@@ -67,7 +67,6 @@ LOC = world.registerAgentType(AgentClass=Location,
                                dynamicProperties = [('property', np.float32, 1)])
 
 LINK = world.registerLinkType('link',LOC, LOC, dynamicProperties = [('weig', np.float32, 1)])
-
 
 WKR = world.registerAgentType(AgentClass=Walker,
                                dynamicProperties =  [('coord', np.int16, 2)])

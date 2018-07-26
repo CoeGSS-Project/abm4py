@@ -441,9 +441,17 @@ class World:
         return self.__agendDataIDsList[agTypeID]
 
     def glob2Loc(self, globIdx):
+        if self.isParallel == False:
+            def replacement(globIdx):
+                return globIdx
+            self.glob2Loc = replacement
+            return globIdx
+            
         return self.__glob2loc[globIdx]
 
     def setGlob2Loc(self, globIdx, locIdx):
+        
+        
         self.__glob2loc[globIdx] = locIdx
 
     def loc2Glob(self, locIdx):

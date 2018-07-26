@@ -32,12 +32,14 @@ class Parallel():
     def __init__(self, world, nID = None, **kwProperties):
         
         # adding properties to the attributes
-        gID = self.getGlobID(world)
-        self.attr['gID'] = gID
-        self.gID = gID
-         #kwProperties['gID'] = self.gID
+        if world.isParallel:
+            self.gID = self.getGlobID(world)
+        else:
+            self.gID = self.attr['ID']
 
-        self.mpiPeers = list()
+        self.attr['gID'] = self.gID
+        self.mpiOwner = world.mpiRank
+        self.mpiGhostRanks = list()
 
     def getGlobID(self,world):
         return next(world.globIDGen)
@@ -51,13 +53,13 @@ class Parallel():
         if liTypeID is not None:
             world.addLink(liTypeID, self.nID, entity.nID)
 
-        if len(self.mpiPeers) > 0: # node has ghosts on other processes
-            for mpiPeer in self.mpiPeers:
+        if len(self.mpiGhostRanks) > 0: # node has ghosts on other processes
+            for mpiPeer in self.mpiGhostRanks:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
                 agTypeID = world.graph.class2NodeType(entity.__class__)
                 world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
 
-        return self.mpiPeers
+        return self.mpiGhostRanks
 
 
 class GridNode():
@@ -77,13 +79,13 @@ class GridNode():
         self.gridPeers  = world.graph._addNoneEdge(self.attr['ID'])
         
         if parentEntity is not None:
-            self.mpiPeers = parentEntity.registerChild(world, self, liTypeID)
+            self.mpiCopyRanks = parentEntity.registerChild(world, self, liTypeID)
        
     def getGridPeers(self):
         return self._graph.nodes[self.gridPeers[0]]['instance'][self.gridPeers[1]]
 
     def getAttrOfGridPeers(self, attribute):
-        return self._graph.nodes[self.gridPeers[0]][attribute][self.gridPeers[1]]
+        return self._graph.nodes[self.gridPeers][attribute][self.gridPeers[1]]
         
         
 class Mobile():

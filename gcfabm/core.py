@@ -277,7 +277,10 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
+    try:
+        positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
+    except:
+        positions = np.asarray([agent.loc.attr['coord'] for agent in world.getAgents.byType(agentTypeID)])
     
     if ax is None:
         plt.ion()
@@ -288,8 +291,12 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     if liTypeID is not None:
         for agent in world.getAgents.byType(agentTypeID):
             
-            pos = agent.attr['coord']
-            peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
+            try:
+                pos = agent.attr['coord']
+            except:
+                pos = agent.loc.attr['coord']
+                
+            peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - (world.maxNodes*agentTypeID)
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
                 for peerPos in peerPositions:

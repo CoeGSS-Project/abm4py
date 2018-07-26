@@ -23,7 +23,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 from numba import njit
 import numpy as np
-
+import pickle
 
 class synthInput():
     """ MPI conform loading of synthetic population data"""
@@ -150,4 +150,12 @@ def cartesian(arrays, out=None):
     return out
 
 
-        
+
+def saveObj(obj, name ):
+    with open( name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def loadObj(name ):
+    with open(name + '.pkl', 'rb') as f:
+        return pickle.load(f)    
