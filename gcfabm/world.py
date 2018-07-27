@@ -235,7 +235,7 @@ class World:
         Method to write values of all agents of a type at once
         Return type is numpy array
         """
-        self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
+        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])
         #self.graph.setAttrOfNodeType(attribute, valueList, agTypeID)  
         
     def getAttrOfFilteredAgents(self, attribute, agTypeID, func):

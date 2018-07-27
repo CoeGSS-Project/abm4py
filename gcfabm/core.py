@@ -1223,16 +1223,13 @@ class IO():
                 self.dynamicAgentData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
                 self.dynamicAgentData[agTypeID].writeData(self.agH5File)
 
-               
-
-
 
     def finalizeAgentFile(self):
         """
-        finalizing the agent files - closes the file and saves the
-        attribute files
-        ToDo: include attributes in the agent file
+        Finalizing the node file - closes the file and saves the
+        attribute files. This incluses closing the Hdf5 file.
         """
+
 
         for agTypeID in list(self.dynamicAgentData.keys()):
             group = self.agH5File.get('/' + str(agTypeID))
@@ -1399,9 +1396,8 @@ class IO():
 
     def finalizeLinkFile(self):
         """
-        finalizing the agent files - closes the file and saves the
-        attribute files
-        ToDo: include attributes in the agent file
+        Finalizing the link file - closes the file and saves the
+        attribute files. This incluses closing the Hdf5 file.
         """
 
         for liTypeID in list(self.dynamicLinkData.keys()):
@@ -1416,12 +1412,8 @@ class IO():
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
-#        self.comm.Barrier()
-#        self.agH5File.flush()
-#        self.comm.Barrier()
-
         self.liH5File.close()
-        lg.info( 'Agent file closed')
+        lg.info( 'Link file closed')
 
         for liTypeID in list(self.dynamicAgentData.keys()):
             record = self.dynamicAgentData[liTypeID]
