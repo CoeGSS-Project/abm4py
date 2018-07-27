@@ -80,7 +80,7 @@ class _Entity(object):
         world.registerAgent(self, ghost=ghost)
 
         if parentEntity is not None:
-            self.mpiCopyRanks = parentEntity.registerChild(world, self, liTypeID)
+            self.mpiGhostRanks = parentEntity.registerChild(world, self, liTypeID)
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""

@@ -79,7 +79,7 @@ class GridNode():
         self.gridPeers  = world.graph._addNoneEdge(self.attr['ID'])
         
         if parentEntity is not None:
-            self.mpiCopyRanks = parentEntity.registerChild(world, self, liTypeID)
+            self.mpiGhostRanks = parentEntity.registerChild(world, self, liTypeID)
        
     def getGridPeers(self):
         return self._graph.nodes[self.gridPeers[0]]['instance'][self.gridPeers[1]]

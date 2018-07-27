@@ -41,6 +41,7 @@ try:
     mpiBarrier = mpi4py.MPI.COMM_WORLD.Barrier
     if mpiSize> 1:
         print('mpi4py import successfull')
+        #print('Rank ' +str(mpiRank) + ' of ' + str(mpiSize))
 except:
     
     comm = None
@@ -355,6 +356,7 @@ def initLogger(debug, outputPath):
     Configuration of the logging library. Input is the debug level as 0 or 1
     and the outputpath
     """
+    import logging as lg
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                    filemode='w',
                    format='%(levelname)7s %(asctime)s : %(message)s',
@@ -367,7 +369,7 @@ def initLogger(debug, outputPath):
     mpiBarrier()
     if mpiRank == 0:
         print('log files created')
-
+    return lg
 class Grid():
     from .misc import weightingFunc, distance
     def __init__(self, world, nodeTypeID, linkTypeID):
@@ -436,7 +438,7 @@ class Grid():
                     #self.world.registerLocation(loc, x, y)          # only for real cells
                     #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
-                    #print(rankArray[x,y] == self.world.mpiRank)
+                    lg.info(str((x,y)))
                     #print(~self.world.isParallel)
 
         if self.world.isParallel:
@@ -465,7 +467,7 @@ class Grid():
                             ghostLocationList.append(loc)
         
         self.world.graph.IDArray = IDArray
-
+        print('Nodes added: ' + str(self.world.nAgents(agTypeID)))
         self.connectNodes(IDArray, connList, agTypeID, ghostLocationList)
 
 
