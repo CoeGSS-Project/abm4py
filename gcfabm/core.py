@@ -438,7 +438,7 @@ class Grid():
                     #self.world.registerLocation(loc, x, y)          # only for real cells
                     #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
-                    lg.info(str((x,y)))
+                    #lg.info(str((x,y)))
                     #print(~self.world.isParallel)
 
         if self.world.isParallel:
@@ -1339,7 +1339,7 @@ class IO():
             self.staticLinkData[liTypeID] = staticRec
             lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
-            dataIDS = np.where(world.graph.edges[liTypeID]['active'])
+            dataIDS = np.where(world.graph.edges[liTypeID]['active'])[0]
             # dynamic data
             dynamicRec = Record( nLinks, 
                                  dataIDS, 

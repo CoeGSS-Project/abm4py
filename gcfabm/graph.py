@@ -368,7 +368,7 @@ class BaseGraph():
         
         #dt = np.dtype(self.persEdgeAttr + attrDescriptor)
         self.edges[eTypeID] = EdgeArray(self.maxEdges, eTypeID, dtype=dt)
-        
+        self.edges[eTypeID]['active'] = False
         return eTypeID
 
     def getEdgeDataRef(self, leID):
