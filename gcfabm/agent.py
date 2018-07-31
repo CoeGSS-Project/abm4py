@@ -128,6 +128,10 @@ class Agent(_Entity):
         [self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID) for peerID in peerIDs]
                 
 
+    def toGhost(self, world):
+        ghost = GhostAgent(world, self.mpiOwner, self.nID)
+        world.agent2Ghost()
+        return ghost
 
 class GhostAgent(_Entity, Parallel):
     """
@@ -157,3 +161,8 @@ class GhostAgent(_Entity, Parallel):
         """ method to delete the agent from the simulation"""
         world.graph.remNode(self.nID)
         world.deRegisterAgent(self, ghost=True)
+
+    def toAgent(self, world):
+        ghost = Agent(world, self.nID)
+        world.ghost2Agent()
+        return ghost

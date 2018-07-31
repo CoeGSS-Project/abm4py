@@ -29,6 +29,7 @@ import pickle
 import time
 
 import random
+from . import misc
 
 try:
     import mpi4py
@@ -40,6 +41,7 @@ try:
     mpiBarrier = mpi4py.MPI.COMM_WORLD.Barrier
     if mpiSize> 1:
         print('mpi4py import successfull')
+        #print('Rank ' +str(mpiRank) + ' of ' + str(mpiSize))
 except:
     
     comm = None
@@ -277,7 +279,10 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     import matplotlib.pyplot as plt
     from matplotlib import collections  as mc
     linesToDraw = list()
-    positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
+    try:
+        positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
+    except:
+        positions = np.asarray([agent.loc.attr['coord'] for agent in world.getAgents.byType(agentTypeID)])
     
     if ax is None:
         plt.ion()
@@ -288,8 +293,12 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     if liTypeID is not None:
         for agent in world.getAgents.byType(agentTypeID):
             
-            pos = agent.attr['coord']
-            peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - world.maxNodes
+            try:
+                pos = agent.attr['coord']
+            except:
+                pos = agent.loc.attr['coord']
+                
+            peerDataIDs   = np.asarray(agent.getPeerIDs(liTypeID)) - (world.maxNodes*agentTypeID)
             if len(peerDataIDs)> 0:
                 peerPositions = positions[peerDataIDs]
                 for peerPos in peerPositions:
@@ -323,12 +332,31 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
 #        return fun(arg)[0]
 #    return helper
 
+def _h5File_driver(filePath):
+
+    info = MPI.Info.Create()
+    info.Set("romio_ds_write", "disable")
+    info.Set("romio_ds_read", "disable")
+        
+    if mpiSize ==1:
+            
+        return h5py.File(filePath, 'w')
+ 
+    else:
+        return h5py.File(filePath, 
+                         'w',
+                          driver='mpio',
+                          comm=comm,
+                          libver='latest',
+                          info = info)
+
 
 def initLogger(debug, outputPath):
     """
     Configuration of the logging library. Input is the debug level as 0 or 1
     and the outputpath
     """
+    import logging as lg
     lg.basicConfig(filename=outputPath + '/log_R' + str(mpiRank),
                    filemode='w',
                    format='%(levelname)7s %(asctime)s : %(message)s',
@@ -341,7 +369,7 @@ def initLogger(debug, outputPath):
     mpiBarrier()
     if mpiRank == 0:
         print('log files created')
-
+    return lg
 class Grid():
     from .misc import weightingFunc, distance
     def __init__(self, world, nodeTypeID, linkTypeID):
@@ -410,7 +438,7 @@ class Grid():
                     #self.world.registerLocation(loc, x, y)          # only for real cells
                     #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
-                    #print(rankArray[x,y] == self.world.mpiRank)
+                    #lg.info(str((x,y)))
                     #print(~self.world.isParallel)
 
         if self.world.isParallel:
@@ -439,7 +467,7 @@ class Grid():
                             ghostLocationList.append(loc)
         
         self.world.graph.IDArray = IDArray
-
+        print('Nodes added: ' + str(self.world.nAgents(agTypeID)))
         self.connectNodes(IDArray, connList, agTypeID, ghostLocationList)
 
 
@@ -1049,36 +1077,33 @@ class IO():
         self._graph      = world.graph
         
         if world.agentOutput:
-            if mpiSize ==1:
-            
-                self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
-                                             'w')
-            else:
-                self.h5File      = h5py.File(outputPath + '/nodeOutput.hdf5',
-                                         'w',
-                                         driver='mpio',
-                                         comm=world.papi.comm)
-                                         #libver='latest',
-                                         #info = world.papi.info)
-            
+            self.agH5File = _h5File_driver(outputPath + '/nodeOutput.hdf5')
+            self.dynamicAgentData = dict()
+            self.staticAgentData  = dict() # only saved once at timestep == 0
+        if world.linkOutput:
+            self.liH5File = _h5File_driver(outputPath + '/linkOutput.hdf5')
+            self.dynamicLinkData = dict()
+            self.staticLinkData  = dict() # only saved once at timestep == 0
+   
+        
         self.comm        = comm
-        self.dynamicData = dict()
-        self.staticData  = dict() # only saved once at timestep == 0
+
         self.timeStepMag = int(np.ceil(np.log10(nSteps)))
 
+    #%% AGENT OUTPUT
 
-    def initNodeFile(self, world, agTypeIDs):
+    def initAgentFile(self, world, agTypeIDs):
         """
         Initializes the internal data structure for later I/O
         """
         from .misc import Record
-        lg.info('start init of the node file')
+        lg.info('Start init of the node file')
 
         for agTypeID in agTypeIDs:
             mpiBarrier()
             tt = time.time()
             lg.info(' NodeType: ' +str(agTypeID))
-            group = self.h5File.create_group(str(agTypeID))
+            group = self.agH5File.create_group(str(agTypeID))
             
             attrStrings = [string.encode('utf8') for string in world.graph.getPropOfNodeType(agTypeID, 'dyn')['names']]
             group.attrs.create('dynamicProps', attrStrings)
@@ -1092,7 +1117,7 @@ class IO():
             nAgents = world.nAgents(agTypeID)
             self.nAgentsAll = np.empty(1*mpiSize,dtype=np.int)
             
-            if comm is not None:
+            if world.isParallel:
                 self.nAgentsAll = self.comm.alltoall([nAgents]*mpiSize)
             else:
                 self.nAgentsAll = [nAgents]
@@ -1111,7 +1136,7 @@ class IO():
             tt = time.time()
 
 
-            dataIDS = world.getDataIDs(agTypeID)
+            dataIDS = world.getAgentDataIDs(agTypeID)
             # static data
             staticRec  = Record(nAgents, 
                                      dataIDS, 
@@ -1124,9 +1149,8 @@ class IO():
             attributes = attrInfo['names']
             sizes      = attrInfo['sizes']
             
-            attrDtype = world.graph.getDTypeOfNodeType(agTypeID, 'sta')
-            
-            lg.info('Static record created in  ' + str(time.time()-tt)  + ' seconds')
+           
+            lg.info('Static node record created in  ' + str(time.time()-tt)  + ' seconds')
 
             for attr, nProp in zip(attributes, sizes):
 
@@ -1142,13 +1166,13 @@ class IO():
 
             tt = time.time()
             # allocate storage
-            staticRec.initStorage(attrDtype)
+            #staticRec.initStorage(attrDtype)
             #print attrInfo
             
-            self.staticData[agTypeID] = staticRec
+            self.staticAgentData[agTypeID] = staticRec
             lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
 
-            dataIDS = world.getDataIDs(agTypeID)
+            dataIDS = world.getAgentDataIDs(agTypeID)
             # dynamic data
             dynamicRec = Record(nAgents, 
                                      dataIDS, 
@@ -1161,9 +1185,7 @@ class IO():
             attributes = attrInfo['names']
             sizes      = attrInfo['sizes']
 
-            attrDtype = world.graph.getDTypeOfNodeType(agTypeID, 'dyn')
-
-            lg.info('Dynamic record created in  ' + str(time.time()-tt)  + ' seconds')
+            lg.info('Dynamic node record created in  ' + str(time.time()-tt)  + ' seconds')
 
 
             for attr, nProp in zip(attributes, sizes):
@@ -1176,16 +1198,16 @@ class IO():
 
             tt = time.time()
             # allocate storage
-            dynamicRec.initStorage(attrDtype)
-            self.dynamicData[agTypeID] = dynamicRec
+            #dynamicRec.initStorage(attrDtype)
+            self.dynamicAgentData[agTypeID] = dynamicRec
             
             #lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
             
-            self.writeDataToFile(0, agTypeID, static=True)
+            self.writeAgentDataToFile(0, agTypeID, static=True)
             
         lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
 
-    def writeDataToFile(self, timeStep, agTypeIDs, static=False):
+    def writeAgentDataToFile(self, timeStep, agTypeIDs, static=False):
         """
         Transfers data from the graph to record for the I/O
         and writing data to hdf5 file
@@ -1195,62 +1217,211 @@ class IO():
         
         for agTypeID in agTypeIDs:
             if static:
-                #for type in self.staticData.keys():
-                self.staticData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
-                self.staticData[agTypeID].writeData(self.h5File, folderName='static')
+                #for type in self.staticAgentData.keys():
+                self.staticAgentData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
+                self.staticAgentData[agTypeID].writeData(self.agH5File, folderName='static')
             else:
-                #for type in self.dynamicData.keys():
-                self.dynamicData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
-                self.dynamicData[agTypeID].writeData(self.h5File)
+                #for type in self.dynamicAgentData.keys():
+                self.dynamicAgentData[agTypeID].addData(timeStep, self._graph.nodes[agTypeID])
+                self.dynamicAgentData[agTypeID].writeData(self.agH5File)
 
-               
-
-    def initEdgeFile(self, liTypeIDs):
-        """
-        ToDo
-        """
-        pass
 
     def finalizeAgentFile(self):
         """
-        finalizing the agent files - closes the file and saves the
-        attribute files
-        ToDo: include attributes in the agent file
+        Finalizing the node file - closes the file and saves the
+        attribute files. This incluses closing the Hdf5 file.
         """
 
-        for agTypeID in list(self.dynamicData.keys()):
-            group = self.h5File.get('/' + str(agTypeID))
-            record = self.dynamicData[agTypeID]
+
+        for agTypeID in list(self.dynamicAgentData.keys()):
+            group = self.agH5File.get('/' + str(agTypeID))
+            record = self.dynamicAgentData[agTypeID]
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
-        for agTypeID in list(self.staticData.keys()):
-            group = self.h5File.get('/' + str(agTypeID))
-            record = self.staticData[agTypeID]
+        for agTypeID in list(self.staticAgentData.keys()):
+            group = self.agH5File.get('/' + str(agTypeID))
+            record = self.staticAgentData[agTypeID]
             for attrKey in list(record.attrIdx.keys()):
                 group.attrs.create(attrKey, record.attrIdx[attrKey])
 
 #        self.comm.Barrier()
-#        self.h5File.flush()
+#        self.agH5File.flush()
 #        self.comm.Barrier()
 
-        self.h5File.close()
+        self.agH5File.close()
         lg.info( 'Agent file closed')
 
-        for agTypeID in list(self.dynamicData.keys()):
-            record = self.dynamicData[agTypeID]
-            self.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(agTypeID)))
+        for agTypeID in list(self.dynamicAgentData.keys()):
+            record = self.dynamicAgentData[agTypeID]
+            misc.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(agTypeID)))
 
-    @staticmethod
-    def saveObj(obj, name ):
-        with open( name + '.pkl', 'wb') as f:
-            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+    #%% LINK OUTPUT
+
+    def initLinkFile(self, world, liTypeIDs):
+        """
+        Initializes the internal data structure for later I/O
+        """
+        from .misc import Record
+        lg.info('Start init of the node file')
+
+        for liTypeID in liTypeIDs:
+            mpiBarrier()
+            tt = time.time()
+            lg.info(' NodeType: ' +str(liTypeID))
+            group = self.liH5File.create_group(str(liTypeID))
+            
+            attrStrings = [string.encode('utf8') for string in world.graph.getPropOfEdgeType(liTypeID, 'dyn')['names']]
+            group.attrs.create('dynamicProps', attrStrings)
+            
+            attrStrings = [string.encode('utf8') for string in  world.graph.getPropOfEdgeType(liTypeID, 'sta')['names']]
+            group.attrs.create('staticProps', attrStrings)
+
+            lg.info( 'group created in ' + str(time.time()-tt)  + ' seconds'  )
+            tt = time.time()
+
+            nLinks = world.nLinks(liTypeID)
+            self.nLinksAll = np.empty(1*mpiSize,dtype=np.int)
+            
+            if world.isParallel:
+                self.nLinksAll = self.comm.alltoall([nLinks]*mpiSize)
+            else:
+                self.nLinksAll = [nLinks]
+
+            lg.info( 'nAgents exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
+            tt = time.time()
+
+            lg.info('Number of all agents' + str( self.nLinksAll ))
+
+            nAgentsGlob = sum(self.nLinksAll)
+            cumSumNLinks = np.zeros(mpiSize+1).astype(int)
+            cumSumNLinks[1:] = np.cumsum(self.nLinksAll)
+            loc2GlobIdx = (cumSumNLinks[mpiRank], cumSumNLinks[mpiRank+1])
+
+            lg.info( 'loc2GlobIdx exchanged in  ' + str(time.time()-tt)  + ' seconds'  )
+            tt = time.time()
+
+
+            dataIDS = np.where(world.graph.edges[liTypeID]['active'])
+            # static data
+            staticRec  = Record(nLinks, 
+                                     dataIDS, 
+                                     nAgentsGlob, 
+                                     loc2GlobIdx, 
+                                     liTypeID, 
+                                     self.timeStepMag)
+            
+            attrInfo   = world.graph.getPropOfEdgeType(liTypeID, 'sta')
+            attributes = attrInfo['names']
+            sizes      = attrInfo['sizes']
+            
+           
+            lg.info('Static link record created in  ' + str(time.time()-tt)  + ' seconds')
+
+            for attr, nProp in zip(attributes, sizes):
+
+                #check if first property of first entity is string
+                try:
+                     
+                    entProp = self._graph.getAttrOfLinksIdx(label=attr, eTypeID=liTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                except ValueError:
+
+                    raise BaseException
+                if not isinstance(entProp,str):
+                    staticRec.addAttr(attr, nProp)
+
+            tt = time.time()
+            # allocate storage
+            #staticRec.initStorage(attrDtype)
+            #print attrInfo
+            
+            self.staticLinkData[liTypeID] = staticRec
+            lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+
+            dataIDS = np.where(world.graph.edges[liTypeID]['active'])[0]
+            # dynamic data
+            dynamicRec = Record( nLinks, 
+                                 dataIDS, 
+                                 nAgentsGlob, 
+                                 loc2GlobIdx, 
+                                 liTypeID, 
+                                 self.timeStepMag)
+
+            attrInfo   = world.graph.getPropOfEdgeType(liTypeID, 'dyn')
+            attributes = attrInfo['names']
+            sizes      = attrInfo['sizes']
+
+            lg.info('Dynamic link record created in  ' + str(time.time()-tt)  + ' seconds')
+
+
+            for attr, nProp in zip(attributes, sizes):
+                #check if first property of first entity is string
+                entProp = self._graph.getAttrOfLinksIdx(attr, 
+                                                     eTypeID=liTypeID,
+                                                     dataIDs=staticRec.ag2FileIdx[0])
+                if not isinstance(entProp,str):
+                    dynamicRec.addAttr(attr, nProp)
+
+            tt = time.time()
+            # allocate storage
+            #dynamicRec.initStorage(attrDtype)
+            self.dynamicLinkData[liTypeID] = dynamicRec
+            
+            #lg.info( 'storage allocated in  ' + str(time.time()-tt)  + ' seconds'  )
+            
+            self.writeLinkDataToFile(0, liTypeID, static=True)
+            
+        lg.info( 'static data written to file in  ' + str(time.time()-tt)  + ' seconds'  )
+
+    def writeLinkDataToFile(self, timeStep, liTypeIDs, static=False):
+        """
+        Transfers data from the graph to record for the I/O
+        and writing data to hdf5 file
+        """
+        if isinstance(liTypeIDs,int):
+            liTypeIDs = [liTypeIDs]
+        
+        for liTypeID in liTypeIDs:
+            if static:
+                #for type in self.staticAgentData.keys():
+                self.staticLinkData[liTypeID].addData(timeStep, self._graph.edges[liTypeID])
+                self.staticLinkData[liTypeID].writeData(self.liH5File, folderName='static')
+            else:
+                #for type in self.dynamicAgentData.keys():
+                self.dynamicLinkData[liTypeID].addData(timeStep, self._graph.edges[liTypeID])
+                self.dynamicLinkData[liTypeID].writeData(self.liH5File)
+
+               
+
+
+
+    def finalizeLinkFile(self):
+        """
+        Finalizing the link file - closes the file and saves the
+        attribute files. This incluses closing the Hdf5 file.
+        """
+
+        for liTypeID in list(self.dynamicLinkData.keys()):
+            group = self.liH5File.get('/' + str(liTypeID))
+            record = self.dynamicLinkData[liTypeID]
+            for attrKey in list(record.attrIdx.keys()):
+                group.attrs.create(attrKey, record.attrIdx[attrKey])
+
+        for liTypeID in list(self.staticLinkData.keys()):
+            group = self.liH5File.get('/' + str(liTypeID))
+            record = self.staticLinkData[liTypeID]
+            for attrKey in list(record.attrIdx.keys()):
+                group.attrs.create(attrKey, record.attrIdx[attrKey])
+
+        self.liH5File.close()
+        lg.info( 'Link file closed')
+
+        for liTypeID in list(self.dynamicAgentData.keys()):
+            record = self.dynamicAgentData[liTypeID]
+            misc.saveObj(record.attrIdx, (self.outputPath + '/attributeList_type' + str(liTypeID)))
+
     
-    @staticmethod
-    def loadObj(name ):
-        with open(name + '.pkl', 'rb') as f:
-            return pickle.load(f)
-
 
     def writeAdjFile(self ,fileName, agTypeID, attrForWeight):
         #graph.to_undirected()
@@ -1284,9 +1455,7 @@ class PAPI():
         self.rank = mpiRank
         self.size = mpiSize
         
-        self.info = MPI.Info.Create()
-        self.info.Set("romio_ds_write", "disable")
-        self.info.Set("romio_ds_read", "disable")
+        
 
         self.peers    = list()     # list of ranks of all processes that have ghost duplicates of this process
 

@@ -133,12 +133,12 @@ class BaseGraph():
         #persistent node attributes
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1)]
-        self.defaultNodeValues = (False, None,)
+
         #persistent edge attributes
         self.persEdgeAttr = [('active', np.bool_, 1),
                              ('source', np.int32, 1), 
                              ('target', np.int32, 1)]
-        self.defaultEdgeValues = (False, None, None)
+
         
     #%% NODES
     def _initNodeType(self, nodeName, attrDescriptor):
@@ -357,9 +357,18 @@ class BaseGraph():
     def _initEdgeType(self, nodeName, attrDescriptor):
         
         eTypeID = self.getEdgeTypeID()
-        dt = np.dtype(self.persEdgeAttr + attrDescriptor)
-        self.edges[eTypeID] = EdgeArray(self.maxEdges, eTypeID, dtype=dt)
+        uniqueAttributes = []
+        uniqueAttributesList = []
+        for attrDesc in self.persEdgeAttr + attrDescriptor:
+            if attrDesc[0] not in uniqueAttributesList:
+                uniqueAttributesList.append(attrDesc[0])
+                uniqueAttributes.append(attrDesc)
         
+        dt                  = np.dtype(uniqueAttributes)
+        
+        #dt = np.dtype(self.persEdgeAttr + attrDescriptor)
+        self.edges[eTypeID] = EdgeArray(self.maxEdges, eTypeID, dtype=dt)
+        self.edges[eTypeID]['active'] = False
         return eTypeID
 
     def getEdgeDataRef(self, leID):
@@ -547,6 +556,13 @@ class BaseGraph():
         eTypeID, dataID = self.getEdgeDataRef(leID)
         
         self.edges[eTypeID][label][dataID] = value
+
+    def getAttrOfLinksIdx(self, label, eTypeID, dataIDs):
+        if label:
+            return self.edges[eTypeID][label][dataIDs]
+        else:
+            return self.edges[eTypeID][dataIDs]
+    
     
     def getEdgeAttr(self, leID, label=None, eTypeID=None):
 
@@ -771,11 +787,29 @@ class ABMGraph(BaseGraph):
         return info
             
 
-#    def delete_edges(self, source, target, eTypeID):
-#        """ overrides graph.delete_edges"""
-#        edgeIDs = self.get_leID(source, target, eTypeID)
-#
-#        self.remEdge(edgeIDs) # set to inactive
+    def getDTypeOfEdgeType(self, liTypeID, kind):
+        
+        if kind == 'sta':
+            dtype = self.liTypeByID[liTypeID].staProp
+        elif kind == 'dyn':
+            dtype = self.liTypeByID[liTypeID].dynProp
+        else:
+            dtype = self.liTypeByID[liTypeID].staProp + self.agTypeByID[liTypeID].dynProp
+        return dtype
+    
+    def getPropOfEdgeType(self, liTypeID, kind):
+        
+        dtype = self.getDTypeOfEdgeType(liTypeID, kind)
+         
+        info = dict()    
+        info['names'] = []
+        info['types'] = []
+        info['sizes'] = []
+        for it in dtype:
+            info['names'].append(it[0])
+            info['types'].append(it[1])
+            info['sizes'].append(it[2])
+        return info
 
 
     def getOutNodeValues(self, lnID, eTypeID, attr=None):

@@ -23,7 +23,7 @@ along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 
 from numba import njit
 import numpy as np
-
+import pickle
 
 class synthInput():
     """ MPI conform loading of synthetic population data"""
@@ -33,61 +33,61 @@ class synthInput():
     
     
 class Record():
-        """ 
-        This calls manages the translation of different graph attributes to
-        the output format as a numpy array. Vectora of values automatically get
-        assigned the propper matrix dimensions and indices.
+    """ 
+    This calls manages the translation of different graph attributes to
+    the output format as a numpy array. Vectora of values automatically get
+    assigned the propper matrix dimensions and indices.
 
-        So far, only integer and float are supported
-        """
-        def __init__(self, 
-                     nAgents, 
-                     agIds, 
-                     nAgentsGlob, 
-                     loc2GlobIdx, 
-                     agTypeID, 
-                     timeStepMag):
-            
-            self.ag2FileIdx = agIds
-            self.nAgents = nAgents
-            self.nAttr = 0
-            self.attributeList = list()
-            self.attrIdx = dict()
-            self.header = list()
-            self.timeStep = 0
-            self.nAgentsGlob = nAgentsGlob
-            self.loc2GlobIdx = loc2GlobIdx
-            self.agTypeID    = agTypeID
-            self.timeStepMag = timeStepMag
+    So far, only integer and float are supported
+    """
+    def __init__(self, 
+                 nAgents, 
+                 agIds, 
+                 nAgentsGlob, 
+                 loc2GlobIdx, 
+                 agTypeID, 
+                 timeStepMag):
+        
+        self.ag2FileIdx = agIds
+        self.nAgents = nAgents
+        self.nAttr = 0
+        self.attributeList = list()
+        self.attrIdx = dict()
+        self.header = list()
+        self.timeStep = 0
+        self.nAgentsGlob = nAgentsGlob
+        self.loc2GlobIdx = loc2GlobIdx
+        self.agTypeID    = agTypeID
+        self.timeStepMag = timeStepMag
 
 
-        def addAttr(self, name, nProp):
-            attrIdx = list(range(self.nAttr,self.nAttr+nProp))
-            self.attributeList.append(name)
-            self.attrIdx[name] = attrIdx
-            self.nAttr += len(attrIdx)
-            self.header += [name] * nProp
+    def addAttr(self, name, nProp):
+        attrIdx = list(range(self.nAttr,self.nAttr+nProp))
+        self.attributeList.append(name)
+        self.attrIdx[name] = attrIdx
+        self.nAttr += len(attrIdx)
+        self.header += [name] * nProp
 
-        def initStorage(self, dtype):
-            #print dtype
-            self.data = np.zeros([self.nAgents, self.nAttr ], dtype=dtype)
+#    def initStorage(self, dtype):
+#        #print dtype
+#        self.data = np.zeros([self.nAgents, self.nAttr ], dtype=dtype)
 
-        def addData(self, timeStep, nodeData):
-            self.timeStep = timeStep
-            self.data = nodeData[self.ag2FileIdx][self.attributeList]
+    def addData(self, timeStep, nodeData):
+        self.timeStep = timeStep
+        self.data = nodeData[self.ag2FileIdx][self.attributeList]
 
-        def writeData(self, h5File, folderName=None):
-            #print self.header
-            if folderName is None:
-                path = '/' + str(self.agTypeID)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
-                #print 'IO-path: ' + path
-                self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
-                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
-            else:
-                path = '/' + str(self.agTypeID)+ '/' + folderName
-                #print 'IO-path: ' + path
-                self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
-                self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
+    def writeData(self, h5File, folderName=None):
+        #print self.header
+        if folderName is None:
+            path = '/' + str(self.agTypeID)+ '/' + str(self.timeStep).zfill(self.timeStepMag)
+            #print 'IO-path: ' + path
+            self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
+            self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
+        else:
+            path = '/' + str(self.agTypeID)+ '/' + folderName
+            #print 'IO-path: ' + path
+            self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
+            self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
                 
                 
 @njit
@@ -150,4 +150,12 @@ def cartesian(arrays, out=None):
     return out
 
 
-        
+
+def saveObj(obj, name ):
+    with open( name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def loadObj(name ):
+    with open(name + '.pkl', 'rb') as f:
+        return pickle.load(f)    

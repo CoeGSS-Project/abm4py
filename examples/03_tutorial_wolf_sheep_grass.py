@@ -106,6 +106,7 @@ class Sheep(Agent, Mobile):
         #print(kwAttr['coord'])
         Agent.__init__(self, world, **kwAttr)
         Mobile.__init__(self, world, **kwAttr)
+        
         self.loc = locDict[(x,y)]
         #world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
         world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
@@ -124,10 +125,11 @@ class Sheep(Agent, Mobile):
         classDesc['nameStr'] = 'sheep'
         # Static properites can be re-assigned during runtime, but the automatic
         # IO is only logging the initial state
-        classDesc['staticProperties'] =  [('coord', np.int16, 2)]          
+        classDesc['staticProperties'] =  []          
         # Dynamic properites can be re-assigned during runtime and are logged 
         # per defined time step intervall (see core.IO)
-        classDesc['dynamicProperties'] = [('weight', np.float32, 1)]     
+        classDesc['dynamicProperties'] = [('coord', np.int16, 2),
+                                          ('weight', np.float32, 1)]     
         return classDesc
 
     
@@ -335,9 +337,11 @@ class WolfPack(Agent, Collective):
             
         if self.attr['nWolfs'] > 20:
             self.separate(world)
+            
+            
 #%% Register of the world class
 world = World(agentOutput=False,
-                  maxNodes=100000,
+                  maxNodes=10000,
                   maxLinks=200000)
 
 world.setParameter('extend', EXTEND)
@@ -354,10 +358,12 @@ WOLFPACK = world.registerAgentType(WolfPack)
 
 
 #%% register a link type to connect agents
+ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
+
 LINK_SHEEP = world.registerLinkType('grassLink', SHEEP, GRASS)
+
 LINK_WOLF = world.registerLinkType('grassLink', WOLF, GRASS)
 
-ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 
 #%% adding the grid to world
 world.registerGrid(GRASS, ROOTS)
@@ -376,6 +382,7 @@ for x in range(EXTEND):
         IDArray[x,y] = grass.nID
 timePerAgent = (time.time() -tt ) / world.nAgents(GRASS)
 print(timePerAgent)
+
 connBluePrint = world.grid.computeConnectionList(radius=1.5)
 world.grid.connectNodes(IDArray, connBluePrint, ROOTS, Grass)
 
