@@ -97,7 +97,7 @@ print('Spatial layer created in ' + str(time.time() -tt) )
 print('Number of Locations: ' + str(world.nAgents(LOC)))        
 print('Number of spatial links: ' + str(world.nLinks(LINK)))        
 
-locList = world.getAgents.byType(LOC)
+locList = world.getAgentsByType(LOC)
 tt = time.time()
 for iWalker in range(N_WALKERS):
 
@@ -114,7 +114,7 @@ timeReq=list()
 
 for iSteps in range(N_STEPS):  
     tt = time.time()
-    [walker.randomWalk() for walker in world.getAgents.byType(WKR)] 
+    [walker.randomWalk() for walker in world.getAgentsByType(WKR)] 
     timeReq.append(time.time() -tt)
     if DO_PLOT:        
         core.plotGraph(world, agentTypeID=WKR)

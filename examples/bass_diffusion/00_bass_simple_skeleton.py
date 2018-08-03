@@ -117,7 +117,7 @@ while True:
         break
     
     
-    for agent, randNum in zip(world.getAgents.byType(AGENT), np.random.random(N_AGENTS)*1000):
+    for agent, randNum in zip(world.getAgentsByType(AGENT), np.random.random(N_AGENTS)*1000):
         
         if agent.attr['switch'] == 0:
             

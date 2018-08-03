@@ -429,16 +429,16 @@ while True:
     # Every five steps the grass grows.
     if iStep%5 == 0:
         
-        [grass.grow() for grass in world.getAgents.byType(GRASS)]
+        [grass.grow() for grass in world.getAgentsByType(GRASS)]
             
         
     
-    [sheep.step(world) for sheep in world.getAgents.byType(SHEEP)]
+    [sheep.step(world) for sheep in world.getAgentsByType(SHEEP)]
        
         
     
     
-    [wolfPack.step()  for wolfPack in world.getAgents.byType(WOLFPACK)]
+    [wolfPack.step()  for wolfPack in world.getAgentsByType(WOLFPACK)]
 
         
         

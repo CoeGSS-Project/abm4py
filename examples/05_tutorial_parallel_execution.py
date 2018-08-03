@@ -119,7 +119,7 @@ world.registerGrid(GRASS, ROOTS)
 connBluePrint = world.grid.computeConnectionList(radius=RADIUS)
 world.grid.init((rankIDLayer*0)+1, connBluePrint, Grass, rankIDLayer)
 
-for grass in world.getAgents.byType(GRASS):
+for grass in world.getAgentsByType(GRASS):
 
     if np.all(grass['coord'] < 8):
         grass['height'] = random.random()+ 13.1    
@@ -131,7 +131,7 @@ plott = tools.PlotClass(world, rankIDLayer)
     
 while True:
     tt = time.time()
-    [grass.grow() for grass in world.getAgents.byType(GRASS)]
+    [grass.grow() for grass in world.getAgentsByType(GRASS)]
     world.papi.updateGhostAgents(propertyList=['height'])
     print(str(time.time() -tt) + ' s')
     

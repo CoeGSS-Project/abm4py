@@ -84,7 +84,7 @@ print('Spatial layer created in ' + str(time.time() -tt) )
 print('Number of Locations: ' + str(world.nAgents(LOC)))        
 print('Number of spatial links: ' + str(world.nLinks(LINK)))        
 
-locList = world.getAgents.byType(LOC)
+locList = world.getAgentsByType(LOC)
 tt = time.time()
 for iWalker in range(N_WALKERS):
 
@@ -99,12 +99,12 @@ print('Number of Walkers: ' + str(world.nAgents(WKR)))
 print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     
 
 tt = time.time()
-for agent in world.getAgents.byType(WKR):
+for agent in world.getAgentsByType(WKR):
     agent.delete(world)
 print('Walkers deleted in ' + str(time.time() -tt) )  
 
 tt = time.time()
-for location in world.getAgents.byType(LOC):
+for location in world.getAgentsByType(LOC):
     location.delete(world)
 print('Locations deleted in ' + str(time.time() -tt) )      
 

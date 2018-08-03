@@ -33,8 +33,8 @@ home = os.path.expanduser("~")
 sys.path.append('../..')
 
 #import the gcf abm library and core components
-from  lib import Agent, World # basic interface
-from lib import core
+from gcfabm import Agent, World # basic interface
+from gcfabm import core
 import tools
 
 #%% CONFIG
@@ -84,7 +84,6 @@ simNo, outputPath = core.setupSimulationEnvironment()
 # initialization of the world instance, with no 
 world = World(simNo,
               outputPath,
-              spatial=True,
               nSteps=N_STEPS,
               maxNodes=1e4,
               maxLinks=1e5,
@@ -92,7 +91,7 @@ world = World(simNo,
               agentOutput=True)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerAgentType('agent' , AgentClass=Person,
+AGENT = world.registerAgentType(AgentClass=Person,
                                staticProperties  = [('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('inno', np.float16,1)],
@@ -144,7 +143,7 @@ for iAgent in range(N_AGENTS):
     # in order to get listed within the iterators and other predefined structures
     world.registerAgent(agent)
 
-world.io.initNodeFile(world, [AGENT])
+world.io.initAgentFile(world, [AGENT])
 #%% creation of spatial proximity network
 
 # world.getAttrOfAgentType is used to receive the position of all agents 
@@ -168,7 +167,7 @@ innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float
 # This loop then executes the choice of friends for every agent by picking 
 # from the agent list according to the probability weights calculated by the 
 # function above     
-[agent.createSocialNetwork(world) for agent in world.getAgents.byType(AGENT)]
+[agent.createSocialNetwork(world) for agent in world.getAgentsByType(AGENT)]
     
 
     
@@ -215,7 +214,7 @@ while True:
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
     #nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
-    agentsToIter = world.filterAgents(lambda a: a['switch'] == 0, AGENT, )
+    agentsToIter = world.getAgentsByFilteredType(lambda a: a['switch'] == 0, AGENT, )
     randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
@@ -225,7 +224,8 @@ while True:
         # switchFraction is recalculated for every agent as the sum of all its
         # friends that switched devided by its total number of friends
         switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
-        inno, imit = agent.attr[['inno','imit']][0]
+        inno = agent.attr['inno']
+        imit = agent.attr['imit']
         
         # if the condition for an agent to switch is met, the agent attributes
         # "switch" and "color" are altered
@@ -238,7 +238,7 @@ while True:
     if DO_PLOT and iStep%50 == 0:
         plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
     
-    world.io.writeDataToFile(iStep, [AGENT])
+    world.io.writeAgentDataToFile(iStep, [AGENT])
     #time.sleep(.1)
     #print('Step ' + str(iStep) +' finished after: ' + str(time.time()-tt))
 

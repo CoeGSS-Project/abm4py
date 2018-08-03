@@ -31,7 +31,7 @@ home = os.path.expanduser("~")
 sys.path.append('../..')
 
 #import the gcf abm library and core components
-import lib as lib # basic interface
+import gcfabm as lib # basic interface
 import tools
 
 #%% CONFIG
@@ -51,7 +51,7 @@ RED  = [1,0,0,1]
 world = lib.World(agentOutput=False)
 
 # register the first AGID typ and save the numeric type ID as constant
-AGID = world.registerAgentType('Agent' , AgentClass=lib.Agent,
+AGID = world.registerAgentType(AgentClass=lib.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('switch', np.int16, 1),
@@ -92,7 +92,7 @@ fracList = list()
 # world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGID attribute and the agTypeID
 # specifies the type of AGID.
-positions = world.getAttrOfAgentType(label='pos',agTypeID=AGID)
+positions = world.getAttrOfAgentType(attribute='pos',agTypeID=AGID)
 
 # this class is only implemented for a convenient interactive visualization of 
 # the example
@@ -124,7 +124,7 @@ for iStep in range(N_STEPS):
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.
-    for agent, randNum in zip(world.getAgents.byType(AGID), randomNumbers):
+    for agent, randNum in zip(world.getAgentsByType(AGID), randomNumbers):
         
         # if the agent did not switch yet, we compute the new probability
         # to swich this step

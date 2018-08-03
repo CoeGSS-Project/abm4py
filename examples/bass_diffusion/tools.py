@@ -62,7 +62,7 @@ class PlotClass():
         if LI_AA is not None:
             linesToDraw = list()
             plt.cla()
-            for agent in world.getAgents.byType(AGENT):
+            for agent in world.getAgentsByType(AGENT):
                 pos = agent.attr['pos'][0]
                 pos = positions[agent.dataID]
                 
@@ -120,7 +120,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
-    for agent in world.getAgents.byType(agentTypeID):
+    for agent in world.getAgentsByType(agentTypeID):
         pos = agent.attr['pos'][0]
         
         

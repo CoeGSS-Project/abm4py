@@ -34,8 +34,8 @@ home = os.path.expanduser("~")
 sys.path.append('../..')
 
 #import the gcf abm library and core components
-from lib import Agent, Location, World # basic interface
-from lib import core
+from gcfabm import Agent, Location, World # basic interface
+from gcfabm import core
 import tools
 
 #%% CONFIG
@@ -100,7 +100,6 @@ simNo, outputPath = core.setupSimulationEnvironment()
 # initialization of the world instance, with no 
 world = World(simNo,
               outputPath,
-              spatial=True,
               nSteps=N_STEPS,
               maxNodes=1e4,
               maxLinks=1e5,
@@ -108,16 +107,15 @@ world = World(simNo,
 
 
 # register the first AGENT typ and save the numeric type ID as constant
-CELL = world.registerAgentType('cell' , AgentClass=Location,
-
+CELL = world.registerAgentType(AgentClass=Location,
                               staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.float32, 2),
+                                                    ('coord', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('nAgents', np.int16,1)],
                               dynamicProperties = [('fraction', np.int16, 1)])
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerAgentType('agent' , AgentClass=Person,
+AGENT = world.registerAgentType(AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('age',  np.int16, 1),
@@ -138,13 +136,15 @@ LI_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
 populationMap = np.load('coarse_pop_count.npy')
 populationMap = np.flipud(populationMap /REDUCTION_FACTOR).transpose()
 populationMap.shape
-IDArray = populationMap * np.nan
+
+IDArray = populationMap * 0
+IDArray[np.isnan(IDArray)] = 0
 for x in range(populationMap.shape[0]):
     for y in range(populationMap.shape[1]):
         
         if not np.isnan(populationMap[x,y]):
             cell = Location(world,
-                          pos=(x, y),
+                          coord=(x, y),
                           fraction=0,
                           nAgents=max(1,np.int(populationMap[x,y])))
             cell.register(world)
@@ -152,10 +152,10 @@ for x in range(populationMap.shape[0]):
             IDArray[x,y] = cell.nID
 
 # %%create location network
+world.registerGrid(CELL, LI_CC)
+connBluePrint = world.grid.computeConnectionList(radius=2.5)
 
-connBluePrint = world.spatial.computeConnectionList(radius=2.5)
-
-world.spatial.connectLocations(IDArray, connBluePrint, LI_CC, CELL)
+world.grid.init(np.clip(IDArray,0,1).astype(int), connBluePrint, Location)
 
 if True:
     #%%
@@ -195,7 +195,7 @@ for xLoc, yLoc in list(locDict.keys()):
         
         ##############################################
         #create all agents with properties
-        # - pos = x,y
+        # - coord = x,y
         # - switch 
         # - color = BLUE
         # - imit 
@@ -208,7 +208,7 @@ for xLoc, yLoc in list(locDict.keys()):
         # The init of LIB.Agent requires either the definition of all attributes 
         # that are registered (above) or none.
         agent = Person(world,
-                          pos=(x, y),
+                          coord=(x, y),
                           switch = 0,
                           color = BLUE,
                           imit = np.nan,
@@ -231,7 +231,7 @@ for xLoc, yLoc in list(locDict.keys()):
 # world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.  
-positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('coord', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
 agIDList  = world.getAgentIDs(AGENT)
@@ -241,12 +241,12 @@ agIDList  = world.getAgentIDs(AGENT)
 # specifies the type of AGENT. The value is given as float.
 innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
-for agent in world.getAgents.byType(AGENT):
+for agent in world.getAgentsByType(AGENT):
     ##############################################
     # create a new creation rule 
     
     # spatial weight
-    weig1 = np.sum((positions - agent.attr['pos'])**2,axis=1)
+    weig1 = np.sum((positions - agent.attr['coord'])**2,axis=1)
     weig1 = np.divide(1.,weig1, out=np.zeros_like(weig1), where=weig1!=0)
     
     # preference weight

@@ -121,7 +121,7 @@ def network_creation(agent, world):
     
     return weig
     
-for agent in world.getAgents.byType(AGENT):
+for agent in world.getAgentsByType(AGENT):
     weights = network_creation(agent, world)
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weights)
@@ -161,7 +161,7 @@ while True:
     nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     randValues  = np.random.random(len(nodesToIter))*1000
     
-    for agent, randNum in zip(world.getAgents.byType(localIDs=nodesToIter),randValues) :
+    for agent, randNum in zip(world.getAgentsByType(localIDs=nodesToIter),randValues) :
               
         switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
         inno, imit = agent.attr[['inno','imit']][0]

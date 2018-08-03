@@ -59,7 +59,12 @@ from collections import OrderedDict
 
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
-
+class Enum():
+    """
+    Class to store global enumerations
+    """
+    pass
+enum = Enum()
 
 
 class Dakota():
@@ -282,7 +287,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     try:
         positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
     except:
-        positions = np.asarray([agent.loc.attr['coord'] for agent in world.getAgents.byType(agentTypeID)])
+        positions = np.asarray([agent.loc.attr['coord'] for agent in world.getAgentsByType(agentTypeID)])
     
     if ax is None:
         plt.ion()
@@ -291,7 +296,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
         ax = plt.subplot(111)
         
     if liTypeID is not None:
-        for agent in world.getAgents.byType(agentTypeID):
+        for agent in world.getAgentsByType(agentTypeID):
             
             try:
                 pos = agent.attr['coord']
@@ -1861,103 +1866,103 @@ class AttrDict(dict):
     def toDict(self):
         return dict( (k, v) for k,v in self.items() )
 
-class AgentAccess():
-    
-    def __init__(self, world):
-        
-        self.world = world
-        self.__agentIDsByType    = world.getAgentDict()
-        self.__glob2Loc     = world.getGlobToLocDIct()
-        self.__types          = world.graph.agTypeByStr
-        self.__agListByType, self.__ghostAgentListByType = world.getAgentListsByType()
-        self.__allAgentDict = world.getAllAgentDict()
-        
-        self.custonIterators = dict()
-     
-    def byID(self, localIDs=None):
-        """
-        Iteration over entities of specified type. Default returns
-        non-ghosts in random order.
-        """
-        return [self.__allAgentDict[i] for i in localIDs] 
-        
-    def byType(self, agTypeID=None,ghosts = False):
-        """
-        Iteration over entities of specified type. Default returns
-        non-ghosts in random order.
-        """
-        if ghosts:
-            return  self.__ghostAgentListByType.copy()
-        else:
-            return  self.__agListByType[agTypeID].copy()
-
-    def byTypeStr(self, agTypeStr, ghosts = False):
-        
-        agTypeID = self.__types[agTypeStr].typeIdx
-        
-        if ghosts:
-            return  self.__ghostAgentListByType.copy()
-        else:
-            return  self.__agListByType[agTypeID].copy()
-
-
-
-    
-    def byGlobalID(self, globalIDs=None):
-        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
-
-    def byFilter(self, agTypeID, attr, operator, value = None, compareAttr=None):
-        """
-        Method for quick filtering nodes according to comparison of attributes
-        allowed operators are:
-            "lt" :'less than <
-            "elt" :'less or equal than <=
-            "gt" : 'greater than >
-            "egt" : 'greater or equal than >=
-            "eq" : 'equal ==
-        Comparison can be made to values or another attribute
-        """
-        
-        # get comparison value
-        if compareAttr is None:
-            compareValue = value
-        elif value is None:
-            compareValue = self.world.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__agentIDsByType[agTypeID])
-        
-        # get values of all nodes
-        values = self.world.graph.getNodeSeqAttr(attr, lnIDs=self.__agentIDsByType[agTypeID])
-        
-        if operator=='lt':
-            boolArr = values < compareValue    
-            
-        elif operator=='gt':
-            boolArr = values > compareValue    
-            
-        elif operator=='eq':
-            boolArr = values == compareValue    
-            
-        elif operator=='elt':
-            boolArr = values <= compareValue    
-            
-        elif operator=='egt':
-            boolArr = values >= compareValue    
-            
-        lnIDs = np.where(boolArr)[0] + (self.world.maxNodes * agTypeID)
-        
-        return lnIDs
-
-    def customList(self, iterIdentifcation):
-        
-        return self.customIterators[iterIdentifcation]
-    
-    def createCustomList(self, name):
-        pass
-    
-    def appendToCustomList(self, agent):
-        self.customIterators[iterIdentifcation].append(agent)
-        
-    def removeFromCustomList(self, agent):
-        self.customIterators[iterIdentifcation].append(agent)
+#class AgentAccess():
+#    
+#    def __init__(self, world):
+#        
+#        self.world = world
+#        self.__agentIDsByType    = world.getAgentDict()
+#        self.__glob2Loc     = world.getGlobToLocDIct()
+#        self.__types          = world.graph.agTypeByStr
+#        self.__agListByType, self.__ghostAgentListByType = world.getAgentListsByType()
+#        self.__allAgentDict = world.getAllAgentDict()
+#        
+#        self.custonIterators = dict()
+#     
+#    def byID(self, localIDs=None):
+#        """
+#        Iteration over entities of specified type. Default returns
+#        non-ghosts in random order.
+#        """
+#        return [self.__allAgentDict[i] for i in localIDs] 
+#        
+#    def byType(self, agTypeID=None,ghosts = False):
+#        """
+#        Iteration over entities of specified type. Default returns
+#        non-ghosts in random order.
+#        """
+#        if ghosts:
+#            return  self.__ghostAgentListByType.copy()
+#        else:
+#            return  self.__agListByType[agTypeID].copy()
+#
+#    def byTypeStr(self, agTypeStr, ghosts = False):
+#        
+#        agTypeID = self.__types[agTypeStr].typeIdx
+#        
+#        if ghosts:
+#            return  self.__ghostAgentListByType.copy()
+#        else:
+#            return  self.__agListByType[agTypeID].copy()
+#
+#
+#
+#    
+#    def byGlobalID(self, globalIDs=None):
+#        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
+#
+#    def byFilter(self, agTypeID, attr, operator, value = None, compareAttr=None):
+#        """
+#        Method for quick filtering nodes according to comparison of attributes
+#        allowed operators are:
+#            "lt" :'less than <
+#            "elt" :'less or equal than <=
+#            "gt" : 'greater than >
+#            "egt" : 'greater or equal than >=
+#            "eq" : 'equal ==
+#        Comparison can be made to values or another attribute
+#        """
+#        
+#        # get comparison value
+#        if compareAttr is None:
+#            compareValue = value
+#        elif value is None:
+#            compareValue = self.world.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__agentIDsByType[agTypeID])
+#        
+#        # get values of all nodes
+#        values = self.world.graph.getNodeSeqAttr(attr, lnIDs=self.__agentIDsByType[agTypeID])
+#        
+#        if operator=='lt':
+#            boolArr = values < compareValue    
+#            
+#        elif operator=='gt':
+#            boolArr = values > compareValue    
+#            
+#        elif operator=='eq':
+#            boolArr = values == compareValue    
+#            
+#        elif operator=='elt':
+#            boolArr = values <= compareValue    
+#            
+#        elif operator=='egt':
+#            boolArr = values >= compareValue    
+#            
+#        lnIDs = np.where(boolArr)[0] + (self.world.maxNodes * agTypeID)
+#        
+#        return lnIDs
+#
+#    def customList(self, iterIdentifcation):
+#        
+#        return self.customIterators[iterIdentifcation]
+#    
+#    def createCustomList(self, name):
+#        pass
+#    
+#    def appendToCustomList(self, agent):
+#        self.customIterators[iterIdentifcation].append(agent)
+#        
+#    def removeFromCustomList(self, agent):
+#        self.customIterators[iterIdentifcation].append(agent)
     
         
 if __name__ == '__main__':

@@ -236,7 +236,7 @@ iStep = 0
 while True:
     iStep +=1
     tt = time.time()
-    for people in world.getAgents.byType(PEOPLE):
+    for people in world.getAgentsByType(PEOPLE):
         people.move()
         people.getOlder()
         

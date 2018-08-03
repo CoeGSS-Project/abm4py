@@ -129,7 +129,7 @@ class World:
         self.addNode     = self.graph.addNode
         self.addNodes    = self.graph.addNodes
       
-        self.getAgents  = core.AgentAccess(self)
+        #self.getAgents  = core.AgentAccess(self)
 
         if core.dakota.isActive:
             self.simNo = core.dakota.simNo
@@ -238,39 +238,19 @@ class World:
         self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])
         #self.graph.setAttrOfNodeType(attribute, valueList, agTypeID)  
         
-    def getAttrOfFilteredAgents(self, attribute, agTypeID, func):
-        """
-        This function allows to access the attributes of a sub-selection of agents 
-        that is defined  by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        #maskedArray = array[mask]
-        return array[attribute][mask]
-    
-    def setAttrOfFilteredAgents(self, attribute, value, agTypeID, func):
-        """
-        This function allows to access the attributes of a sub-selection of agents 
-        that is defined  by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        #maskedArray = array[mask]
-        array[attribute][mask] = value
-
-         
             
     def getAttrOfLinks(self, attribute, localLinkIDList):
         """
         Method to retrieve all properties of all entities in the localLinkIDList
         """
         return self.graph.getEdgeSeqAttr(attribute, lnIDs=localLinkIDList)
+
+    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
+        """
+        Method to write values of a sequence of links at once
+        Return type is numpy array
+        """
+        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
         
     def getAttrOfLinkType(self, attribute, liTypeID):
         """
@@ -278,12 +258,7 @@ class World:
         """
         return self.graph.getEdgeSeqAttr(attribute, lnIDs=self.linkDict[liTypeID])
         
-    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
-        """
-        Method to write values of a sequence of links at once
-        Return type is numpy array
-        """
-        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
+
         
     def setAttrOfLinkType(self, attribute, valueList, liTypeID):
         """
@@ -292,49 +267,6 @@ class World:
         """
         self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=self.linkDict[liTypeID])            
 
-
-#%% Agent access 
-
-    def getAgentIDs(self, agTypeID, ghosts=False):
-        """ 
-        Method to return all local node IDs for a given nodeType
-        """
-        if ghosts:
-            return self.__ghostIDsByType[agTypeID]
-        else:
-            return self.__agentIDsByType[agTypeID]
-    
-
-    def getAgent(self, agentID):    
-        return self.__allAgentDict[agentID]
-
-    
-
-    def filterAgents(self, func, agTypeID):
-        """
-        This function allows to access a sub-selection of agents that is defined 
-        by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        return array['instance'][mask]
-
-    def countAgents(self, func, agTypeID):
-        """
-        This function allows to access a sub-selection of agents that is defined 
-        by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        return np.sum(mask)
-
-    
     def getAttrOfFilteredAgentType(self, attribute, func, agTypeID):
         """
         This function allows to access a sub-selection of agents that is defined 
@@ -346,6 +278,18 @@ class World:
         array = self.graph.nodes[agTypeID]
         mask = array['active'] & func(array)
         return array[attribute][mask]
+
+    def setAttrOfFilteredAgentType(self, attribute, value, agTypeID, func):
+        """
+        This function allows to access the attributes of a sub-selection of agents 
+        that is defined  by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
+        """
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        array[attribute][mask] = value
 
     def setAttrsForTypeVectorized(self, agTypeID, attribute, vfunc):
         array = self.graph.nodes[agTypeID]
@@ -429,6 +373,66 @@ class World:
         mask = array['active'] & filterFunc(array) 
         array[mask] = setFunc(array[mask])
 
+#%% Agent access 
+    def getAgent(self, agentID):
+        """
+        Returns a single agent selcetd by its ID
+        """
+        return self.__allAgentDict[agentID]
+    
+    def getAgentsByIDs(self, localIDs=None):
+        """
+        Returns agents defined by the ID
+        """
+        return [self.__allAgentDict[i] for i in localIDs] 
+
+    def getAgentsByGlobalID(self, globalIDs=None):
+        """
+        Returns agents defined by the global ID
+        """
+        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
+    
+        
+    def getAgentsByType(self, agTypeID=None,ghosts = False):
+        """
+        Iteration over entities of specified type. Default returns
+        non-ghosts in random order.
+        """
+        if ghosts:
+            return  self.__ghostsByType[agTypeID].copy()
+        else:
+            return  self.__agentsByType[agTypeID].copy()
+
+    def getAgentsByFilteredType(self, func, agTypeID):
+        """
+        This function allows to access a sub-selection of agents that is defined 
+        by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
+        """
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        return array['instance'][mask]
+
+
+
+
+
+    def countAgents(self, func, agTypeID):
+        """
+        This function allows to access a sub-selection of agents that is defined 
+        by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
+        """
+        array = self.graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        return np.sum(mask)
+
+    
+
 
     def deleteAgentsIf(self, agTypeID, filterFunc):
         array = self.graph.nodes[agTypeID]
@@ -438,29 +442,24 @@ class World:
                 agent = self.getNode(globID = int(aID))
                 agent.delete(self)
 
+  
+    
+    def getAgentIDs(self, agTypeID, ghosts=False):
+        """ 
+        Method to return all local node IDs for a given nodeType
+        """
+        if ghosts:
+            return self.__ghostIDsByType[agTypeID]
+        else:
+            return self.__agentIDsByType[agTypeID]
+        
+
+
     #%% Local and global IDs            
     def getAgentDataIDs(self, agTypeID):
         return self.__agendDataIDsList[agTypeID]
 
-    def glob2Loc(self, globIdx):
-        if self.isParallel == False:
-            def replacement(globIdx):
-                return globIdx
-            self.glob2Loc = replacement
-            return globIdx
-            
-        return self.__glob2loc[globIdx]
 
-    def setGlob2Loc(self, globIdx, locIdx):
-        
-        
-        self.__glob2loc[globIdx] = locIdx
-
-    def loc2Glob(self, locIdx):
-        return self.__loc2glob[locIdx]
-
-    def setLoc2Glob(self, globIdx, locIdx):
-        self.__loc2glob[locIdx] = globIdx 
 
 
 
@@ -684,6 +683,29 @@ class World:
     def getGlobToLocDIct(self):
         return self.__glob2loc
 #%% other    
+        
+    
+    def glob2Loc(self, globIdx):
+        if self.isParallel == False:
+            def replacement(globIdx):
+                return globIdx
+            self.glob2Loc = replacement
+            return globIdx
+            
+        return self.__glob2loc[globIdx]
+
+    def setGlob2Loc(self, globIdx, locIdx):
+        
+        
+        self.__glob2loc[globIdx] = locIdx
+
+    def loc2Glob(self, locIdx):
+        return self.__loc2glob[locIdx]
+
+    def setLoc2Glob(self, globIdx, locIdx):
+        self.__loc2glob[locIdx] = globIdx 
+        
+        
     def finalize(self):
         """
         Method to finalize records, I/O and reporter

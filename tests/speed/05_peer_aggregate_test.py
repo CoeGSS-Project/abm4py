@@ -129,7 +129,7 @@ print('init Patches in: ' + str(time.time() - tt))
 tt = time.time()
 for i in range(N_REPEAT):
     x = list()
-    for patch in world.getAgents.byType(PATCH):
+    for patch in world.getAgentsByType(PATCH):
         x.append(np.mean(patch.getAttrOfPeers('height', ROOTS)))
 timeWithoutAggr = time.time() - tt 
 print(timeWithoutAggr)
@@ -139,7 +139,7 @@ tt = time.time()
 for i in range(N_REPEAT):
     x2 = list()
     
-    for patch in world.getAgents.byType(PATCH):
+    for patch in world.getAgentsByType(PATCH):
         x2.append(np.mean([item['height'] for item in patch.aggegationDict[ROOTS]]))
 timeWithAggr = time.time() - tt 
 
