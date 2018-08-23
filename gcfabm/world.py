@@ -34,7 +34,7 @@ class World:
                  simNo=None,
                  outPath='.',
                  nSteps=1,
-                 maxNodes=1e3,
+                 maxNodes=1e6,
                  maxLinks=1e5,
                  debug=False,
                  mpiComm=None,

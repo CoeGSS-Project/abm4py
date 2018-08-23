@@ -50,15 +50,15 @@ class TypeDescription():
     
 class NodeArray(np.ndarray):
     def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
-          strides=None, order=None):
+          strides=None, order=None, startID = 0, nodeList=[]):
 
         
         obj = np.ndarray.__new__(subtype, maxNodes, dtype, buffer, offset, strides,
                          order)
         obj.maxNodes       = maxNodes
         obj.nType          = nTypeID
-        obj.getNewID       = itertools.count().__next__
-        obj.nodeList       = []
+        obj.getNewID       = itertools.count(startID).__next__
+        obj.nodeList       = nodeList
         obj.freeRows       = []
         return obj
 
@@ -69,26 +69,58 @@ class NodeArray(np.ndarray):
     def indices(self):
         return self.nodeList
 
+    
+
 class EdgeArray(np.ndarray):
     """
     Data structure for edges and related informations based on a numpy array
     """    
     def __new__(subtype, maxEdges, eTypeID, dtype=float, buffer=None, offset=0,
-          strides=None, order=None):
+          strides=None, order=None, startID = 0, edgeList=[], eDict=None,
+          edgesOut=None, edgesIn=None, nodesOut=None, nodesIn=None):
 
         # It also triggers a call to InfoArray.__array_finalize__
         obj = np.ndarray.__new__(subtype, maxEdges, dtype, buffer, offset, strides,
-                         order)
+                             order)
         obj.maxEdges       = maxEdges
         obj.eTypeID        = eTypeID
-        obj.getNewID       = itertools.count().__next__
-        obj.edgeList       = []
+        obj.getNewID       = itertools.count(startID).__next__
+        obj.edgeList       = edgeList
         obj.freeRows       = []
-        obj.eDict          = dict()
-        obj.edgesOut       = dict() # (source -> leID)
-        obj.edgesIn        = dict() # (target -> leID)
-        obj.nodesOut       = dict() # (source -> target)
-        obj.nodesIn        = dict() # (target -> source)
+        if eDict is None:
+            obj.eDict          = dict()
+        else:
+            obj.eDict          = eDict
+        
+        if eDict is None:
+            obj.eDict          = dict()
+        else:
+            obj.eDict          = eDict
+            
+        if edgesOut is None:
+            obj.edgesOut          = dict()
+        else:
+            obj.edgesOut          = edgesOut
+        
+        if edgesIn is None:
+                    obj.edgesIn          = dict()
+        else:
+            obj.edgesIn          = edgesIn
+        
+        if nodesOut is None:
+                    obj.nodesOut          = dict()
+        else:
+            obj.nodesOut          = nodesOut     
+
+        if nodesIn is None:
+                    obj.nodesIn          = dict()
+        else:
+            obj.nodesIn          = nodesIn  
+                    
+#        obj.edgesOut       = dict() # (source -> leID)
+#        obj.edgesIn        = dict() # (target -> leID)
+#        obj.nodesOut       = dict() # (source -> target)
+#        obj.nodesIn        = dict() # (target -> source)
         return obj
                 
     def eCount(self):
@@ -111,6 +143,8 @@ class BaseGraph():
         cannot be exceeded during execution, since it is used for pre-assigning
         storage space.
         """
+        
+        self.INIT_SIZE      = 100
         
         self.maxNodes       = np.int64(maxNodesPerType)
         self.maxEdges       = np.int64(maxEdgesPerType)
@@ -154,16 +188,28 @@ class BaseGraph():
                 uniqueAttributes.append(attrDesc)
         
         dt                  = np.dtype(uniqueAttributes)
-        self.nodes[nTypeID] = NodeArray(self.maxNodes, nTypeID, dtype=dt)
+        
+        self.nodes[nTypeID] = NodeArray(self.INIT_SIZE, nTypeID, dtype=dt)
         self.nodes[nTypeID]['active'] = False
-
+        self.nodes[nTypeID].currentSize = self.INIT_SIZE
+        
         return nTypeID
-    
-#    def extendNodeArray(self, nTypeID):
-#        currentSize = len(self.nAttr[nTypeID])
-        #self.nAttr[nTypeID][currentSize:currentSize+self.CHUNK_SIZE] = 
+
+    def _extendNodeArray(self, nTypeID, factor):
+        """
+        Method to increas the array for nodes to dynamically adapt to
+        higher numbers of nodes
+        """
+        currentSize = self.nodes[nTypeID].currentSize
+        dt = self.nodes[nTypeID].dtype
+        tmp = NodeArray(int(currentSize*factor), nTypeID, dtype=dt, startID = currentSize+1, nodeList = self.nodes[nTypeID].nodeList)
+        tmp['active'] = False
+        tmp[:currentSize] = self.nodes[nTypeID]
+        self.nodes[nTypeID] = tmp
+        self.nodes[nTypeID].currentSize = int(currentSize*factor)
 
 
+        
     def getNodeDataRef(self, lnIDs):
         """ 
         calculates the node type ID from local ID
@@ -194,6 +240,8 @@ class BaseGraph():
     def get_lnID(self, nTypeID):
         return self.nodes[nTypeID].nodeList
 
+
+        
     ## when I grep for "attributes =" I get the impression that this is never used
     ## (as only Entity.__init__ calls addNode, beside some test methods)
     ## also here the kwProps are dropped when attributes are given (stf)
@@ -208,6 +256,9 @@ class BaseGraph():
              # generate a new local ID
              dataID   = self.nodes[nTypeID].getNewID()
              lnID = dataID + nTypeID * self.maxNodes
+             
+             if dataID >= self.nodes[nTypeID].currentSize:
+                 self._extendNodeArray(nTypeID, 2)
 
          dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
 #         if attributes is not None:
@@ -224,7 +275,11 @@ class BaseGraph():
          self.nodes[nTypeID].nodeList.append(lnID)
          
          self.lnID2dataIdx[lnID] = dataID
-         return lnID, dataID, dataview[0]
+         try:
+             return lnID, dataID, dataview[0]
+         except:
+             import pdb 
+             pdb.set_trace()
      
     
     def addNodes(self, nTypeID, nNodes, **kwAttr):
@@ -245,7 +300,9 @@ class BaseGraph():
         else:
             dataIDs[:] = nType.freeRows[:nNodes]
             nType.freeRows = nType.freeRows[nNodes:]
-   
+        if max(dataIDs) >= self.nodes[nTypeID].currentSize:
+            self._extendNodeArray(nTypeID, 2)
+    
         nType['active'][dataIDs] = True
         
         # adding attributes
@@ -367,9 +424,27 @@ class BaseGraph():
         dt                  = np.dtype(uniqueAttributes)
         
         #dt = np.dtype(self.persEdgeAttr + attrDescriptor)
-        self.edges[eTypeID] = EdgeArray(self.maxEdges, eTypeID, dtype=dt)
+        self.edges[eTypeID] = EdgeArray(self.INIT_SIZE, eTypeID, dtype=dt)
         self.edges[eTypeID]['active'] = False
+        self.edges[eTypeID].currentSize = self.INIT_SIZE
         return eTypeID
+
+    def _extendEdgeArray(self, eTypeID, factor):
+        """
+        MEthod to increas the array for edges to dynamically adapt to
+        higher numbers of edges
+        """
+        edges = self.edges[eTypeID]
+        currentSize = edges.currentSize
+        dt = edges.dtype
+        tmp = EdgeArray(int(currentSize*factor), eTypeID, dtype=dt, 
+                        startID = currentSize+1, edgeList=edges.edgeList, eDict = edges.eDict,
+                        edgesOut= edges.edgesOut, edgesIn= edges.edgesIn,
+                        nodesOut= edges.nodesOut, nodesIn= edges.nodesIn)
+        tmp['active'] = False
+        tmp[:currentSize] = self.edges[eTypeID]
+        self.edges[eTypeID] = tmp
+        self.edges[eTypeID].currentSize = int(currentSize*factor)
 
     def getEdgeDataRef(self, leID):
         """ calculates the node type ID and dataID from local ID"""
@@ -420,6 +495,8 @@ class BaseGraph():
             # generate a new local ID
             dataID   = eType.getNewID()
             leID = dataID + eTypeID * self.maxEdges
+            if dataID >= self.edges[eTypeID].currentSize:
+                 self._extendEdgeArray(eTypeID, 2)
             
         dataview = eType[dataID:dataID+1].view() 
          
@@ -474,6 +551,10 @@ class BaseGraph():
             dataIDs[:] = eType.freeRows[:nEdges]
             eType.freeRows = eType.freeRows[nEdges:]
         
+        if max(dataIDs) >= eType.currentSize:
+            extFactor = int(max(np.ceil(max(dataIDs)/eType.currentSize), 2))
+            self._extendEdgeArray(eTypeID, extFactor)
+            eType = self.edges[eTypeID]
         eType['source'][dataIDs] = sources
         eType['target'][dataIDs] = targets    
         eType['active'][dataIDs] = True
@@ -817,20 +898,29 @@ class ABMGraph(BaseGraph):
         Method to read the attributes of connected nodes via a 
         specifice edge type and outward direction
         """
-        nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
+        try: 
+            nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
+        except KeyError:
+            # return empty list if no edges exist
+            return []
         
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]
         else:
             return self.nodes[nTypeID][dataIDs]
-
+        
+    
     def setOutNodeValues(self, lnID, eTypeID, attr, values):
         """
         Method to read the attributes of connected nodes via a 
         specifice edge type and outward direction
         """
-        nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
-            
+        try: 
+            nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
+        except KeyError:
+            # return empty list if no edges exist
+            return []
+        
         self.nodes[nTypeID][attr][dataIDs] = values
         
 
@@ -839,8 +929,12 @@ class ABMGraph(BaseGraph):
         Method to read the attributes of connected nodes via a 
         specifice edge type and inward direction
         """
-        nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
-           
+        try: 
+            nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
+        except KeyError:
+            # return empty list if no edges exist
+            return []
+        
         if attr:
             return self.nodes[nTypeID][dataIDs][attr]
         else:
@@ -851,8 +945,12 @@ class ABMGraph(BaseGraph):
         Method to read the attributes of connected nodes via a 
         specifice edge type and inward direction
         """
-        nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
-
+        try: 
+            nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
+        except KeyError:
+            # return empty list if no edges exist
+            return []
+        
         self.edges[eTypeID][attr][dataIDs] = values
 
 
@@ -863,7 +961,11 @@ class ABMGraph(BaseGraph):
         Method to read the attributes of connected nodes via a 
         specifice edge type and outward direction
         """
-        dataIDs = self.edges[eTypeID].edgesOut[leID]
+        try: 
+            dataIDs = self.edges[eTypeID].edgesOut[leID]
+        except KeyError:
+            # return empty list if no edges exist
+            return []
         
         if attr:
             return self.edges[eTypeID][dataIDs][attr]
