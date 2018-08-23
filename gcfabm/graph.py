@@ -206,8 +206,11 @@ class BaseGraph():
         tmp['active'] = False
         tmp[:currentSize] = self.nodes[nTypeID]
         self.nodes[nTypeID] = tmp
+        
+        for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
+            nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
+            
         self.nodes[nTypeID].currentSize = int(currentSize*factor)
-
 
         
     def getNodeDataRef(self, lnIDs):
