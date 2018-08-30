@@ -56,13 +56,17 @@ class Agent(_Entity):
         return classDesc
     
     def getPeers(self, liTypeID):
+        """
+        This function returns all agents that are connected to the agents with 
+        the specified link type
+        """
         return self._graph.getOutNodeValues(self.nID, liTypeID, attr='instance')
     
     def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out'):
         """
-        This method returns the IDs of all agents that are connected with a 
+        This function returns the IDs of all agents that are connected with a 
         certain link type or of a specified nodeType
-        As default, only outgoing connctions are considered, but can be changed
+        As default, only outgoing connections are considered, but can be changed
         by setting mode ='in'.
         """
         if liTypeID is None: 
@@ -80,7 +84,7 @@ class Agent(_Entity):
 
     def getLinkIDs(self, liTypeID):
         """
-        This method changes returns the linkID of all outgoing links of a 
+        This function changes returns the linkID of all outgoing links of a 
         specified type
         """
         eList, _  = self._graph.outgoing(self.nID, liTypeID)
@@ -89,7 +93,7 @@ class Agent(_Entity):
         
     def getAttrOfPeers(self, attribute, liTypeID):
         """
-        This method returns the attributes of all connected nodes connected 
+        This function returns the attributes of all connected nodes connected 
         by a specfic edge type.
         """
         return self._graph.getOutNodeValues(self.nID, liTypeID, attr=attribute)
@@ -97,38 +101,41 @@ class Agent(_Entity):
 
     def getAttrOfLink(self, attribute, liTypeID):
         """
-        This method accesses the values of outgoing links
+        This function accesses the values of outgoing links
         """
         return self._graph.getOutEdgeValues(self.nID, liTypeID, attribute)
         
     def setAttrOfLink(self, attribute, values, liTypeID):
         """
-        This method changes the attributes of outgoing links
+        This function changes the attributes of outgoing links
         """
         self._graph.setOutEdgeValues(self.nID, liTypeID, attribute, values)
         
 
     def addLink(self, peerID, liTypeID, **kwpropDict):
         """
-        This method adds a new connection to another node. Properties must be 
+        This function creates a new connection to another agent. Attributes of the connection must be 
         provided in the correct order and structure
         """
         self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
 
     def remLink(self, peerID, liTypeID):
         """
-        This method removes a link to another agent.
+        This function removes a link to another agent.
         """
         self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
 
     def remLinks(self, peerIDs, liTypeID):
         """
-        Removing mutiple links to other agents.
+        This function removs mutiple links to other agents.
         """        
         [self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID) for peerID in peerIDs]
                 
 
     def toGhost(self, world):
+        """
+        This functions converts an agent into a ghost agent
+        """
         ghost = GhostAgent(world, self.mpiOwner, self.nID)
         world.agent2Ghost()
         return ghost

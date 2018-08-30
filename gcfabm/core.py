@@ -21,16 +21,20 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+#%% INIT
 import os
 import numpy as np
 import itertools
 import pandas as pd
-import pickle
 import time
-
 import random
 from . import misc
+from collections import OrderedDict
+from numba import njit
+import math
 
+
+# Evaluation if mpi4py is installed and workding
 try:
     import mpi4py
     mpi4py.rc.threads = False
@@ -41,7 +45,7 @@ try:
     mpiBarrier = mpi4py.MPI.COMM_WORLD.Barrier
     if mpiSize> 1:
         print('mpi4py import successfull')
-        #print('Rank ' +str(mpiRank) + ' of ' + str(mpiSize))
+       
 except:
     
     comm = None
@@ -55,30 +59,55 @@ except:
 import h5py
 import logging as lg
 
-from collections import OrderedDict
 
+# This compound typtes are allowed as agent attributes
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
 
-class Enum():
-    """
-    Class to store global enumerations
-    """
-    pass
-enum = Enum()
-
-
-class Dakota():
-    def __init__(self):
-        self.isActive = False
-
-    def overwriteParameters(self, simNo, parameterDict):
-        self.isActive = True
-        self.simNo  = simNo
-        self.params = parameterDict
-        
+##%%
+@njit("f8 (f8[:], f8[:])",cache=True)
+def cobbDouglasUtilNumba(x, alpha):
+    utility = 1.
     
-dakota = Dakota()
+    for i in range(len(x)):
+        utility = utility * (100.*x[i])**alpha[i] 
+    #if np.isnan(utility) or np.isinf(utility):  ##DEEP_DEBUG
+    #    import pdb                              ##DEEP_DEBUG
+    #    pdb.set_trace()                         ##DEEP_DEBUG
 
+    # assert the limit of utility
+    #assert utility > 0 and utility <=  100.     ##DEEP_DEBUG
+    
+    
+    return utility / 100.
+
+@njit("f8[:] (f8[:])",cache=True)
+def normalize(array):
+    return  array / np.sum(array)
+
+@njit(cache=True)
+def sum1D(array):
+    return np.sum(array)
+
+@njit(cache=True)
+def sumSquared1D(array):
+    return np.sum(array**2)
+
+@njit(cache=True)
+def prod1D(array1, array2):
+    return np.multiply(array1,array2)
+
+@njit(cache=True)
+def normalizedGaussian(array, center, errStd):
+    diff = (array - center) +  np.random.randn(array.shape[0])*errStd
+    normDiff = np.exp(-(diff**2.) / (2.* errStd**2.))  
+    return normDiff / np.sum(normDiff)
+
+#@njit
+#def convenienceFunction(minValue, maxValue, delta, mu, twoSigmaSquare, density):
+#    return  minValue + delta * math.exp(-(density - mu)**2 / twoSigmaSquare)
+
+
+#%% FUNCTION DEFINITION
 
 def setupSimulationEnvironment(mpiComm=None, simNo=None):
     """
@@ -268,6 +297,14 @@ def cartesian(arrays, out=None):
 
     return out
 
+def readParametersFromFile(paraDict, fileName):
+    import csv
+    for item in csv.DictReader(open(fileName)):
+        if item['name'][0] != '#':
+            paraDict[item['name']] = convertStr(item['value'])
+    return paraDict
+
+        
 def convertStr(string):
     """
     Returns integer, float or string dependent on the input
@@ -375,7 +412,43 @@ def initLogger(debug, outputPath):
     if mpiRank == 0:
         print('log files created')
     return lg
+
+#%% CLASS DEFINITION
+class Enum():
+    """
+    This class allows to store global enumerations over mutiple files
+    """
+    pass
+enum = Enum()
+
+class GlobalVariables():
+    """
+    This class allows to store global variables over mutiple files
+    """
+    pass
+glVar = GlobalVariables()
+
+
+class Dakota():
+    def __init__(self):
+        self.isActive = False
+
+    def overwriteParameters(self, simNo, parameterDict):
+        self.isActive = True
+        self.simNo  = simNo
+        self.params = parameterDict
+        
+    
+dakota = Dakota()
+
+
 class Grid():
+    """
+    This class is an enhancement of the world class and represent the spatial 
+    domain. The grid consists of agents with the trait "GridNode" (see: traits.py) 
+    and links  between them resemble the spatial proximity.
+    (see: examples/02_tutorial_grid.py)
+    """
     from .misc import weightingFunc, distance
     def __init__(self, world, nodeTypeID, linkTypeID):
         
@@ -387,10 +460,11 @@ class Grid():
     @staticmethod
     def computeConnectionList(radius=1, weightingFunc = weightingFunc, ownWeight =2, distance_func = distance):
         """
-        Method for easy computing a connections list of regular grids
+        Method for computing a connections list of regular grids
+        (see: examples/02_tutorial_grid.py)
         """
-        connList = []
-    
+
+        connList = []   
         intRad = int(radius)
         for x in range(-intRad,intRad+1):
             for y in range(-intRad,intRad+1):
@@ -403,21 +477,16 @@ class Grid():
         return connList
 
     def init(self, gridMask, connList, LocClassObject, mpiRankArray=None):
-
         """
         Auxiliary function to contruct a simple connected layer of spatial locations.
         Use with  the previously generated connection list (see computeConnnectionList)
-
         """
-        #self.gridMask  = ~np.isnan(gridMask)
+
         agTypeID = self.world.graph.class2NodeType(LocClassObject)
         if self.world.isParallel:
             GhstLocClassObject = self.world.graph.ghostOfAgentClass(LocClassObject)
-        #nodeArray = ((gridMask * 0) +1)
-        #print rankArray
+        
         IDArray = gridMask * np.nan
-        #print IDArray
-        # spatial extend
         xOrg = 0
         yOrg = 0
         xMax = gridMask.shape[0]
@@ -439,12 +508,7 @@ class Grid():
                     
                     loc = LocClassObject(self.world, coord = [x, y])
                     IDArray[x,y] = loc.nID
-                    
-                    #self.world.registerLocation(loc, x, y)          # only for real cells
-                    #self.world.registerAgent(loc,agTypeID)     # only for real cells
                     loc.register(self.world)
-                    #lg.info(str((x,y)))
-                    #print(~self.world.isParallel)
 
         if self.world.isParallel:
             # create ghost location nodes
@@ -515,36 +579,24 @@ class Grid():
             #normalize weight to sum up to unity
             sumWeig = sum(weigList)
             weig    = np.asarray(weigList) / sumWeig
-            #print loc.nID
-            #print connectionList
             fullSourceList.extend(sourceList)
             fullTargetList.extend(targetList)
-            #nConnection.append(len(connectionList))
             fullWeightList.extend(weig)
 
 
-    
-        #eStart = self.world.graph.ecount()
+        # create the links in the graph
         if 'weig' in self.world.graph.edges[self.gLinkTypeID].dtype.names:
            self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList, weig=fullWeightList)
         else:
             self.world.graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList)
 
-#        eStart = 0
-#        ii = 0
-#        for _, loc in tqdm.tqdm(self.world.locDict.items()):
-#        #for cell, cellID in self.world.iterEntAndIDRandom(1, random=False):
-#            loc.setEdgeCache(range(eStart,eStart + nConnection[ii]), 1)
-#            #assert loc._graph.es[loc._graph.incident(loc.nID,'out')].select(type_ne=0).indices == range(eStart,eStart + nConnection[ii])
-#            eStart += nConnection[ii]
-#            ii +=1
+        # for parallel execution, share the grid between all neigboring processe
         if self.world.isParallel:    
             lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
             self.world.papi.initCommunicationViaLocations(ghostLocationList, agTypeID)
             lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
             
     def getLocation(self, x,y):
-        
         #get nID of the location
         nID = self.world.getLocationDict()[x,y].nID
         return self.world.getAgent(agentID=nID)
@@ -559,7 +611,6 @@ class Grid():
         """
         Method to generate a preliminary friend network that accounts for
         proximity in space
-        #ToDO add to easyUI
         """
 
         liTypeID = self.world.graph.node2EdgeType[1, agTypeID]
@@ -580,7 +631,6 @@ class Grid():
         cellWeigList = list()
               
         for cellWeight, cellIdx in zip(cellConnWeights, cellIds):
-
             cellWeigList.append(cellWeight)           
             personIds = self.world.getAgents(cellIdx).getPeerIDs(liTypeID)
             personIdsAll.extend(personIds)
@@ -631,7 +681,9 @@ class Grid():
     
 
 class Writer():
-
+    """
+    deprecated
+    """
     def __init__(self, world, filename):
         self.fid = open('output/' + filename,'w')
         self.world = world
@@ -644,7 +696,9 @@ class Writer():
         self.fid.close()
 
 class Memory():
-
+    """
+    deprecated
+    """
     def __init__(self, memeLabels):
         self.freeRows  = list()
         self.columns   = dict()
@@ -769,7 +823,6 @@ class Globals():
 
     #%% statistical global reductions/aggregations
     def registerStat(self, globName, values, statType):
-        #statfunc = self.statOperations[statType]
 
         assert statType in ['mean', 'std', 'var']    ##OPTPRODUCTION
 
@@ -928,7 +981,11 @@ class Globals():
         self.syncReductions()
 
 class GlobalRecord():
-
+    """
+    Record to store global variables for each time step. The global record is 
+    often connected with a global variable of the same name.
+    TODO: Re-think the concept
+    """
     def __init__(self, name, colLables, nSteps, title, style='plot'):
         self.nRec = len(colLables)
         self.columns = colLables
@@ -984,12 +1041,12 @@ class GlobalRecord():
 
                 plt.plot(calData,'d')
 
-#        elif self.style == 'stackedBar':
-#            nCars = np.zeros(self.nSteps)
-#            colorPal =  plt.get_cmap('jet')
-#            for i, brand in enumerate(self.columns):
-#               plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color = colorPal[i], width=1)
-#               nCars += self.rec[:,i]
+        elif self.style == 'stackedBar':
+            nCars = np.zeros(self.nSteps)
+            colorPal =  plt.get_cmap('jet')
+            for i, brand in enumerate(self.columns):
+               plt.bar(np.arange(self.nSteps),self.rec[:,i],bottom=nCars, color = colorPal[i], width=1)
+               nCars += self.rec[:,i]
         
         elif self.style == 'yyplot':
             fig, ax1 = plt.subplots()
@@ -1073,8 +1130,11 @@ class GlobalRecord():
             return None
 
 class IO():
-
-    #%% Init of the IO class
+    """
+    This class helps to write automatically the agents attributes or edge attributes
+    of all requrested types.
+    """
+    
     def __init__(self, world, nSteps, outputPath = '.', inputPath = '.'): # of IO
 
         self.inputPath  = inputPath
@@ -1603,7 +1663,6 @@ class PAPI():
         lg.debug('ID Array: ' + str(self.world.graph.IDArray))##OPTPRODUCTION
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
-            #print owner
             x,y   = ghLoc.attr['coord']
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
@@ -1620,7 +1679,6 @@ class PAPI():
 
                 # send request of global IDs
                 lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))##OPTPRODUCTION
-                #self.comm.send(mpiRequest[mpiDest], dest=mpiDest)
                 self._add2Buffer(mpiDest, mpiRequest[mpiDest])
 
         lg.debug( 'requestOut:' + str(self.a2aBuff))##OPTPRODUCTION
@@ -1630,21 +1688,15 @@ class PAPI():
 
         for mpiDest in list(mpiRequest.keys()):
 
-            #self.ghostNodeRecv[locNodeType, mpiDest] = self.world.graph.vs[mpiRecvIDList[mpiDest]] #sequence
 
             # receive request of global IDs
             lg.debug('receive request of global IDs from:  ' + str(mpiDest))##OPTPRODUCTION
-            #incRequest = self.comm.recv(source=mpiDest)
             incRequest = requestIn[mpiDest][0]
             
-            #pprint(incRequest)
             lnIDList = [int(self.world.graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-            #print lnIDList
             lg.debug( str(self.rank) + ' -sendIDlist:' + str(lnIDList))##OPTPRODUCTION
             self.mpiSendIDList[(locNodeType,mpiDest)] = lnIDList
-            #self.ghostNodeSend[locNodeType, mpiDest] = self.world.graph.vs[IDList]
-            #self.ghostNodeOut[locNodeType, mpiDest] = self.world.graph.vs[iDList]
-            
+ 
             lg.debug( str(self.rank) + ' - gIDs:' + str(self.world.graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
 
             for entity in [self.world.getAgent(agentID=i) for i in lnIDList]:
@@ -1654,9 +1706,7 @@ class PAPI():
             lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
 
             x = self.world.graph.getNodeSeqAttr(label=incRequest[1], lnIDs= lnIDList )
-            #print 'global IDS' + str(x)
-            #print type(x)
-            #print x.shape
+
             self._add2Buffer(mpiDest,self.world.graph.getNodeSeqAttr(label=incRequest[1], lnIDs=lnIDList))
 
         requestRecv = self._all2allSync()
@@ -1666,8 +1716,6 @@ class PAPI():
             #receive requested global IDs
             globIDList = requestRecv[mpiDest][0]
             
-            #self.ghostNodeRecv[locNodeType, mpiDest]['gID'] = globIDList
-            #print self.mpiRecvIDList[(locNodeType, mpiDest)]
 
             self.world.graph.setNodeSeqAttr(label='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
             
@@ -1675,10 +1723,10 @@ class PAPI():
             lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
             for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
-                #print(nID, gID)
+
                 self.world.setGlob2Loc(gID, nID)
                 self.world.setLoc2Glob(nID, gID)
-            #self.world.papi.comm.Barrier()
+
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
     def transferGhostAgents(self, world):
@@ -1697,10 +1745,7 @@ class PAPI():
 
             self.mpiSendIDList[(agTypeID,mpiPeer)] = IDsList
 
-            #nodeSeq = world.graph.vs[IDsList]
-
             # setting up ghost out communication
-            #self.ghostNodeSend[agTypeID, mpiPeer] = IDsList
             
             propList = world.graph.getPropOfNodeType(agTypeID, kind='all')['names']
             #print propList
@@ -1866,104 +1911,7 @@ class AttrDict(dict):
     def toDict(self):
         return dict( (k, v) for k,v in self.items() )
 
-#class AgentAccess():
-#    
-#    def __init__(self, world):
-#        
-#        self.world = world
-#        self.__agentIDsByType    = world.getAgentDict()
-#        self.__glob2Loc     = world.getGlobToLocDIct()
-#        self.__types          = world.graph.agTypeByStr
-#        self.__agListByType, self.__ghostAgentListByType = world.getAgentListsByType()
-#        self.__allAgentDict = world.getAllAgentDict()
-#        
-#        self.custonIterators = dict()
-#     
-#    def byID(self, localIDs=None):
-#        """
-#        Iteration over entities of specified type. Default returns
-#        non-ghosts in random order.
-#        """
-#        return [self.__allAgentDict[i] for i in localIDs] 
-#        
-#    def byType(self, agTypeID=None,ghosts = False):
-#        """
-#        Iteration over entities of specified type. Default returns
-#        non-ghosts in random order.
-#        """
-#        if ghosts:
-#            return  self.__ghostAgentListByType.copy()
-#        else:
-#            return  self.__agListByType[agTypeID].copy()
-#
-#    def byTypeStr(self, agTypeStr, ghosts = False):
-#        
-#        agTypeID = self.__types[agTypeStr].typeIdx
-#        
-#        if ghosts:
-#            return  self.__ghostAgentListByType.copy()
-#        else:
-#            return  self.__agListByType[agTypeID].copy()
-#
-#
-#
-#    
-#    def byGlobalID(self, globalIDs=None):
-#        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
-#
-#    def byFilter(self, agTypeID, attr, operator, value = None, compareAttr=None):
-#        """
-#        Method for quick filtering nodes according to comparison of attributes
-#        allowed operators are:
-#            "lt" :'less than <
-#            "elt" :'less or equal than <=
-#            "gt" : 'greater than >
-#            "egt" : 'greater or equal than >=
-#            "eq" : 'equal ==
-#        Comparison can be made to values or another attribute
-#        """
-#        
-#        # get comparison value
-#        if compareAttr is None:
-#            compareValue = value
-#        elif value is None:
-#            compareValue = self.world.graph.getNodeSeqAttr(compareAttr, lnIDs=self.__agentIDsByType[agTypeID])
-#        
-#        # get values of all nodes
-#        values = self.world.graph.getNodeSeqAttr(attr, lnIDs=self.__agentIDsByType[agTypeID])
-#        
-#        if operator=='lt':
-#            boolArr = values < compareValue    
-#            
-#        elif operator=='gt':
-#            boolArr = values > compareValue    
-#            
-#        elif operator=='eq':
-#            boolArr = values == compareValue    
-#            
-#        elif operator=='elt':
-#            boolArr = values <= compareValue    
-#            
-#        elif operator=='egt':
-#            boolArr = values >= compareValue    
-#            
-#        lnIDs = np.where(boolArr)[0] + (self.world.maxNodes * agTypeID)
-#        
-#        return lnIDs
-#
-#    def customList(self, iterIdentifcation):
-#        
-#        return self.customIterators[iterIdentifcation]
-#    
-#    def createCustomList(self, name):
-#        pass
-#    
-#    def appendToCustomList(self, agent):
-#        self.customIterators[iterIdentifcation].append(agent)
-#        
-#    def removeFromCustomList(self, agent):
-#        self.customIterators[iterIdentifcation].append(agent)
-    
+
         
 if __name__ == '__main__':
     pass

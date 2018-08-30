@@ -149,6 +149,12 @@ def cartesian(arrays, out=None):
 
     return out
 
+def loadTiffDataArray(filename,band=1):
+    from osgeo import gdal as gdl
+    import numpy as np
+    src_file = gdl.Open(filename)
+    data_band = src_file.GetRasterBand(band)
+    return data_band.ReadAsArray().astype(np.float)
 
 
 def saveObj(obj, name ):
