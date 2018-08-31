@@ -44,6 +44,7 @@ class World:
         if mpiComm is None:
             self.isParallel = False
             self.isRoot     = True
+            self.mpiRank    = 0
         else:
             self.isParallel = mpiComm.size > 1
             self.mpiRank = core.mpiRank

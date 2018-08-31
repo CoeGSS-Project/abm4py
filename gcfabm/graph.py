@@ -208,7 +208,8 @@ class BaseGraph():
         self.nodes[nTypeID] = tmp
         
         for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
-            nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
+            if nodeInstance is not None:
+                nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
             
         self.nodes[nTypeID].currentSize = int(currentSize*factor)
 
@@ -303,9 +304,11 @@ class BaseGraph():
         else:
             dataIDs[:] = nType.freeRows[:nNodes]
             nType.freeRows = nType.freeRows[nNodes:]
+        
         if max(dataIDs) >= self.nodes[nTypeID].currentSize:
-            self._extendNodeArray(nTypeID, 2)
-    
+            extFactor = int(max(np.ceil(max(dataIDs)/nType.currentSize), 2))
+            self._extendNodeArray(nTypeID, extFactor)
+            nType = self.nodes[nTypeID]
         nType['active'][dataIDs] = True
         
         # adding attributes
@@ -1048,7 +1051,8 @@ class ABMGraph(BaseGraph):
         nLinks = 0
         for source in self.nodes[agTypeID].nodeList:
             if source in eDict.keys():
-                targetList = [target - self.maxNodes for target in eDict[source] if target != source]
+                dataIDSource = source - self.maxNodes
+                targetList = [target for target in eDict[source][1] if target != dataIDSource]
                 nLinks += len(targetList)
                 adjList.append(targetList)
             else:
