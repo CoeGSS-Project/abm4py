@@ -29,7 +29,7 @@ mpi4py for parallel execution
 
 ### Installing
 
-git clone https://ageiges@bitbucket.org/ageiges/motmo.git
+git clone https://ageiges@bitbucket.org/ageiges/abm4py.git
 
 ## Running the tests
 
