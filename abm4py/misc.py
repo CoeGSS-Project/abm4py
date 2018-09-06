@@ -22,10 +22,15 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 
 import numpy as np
 import pickle
+
+# optional import 
 try:
     from numba import njit
+    NUMBA = True
+    
 except:
     print('numba import failed')
+    NUMBA = False
 
 
 class synthInput():
@@ -92,14 +97,22 @@ class Record():
             self.dset = h5File.create_dataset(path, (self.nAgentsGlob,), dtype=self.data.dtype)
             self.dset[self.loc2GlobIdx[0]:self.loc2GlobIdx[1],] = self.data
                 
-                
-@njit
-def weightingFunc(x,y):
-    return 1./((x**2. +y**2.)**.5)
 
-@njit
-def distance(x,y):
-    return (x**2. +y**2.)**.5
+if NUMBA:
+    @njit
+    def weightingFunc(x,y):
+        return 1./((x**2. +y**2.)**.5)
+    
+    @njit
+    def distance(x,y):
+        return (x**2. +y**2.)**.5
+else:
+    def weightingFunc(x,y):
+        return 1./((x**2. +y**2.)**.5)
+    
+    
+    def distance(x,y):
+        return (x**2. +y**2.)**.5
 
 
 

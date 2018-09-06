@@ -23,15 +23,19 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 import logging as lg
 import numpy as np
 import itertools
+
 try:
     from numba import njit
+    @njit
+    def getRefByList(maxLen, idList):
+        return idList[0] // maxLen, [lnID%maxLen for lnID in idList]
 except:
     print('numba import failed')
 
+    def getRefByList(maxLen, idList):
+        return idList[0] // maxLen, [lnID%maxLen for lnID in idList]
 
-@njit
-def getRefByList(maxLen, idList):
-    return idList[0] // maxLen, [lnID%maxLen for lnID in idList]
+
     
 class TypeDescription():
 

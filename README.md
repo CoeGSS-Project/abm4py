@@ -1,6 +1,4 @@
-# Project Title
-
-ABM4py
+# ABM4py
 
 Agent-based modeling framework for python
 
@@ -24,7 +22,7 @@ matplotlib
 
 OPTIONAL:
 mpi4py for parallel execution
-
+numba for optinal compiled function execution
 ```
 
 ### Installing
@@ -45,14 +43,14 @@ procedure fo Andaconda and add missing packages using: "conda install PACKAGE_NA
 
 ## Authors
 
-Andreas Geiges
-Steffen Fuerst
-Sarah Wolf
-Gesine Steudle
+- Andreas Geiges 
+- Steffen Fuerst
+- Sarah Wolf
+- Gesine Steudle
 
 ## Contributing
 
-Jette von Postel
+- Jette von Postel
 
 
 ## License

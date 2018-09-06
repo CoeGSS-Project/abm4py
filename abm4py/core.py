@@ -25,17 +25,21 @@ import os
 import numpy as np
 import itertools
 import pandas as pd
+
+try:
+    from numba import njit
+    NUMBA = True
+    
+except:
+    print('numba import failed')
+    NUMBA = False
+    
+    
 import time
 import random
 from . import misc
 from collections import OrderedDict
 
-try:
-    from numba import njit
-except:
-    print('numba import failed')
-
-import math
 
 
 # Evaluation if mpi4py is installed and workding
@@ -66,44 +70,6 @@ import logging as lg
 
 # This compound typtes are allowed as agent attributes
 ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
-
-##%%
-@njit("f8 (f8[:], f8[:])",cache=True)
-def cobbDouglasUtilNumba(x, alpha):
-    utility = 1.
-    
-    for i in range(len(x)):
-        utility = utility * (100.*x[i])**alpha[i] 
-    
-    
-    return utility / 100.
-
-@njit("f8[:] (f8[:])",cache=True)
-def normalize(array):
-    return  array / np.sum(array)
-
-@njit(cache=True)
-def sum1D(array):
-    return np.sum(array)
-
-@njit(cache=True)
-def sumSquared1D(array):
-    return np.sum(array**2)
-
-@njit(cache=True)
-def prod1D(array1, array2):
-    return np.multiply(array1,array2)
-
-@njit(cache=True)
-def normalizedGaussian(array, center, errStd):
-    diff = (array - center) +  np.random.randn(array.shape[0])*errStd
-    normDiff = np.exp(-(diff**2.) / (2.* errStd**2.))  
-    return normDiff / np.sum(normDiff)
-
-##@njit
-#def convenienceFunction(minValue, maxValue, delta, mu, twoSigmaSquare, density):
-#    return  minValue + delta * math.exp(-(density - mu)**2 / twoSigmaSquare)
-
 
 #%% FUNCTION DEFINITION
 
