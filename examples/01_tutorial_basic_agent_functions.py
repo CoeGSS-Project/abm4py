@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../')
 
-from gcfabm import World, Agent
+from abm4py import World, Agent
 import tools_for_01 as tools
 
 #%%

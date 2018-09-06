@@ -26,8 +26,8 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import Mobile
+from abm4py import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Mobile
 
 #%% Class definition
 class Walker(Agent, Mobile):

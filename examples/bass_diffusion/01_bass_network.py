@@ -34,8 +34,8 @@ home = os.path.expanduser("~")
 sys.path.append('../..')
 
 #import the gcf abm library and core components
-from gcfabm import Agent, World # basic interface
-from gcfabm import core
+from abm4py import Agent, World # basic interface
+from abm4py import core
 import tools
 
 #%% CONFIG

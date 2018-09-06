@@ -59,7 +59,7 @@ sys.path.append('../lib/')
 
 import numpy as np
 
-import lib_gcfabm as LIB #, GhostAgent, World,  h5py, MPI
+import lib_abm4py as LIB #, GhostAgent, World,  h5py, MPI
 import core
 
 import logging as lg

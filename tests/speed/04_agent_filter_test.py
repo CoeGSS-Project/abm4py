@@ -26,9 +26,9 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import Mobile
-from gcfabm import core
+from abm4py import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Mobile
+from abm4py import core
 
  #%% Setup
 N_AGENTS   = 50000

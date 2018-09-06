@@ -27,7 +27,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 
-from gcfabm import World, Location, core
+from abm4py import World, Location, core
 
 #%% SETUP
 MAX_AGENTS = 1000

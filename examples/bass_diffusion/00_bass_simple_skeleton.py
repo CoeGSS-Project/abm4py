@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 home = os.path.expanduser("~")
 sys.path.append('../../lib/')
 
-import lib_gcfabm_prod as LIB #, GhostAgent, World,  h5py, MPI
+import lib_abm4py_prod as LIB #, GhostAgent, World,  h5py, MPI
 import core_prod as core
 import tools
 

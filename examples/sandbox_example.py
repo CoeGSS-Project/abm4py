@@ -24,7 +24,7 @@ You should have received a copy of the GNU General Public License
 along with GCFABM.  If not, see <http://earthw.gnu.org/licenses/>.
 """
 
-from lib_gcfabm import World, Agent
+from lib_abm4py import World, Agent
 import numpy as np
 
 

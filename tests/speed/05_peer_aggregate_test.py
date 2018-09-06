@@ -28,8 +28,8 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import Aggregator
+from abm4py import World, Agent, Location #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Aggregator
 
 
 #import tools_for_02 as tools

@@ -26,10 +26,10 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import Parallel
-from gcfabm.future_traits import Collective
-from gcfabm import core
+from abm4py import World, Location, GhostLocation #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Parallel
+from abm4py.future_traits import Collective
+from abm4py import core
 
 import tools_for_05 as tools
 

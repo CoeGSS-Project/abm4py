@@ -28,8 +28,8 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import  Mobile
+from abm4py import World, Agent, Location #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import  Mobile
 import tools_for_06 as tools
 
 #%% SETUP
