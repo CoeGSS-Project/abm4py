@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2017
-Global Climate Forum e.V.
-http://wwww.globalclimateforum.org
+Copyright (c) 2018, Global Climate Forun e.V. (GCF)
+http://www.globalclimateforum.org
 
-This example file is part on GCFABM.
+This file is part of ABM4py.
 
-GCFABM is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ABM4py is free software: you can redistribute it and/or modify it 
+under the terms of the GNU Lesser General Public License as published 
+by the Free Software Foundation, version 3 only.
 
-GCFABM is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+ABM4py is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+You should have received a copy of the GNU Lesser General Public License 
+along with this program. If not, see <http://www.gnu.org/licenses/>. 
+GNU Lesser General Public License version 3 (see the file LICENSE).
+
+@author: ageiges
 """
 
 #%% import of modules

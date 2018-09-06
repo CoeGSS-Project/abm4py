@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2017
-Global Climate Forum e.V.
+Copyright (c) 2018, Global Climate Forun e.V. (GCF)
 http://www.globalclimateforum.org
 
-This file is part of GCFABM.
+This file is part of ABM4py.
 
-GCFABM is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ABM4py is free software: you can redistribute it and/or modify it 
+under the terms of the GNU Lesser General Public License as published 
+by the Free Software Foundation, version 3 only.
 
-GCFABM is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+ABM4py is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Lesser General Public License 
+along with this program. If not, see <http://www.gnu.org/licenses/>. 
+GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
 #%% INIT
@@ -30,7 +29,12 @@ import time
 import random
 from . import misc
 from collections import OrderedDict
-from numba import njit
+
+try:
+    from numba import njit
+except:
+    print('numba import failed')
+
 import math
 
 
@@ -70,12 +74,6 @@ def cobbDouglasUtilNumba(x, alpha):
     
     for i in range(len(x)):
         utility = utility * (100.*x[i])**alpha[i] 
-    #if np.isnan(utility) or np.isinf(utility):  ##DEEP_DEBUG
-    #    import pdb                              ##DEEP_DEBUG
-    #    pdb.set_trace()                         ##DEEP_DEBUG
-
-    # assert the limit of utility
-    #assert utility > 0 and utility <=  100.     ##DEEP_DEBUG
     
     
     return utility / 100.
@@ -102,7 +100,7 @@ def normalizedGaussian(array, center, errStd):
     normDiff = np.exp(-(diff**2.) / (2.* errStd**2.))  
     return normDiff / np.sum(normDiff)
 
-#@njit
+##@njit
 #def convenienceFunction(minValue, maxValue, delta, mu, twoSigmaSquare, density):
 #    return  minValue + delta * math.exp(-(density - mu)**2 / twoSigmaSquare)
 
@@ -385,12 +383,11 @@ def _h5File_driver(filePath):
         return h5py.File(filePath, 'w')
  
     else:
-        return h5py.File(filePath, 
-                         'w',
-                          driver='mpio',
-                          comm=comm,
-                          libver='latest',
-                          info = info)
+        return h5py.File(filePath, 'w',)
+#                          driver='mpio',
+#                          comm=comm,
+#                          libver='latest',
+#                          info = info)
 
 
 def initLogger(debug, outputPath):
@@ -1498,7 +1495,7 @@ class IO():
         fid.write('% Adjecencies of verteces \n')
         
         
-        weigList = self.graph.getAttrOfAgentType(attrForWeight, agTypeID).tolist()
+        weigList = self._graph.getAttrOfNodeType(attrForWeight, agTypeID).tolist()
     
         for adjline, weig in zip(adjList, weigList):
             fid.write(''.join([str(int(weig*100)) + ' '] + [str(x+1) + ' ' for x in adjline]) + '\n')

@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2017
-Global Climate Forum e.V.
-http://wwww.globalclimateforum.org
+Copyright (c) 2018, Global Climate Forun e.V. (GCF)
+http://www.globalclimateforum.org
 
----- MoTMo ----
-MOBILITY TRANSIOn MODEL
--- Class graph --
+This file is part of ABM4py.
 
-This file is part on GCFABM.
+ABM4py is free software: you can redistribute it and/or modify it 
+under the terms of the GNU Lesser General Public License as published 
+by the Free Software Foundation, version 3 only.
 
-GCFABM is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ABM4py is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
 
-GCFABM is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GCFABM.  If not, see <http://earth.gnu.org/licenses/>.
+You should have received a copy of the GNU Lesser General Public License 
+along with this program. If not, see <http://www.gnu.org/licenses/>. 
+GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
 import logging as lg
 import numpy as np
 import itertools
-from numba import njit
+try:
+    from numba import njit
+except:
+    print('numba import failed')
 
 
 @njit
@@ -195,24 +193,46 @@ class BaseGraph():
         
         return nTypeID
 
-    def _extendNodeArray(self, nTypeID, factor):
+    def _extendNodeArray(self, nTypeID, factor=None, newSize=None):
         """
         Method to increas the array for nodes to dynamically adapt to
         higher numbers of nodes
         """
-        currentSize = self.nodes[nTypeID].currentSize
-        dt = self.nodes[nTypeID].dtype
-        tmp = NodeArray(int(currentSize*factor), nTypeID, dtype=dt, startID = currentSize+1, nodeList = self.nodes[nTypeID].nodeList)
-        tmp['active'] = False
-        tmp[:currentSize] = self.nodes[nTypeID]
-        self.nodes[nTypeID] = tmp
         
-        for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
-            if nodeInstance is not None:
-                nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
+        if newSize is None:
+            currentSize = self.nodes[nTypeID].currentSize
+            dt = self.nodes[nTypeID].dtype
+            tmp = NodeArray(int(currentSize*factor), nTypeID, dtype=dt, startID = currentSize+1, nodeList = self.nodes[nTypeID].nodeList)
+            tmp['active'] = False
+            tmp[:currentSize] = self.nodes[nTypeID]
+            tmp1 = self.nodes[nTypeID]
+            self.nodes[nTypeID] = tmp
             
-        self.nodes[nTypeID].currentSize = int(currentSize*factor)
-
+            for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
+                if nodeInstance is not None:
+                    nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
+            import pdb
+#            pdb.set_trace()
+#            print(id(tmp1))
+            self.nodes[nTypeID].currentSize = int(currentSize*factor)
+        
+        elif factor is None:
+            assert newSize >=  len(self.nodeList)
+            currentSize = self.nodes[nTypeID].currentSize
+            
+            dt = self.nodes[nTypeID].dtype
+            tmp = NodeArray(int(newSize), nTypeID, dtype=dt, startID = currentSize+1, nodeList = self.nodes[nTypeID].nodeList)
+            tmp['active'] = False
+            tmp[:currentSize] = self.nodes[nTypeID]
+            self.nodes[nTypeID] = tmp
+            
+            for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
+                if nodeInstance is not None:
+                    nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
+                
+            self.nodes[nTypeID].currentSize = int(newSize)
+        else:
+            raise()
         
     def getNodeDataRef(self, lnIDs):
         """ 
@@ -435,22 +455,41 @@ class BaseGraph():
         self.edges[eTypeID].currentSize = self.INIT_SIZE
         return eTypeID
 
-    def _extendEdgeArray(self, eTypeID, factor):
+    def _extendEdgeArray(self, eTypeID, factor=None, newSize=None):
         """
         MEthod to increas the array for edges to dynamically adapt to
         higher numbers of edges
         """
-        edges = self.edges[eTypeID]
-        currentSize = edges.currentSize
-        dt = edges.dtype
-        tmp = EdgeArray(int(currentSize*factor), eTypeID, dtype=dt, 
-                        startID = currentSize+1, edgeList=edges.edgeList, eDict = edges.eDict,
-                        edgesOut= edges.edgesOut, edgesIn= edges.edgesIn,
-                        nodesOut= edges.nodesOut, nodesIn= edges.nodesIn)
-        tmp['active'] = False
-        tmp[:currentSize] = self.edges[eTypeID]
-        self.edges[eTypeID] = tmp
-        self.edges[eTypeID].currentSize = int(currentSize*factor)
+        
+        if newSize is None:
+            edges = self.edges[eTypeID]
+            currentSize = edges.currentSize
+            dt = edges.dtype
+            tmp = EdgeArray(int(currentSize*factor), eTypeID, dtype=dt, 
+                            startID = currentSize+1, edgeList=edges.edgeList, eDict = edges.eDict,
+                            edgesOut= edges.edgesOut, edgesIn= edges.edgesIn,
+                            nodesOut= edges.nodesOut, nodesIn= edges.nodesIn)
+            tmp['active'] = False
+            tmp[:currentSize] = self.edges[eTypeID]
+            self.edges[eTypeID] = tmp
+            self.edges[eTypeID].currentSize = int(currentSize*factor)
+        
+        elif factor is None:
+            assert newSize >=  len(self.edgeList)
+            edges = self.edges[eTypeID]
+            currentSize = edges.currentSize
+            dt = edges.dtype
+            tmp = EdgeArray(int(newSize), eTypeID, dtype=dt, 
+                            startID = currentSize+1, edgeList=edges.edgeList, eDict = edges.eDict,
+                            edgesOut= edges.edgesOut, edgesIn= edges.edgesIn,
+                            nodesOut= edges.nodesOut, nodesIn= edges.nodesIn)
+            tmp['active'] = False
+            tmp[:currentSize] = self.edges[eTypeID]
+            self.edges[eTypeID] = tmp
+            self.edges[eTypeID].currentSize = int(newSize)
+        else:
+            print('error')#raise()
+            
 
     def getEdgeDataRef(self, leID):
         """ calculates the node type ID and dataID from local ID"""
@@ -503,7 +542,7 @@ class BaseGraph():
             leID = dataID + eTypeID * self.maxEdges
             if dataID >= self.edges[eTypeID].currentSize:
                  self._extendEdgeArray(eTypeID, 2)
-            
+                 eType = self.edges[eTypeID]
         dataview = eType[dataID:dataID+1].view() 
          
         #updating edge dictionaries
@@ -558,9 +597,10 @@ class BaseGraph():
             eType.freeRows = eType.freeRows[nEdges:]
         
         if max(dataIDs) >= eType.currentSize:
-            extFactor = int(max(np.ceil(max(dataIDs)/eType.currentSize), 2))
+            extFactor = int(max(np.ceil(max(dataIDs)+1/eType.currentSize), 2))
             self._extendEdgeArray(eTypeID, extFactor)
             eType = self.edges[eTypeID]
+            
         eType['source'][dataIDs] = sources
         eType['target'][dataIDs] = targets    
         eType['active'][dataIDs] = True
@@ -836,6 +876,9 @@ class ABMGraph(BaseGraph):
             self.__ghostOfAgentClass[AgentClass]    = GhostAgentClass
         self._initNodeType(typeStr, staticProperties + dynamicProperties)
 
+    def setNodeStorageSize(self, nTypeID, newSize):
+        self._extendNodeArray(self, nTypeID, newSize=newSize)
+
     def addEdgeType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
         liTypeIDIdx = len(self.liTypeByID)+1
@@ -847,6 +890,8 @@ class ABMGraph(BaseGraph):
 
         return liTypeIDIdx
 
+    def setEdgeStorageSize(self, eTypeID, newSize):
+        self._extendEdgeArray(self, eTypeID, newSize=newSize)
 
     #%% RELATIVE NODE ACCESS
     def getDTypeOfNodeType(self, agTypeID, kind):

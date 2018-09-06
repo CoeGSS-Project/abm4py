@@ -1,8 +1,25 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Apr 27 12:23:00 2017
+Copyright (c) 2018, Global Climate Forun e.V. (GCF)
+http://www.globalclimateforum.org
 
-@author: gcf
+This file is part of ABM4py.
+
+ABM4py is free software: you can redistribute it and/or modify it 
+under the terms of the GNU Lesser General Public License as published 
+by the Free Software Foundation, version 3 only.
+
+ABM4py is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License 
+along with this program. If not, see <http://www.gnu.org/licenses/>. 
+GNU Lesser General Public License version 3 (see the file LICENSE).
+
+@author: gsteudle
 """
 from lib_gcfabm import Location, GhostLocation
 from class_iteratedStagHunt import Community, Hunter, Village
