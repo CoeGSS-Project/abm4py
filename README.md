@@ -27,7 +27,7 @@ numba for optinal compiled function execution
 
 ### Installing
 
-git clone https://ageiges@bitbucket.org/ageiges/motmo.git
+git clone https://ageiges@bitbucket.org/ageiges/abm4py.git
 
 ## Running the tests
 
