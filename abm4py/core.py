@@ -327,16 +327,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     plt.tight_layout()  
     
     plt.draw()
-    #fig.canvas.flush_events()
 
-#def firstElementDeco(fun):
-#    """ 
-#    Decorator that returns the first element
-#    ToDo: if possible find better way
-#    """
-#    def helper(arg):
-#        return fun(arg)[0]
-#    return helper
 
 def _h5File_driver(filePath):
 
@@ -349,11 +340,11 @@ def _h5File_driver(filePath):
         return h5py.File(filePath, 'w')
  
     else:
-        return h5py.File(filePath, 'w',)
-#                          driver='mpio',
-#                          comm=comm,
-#                          libver='latest',
-#                          info = info)
+        return h5py.File(filePath, 'w',
+                          driver='mpio',
+                          comm=comm,
+                          libver='latest',
+                          info = info)
 
 
 def initLogger(debug, outputPath):
