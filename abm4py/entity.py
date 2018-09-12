@@ -31,13 +31,13 @@ class _Entity(object):
     def __init__(self, world, nID=None, **kwProperties):
         
         #  the agTypeID is derived from the agent class and stored        
-        self.agTypeID =  world.graph.class2NodeType(self.__class__)
+        self.agTypeID =  world._graph.class2NodeType(self.__class__)
 
-        # create new node in the graph
+        # create new node in the._graph
         if nID == None:
             self.nID, self.dataID, self.attr = world.addNode(self.agTypeID, **kwProperties)    
             
-            self._setGraph(world.graph)
+            self._setGraph(world._graph)
             self.attr['instance'] = self
             self.__getNode = world.getAgent
 
@@ -48,7 +48,7 @@ class _Entity(object):
         # connects the agent to an existing node
         else:
             self.nID = nID
-            self._setGraph(world.graph)
+            self._setGraph(world._graph)
             self.attr, self.dataID = self._graph.getNodeView(nID)
             self.attr['instance'] = self
             
@@ -71,8 +71,8 @@ class _Entity(object):
             
         
     @classmethod
-    def _setGraph(cls, graph):
-        """ Makes the class variable _graph available at the first init of an entity"""
+    def _setGraph(cls,graph):
+        """ Makes the class variable ._graph available at the first init of an entity"""
         cls._graph = graph
 
     def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
@@ -84,5 +84,5 @@ class _Entity(object):
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""
-        world.graph.remNode(self.nID)
+        world._graph.remNode(self.nID)
         world.deRegisterAgent(self, ghost=False)

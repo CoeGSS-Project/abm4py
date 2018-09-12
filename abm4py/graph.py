@@ -51,6 +51,7 @@ class TypeDescription():
 
     
 class NodeArray(np.ndarray):
+    
     def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
           strides=None, order=None, startID = 0, nodeList=[]):
 
@@ -139,7 +140,7 @@ class BaseGraph():
         
     def __init__(self, maxNodesPerType, maxEdgesPerType):
         """
-        This class provides the basic functions to contruct a directed graph
+        This class provides the basic functions to contruct a directed._graph
         with different node and edge types. 
         The max number of edges and nodes
         cannot be exceeded during execution, since it is used for pre-assigning
@@ -797,7 +798,7 @@ class BaseGraph():
 
     def selfTest(self):
         """ 
-        This function is testing the base graph class
+        This function is testing the base._graph class
         Not complete 
         """
         NT1 = self._initNodeType('A',
@@ -809,7 +810,7 @@ class BaseGraph():
         
 class ABMGraph(BaseGraph):
     """
-    World graph NP is a high-level API to contrl BaseGraph
+    World._graph NP is a high-level API to contrl BaseGraph
     
     """    
 

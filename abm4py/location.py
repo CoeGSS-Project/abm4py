@@ -40,7 +40,7 @@ class Location(GridNode, Agent):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -86,5 +86,5 @@ class GhostLocation(Agent, Parallel):
         
     def delete(self, world):
         """ method to delete the agent from the simulation"""
-        world.graph.remNode(self.nID)
+        world._graph.remNode(self.nID)
         world.deRegisterAgent(self, ghost=True)        

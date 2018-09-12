@@ -29,8 +29,6 @@ from . import core
 from . import misc
 from . import traits
 from . import future_traits
-#        
-#if __name__ == '__main__':
-#    
-#    pass
+
+__version__ = core.__version__
     
