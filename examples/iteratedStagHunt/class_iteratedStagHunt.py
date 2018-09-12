@@ -23,7 +23,7 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
 from lib_gcfabm import World, Agent, Location
-#import igraph as ig
+#import ._graph as ig
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -326,7 +326,7 @@ class Village(Location):
 
     def getConnectedVillages(self):
         self.weights, self.eIDs = self.getConnProp('weig')
-        self.connNodeList = [self.graph.es[x].target for x in self.eIDs ]
+        self.connNodeList = [self._graph.es[x].target for x in self.eIDs ]
         return self.weights, self.eIDs, self.connNodeList
  
             

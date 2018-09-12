@@ -82,22 +82,22 @@ for _ in range(N_AGENTS):
 
     
 
-# originalAttrs = np.copy(world.graph.nodes[AGENT])
+# originalAttrs = np.copy(world._graph.nodes[AGENT])
 
 # def resetAttrs():
-#     world.graph.nodes[AGENT]['active'] = True
+#     world._graph.nodes[AGENT]['active'] = True
 #     world.setAttrsForType(AGENT, lambda a: originalAttrs)
 
 
 def testMethod(f, info):
-    print("Sum Food Before:" + str(np.sum(world.graph.nodes[AGENT]['food'])))
+    print("Sum Food Before:" + str(np.sum(world._graph.nodes[AGENT]['food'])))
     start = time.time()
     for _ in range(N_STEPS):
     # for _ in range(500):
         f()
     stop = time.time()
     print(str(info) + ": " + str(stop-start))
-    print("Sum Food After:" + str(np.sum(world.graph.nodes[AGENT]['food'])))
+    print("Sum Food After:" + str(np.sum(world._graph.nodes[AGENT]['food'])))
     print("-----------------------")
     
     
@@ -132,7 +132,7 @@ def doStepItem():
                 
 
 def doStepNumpyDirect():
-    all = world.graph.nodes[AGENT]
+    all = world._graph.nodes[AGENT]
     all['food'] = all['food'] - 1
     all['heaven'] = (all['food'] < 1) & (all['karma'] > 10)
     world.deleteAgentsFilteredType(AGENT, lambda a: a['food'] < 1)
@@ -197,7 +197,7 @@ def doStepNumpy():
 # else:
 #     testMethod(doStepItem, 'simple')
 
-all = world.graph.nodes[AGENT]
+all = world._graph.nodes[AGENT]
 
 def incrFood(row):
     print(row)

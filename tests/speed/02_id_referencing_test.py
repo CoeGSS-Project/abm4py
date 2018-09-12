@@ -55,7 +55,7 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getNodeDataRef(subList)
+        x = world._graph.getNodeDataRef(subList)
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
@@ -66,7 +66,7 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         subList = idList[i:i+REF_LENGTH]
-        x = world.graph.getNodeDataRef(subList)
+        x = world._graph.getNodeDataRef(subList)
         
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
@@ -79,6 +79,6 @@ for iTry in range(30):
     tt = time.time()
     for i in range(1000):
         singleID = idList[i]
-        x = world.graph.getNodeDataRef(singleID)
+        x = world._graph.getNodeDataRef(singleID)
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))

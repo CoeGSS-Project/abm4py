@@ -173,7 +173,7 @@ H5_GENDER = 2
 H5_INCOME = 3
 H5_HHTYPE = 4
 
-locDict = world.getLocationDict()
+locDict = world.grid.getNodeDict()
 currIdx = 0
 
 
@@ -325,7 +325,7 @@ while True:
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
-    switchFraction = np.sum(switched) / world.nAgents(AGENT)
+    switchFraction = np.sum(switched) / world.countAgents(AGENT)
     
     # the fraction is appended to the list for recording and visualization
     fracList.append(switchFraction)

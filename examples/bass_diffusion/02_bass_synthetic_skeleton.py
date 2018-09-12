@@ -124,7 +124,7 @@ H5_GENDER = 2
 H5_INCOME = 3
 H5_HHTYPE = 4
 
-locDict = world.getLocationDict()
+locDict = world.grid.getNodeDict()
 currIdx = 0
 
 
@@ -244,7 +244,7 @@ while True:
     tt =time.time()
     iStep+=1
     switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
-    switchFraction = np.sum(switched) / world.nAgents(AGENT)
+    switchFraction = np.sum(switched) / world.countAgents(AGENT)
     fracList.append(switchFraction)
     
     

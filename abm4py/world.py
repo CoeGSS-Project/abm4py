@@ -28,8 +28,11 @@ import numpy as np
 import types
 
 class World:
+    """
+    The world class is the center for controlling accessing and structuring the
+    ABM-simulation. 
+    """
 
-    #%% INIT WORLD
     def __init__(self,
                  simNo=None,
                  outPath='.',
@@ -60,7 +63,7 @@ class World:
         
                 
         # ======== GRAPH ========
-        self.graph    = ABMGraph(self, maxNodes, maxLinks)
+        self._graph    = ABMGraph(self, maxNodes, maxLinks)
         
         # agent passing interface for communication between parallel processes
         self.papi = core.PAPI(self)
@@ -75,7 +78,7 @@ class World:
                 
           
         self.para      = dict()
-        self.para['outPath'] = outPath # is not graph, move to para
+        self.para['outPath'] = outPath # is not._graph, move to para
         # TODO put to parameters                    
         self.agentOutput = agentOutput
         self.linkOutput  = linkOutput
@@ -101,8 +104,6 @@ class World:
         self.__ghostsByType  = dict()
         
         self.__allAgentDict    = dict()
-        self.__locDict   = dict()
-
         
         self.__nAgentsByType = dict()
         self.__nGhostsByType = dict()
@@ -111,7 +112,7 @@ class World:
         # storage of global data
         self.globalRecord = dict() 
         # Globally synced variables
-        self.graph.glob     = core.Globals(self)
+        self._graph.glob     = core.Globals(self)
         lg.debug('Init Globals done')##OPTPRODUCTION
         
         # ======== IO ========
@@ -122,14 +123,14 @@ class World:
         self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__agentsByType)
         
         
-        # re-direct of graph functionality 
-        self.addLink        = self.graph.addEdge
-        self.addLinks       = self.graph.addEdges
+        # re-direct of._graph functionality 
+        self.addLink        = self._graph.addEdge
+        self.addLinks       = self._graph.addEdges
         
-        self.delLink       = self.graph.remEdge
+        self.delLink       = self._graph.remEdge
 
-        self.addNode     = self.graph.addNode
-        self.addNodes    = self.graph.addNodes
+        self.addNode     = self._graph.addNode
+        self.addNodes    = self._graph.addNodes
       
         #self.getAgents  = core.AgentAccess(self)
 
@@ -152,333 +153,6 @@ class World:
         
     def _entByLocID(self, locID):
         return self.__allAgentDict[locID]
-
-    
-    
-#%% General Infromation methods
-    def nAgents(self, agTypeID, ghosts=False):
-        """
-        Returns the number of agents or ghost agents per agent type
-        """
-        if ghosts:
-            return self.__nGhostsByType[agTypeID]
-        else:
-            return self.__nAgentsByType[agTypeID]
-        
-    def nLinks(self, liTypeID):
-        """
-        Returns the number of links per for the given link type
-        """
-        return self.graph.eCount(eTypeID=liTypeID)  
-
-    def getParameter(self, paraName):
-        """
-        Returns a single simulation parameter
-        """
-        return self.para[paraName]
-
-    def getParameters(self):
-        """
-        Returns a dictionary of all simulations parameters 
-        """
-        return self.para
-
-    def setParameter(self, paraName, paraValue):
-        """
-        This method is used to set parameters of the simulation
-        """
-        if core.dakota.isActive:
-            if core.dakota.params.get(paraName):
-                self.para[paraName] = core.dakota.params[paraName]
-        else:
-            self.para[paraName] = paraValue
-
-    def setParameters(self, parameterDict):
-        """
-        This method allows to set multiple parameters at once
-        """
-        for key in list(parameterDict.keys()):
-            self.setParameter(key, parameterDict[key])
-
-    # saving enumerations
-    def saveParameters(self, fileName= 'simulation_parameters'):
-        misc.saveObj(self.para, self.para['outPath'] + '/' + fileName)
-       
-    def getEnums(self):
-        """ 
-        Returns a specified enumeration dict
-        """         
-        return self.__enums
-
-    def saveEnumerations(self, fileName= 'enumerations'):
-        # saving enumerations
-        misc.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
-
-#%% Global agent attribute access
-        
-
-    def getAttrOfAgents(self, attribute, localIDList):
-        """
-        Read attributes for a given sequence of agents
-        Example: out = world.setAttrOfAgents('coord', [100000, 100001])
-        """
-        return self.graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
-
-    def setAttrOfAgents(self, attribute, valueList, localIDList):
-        """
-        Write attributes for a given sequence of agents
-        Example: world.setAttrOfAgents('coord', [(1,2), (0,1)], [100000, 100001])
-        """
-        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
-    
-    def getAttrOfAgentType(self, attribute, agTypeID):
-        """
-        Returns numpy array of the defined attribute of all agents of one type
-        Example: world.getAttrOfAgentType('coord', agType=LOCATION_TYPE_ID)
-        """
-        return self.graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
-        
-
-
-    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
-        """
-        Write attributes of all agents of type at once
-        """
-        self.graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])
-          
-        
-            
-    def getAttrOfLinks(self, attribute, localLinkIDList):
-        """
-        Read the specified attribute the specified list of links
-        """
-        return self.graph.getEdgeSeqAttr(attribute, lnIDs=localLinkIDList)
-
-    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
-        """
-        Write the specified attribute the specified list of links
-        """
-        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
-        
-    def getAttrOfLinkType(self, attribute, liTypeID):
-        """
-        Read the specified attribute of all agents that are of the specified link type
-        """
-        return self.graph.getEdgeSeqAttr(attribute, lnIDs=self.linkDict[liTypeID])
-        
-
-        
-    def setAttrOfLinkType(self, attribute, valueList, liTypeID):
-        """
-        Write the specified attribute of all agents that are of the specified link type
-        """
-        self.graph.setEdgeSeqAttr(attribute, valueList, lnIDs=self.linkDict[liTypeID])            
-
-
-#%% Vectorized functions access
-    def getAttrOfFilteredAgentType(self, attribute, func, agTypeID):
-        """
-        This function allows to access a sub-selection of agents that is defined 
-        by a filter function that is action on agent properties.
-
-        Use case: Get the pos of all agents with a property below a certain treshold:
-        for agent in world.filterAgents('pos', lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        return array[attribute][mask]
-
-    def setAttrOfFilteredAgentType(self, attribute, value, agTypeID, func):
-        """
-        This function allows to access the attributes of a sub-selection of agents 
-        that is defined  by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        array[attribute][mask] = value
-
-    def setAttrsForTypeVectorized(self, agTypeID, attribute, vfunc, idx=None):
-        array = self.graph.nodes[agTypeID]
-        if idx is None:
-            array[attribute][array['active']] = vfunc(array[array['active']]) 
-        else:
-            array[attribute][:,idx][array['active']] = vfunc(array[array['active']]) 
-    
-    def setAttrsForType(self, agTypeID, func):
-        """
-        This function allows to manipulate the underlaying np.array directly, e.g.
-        to change the attributes of all agents of a given type in a more performant way
-        then with a python loop for comprehension.
-
-        func is a function that gets an (structured) np.array, and must return an array with the 
-        dimensions.
-
-        Use case: Increase the age for all agents by one:
-        def increaseAge(agents):
-            agents['age'] += 1
-            return agents
-
-        setAttrsForType(AGENT, increaseAge)
-
-        see also: setAttrsForFilteredType/Array
-        """    
-        array = self.graph.nodes[agTypeID]
-        array[array['active']] = func(array['active'])
-
-    def setAttrsForFilteredType(self, agTypeID, filterFunc, setFunc):
-        """
-        This function allows to manipulate a subset of the underlaying np.array directly. The 
-        subset is formed by the filterFunc.
-
-        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
-        the same length. For performance reasons, the function gets the complete underlaying array, 
-        which can contain unused rows (the 'active' column is set to False for those rows).
-
-        setFunc is a function that gets an array that contains the rows where the boolean array returned
-        by the filterFunc is True, and must return an array with the same dimensions. 
-
-        Use case: All agents without food are dying:
-
-        def dieAgentDie(deadAgents):
-          deadAgents['alive'] = False
-          return deadAgents
-
-        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, dieAgentDie)
-
-        see also: setAttrForType and setAttrsForFilteredArray
-        """    
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & filterFunc(array) 
-        array[mask] = setFunc(array[mask])
-
-    def setAttrsForFilteredArray(self, array, filterFunc, setFunc):
-        """
-        This function allows to manipulate a subset of a given np.array directly. The 
-        subset is formed by the filterFunc. That the array is given to the function explicitly 
-        allows to write nested filters, but for most use cases setFilteredAttrsForType should
-        be good enough.
-
-        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
-        the same length.
-
-        setFunc is a function that gets an array that contains the rows where the boolean array returned
-        by the filterFunc is True, and must return an array with the same dimensions. 
-
-        Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
-
-        def goToHeaven(angels):
-            angels['heaven'] = True
-            return angels
-
-        def heavenOrHell(deadAgents):
-            setAttrsForFilteredArray(deadAgents, lambda a: a['karma'] > 10 , goToHeaven)
-            deadAgents['alive'] = False
-            return deadAgents
-
-        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
-        
-        see also: setAttrForType and setAttrsForFilteredType
-        """    
-        mask = array['active'] & filterFunc(array) 
-        array[mask] = setFunc(array[mask])
-
-#%% Agent access 
-    def getAgent(self, agentID):
-        """
-        Returns a single agent selcetd by its ID
-        """
-        return self.__allAgentDict[agentID]
-    
-    def getAgentsByIDs(self, localIDs=None):
-        """
-        Returns agents defined by the ID
-        """
-        return [self.__allAgentDict[i] for i in localIDs] 
-
-    def getAgentsByGlobalID(self, globalIDs=None):
-        """
-        Returns agents defined by the global ID
-        """
-        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
-    
-        
-    def getAgentsByType(self, agTypeID=None,ghosts = False):
-        """
-        Iteration over entities of specified type. Default returns
-        non-ghosts in random order.
-        """
-        if ghosts:
-            return  self.__ghostsByType[agTypeID].copy()
-        else:
-            return  self.__agentsByType[agTypeID].copy()
-
-    def getAgentsByFilteredType(self, func, agTypeID):
-        """
-        This function allows to access a sub-selection of agents that is defined 
-        by a filter function that is action on agent properties.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        return array['instance'][mask]
-
-
-    def countAgents(self, func, agTypeID):
-        """
-        This function allows to access a sub-selection of agents that is defined 
-        by a filter function that act on agent attribute.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        mask = array['active'] & func(array)
-        return np.sum(mask)
-
-    
-
-
-    def deleteAgentsIf(self, agTypeID, filterFunc):
-        """
-        This function allows to delete a sub-selection of agents that is defined 
-        by a filter function that act on agent attribute.
-
-        Use case: Iterate over agents with a property below a certain treshold:
-        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
-        """
-        array = self.graph.nodes[agTypeID]
-        filtered = array[array['active'] == True & filterFunc(array)]
-        if len(filtered) > 0:
-            for aID in np.nditer(filtered['gID']):
-                agent = self.getNode(globID = int(aID))
-                agent.delete(self)
-
-  
-    
-    def getAgentIDs(self, agTypeID, ghosts=False):
-        """ 
-        Method to return all local node IDs for a given nodeType
-        """
-        if ghosts:
-            return self.__ghostIDsByType[agTypeID]
-        else:
-            return self.__agentIDsByType[agTypeID]
-        
-
-
-    #%% Local and global IDs            
-    def getAgentDataIDs(self, agTypeID):
-        """
-        This function return the dataID of an agent. The dataID is the index in the
-        numpy array, where the agents attributes are stored
-        """
-        return self.__agendDataIDsList[agTypeID]
-
 
 #%% Register methods
     def registerGrid(self, GridNodeType, GridLinkType):
@@ -527,9 +201,9 @@ class World:
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 
-        agTypeIDIdx = len(self.graph.agTypeByID)+1
+        agTypeIDIdx = len(self._graph.agTypeByID)+1
                 
-        self.graph.addNodeType(agTypeIDIdx, 
+        self._graph.addNodeType(agTypeIDIdx, 
                                agTypeStr, 
                                AgentClass,
                                GhostAgentClass,
@@ -578,7 +252,7 @@ class World:
         #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
 
         
-        liTypeIDIdx = self.graph.addEdgeType( agTypeStr, 
+        liTypeIDIdx = self._graph.addEdgeType( agTypeStr, 
                                                staticProperties, 
                                                dynamicProperties, 
                                                agTypeID1, 
@@ -624,7 +298,7 @@ class World:
         if self.isParallel:
             del self.__glob2loc[agent.gID]
             del self.__loc2glob[agent.nID]
-        agTypeID =  self.graph.class2NodeType(agent.__class__)
+        agTypeID =  self._graph.class2NodeType(agent.__class__)
         self.__agentsByType[agTypeID].remove(agent)
         if ghost:
             self.__ghostIDsByType[agTypeID].remove(agent.nID)
@@ -645,14 +319,376 @@ class World:
         self.globalRecord[name] = core.GlobalRecord(name, colLables, self.nSteps, title, style)
 
         if mpiReduce is not None:
-            self.graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
-            self.globalRecord[name].glob = self.graph.glob
-
+            self._graph.glob.registerValue(name , np.asarray([np.nan]*len(colLables)),mpiReduce)
+            self.globalRecord[name].glob = self._graph.glob
     
-            
-    def registerLocation(self, location, x, y):
+#%% General Infromation methods
+    def countAgents(self, agTypeID, ghosts=False):
+        """
+        This function allows to count a sub-selection of links that is defined 
+        by a filter function that act on links attribute.
 
-        self.__locDict[x,y] = location
+        Use case:
+        nAgents = world.countAgents(agTypeID)    
+        """
+        if ghosts:
+            return self.__nGhostsByType[agTypeID]
+        else:
+            return self.__nAgentsByType[agTypeID]
+        
+    def countLinks(self, liTypeID):
+        """
+        This function allows to count a sub-selection of links that is defined 
+        by a filter function that act on links attribute.
+
+        Use case:
+        nLinks = world.countLinks(liTypeID) 
+        """
+        return self._graph.eCount(eTypeID=liTypeID)  
+
+    def getParameter(self, paraName):
+        """
+        Returns a single simulation parameter
+        """
+        return self.para[paraName]
+
+    def getParameters(self):
+        """
+        Returns a dictionary of all simulations parameters 
+        """
+        return self.para
+
+    def setParameter(self, paraName, paraValue):
+        """
+        This method is used to set parameters of the simulation
+        """
+        if core.dakota.isActive:
+            if core.dakota.params.get(paraName):
+                self.para[paraName] = core.dakota.params[paraName]
+        else:
+            self.para[paraName] = paraValue
+
+    def setParameters(self, parameterDict):
+        """
+        This method allows to set multiple parameters at once
+        """
+        for key in list(parameterDict.keys()):
+            self.setParameter(key, parameterDict[key])
+
+    # saving enumerations
+    def saveParameters(self, fileName= 'simulation_parameters'):
+        misc.saveObj(self.para, self.para['outPath'] + '/' + fileName)
+       
+    def getEnums(self):
+        """ 
+        Returns a specified enumeration dict
+        """         
+        return self.__enums
+
+    def saveEnumerations(self, fileName= 'enumerations'):
+        # saving enumerations
+        misc.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
+
+#%% Agent access 
+    def getAgent(self, agentID):
+        """
+        Returns a single agent selcetd by its ID
+        """
+        return self.__allAgentDict[agentID]
+    
+    def getAgentsByIDs(self, localIDs=None):
+        """
+        Returns agents defined by the ID
+        """
+        return [self.__allAgentDict[i] for i in localIDs] 
+
+    def getAgentsByGlobalID(self, globalIDs=None):
+        """
+        Returns agents defined by the global ID
+        """
+        return  [self.__allAgentDict[self.__glob2Loc[i]] for i in globalIDs]
+    
+        
+    def getAgentsByType(self, agTypeID=None,ghosts = False):
+        """
+        Iteration over entities of specified type. Default returns
+        non-ghosts in random order.
+        """
+        if ghosts:
+            return  self.__ghostsByType[agTypeID].copy()
+        else:
+            return  self.__agentsByType[agTypeID].copy()
+
+    def getAgentsByFilteredType(self, func, agTypeID):
+        """
+        This function allows to access a sub-selection of agents that is defined 
+        by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
+        """
+        array = self._graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        return array['instance'][mask]
+
+
+    def countFilteredAgents(self, func, agTypeID):
+        """
+        This function allows to coiunt a sub-selection of agents that is defined 
+        by a filter function that act on agent attribute.
+
+        Use case: Count  agents with a property below a certain treshold:
+        nAgents = world.countFilteredAgents(lambda a: a['age'] < 1, AGENT)
+        """
+        array = self._graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        return np.sum(mask)
+
+    def countFilteredLinks(self, func, liTypeID):
+        """
+        This function allows to count a sub-selection of links that is defined 
+        by a filter function that act on links attribute.
+
+        Use case: Count over links with a property below a certain treshold:
+        nLinks = world.countFilteredLinks(lambda a: a['wieight'] < 01, linkTypeID)
+        """
+        array = self._graph.edges[liTypeID]
+        mask = array['active'] & func(array)
+        return np.sum(mask)    
+
+
+    def deleteAgentsIf(self, agTypeID, filterFunc):
+        """
+        This function allows to delete a sub-selection of agents that is defined 
+        by a filter function that act on agent attribute.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(lambda a: a['age'] < 1, AGENT)
+        """
+        array = self._graph.nodes[agTypeID]
+        filtered = array[array['active'] == True & filterFunc(array)]
+        if len(filtered) > 0:
+            for aID in np.nditer(filtered['gID']):
+                agent = self.getNode(globID = int(aID))
+                agent.delete(self)
+
+  
+    
+    def getAgentIDs(self, agTypeID, ghosts=False):
+        """ 
+        Method to return all local node IDs for a given nodeType
+        """
+        if ghosts:
+            return self.__ghostIDsByType[agTypeID]
+        else:
+            return self.__agentIDsByType[agTypeID]
+        
+
+        
+    def getAgentDataIDs(self, agTypeID):
+        """
+        This function return the dataID of an agent. The dataID is the index in the
+        numpy array, where the agents attributes are stored
+        """
+        return self.__agendDataIDsList[agTypeID]
+
+
+#%% Global agent attribute access
+        
+
+    def getAttrOfAgents(self, attribute, localIDList):
+        """
+        Read attributes for a given sequence of agents
+        Example: 
+        attrArray = world.setAttrOfAgents('coord', [100000, 100001])
+        """
+        return self._graph.getNodeSeqAttr(attribute, lnIDs=localIDList)
+
+    def setAttrOfAgents(self, attribute, valueList, localIDList):
+        """
+        Write attributes for a given sequence of agents
+        Example: 
+        world.setAttrOfAgents('coord', [(1,2), (0,1)], [100000, 100001])
+        """
+        self._graph.setNodeSeqAttr(attribute, valueList, lnIDs=localIDList)
+    
+    def getAttrOfAgentType(self, attribute, agTypeID):
+        """
+        Returns numpy array of the defined attribute of all agents of one type
+        Example: 
+        attrArray = world.getAttrOfAgentType('coord', agType=LOCATION_TYPE_ID)
+        """
+        return self._graph.getNodeSeqAttr(attribute, lnIDs=self.__agentIDsByType[agTypeID])
+        
+
+
+    def setAttrOfAgentType(self, attribute, valueList, agTypeID):
+        """
+        Write attributes of all agents of type at once
+        Example:
+        world.setAttrOfAgentType('coord', (0,0), agTypeID)
+        """
+        self._graph.setNodeSeqAttr(attribute, valueList, lnIDs=self.__agentIDsByType[agTypeID])
+          
+        
+            
+    def getAttrOfLinks(self, attribute, localLinkIDList):
+        """
+        Read the specified attribute the specified type of links
+        Example:
+        coordinates = world.getAttrOfAgentType('coord', [100000, 100001]) 
+        """
+        return self._graph.getEdgeSeqAttr(attribute, lnIDs=localLinkIDList)
+
+    def setAttrOfLinks(self, attribute, valueList, localLinkIDList):
+        """
+        Write the specified attribute the specified list of links
+        Example:
+        world.setAttrOfAgentType('coord', [[0,0], [0,1]], [100000, 100001]) 
+        """
+        self._graph.setEdgeSeqAttr(attribute, valueList, lnIDs=localLinkIDList)
+        
+    def getAttrOfLinkType(self, attribute, liTypeID):
+        """
+        Read the specified attribute of all agents that are of the specified link type
+        Example:
+        coordinates = getAttrOfLinkType('coord', liTypeID)    
+        """
+        return self._graph.getEdgeSeqAttr(attribute, lnIDs=self.linkDict[liTypeID])
+        
+    def setAttrOfLinkType(self, attribute, valueList, liTypeID):
+        """
+        Write the specified attribute of all agents that are of the specified link type
+        Example:
+        getAttrOfLinkType('coord', coordinateList, liTypeID)   
+        """
+        self._graph.setEdgeSeqAttr(attribute, valueList, lnIDs=self.linkDict[liTypeID])            
+
+
+#%% Vectorized functions access
+    def getAttrOfFilteredAgentType(self, attribute, func, agTypeID):
+        """
+        This function allows to access a sub-selection of agents that is defined 
+        by a filter function that is action on agent properties.
+
+        Use case: Get the pos of all agents with a property below a certain treshold:
+        for agent in world.filterAgents('pos', lambda a: a['age'] < 1, AGENT)
+        """
+        array = self._graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        return array[attribute][mask]
+
+    def setAttrOfFilteredAgentType(self, attribute, value, agTypeID, func):
+        """
+        This function allows to access the attributes of a sub-selection of agents 
+        that is defined  by a filter function that is action on agent properties.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
+        """
+        array = self._graph.nodes[agTypeID]
+        mask = array['active'] & func(array)
+        array[attribute][mask] = value
+
+    def setAttrsForTypeVectorized(self, agTypeID, attribute, vfunc, idx=None):
+        """
+        This function allows to alter the attributes of agents of a specified type
+        based on the agents attribute.
+
+        Use case: Iterate over agents with a property below a certain treshold:
+        for agent in world.filterAgents(AGENT, lambda a: a['age'] < 1)
+        """
+        array = self._graph.nodes[agTypeID]
+        if idx is None:
+            array[attribute][array['active']] = vfunc(array[array['active']]) 
+        else:
+            array[attribute][:,idx][array['active']] = vfunc(array[array['active']]) 
+    
+    def setAttrsForType(self, agTypeID, func):
+        """
+        This function allows to manipulate the underlaying np.array directly, e.g.
+        to change the attributes of all agents of a given type in a more performant way
+        then with a python loop for comprehension.
+
+        func is a function that gets an (structured) np.array, and must return an array with the 
+        dimensions.
+
+        Use case: Increase the age for all agents by one:
+        def increaseAge(agents):
+            agents['age'] += 1
+            return agents
+
+        setAttrsForType(agTypeID, increaseAge)
+
+        def increaseXCoord(agents):
+            agents['coord'][:,0] +=1
+            return agents
+        
+        setAttrsForType(agTypeID, increaseXCoord)
+        
+        see also: setAttrsForFilteredType/Array
+        """    
+        array = self._graph.nodes[agTypeID]
+        array[array['active']] = func(array[array['active']])
+
+    def setAttrsForFilteredType(self, agTypeID, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of the underlaying np.array directly. The 
+        subset is formed by the filterFunc.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length. For performance reasons, the function gets the complete underlaying array, 
+        which can contain unused rows (the 'active' column is set to False for those rows).
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying:
+
+        def dieAgentDie(deadAgents):
+          deadAgents['alive'] = False
+          return deadAgents
+
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, dieAgentDie)
+
+        see also: setAttrForType and setAttrsForFilteredArray
+        """    
+        array = self._graph.nodes[agTypeID]
+        mask = array['active'] & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+    def setAttrsForFilteredArray(self, array, filterFunc, setFunc):
+        """
+        This function allows to manipulate a subset of a given np.array directly. The 
+        subset is formed by the filterFunc. That the array is given to the function explicitly 
+        allows to write nested filters, but for most use cases setFilteredAttrsForType should
+        be good enough.
+
+        filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+        the same length.
+
+        setFunc is a function that gets an array that contains the rows where the boolean array returned
+        by the filterFunc is True, and must return an array with the same dimensions. 
+
+        Use case: All agents without food are dying, and only agents with a good karma goes to heaven:
+
+        def goToHeaven(angels):
+            angels['heaven'] = True
+            return angels
+
+        def heavenOrHell(deadAgents):
+            setAttrsForFilteredArray(deadAgents, lambda a: a['karma'] > 10 , goToHeaven)
+            deadAgents['alive'] = False
+            return deadAgents
+
+        setAttrsForFilteredType(AGENT, lambda a: a['food'] <= 0, heavenOrHell)
+        
+        see also: setAttrForType and setAttrsForFilteredType
+        """    
+        mask = array['active'] & filterFunc(array) 
+        array[mask] = setFunc(array[mask])
+
+
 
 
 #%% Access of privat variables
@@ -665,28 +701,22 @@ class World:
 
     def getGraph(self):
         """
-        returns the agent graph instance
+        Returns the world._graph instance
         """
-        return self.graph
+        return self._graph
 
     def getGlobalRecord(self):
         """
-        returns global record class
+        Returns global record class
         """
         return self.globalRecord
 
     def getGlobals(self):
         """
-        returns the global variables defined in the graph
+        Returns the global variables defined in the._graph
         """
-        return self.graph.glob
+        return self._graph.glob
 
-    def getLocationDict(self):
-        """
-        The locationDict contains all instances of locations that are
-        accessed by (x,y) coordinates
-        """
-        return self.__locDict
 
     def getAgentDict(self):
         """

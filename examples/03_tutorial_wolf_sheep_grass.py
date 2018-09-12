@@ -58,7 +58,7 @@ class Grass(Location , Collective):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -114,7 +114,7 @@ class Sheep(Agent, Mobile):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -203,7 +203,7 @@ class Wolf(Agent, Mobile):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -289,7 +289,7 @@ class WolfPack(Agent, Collective):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -380,7 +380,7 @@ for x in range(EXTEND):
         grass.register(world)
         
         IDArray[x,y] = grass.nID
-timePerAgent = (time.time() -tt ) / world.nAgents(GRASS)
+timePerAgent = (time.time() -tt ) / world.countAgents(GRASS)
 print(timePerAgent)
 
 connBluePrint = world.grid.computeConnectionList(radius=1.5)
@@ -389,7 +389,7 @@ world.grid.connectNodes(IDArray, connBluePrint, ROOTS, Grass)
 
 # Jette: Sheep and wolves are assigned locations and registered to the world.
 
-locDict = world.getLocationDict()
+locDict = world.grid.getNodeDict()
 for iSheep in range(N_SHEEPS):
     (x,y) = np.random.randint(0,EXTEND,2)
     
@@ -457,5 +457,5 @@ while True:
     nHunting = np.sum(world.getAttrOfAgentType('weight', agTypeID=WOLF) <1.0) 
     #grassHeight = np.sum(world.getAttrOfAgentType('height', agTypeID=GRASS))       
     #print(str(time.time() - tt) + ' s')
-    print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
+    print(str(world.countAgents(SHEEP)) + ' - ' + str(world.countAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1

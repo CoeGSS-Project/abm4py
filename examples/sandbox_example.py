@@ -58,15 +58,15 @@ if __name__ == '__main__':
                 for i in range(len(self.types)+1):
                     hsv =  next(colors)[0:3]
                     colorDictNode[i] = hsv.tolist()
-                nodeValues = (np.array(self.graph.vs['type']).astype(float)).astype(int).tolist()
+                nodeValues = (np.array(self._graph.vs['type']).astype(float)).astype(int).tolist()
             else:
-                maxCars = max(self.graph.vs[vertexProp])
+                maxCars = max(self._graph.vs[vertexProp])
                 colors = iter(cm.rainbow(np.linspace(0, 1, maxCars+1)))
                 colorDictNode = {}
                 for i in range(maxCars+1):
                     hsv =  next(colors)[0:3]
                     colorDictNode[i] = hsv.tolist()
-                nodeValues = (np.array(self.graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
+                nodeValues = (np.array(self._graph.vs[vertexProp]).astype(float)).astype(int).tolist()    
             # nodeValues[np.isnan(nodeValues)] = 0
             # Edges            
             colors = iter(cm.rainbow(np.linspace(0, 1, len(self.types)+1)))              
@@ -75,13 +75,13 @@ if __name__ == '__main__':
                 hsv =  next(colors)[0:3]
                 colorDictEdge[i] = hsv.tolist()
             
-            #self.graph.vs["label"] = self.graph.vs["nCars"]
-            edgeValues = (np.array(self.graph.es['type']).astype(float)).astype(int).tolist()
+            #self._graph.vs["label"] = self._graph.vs["nCars"]
+            edgeValues = (np.array(self._graph.es['type']).astype(float)).astype(int).tolist()
             
             visual_style = {}
             visual_style["vertex_color"] = [colorDictNode[typ] for typ in nodeValues]
             visual_style["vertex_shape"] = list()        
-            for vert in earth.graph.vs['type']:
+            for vert in earth._graph.vs['type']:
                 if vert == 0:
                     visual_style["vertex_shape"].append('hidden')                
                 elif vert == 1:
@@ -90,16 +90,16 @@ if __name__ == '__main__':
                 else:
                     visual_style["vertex_shape"].append('circle')     
             visual_style["vertex_size"] = list()  
-            for vert in earth.graph.vs['type']:
+            for vert in earth._graph.vs['type']:
                 if vert >= 3:
                     visual_style["vertex_size"].append(6)  
                 else:
                     visual_style["vertex_size"].append(20)  
             visual_style["edge_color"]   = [colorDictEdge[typ] for typ in edgeValues]
             if filename  == 'none':
-                ig.plot(earth.graph,**visual_style)    
+                ig.plot(earth._graph,**visual_style)    
             else:
-                ig.plot(earth.graph, filename, **visual_style)    
+                ig.plot(earth._graph, filename, **visual_style)    
     #%% #################### USER DEFINED FUNCTIONS ##################        
     def carAgeStep():
         for car in earth.iterNode('car'):
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             #print agent.nID
             nBrownCars = 0
             nGreenCars = 0
-            neigList = agent.getConnAgents(_agent)
+            neigList = agent.getConcountAgents(_agent)
             for neigbour in neigList:
                 if neigbour['type'] == _car:
                     nBrownCars +=1
@@ -241,8 +241,8 @@ if __name__ == '__main__':
                 agent.register(earth)         
                 break
     #init attributes of agents
-    earth.graph.vs['nCars'] = 0
-    earth.graph.vs['nGreenCars'] = 0  
+    earth._graph.vs['nCars'] = 0
+    earth._graph.vs['nGreenCars'] = 0  
     
     # add social connections
     for ag in earth.getAgentsByType(_agent):
@@ -272,7 +272,7 @@ if __name__ == '__main__':
         for iCar in range(nCarsArray[x,y]):    
             agID = np.random.choice(agList)
             
-            assert  earth.graph.vs[agID]['type'] == _agent
+            assert  earth._graph.vs[agID]['type'] == _agent
             agent = earth.entDict[agID]
             #agent.setValue('nCars',agent.getValue('nCars')+1)
             car = Agent(earth,'car', x, y)

@@ -39,7 +39,7 @@ class Walker(Agent, Mobile):
 
     def register(self,world):
         Agent.register(self, world)
-        self.loc = world.getLocationDict()[tuple(self.get('coord'))]
+        self.loc = world.grid.getNodeDict()[tuple(self.get('coord'))]
         world.addLink(ANCHOR, self.loc.nID, self.nID)
         
     def randomWalk(self):
@@ -83,8 +83,8 @@ connBluePrint = world.grid.init(nodeMap, connList, Location)
 
 world.setAttrOfAgentType('property', 0., agTypeID=LOC)
 print('Spatial layer created in ' + str(time.time() -tt) )   
-print('Number of Locations: ' + str(world.nAgents(LOC)))        
-print('Number of spatial links: ' + str(world.nLinks(LINK)))        
+print('Number of Locations: ' + str(world.countAgents(LOC)))        
+print('Number of spatial links: ' + str(world.countLinks(LINK)))        
 
 locList = world.getAgentsByType(LOC)
 tt = time.time()
@@ -97,8 +97,8 @@ for iWalker in range(N_WALKERS):
     walker.register(world)
     
 print('Walkers created in ' + str(time.time() -tt) )   
-print('Number of Walkers: ' + str(world.nAgents(WKR)))        
-print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     
+print('Number of Walkers: ' + str(world.countAgents(WKR)))        
+print('Number of locating links: ' + str(world.countLinks(ANCHOR)))     
 
 tt = time.time()
 for agent in world.getAgentsByType(WKR):
@@ -110,5 +110,5 @@ for location in world.getAgentsByType(LOC):
     location.delete(world)
 print('Locations deleted in ' + str(time.time() -tt) )      
 
-print('Number of spatial links: ' + str(world.nLinks(LINK)))
-print('Number of locating links: ' + str(world.nLinks(ANCHOR)))     
+print('Number of spatial links: ' + str(world.countLinks(LINK)))
+print('Number of locating links: ' + str(world.countLinks(ANCHOR)))     

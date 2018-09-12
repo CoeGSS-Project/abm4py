@@ -173,7 +173,7 @@ for cell in earth.random.iterAgents(CELL, ghosts=True):
     
     
 # creation of agents
-locDict = earth.getLocationDict()
+locDict = earth.grid.getNodeDict()
 for x, y in list(locDict.keys()):
     loc         = earth.getAgent(locDict[x, y].nID)
     nAgentsCell = loc.get('agentsPerCell')
@@ -218,7 +218,7 @@ earth.registerRecord('average_prop_B',
                      'sumation test for agents',
                      ['global sum of prob_B'],)
                      #mpiReduce= 'mean')
-earth.graph.glob.registerStat('average_prop_B' , np.asarray([0]), 'mean')
+earth._graph.glob.registerStat('average_prop_B' , np.asarray([0]), 'mean')
         
 #%% init times
 earth.compTime    = np.zeros(nSteps)
@@ -258,11 +258,11 @@ def stepFunction(earth):
     earth.waitTime[earth.timeStep] += time.time()-tt
 
     tt = time.time()
-    #earth.graph.glob.updateLocalValues('sum_prop_B', earth.getAttrOfAgentType('prop_B',AGENT))
-    earth.graph.glob.updateLocalValues('average_prop_B', earth.getAttrOfAgentType('prop_B', agTypeID=AGENT))
+    #earth._graph.glob.updateLocalValues('sum_prop_B', earth.getAttrOfAgentType('prop_B',AGENT))
+    earth._graph.glob.updateLocalValues('average_prop_B', earth.getAttrOfAgentType('prop_B', agTypeID=AGENT))
         
-    earth.graph.glob.sync()
-    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth.graph.glob.globalValue['average_prop_B'])
+    earth._graph.glob.sync()
+    earth.globalRecord['average_prop_B'].set(earth.timeStep, earth._graph.glob.globalValue['average_prop_B'])
     earth.syncTime[earth.timeStep] += time.time()-tt
     
     

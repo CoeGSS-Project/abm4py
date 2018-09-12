@@ -86,9 +86,9 @@ class PlotClass():
         self.grHeig.popleft()
         self.grHeig.append(sumGrassHeight)
         self.sheeps.popleft()
-        self.sheeps.append(world.nAgents(2))
+        self.sheeps.append(world.countAgents(2))
         self.wolfs.popleft()
-        self.wolfs.append(world.nAgents(3))
+        self.wolfs.append(world.countAgents(3))
 
         self.timesGrass[0].set_ydata(self.grHeig)            
         self.timeSheeps[0].set_ydata(self.sheeps)

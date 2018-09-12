@@ -55,7 +55,7 @@ class Parallel():
         if len(self.mpiGhostRanks) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiGhostRanks:
                 #print 'adding node ' + str(entity.nID) + ' as ghost'
-                agTypeID = world.graph.class2NodeType(entity.__class__)
+                agTypeID = world._graph.class2NodeType(entity.__class__)
                 world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
 
         return self.mpiGhostRanks
@@ -65,7 +65,7 @@ class GridNode():
     """
     This enhancement identifies the agent as part of a grid. Currently, it only
     registers itself in the location dictionary, found in the world
-    (see world.getLocationDict())
+    (see world.grid.registerNode())
     """
     def __init__(self, world, nID = None, **kwProperties):
         self.__getAgent = world.getAgent
@@ -74,8 +74,8 @@ class GridNode():
     def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
         world.registerAgent(self, ghost=ghost)
-        world.registerLocation(self, *self.attr['coord'])
-        self.gridPeers  = world.graph._addNoneEdge(self.attr['ID'])
+        world.grid.registerNode(self, *self.attr['coord'])
+        self.gridPeers  = world._graph._addNoneEdge(self.attr['ID'])
         
         if parentEntity is not None:
             self.mpiGhostRanks = parentEntity.registerChild(world, self, liTypeID)
@@ -104,7 +104,7 @@ class Mobile():
             
         assert 'coord' in kwProperties.keys()
         
-        self._setLocationDict(world.getLocationDict())
+        self._setLocationDict(world.grid.getNodeDict())
         
     def move(self, newX, newY, spatialLinkTypeID):
         # remove old link
@@ -118,7 +118,7 @@ class Mobile():
 
     @classmethod
     def _setLocationDict(cls, locDict):
-        """ Makes the class variable _graph available at the first init of an entity"""
+        """ Makes the class variable ._graph available at the first init of an entity"""
         cls.locDict = locDict
                       
 

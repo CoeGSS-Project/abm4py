@@ -59,7 +59,7 @@ class People(Agent, Mobile):
     def __descriptor__():
         """
         This desriptor defines the agent attributes that are saved in the 
-        agent graph an can be shared/viewed by other agents and acessed via 
+        agent._graph an can be shared/viewed by other agents and acessed via 
         the global scope of the world class.
         All static and dynamic attributes can be accessed by the agent by:
             1) agent.get('attrLabel') / agent.set('attrLabel', value)
@@ -157,7 +157,7 @@ class People(Agent, Mobile):
                 self.delete(world)
                 
     def reproduce(self):
-        if world.nAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
+        if world.countAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
 
             newPerson = People(world, 
                                coord=self['coord'], 
@@ -207,7 +207,7 @@ world.grid.connectNodes(IDArray, connBluePrint, PATCHWORK, Location)
 
 # Sheep and wolves are assigned locations and registered to the world.
 
-locDict = world.getLocationDict()
+locDict = world.grid.getNodeDict()
 for iPeople in range(N_PEOPLE):
     (x,y) = np.random.randint(0,EXTEND,2)
     
@@ -258,5 +258,5 @@ while True:
     # the number of hunting wolves as strings in the console.
     # nHunting = np.sum(world.getAttrOfAgentType('weight', agTypeID=WOLF) <1.0)        
     #print(str(time.time() - tt) + ' s')
-    #print(str(world.nAgents(SHEEP)) + ' - ' + str(world.nAgents(WOLF)) + '(' + str(nHunting) + ')')
+    #print(str(world.countAgents(SHEEP)) + ' - ' + str(world.countAgents(WOLF)) + '(' + str(nHunting) + ')')
     iStep +=1
