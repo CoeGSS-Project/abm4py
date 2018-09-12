@@ -20,7 +20,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
-import logging as lg
 import numpy as np
 import itertools
 
@@ -210,15 +209,12 @@ class BaseGraph():
             tmp = NodeArray(int(currentSize*factor), nTypeID, dtype=dt, startID = currentSize+1, nodeList = self.nodes[nTypeID].nodeList)
             tmp['active'] = False
             tmp[:currentSize] = self.nodes[nTypeID]
-            tmp1 = self.nodes[nTypeID]
             self.nodes[nTypeID] = tmp
             
             for dataID, nodeInstance in enumerate(self.nodes[nTypeID]['instance'][:currentSize]):
                 if nodeInstance is not None:
                     nodeInstance.attr = self.nodes[nTypeID][dataID:dataID+1].view()[0]
-            import pdb
-#            pdb.set_trace()
-#            print(id(tmp1))
+
             self.nodes[nTypeID].currentSize = int(currentSize*factor)
         
         elif factor is None:
@@ -351,10 +347,10 @@ class BaseGraph():
         self.nodes[agTypeID].nodeList.remove(lnID)
     
         for eTypeID in self.edges.keys():
-            targets = self.outgoingIDs(lnID, eTypeID)
-            [self.remEdge(eTypeID, lnID, target) for target in targets.copy()]
-            sources = self.incommingIDs(lnID, eTypeID)
-            [self.remEdge(eTypeID, source, lnID) for source in sources.copy()]
+            targetIDs = self.outgoingIDs(lnID, eTypeID)
+            [self.remEdge(eTypeID, lnID, targetID) for targetID in targetIDs.copy()]
+            sourceIDs = self.incommingIDs(lnID, eTypeID)
+            [self.remEdge(eTypeID, sourceID, lnID) for sourceID in sourceIDs.copy()]
 
 #    def remNode(self, lnID):
 #        agTypeID, dataID = self.getNodeDataRef(lnID)
@@ -390,54 +386,54 @@ class BaseGraph():
         
         return np.all(self.nodes[nTypeIDs]['active'][dataIDs])
                         
-    def getAttrOfNodeType(self, label, nTypeID):
+    def getAttrOfNodeType(self, attribute, nTypeID):
 
         array = self.nodes[nTypeID]
-        return array[label][array['active']]
+        return array[attribute][array['active']]
  
-    def setAttrOfNodeType(self, label, values, nTypeID):
+    def setAttrOfNodeType(self, attribute, values, nTypeID):
 
         array = self.nodes[nTypeID]
-        array[label][array['active']] = values  
+        array[attribute][array['active']] = values  
             
-    def getAttrOfNodesIdx(self, label, nTypeID, dataIDs):
-        if label:
-            return self.nodes[nTypeID][label][dataIDs]
+    def getAttrOfNodesIdx(self, attribute, nTypeID, dataIDs):
+        if attribute:
+            return self.nodes[nTypeID][attribute][dataIDs]
         else:
             return self.nodes[nTypeID][dataIDs]
     
-    def getAttrOfNodesSeq(self, label, lnID):
+    def getAttrOfNodesSeq(self, attribute, lnID):
         nTypeID, dataID = self.getNodeDataRef(lnID)
-        if label:
-            return self.nodes[nTypeID][label][dataID]
+        if attribute:
+            return self.nodes[nTypeID][attribute][dataID]
         else:
             return self.nodes[nTypeID][dataID]
 
-    def setAttrOfNodesSeq(self, label, values, lnIDs):
+    def setAttrOfNodesSeq(self, attribute, values, lnIDs):
         
         nTypeID, dataID = self.getNodeDataRef(lnIDs)
-        self.nodes[nTypeID][label][dataID] = values
+        self.nodes[nTypeID][attribute][dataID] = values
         
-    def setNodeSeqAttr(self, label, values, lnIDs):
+    def setNodeSeqAttr(self, attribute, values, lnIDs):
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
         Label is a either string or list of strings
         """
         nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
-        self.nodes[nTypeID][label][dataIDs] = values
+        self.nodes[nTypeID][attribute][dataIDs] = values
             
-    def getNodeSeqAttr(self, label, lnIDs):
+    def getNodeSeqAttr(self, attribute, lnIDs):
         """
         Nodes are either identified by list of lnIDS or (nType and dataID)
-        label is a either string or list of strings
+        attribute is a either string or list of strings
         """     
         if lnIDs==[]:
             return None
         nTypeID, dataIDs = self.getNodeDataRef(lnIDs)
         
-        if label:
-            return self.nodes[nTypeID][label][dataIDs]
+        if attribute:
+            return self.nodes[nTypeID][attribute][dataIDs]
         else:
             return self.nodes[nTypeID][dataIDs]
 
@@ -520,15 +516,15 @@ class BaseGraph():
         print ((source, target))
         return self.edges[eTypeID].eDict[(source, target)]
 
-    def addEdge(self, eTypeID, source, target, attributes = None):
+    def addEdge(self, eTypeID, sourceID, targetID, attributes = None):
         """ 
         Adding a new connecting edge between source and target of
         the specified type
         Attributes can be given optionally with the correct structured
         tuple
         """
-        srcNodeTypeID, srcDataID = self.getNodeDataRef(source)   
-        trgNodeTypeID, trgDataID = self.getNodeDataRef(target)   
+        srcNodeTypeID, srcDataID = self.getNodeDataRef(sourceID)   
+        trgNodeTypeID, trgDataID = self.getNodeDataRef(targetID)   
 
         if not (self.nodes[srcNodeTypeID]['active'][srcDataID]) or \
            not(self.nodes[trgNodeTypeID]['active'][trgDataID]):
@@ -551,40 +547,40 @@ class BaseGraph():
         dataview = eType[dataID:dataID+1].view() 
          
         #updating edge dictionaries
-        eType.eDict[(source, target)] = dataID
+        eType.eDict[(sourceID, targetID)] = dataID
         eType.edgeList.append(leID)
         
         try:
-            eType.edgesOut[source].append(dataID)
-            eType.nodesOut[source][1].append(trgDataID)
+            eType.edgesOut[sourceID].append(dataID)
+            eType.nodesOut[sourceID][1].append(trgDataID)
         except:
-            eType.edgesOut[source] = [dataID]
-            eType.nodesOut[source] = trgNodeTypeID, [trgDataID]
+            eType.edgesOut[sourceID] = [dataID]
+            eType.nodesOut[sourceID] = trgNodeTypeID, [trgDataID]
         
         try:
-            eType.edgesIn[target].append(dataID)
-            eType.nodesIn[target][1].append(srcDataID)
+            eType.edgesIn[targetID].append(dataID)
+            eType.nodesIn[targetID][1].append(srcDataID)
         except:
-            eType.edgesIn[target] = [dataID]     
-            eType.nodesIn[target] = srcNodeTypeID, [srcDataID]
+            eType.edgesIn[targetID] = [dataID]     
+            eType.nodesIn[targetID] = srcNodeTypeID, [srcDataID]
              
         if attributes is not None:
-            dataview[:] = (True, source, target) + attributes
+            dataview[:] = (True, sourceID, targetID) + attributes
         else:
-            dataview[['active', 'source', 'target']] = (True, source, target)
+            dataview[['active', 'source', 'target']] = (True, sourceID, targetID)
     
 
-    def addEdges(self, eTypeID, sources, targets, **kwAttr):
+    def addEdges(self, eTypeID, sourceIDs, targetIDs, **kwAttr):
         """
         Method to create serveral edges at once
         Attribures are given as list or array per key word
         """
-        if sources == []:
+        if sourceIDs == []:
              raise(BaseException('Empty list given'))
-        if not (self.areNodes(sources)) or not( self.areNodes(targets)):
+        if not (self.areNodes(sourceIDs)) or not( self.areNodes(targetIDs)):
             raise(BaseException('Nodes do not exist'))
         
-        nEdges = len(sources)
+        nEdges = len(sourceIDs)
         
         eType = self.edges[eTypeID]
         dataIDs = np.zeros(nEdges, dtype=np.int32)
@@ -606,14 +602,14 @@ class BaseGraph():
             self._extendEdgeArray(eTypeID, extFactor)
             eType = self.edges[eTypeID]
             
-        eType['source'][dataIDs] = sources
-        eType['target'][dataIDs] = targets    
+        eType['source'][dataIDs] = sourceIDs
+        eType['target'][dataIDs] = targetIDs    
         eType['active'][dataIDs] = True
               
         #updating edge dictionaries
         leIDs = dataIDs + eTypeID * self.maxEdges
         eType.edgeList.extend(leIDs.tolist())
-        for source, target, dataID in zip(sources, targets, dataIDs):
+        for source, target, dataID in zip(sourceIDs, targetIDs, dataIDs):
             eType.eDict[(source, target)] = dataID
             (srcNodeTypeID,  srcDataID) = self.getNodeDataRef(source)
             (trgNodeTypeID,  trgDataID) = self.getNodeDataRef(target)
@@ -636,103 +632,94 @@ class BaseGraph():
             for attrKey in list(kwAttr.keys()):
                 eType[attrKey][dataIDs] = kwAttr[attrKey]
 
-    def remOutgoingEdges(self, eTypeID, source, targets):
+    def remOutgoingEdges(self, eTypeID, sourceID, targetIDs):
         eType = self.edges[eTypeID]
           
-        eType.edgesOut[source] = []
-        targets = eType.nodesOut.pop(source)
+        eType.edgesOut[sourceID] = []
+        targetIDs = eType.nodesOut.pop(sourceID)
         
-        for target in targets:
-             dataID = eType.eDict.pop((source, target))
+        for targetID in targetIDs:
+             dataID = eType.eDict.pop((sourceID, targetID))
              leID   = dataID + eTypeID * self.maxEdges
              eType.edgeList.remove(leID)
              eType[dataID:dataID+1]['active'] = False
-             eType.edgesIn[target].remove(dataID)
-             eType.nodesIn[target].remove(source)
+             eType.edgesIn[targetID].remove(dataID)
+             eType.nodesIn[targetID].remove(sourceID)
              
-    def remEdge(self, eTypeID, source, target):
+    def remEdge(self, eTypeID, sourceID, targetID):
         eType = self.edges[eTypeID]
         
-        dataID = eType.eDict.pop((source, target))
+        dataID = eType.eDict.pop((sourceID, targetID))
         leID   = dataID + eTypeID * self.maxEdges 
         eType.freeRows.append(dataID)
         eType[dataID:dataID+1]['active'] = False
         eType.edgeList.remove(leID)
         
-        (_, srcDataID) = self.getNodeDataRef(source)
-        (_, trgDataID) = self.getNodeDataRef(target)
+        (_, srcDataID) = self.getNodeDataRef(sourceID)
+        (_, trgDataID) = self.getNodeDataRef(targetID)
             
         
-        eType.edgesIn[target].remove(dataID)
-        eType.edgesOut[source].remove(dataID)
+        eType.edgesIn[targetID].remove(dataID)
+        eType.edgesOut[sourceID].remove(dataID)
         
-        eType.nodesOut[source][1].remove(trgDataID)
-        eType.nodesIn[target][1].remove(srcDataID)
-#    
-#    def remEdges(self, eTypeID, source, target):
-#        eType = self.edges[eTypeID]
-#        
-#        dataID = eType.eDict[(source, target)]
-#        leID   = dataID + eTypeID * self.maxEdges 
-#        eType.freeRows.append(dataID)
-#        eType[dataID:dataID+1]['active'] = False
-#        del eType.eDict[(source, target)]
-#        eType.edgeList.remove(leID)
-#        eType.edgesIn[target].remove(dataID)
-#        eType.edgesOut[source].remove(dataID)
-#        
-#        eType.nodesOut[source].remove(target)
-#        eType.nodesIn[target].remove(source)
-    def setEdgeAttr(self, leID, label, value, eTypeID=None):
+        eType.nodesOut[sourceID][1].remove(trgDataID)
+        eType.nodesIn[targetID][1].remove(srcDataID)
+
+
+    def remEdges(self, eTypeID, sourceIDs, targetIDs):
+        for sourceID, targetID in zip(sourceIDs, targetIDs):
+            self.remEdge(eTypeID, sourceID, targetID)
+            
+    def setEdgeAttr(self, leID, attribute, value, eTypeID=None):
         
         eTypeID, dataID = self.getEdgeDataRef(leID)
         
-        self.edges[eTypeID][label][dataID] = value
+        self.edges[eTypeID][attribute][dataID] = value
 
-    def getAttrOfLinksIdx(self, label, eTypeID, dataIDs):
-        if label:
-            return self.edges[eTypeID][label][dataIDs]
+    def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs):
+        if attribute:
+            return self.edges[eTypeID][attribute][dataIDs]
         else:
             return self.edges[eTypeID][dataIDs]
     
     
-    def getEdgeAttr(self, leID, label=None, eTypeID=None):
+    def getEdgeAttr(self, leID, attribute=None, eTypeID=None):
 
         eTypeID, dataID = self.getEdgeDataRef(leID)
             
-        if label:
-            return self.edges[eTypeID][dataID][label]
+        if attribute:
+            return self.edges[eTypeID][dataID][attribute]
         else:
             return self.edges[eTypeID][dataID]
         
 
-    def setEdgeSeqAttr(self, label, values, leIDs=None, eTypeID=None, dataIDs=None):
+    def setEdgeSeqAttr(self, attribute, values, leIDs=None, eTypeID=None, dataIDs=None):
         
         if dataIDs is None:
             eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         else:
             assert leIDs is None    
         #print eTypeID, dataIDs
-        self.edges[eTypeID][label][dataIDs] = values
+        self.edges[eTypeID][attribute][dataIDs] = values
     
-    def getEdgeSeqAttr(self, label=None, leIDs=None, eTypeID=None, dataIDs=None):
+    def getEdgeSeqAttr(self, attribute=None, leIDs=None, eTypeID=None, dataIDs=None):
         
         if dataIDs is None:
             assert eTypeID is None
             eTypeID, dataIDs = self.getEdgeDataRef(leIDs)
         
-        if label:
-            return self.edges[eTypeID][label][dataIDs]
+        if attribute:
+            return self.edges[eTypeID][attribute][dataIDs]
         else:
             return self.edges[eTypeID][dataIDs]
         
     #%% General
-    def isConnected(self, source, target, eTypeID):
+    def isConnected(self, sourceID, targetID, eTypeID):
         """ 
         Returns if source and target is connected by an eddge of the specified
         edge type
         """
-        return (source, target) in self.edges[eTypeID].eDict
+        return (sourceID, targetID) in self.edges[eTypeID].eDict
 
     def outgoing(self, lnID, eTypeID):
         """ Returns the dataIDs of all outgoing edges of the specified type"""

@@ -294,7 +294,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     
     if ax is None:
         plt.ion()
-        fig= plt.figure('graph')
+        plt.figure('graph')
         plt.clf()
         ax = plt.subplot(111)
         
@@ -1186,7 +1186,7 @@ class IO():
                 #check if first property of first entity is string
                 try:
                      
-                    entProp = self._graph.getAttrOfNodesIdx(label=attr, nTypeID=agTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                    entProp = self._graph.getAttrOfNodesIdx(attribute=attr, nTypeID=agTypeID, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
                     raise BaseException
