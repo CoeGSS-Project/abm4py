@@ -50,17 +50,15 @@ for iAgent in range(N_AGENTS):
     agent.register(world)
     
 tt = time.time()   
-resultNew = dict() 
+result = dict() 
 for treshold in np.linspace(0,1):
-    resultNew[treshold] = len(world.filterAgents(AGENT, lambda a: a['randNum'] < treshold))
+    result[treshold] = len(world.getAgentsByFilteredType(lambda a: a['randNum'] < treshold, AGENT))
 print('Agent filered 50 times in  ' + str(time.time() -tt) )      
 
-resultOld = dict()
+count = dict()
 tt = time.time()    
 for treshold in np.linspace(0,1):
-    resultOld[treshold] = len(world.getAgents.byFilter(AGENT, 'randNum', 'lt', treshold))
+    count[treshold] = world.countFilteredAgents(lambda a: a['randNum'] < treshold,AGENT)
     #print(x)
-print('OLD - Agent filered 50 times in  ' + str(time.time() -tt)) 
+print('Agent counted 50 times in  ' + str(time.time() -tt)) 
 
-for treshold in np.linspace(0,1):
-    assert resultOld[treshold] == resultNew[treshold]

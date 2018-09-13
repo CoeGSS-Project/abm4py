@@ -39,7 +39,7 @@ class Walker(Agent, Mobile):
 
     def register(self,world):
         Agent.register(self, world)
-        self.loc = world.grid.getNodeDict()[tuple(self.get('coord'))]
+        self.loc = world.grid.getNodeDict()[tuple(self.attr['coord'])]
         world.addLink(ANCHOR, self.loc.nID, self.nID)
         
     def randomWalk(self):
@@ -52,7 +52,7 @@ class Walker(Agent, Mobile):
         Mobile.move(self, newX, newY, ANCHOR)
        
  #%% Setup
-EXTEND   = 50
+EXTEND   = 10
 DO_PLOT = True
 N_WALKERS = 500
 N_STEPS   = 100
@@ -62,7 +62,7 @@ world = World(agentOutput=False,
               maxLinks=200000)
 
 #%% register a new agent type with four attributes
-nodeMap = np.zeros([EXTEND, EXTEND])
+nodeMap = np.zeros([EXTEND, EXTEND]) +1
 
 LOC = world.registerAgentType(AgentClass=Location,
                                staticProperties  = [('coord', np.int16, 2)],

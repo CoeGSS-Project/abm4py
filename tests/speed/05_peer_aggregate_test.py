@@ -96,10 +96,10 @@ GRASS = world.registerAgentType(AgentClass=Grass,
 PATCHWORK = world.registerLinkType('patchwork',PATCH, PATCH, staticProperties=[('weig',np.float32,1)])
 
 ROOTS     = world.registerLinkType('roots',PATCH, GRASS)
-IDArray = np.zeros([EXTEND, EXTEND])
+IDArray = np.zeros([EXTEND, EXTEND]) +1
 
 
-
+world.registerGrid(PATCH, PATCHWORK)   
 tt = time.time()
 for x in range(EXTEND):
     for y in range(EXTEND):
@@ -108,7 +108,7 @@ for x in range(EXTEND):
                       coord=(x,y),
                       sumGrass=0)
         patch.register(world)
-        world.registerLocation(patch, x,y)
+        
         IDArray[x,y] = patch.nID
         
         for i in range(GRASS_PER_PATCH):
@@ -118,7 +118,7 @@ for x in range(EXTEND):
             grass.register(world)
             patch.addLink(grass.nID, ROOTS)
         
-world.registerGrid(PATCH, PATCHWORK)        
+     
 connBluePrint = world.grid.computeConnectionList(radius=4.5)
 world.grid.connectNodes(IDArray, connBluePrint, PATCHWORK, Patch)
 print('init Patches in: ' + str(time.time() - tt))

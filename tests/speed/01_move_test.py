@@ -26,9 +26,9 @@ import numpy as np
 import time
 import random
 
-from gcfabm import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from gcfabm.traits import Mobile
-from gcfabm import core
+from abm4py import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Mobile
+from abm4py import core
 
 
 
@@ -42,7 +42,7 @@ class Walker(Agent, Mobile):
 
     def register(self,world):
         Agent.register(self, world)
-        self.loc = world.grid.getNodeDict()[tuple(self.get('coord'))]
+        self.loc = world.grid.getNodeDict()[tuple(self.attr['coord'])]
         #world.addLink(ANCHOR, self.nID, self.loc.nID)
         world.addLink(ANCHOR, self.loc.nID, self.nID)
         
@@ -73,7 +73,7 @@ world = World(agentOutput=False,
           maxLinks=500000)
 
 #%% register a new agent type with four attributes
-nodeMap = np.zeros([EXTEND, EXTEND])
+nodeMap = np.zeros([EXTEND, EXTEND]) +1
 
 LOC = world.registerAgentType(AgentClass=Location,
                                staticProperties  = [('coord', np.int16, 2)],
@@ -90,6 +90,7 @@ ANCHOR  = world.registerLinkType('link',LOC, WKR)
 tt = time.time()
 
 world.registerGrid(LOC, LINK)
+
 connList      = world.grid.computeConnectionList(radius=1.5)
 connBluePrint = world.grid.init(nodeMap, connList, Location)
 
