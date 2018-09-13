@@ -25,8 +25,6 @@ class Parallel():
     This agent traits adds the required methods and variables to agents
     for parallel execution of the code.
     This contains:
-        - global ID: self.gID
-        - 
     """
     def __init__(self, world, nID = None, **kwProperties):
         
@@ -95,7 +93,7 @@ class Mobile():
  
     def __init__(self, world, nID = None, **kwProperties):
         """ assert that position is declared as an agent's attribute, since 
-         moving relates to the 'pos' attribute """
+         moving relates to the 'coord' attribute """
         #TODO can be made more general"
 
         
@@ -109,12 +107,16 @@ class Mobile():
     def move(self, newX, newY, spatialLinkTypeID):
         # remove old link
         assert (newX, newY) in self.locDict.keys()
-        self['coord'] = [ newX, newY]
-        self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
-       
-        # add new link and location
+        self.attr['coord'] = [ newX, newY]
+        #self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
+        
+        oldLocID = self.loc.nID
         self.loc = self.locDict[(newX, newY)]      
-        self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
+        newLocID = self.loc.nID
+        self._graph._changeSourceOfEdge(eTypeID=spatialLinkTypeID, targetID=self.nID, oldSourceID=oldLocID, newSourceID=newLocID)
+        # add new link and location
+        #self.loc = self.locDict[(newX, newY)]      
+        #self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
 
     @classmethod
     def _setLocationDict(cls, locDict):

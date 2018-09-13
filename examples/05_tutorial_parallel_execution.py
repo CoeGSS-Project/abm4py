@@ -74,11 +74,11 @@ class Grass(Location, Collective, Parallel):
     def grow(self):
         currHeight = self.attr['height']
         for neigLoc in self.getGridPeers():
-            if neigLoc['height'] > 2*currHeight:
-                self['height'] *= ((random.random()*.8)+1)
+            if neigLoc.attr['height'] > 2*currHeight:
+                self.attr['height'] *= ((random.random()*.8)+1)
                 break
         else:
-            self['height'] *= ((random.random()*.05)+1)
+            self.attr['height'] *= ((random.random()*.05)+1)
 
 class GhostGrass(GhostLocation):   
     
@@ -121,10 +121,10 @@ world.grid.init((rankIDLayer*0)+1, connBluePrint, Grass, rankIDLayer)
 
 for grass in world.getAgentsByType(GRASS):
 
-    if np.all(grass['coord'] < 8):
-        grass['height'] = random.random()+ 13.1    
+    if np.all(grass.attr['coord'] < 8):
+        grass.attr['height'] = random.random()+ 13.1    
     else:
-        grass['height'] = random.random()+ 0.1
+        grass.attr['height'] = random.random()+ 0.1
 
 
 plott = tools.PlotClass(world, rankIDLayer)

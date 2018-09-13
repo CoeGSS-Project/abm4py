@@ -22,7 +22,7 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 @author: gsteudle
 """
 
-from lib_gcfabm import World, Agent, Location
+from lib_abm4py import World, Agent, Location
 #import ._graph as ig
 import numpy as np
 import pandas as pd

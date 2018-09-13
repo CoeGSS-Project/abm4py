@@ -97,15 +97,15 @@ class PlotClass():
         plt.draw()
         
         self.sicks.popleft()
-        self.sicks.append(worldcountAgents((lambda a: a['sick'], 2))
+        self.sicks.append(world.countFilteredAgents(lambda a: a['sick'], 2))
         
         self.healths.popleft()
-        self.healths.append(worldcountAgents((lambda a: a['sick'] == False, 2))
+        self.healths.append(world.countFilteredAgents(lambda a: a['sick'] == False, 2))
         
         self.immunes.popleft()
 
 
-        self.immunes.append(worldcountAgents((lambda a: a['remainingImmunity'] > 0, 2))
+        self.immunes.append(world.countFilteredAgents(lambda a: a['remainingImmunity'] > 0, 2))
 
                     
         self.timeSicks[0].set_ydata(self.sicks)

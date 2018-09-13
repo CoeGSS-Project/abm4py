@@ -90,24 +90,24 @@ class People(Agent, Mobile):
         """
         This function makes the person infectious.
         """
-        self['sick'] = True
-        self['remainingImmunity'] = 0
+        self.attr['sick'] = True
+        self.attr['remainingImmunity'] = 0
         
     def getHealthy(self):
         """
         This function makes the person healthy.
         """
-        self['sick'] = False
-        self['remainingImmunity'] = 0
-        self['sickTime'] = 0
+        self.attr['sick'] = False
+        self.attr['remainingImmunity'] = 0
+        self.attr['sickTime'] = 0
     
     def becomeImmune(self):
         """
         This function makes the person immune.
         """
-        self['sick'] = False
-        self['remainingImmunity'] = IMMUNITY_DURATION
-        self['sickTime'] = 0
+        self.attr['sick'] = False
+        self.attr['remainingImmunity'] = IMMUNITY_DURATION
+        self.attr['sickTime'] = 0
         
     def getOlder(self):
         """ 
@@ -115,13 +115,13 @@ class People(Agent, Mobile):
         age once they exceed the lifespan.
         
         """
-        self['age'] += 1
-        if self['age'] > LIFESPAN:
+        self.attr['age'] += 1
+        if self.attr['age'] > LIFESPAN:
             self.delete(world)
-        if self['remainingImmunity'] > 0:
-            self['remainingImmunity'] -= 1
-        if self['sick']:
-            self['sickTime'] += 1
+        if self.attr['remainingImmunity'] > 0:
+            self.attr['remainingImmunity'] -= 1
+        if self.attr['sick']:
+            self.attr['sickTime'] += 1
             
         
     def move(self):
@@ -145,11 +145,11 @@ class People(Agent, Mobile):
         if random.random() < INFECTIOUSNESS:
             for peopleID in self.loc.getPeerIDs(LINK_PEOPLE):
                 people = self.getAgent(peopleID)   
-                if people['remainingImmunity']==0 and not people.attr['sick']:
+                if people.attr['remainingImmunity']==0 and not people.attr['sick']:
                     people.getSick()
                 
     def recoverOrDie(self):
-        if self['sickTime'] > DURATION:
+        if self.attr['sickTime'] > DURATION:
             if np.random.random(1) < CHANCE_RECOVER:
                 self.becomeImmune()
             else:
@@ -160,7 +160,7 @@ class People(Agent, Mobile):
         if world.countAgents(PEOPLE) < CARRYING_CAPACITY and np.random.random(1) < CHANCE_REPRODUCE:
 
             newPerson = People(world, 
-                               coord=self['coord'], 
+                               coord=self.attr['coord'], 
                                age=1)
             newPerson.getHealthy()
             newPerson.register(world)
@@ -239,9 +239,9 @@ while True:
         people.getOlder()
         
         
-        if people['sick']:
+        if people.attr['sick']:
             people.recoverOrDie()
-        if people['sick']:
+        if people.attr['sick']:
             people.infect()
         else:
             people.reproduce()

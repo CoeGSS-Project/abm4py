@@ -32,9 +32,9 @@ home = os.path.expanduser("~")
 
 sys.path.append('../')
 
-from lib import World, Location, Agent #, GhostAgent, World,  h5py, MPI
-from lib.traits import Mobile
-from lib import core
+from abm4py import World, Location, Agent #, GhostAgent, World,  h5py, MPI
+from abm4py.traits import Mobile
+from abm4py import core
 
 N_AGENTS = 10
 N_STEPS = 1000

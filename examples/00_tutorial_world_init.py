@@ -30,14 +30,14 @@ import os
 home = os.path.expanduser("~")
 sys.path.append('../')
 
-# lib_gcfabm offers the basic interface of the simulation tool.
+# lib_abm4py offers the basic interface of the simulation tool.
 # It inclueds a basic version of the world class, agent class, location class
 # and the respective ghost classes for parallel execution.
-from gcfabm import World
+from abm4py import World
 
 # Core comprises the many key components and utility functions that are 
 # useful and necessary
-from gcfabm import core
+from abm4py import core
 
 #%% Init of the world as the environment of the agents
 

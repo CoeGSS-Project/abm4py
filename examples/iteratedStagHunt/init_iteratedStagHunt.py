@@ -21,7 +21,7 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 
 @author: gsteudle
 """
-from lib_gcfabm import Location, GhostLocation
+from lib_abm4py import Location, GhostLocation
 from class_iteratedStagHunt import Community, Hunter, Village
 import numpy as np
 import matplotlib.pyplot as plt

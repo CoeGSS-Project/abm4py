@@ -240,7 +240,7 @@ class Wolf(Agent, Mobile):
         The function move lets the wolves move in the same way as sheep. 
         The wolf though only looses 0.02 units of weight.
         """
-        pos = self['coord']
+        pos = self.attr['coord']
         delta =  pos - center
         
         bias = np.clip((.5*delta)**3 / np.sqrt(np.sum( delta**2)),a_min = -5, a_max=5).astype(np.int)
@@ -341,8 +341,8 @@ class WolfPack(Agent, Collective):
             
 #%% Register of the world class
 world = World(agentOutput=False,
-                  maxNodes=10000,
-                  maxLinks=200000)
+                  maxNodes=1000000,
+                  maxLinks=1000000)
 
 world.setParameter('extend', EXTEND)
 

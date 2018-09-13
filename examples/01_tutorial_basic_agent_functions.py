@@ -100,7 +100,7 @@ candidateIDs = world.getAgentIDs(HUMANS)
 candidateIsJoana = [id == joana.nID for id in candidateIDs]
 
 # compute probability to connect for all other agents
-differenceInAge = np.abs(ages - joana['age'])
+differenceInAge = np.abs(ages - joana.attr['age'])
 probabilityToConnect = 1 / (differenceInAge + 0.01) 
 probabilityToConnect[candidateIsJoana] = 0
 probabilityToConnect = probabilityToConnect / np.sum(probabilityToConnect)
