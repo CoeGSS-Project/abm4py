@@ -2,6 +2,8 @@
 
 Agent-based modeling framework for python
 
+0.7.0 stable version
+
 ## Getting Started
 
 This framework allows to develop parallel prototypes of agent-based models.
@@ -27,14 +29,11 @@ numba for optinal compiled function execution
 
 ### Installing
 
-git clone https://ageiges@bitbucket.org/ageiges/abm4py.git
+git clone https://abm4py@bitbucket.org/abm4py/abm4py.git
 
 ## Running the tests
 
-...
 sh tests/run_test.sh
-
-```
 
 ## Deployment
 
