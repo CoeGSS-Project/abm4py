@@ -84,13 +84,15 @@ world = World(agentOutput=False,
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
 PATCH = world.registerAgentType(AgentClass=Patch,
-                               staticProperties  = [('coord', np.int16, 2)],
-                               dynamicProperties = [('sumGrass', np.float64, 1)])
+                                agTypeStr='patch',
+                                staticProperties  = [('coord', np.int16, 2)],
+                                dynamicProperties = [('sumGrass', np.float64, 1)])
 
 
 GRASS = world.registerAgentType(AgentClass=Grass,
-                               staticProperties  = [('coord', np.int16, 2)],
-                               dynamicProperties = [('height', np.float64, 1)])
+                                agTypeStr='Grass',
+                                staticProperties  = [('coord', np.int16, 2)],
+                                dynamicProperties = [('height', np.float64, 1)])
 #%% register a link type to connect agents
 
 PATCHWORK = world.registerLinkType('patchwork',PATCH, PATCH, staticProperties=[('weig',np.float32,1)])
