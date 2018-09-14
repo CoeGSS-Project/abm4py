@@ -40,7 +40,7 @@ class Neighbor(Location):
        
  #%% Setup
 EXTEND   = 50
-DO_PLOT = True
+DO_PLOT = 0
        
 world = World(agentOutput=False,
           maxNodes=1000000,

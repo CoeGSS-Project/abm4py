@@ -64,7 +64,7 @@ class Walker(Agent, Mobile):
        
  #%% Setup
 EXTEND   = 50
-DO_PLOT = True
+DO_PLOT = 0
 N_WALKERS = 50
 N_STEPS   = 100
        
@@ -120,6 +120,7 @@ for iSteps in range(N_STEPS):
     timeReq.append(time.time() -tt)
     if DO_PLOT:        
         core.plotGraph(world, agentTypeID=WKR)
+
 if not DO_PLOT:  
     print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 

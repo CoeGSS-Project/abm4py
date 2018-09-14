@@ -114,7 +114,11 @@ else:
     def distance(x,y):
         return (x**2. +y**2.)**.5
 
-
+@njit
+def listFind(target, myList):
+    for i in range(len(myList)):
+        if myList[i] == target:
+            return i
 
 
 def cartesian(arrays, out=None):

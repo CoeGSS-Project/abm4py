@@ -40,9 +40,10 @@ class World:
                  maxNodes=1e6,
                  maxLinks=1e5,
                  debug=False,
-                 mpiComm=None,
                  agentOutput=False,
                  linkOutput=False):
+        
+        mpiComm = core.comm
 
         if mpiComm is None:
             self.isParallel = False
