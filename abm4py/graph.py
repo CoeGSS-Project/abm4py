@@ -22,6 +22,7 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 
 import numpy as np
 import itertools
+from abm4py import misc
 
 try:
     from numba import njit
@@ -609,6 +610,7 @@ class BaseGraph():
         #updating edge dictionaries
         leIDs = dataIDs + eTypeID * self.maxEdges
         eType.edgeList.extend(leIDs.tolist())
+        
         for source, target, dataID in zip(sourceIDs, targetIDs, dataIDs):
             eType.eDict[(source, target)] = dataID
             (srcNodeTypeID,  srcDataID) = self.getNodeDataRef(source)
@@ -645,7 +647,62 @@ class BaseGraph():
              eType[dataID:dataID+1]['active'] = False
              eType.edgesIn[targetID].remove(dataID)
              eType.nodesIn[targetID].remove(sourceID)
-             
+    
+    def _changeSourceOfEdge(self, eTypeID, targetID, oldSourceID, newSourceID):
+        """
+        This function replaces the source for an existing edge and all related
+        list entries
+        """
+        eType = self.edges[eTypeID]
+        dataID = eType.eDict.pop((oldSourceID, targetID))
+        eType.eDict[(newSourceID, targetID)] = dataID
+        
+        (_, oldSrcDataID) = self.getNodeDataRef(oldSourceID)
+        (_, newSrcDataID) = self.getNodeDataRef(newSourceID)
+        
+        (trgNodeTypeID , trgDataID) = self.getNodeDataRef(targetID)        
+        
+        eType.edgesOut[oldSourceID].remove(dataID)
+        eType.nodesOut[oldSourceID][1].remove(trgDataID)
+        try:
+            eType.edgesOut[newSourceID].append(dataID)
+            eType.nodesOut[newSourceID][1].append(trgDataID)
+        except:
+            eType.edgesOut[newSourceID] = [dataID]
+            eType.nodesOut[newSourceID] = trgNodeTypeID, [trgDataID]
+                
+        
+        idx = misc.listFind(oldSrcDataID, eType.nodesIn[targetID][1])
+        eType.nodesIn[targetID][1][idx] = newSrcDataID
+    
+    def _changeTargetOfEdge(self, eTypeID, sourceID, oldTargetID, newTargetID):
+        """
+        This function replaces the target for an existing edge and all related
+        list entries
+        """
+        eType = self.edges[eTypeID]
+        dataID = eType.eDict.pop((sourceID, oldTargetID))
+        eType.eDict[(source, newTargetID)] = dataID
+        
+        (srcNodeTypeID, srcDataID) = self.getNodeDataRef(sourceID)
+    
+        (_, oldTrgDataID) = self.getNodeDataRef(oldTargetID)        
+        (_, newTrgDataID) = self.getNodeDataRef(newTargetID)        
+        
+        eType.edgesIn[oldTargetID].remove(dataID)
+        eType.nodesIn[oldTargetID][1].remove(srcDataID)
+        try:
+            eType.edgesIn[newTargetID].append(dataID)
+            eType.nodesIn[newTargetID][1].append(srcDataID)
+        except:
+            eType.edgesIn[newTargetID] = [dataID]     
+            eType.nodesIn[newTargetID] = srcNodeTypeID, [srcDataID]
+                
+        
+        idx = misc.listFind(oldTrgDataID, eType.nodesOut[sourceID][1])
+        eType.nodesOut[sourceID][1][idx] = newTrgDataID
+
+        
     def remEdge(self, eTypeID, sourceID, targetID):
         eType = self.edges[eTypeID]
         
@@ -768,6 +825,22 @@ class BaseGraph():
             return self.nodes[nTypeID]['ID'][dataIDs] 
         except:
             return []
+    
+    def countIncomming(self, lnID, eTypeID):
+        try:
+            nTypeID, dataIDs = self.edges[eTypeID].nodesIn[lnID]
+            return len(dataIDs)
+        except:
+            return 0
+    
+    def countOutgoing(self, lnID, eTypeID):
+        try:
+            nTypeID, dataIDs = self.edges[eTypeID].nodesOut[lnID]
+            return len(dataIDs)
+        except:
+            return 0
+        
+        
         
     def nCount(self, nTypeID=None):
         """Returns the number of nodes of all or a specific node type"""

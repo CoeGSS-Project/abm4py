@@ -52,6 +52,10 @@ class Agent(_Entity):
         classDesc['dynamicProperties'] = []     
         return classDesc
     
+    
+    def countPeers(self, liTypeID):
+        return self._graph.countOutgoing(self.nID, liTypeID)
+        
     def getPeers(self, liTypeID):
         """
         This function returns all agents that are connected to the agents with 
@@ -108,7 +112,10 @@ class Agent(_Entity):
         """
         self._graph.setOutEdgeValues(self.nID, liTypeID, attribute, values)
         
-
+    def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID):
+        self._graph._changeTargetOfEdge(liTypeID, self.nID, oldPeerID, newPeerID)
+        
+    
     def addLink(self, peerID, liTypeID, **kwpropDict):
         """
         This function creates a new connection to another agent. Attributes of the connection must be 
@@ -120,13 +127,13 @@ class Agent(_Entity):
         """
         This function removes a link to another agent.
         """
-        self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
+        self._graph.remEdge(sourceID=self.nID, targetID=peerID, eTypeID=liTypeID)
 
     def remLinks(self, peerIDs, liTypeID):
         """
         This function removs mutiple links to other agents.
         """        
-        [self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID) for peerID in peerIDs]
+        [self._graph.remEdge(sourceID=self.nID, targetID=peerID, eTypeID=liTypeID) for peerID in peerIDs]
                 
 
     def toGhost(self, world):

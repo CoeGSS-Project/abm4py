@@ -21,7 +21,7 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
 #%% INIT
-__version__ = "0.5.0"
+__version__ = "0.7.0"
 
 import os
 import numpy as np
@@ -316,7 +316,7 @@ def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
         ax.add_collection(lc)
         ax.autoscale()
     if attrLabel is not None:
-        values = world.agentAttr(attrLabel, agTypeID=agentTypeID)
+        values = world.getAttrOfAgentType(attrLabel, agTypeID=agentTypeID)
         #values = values / np.max(values)
         #print(values)
         plt.scatter(positions[:,0], positions[:,1], s = 25, c = values,zorder=2)
@@ -474,7 +474,7 @@ class Grid():
 
         if self.world.isParallel:
             # create ghost location nodes
-            for (x,y), loc in list(self.gridNodeDict().items()):
+            for (x,y), loc in list(self.gridNodeDict.items()):
     
                 
                 for (dx,dy,weight) in connList:
@@ -553,7 +553,8 @@ class Grid():
             self.world._graph.addEdges(self.gLinkTypeID, fullSourceList, fullTargetList)
 
         # for parallel execution, share the grid between all neigboring processe
-        if self.world.isParallel:    
+        if self.world.isParallel:   
+            
             lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
             self.world.papi.initCommunicationViaLocations(ghostLocationList, agTypeID)
             lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
@@ -1353,7 +1354,7 @@ class IO():
                 #check if first property of first entity is string
                 try:
                      
-                    entProp = self._graph.getAttrOfLinksIdx(label=attr, eTypeID=liTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                    entProp = self._graph.getAttrOfLinksIdx(attribute=attr, eTypeID=liTypeID, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
                     raise BaseException
@@ -1548,7 +1549,7 @@ class PAPI():
         dataPackage['nTypeID'] = agTypeID
 
         for prop in propList:
-            dataPackage[prop] = self.world._graph.getNodeSeqAttr(label=prop, lnIDs=self.mpiSendIDList[(agTypeID,mpiPeer)] )
+            dataPackage[prop] = self.world._graph.getNodeSeqAttr(attribute=prop, lnIDs=self.mpiSendIDList[(agTypeID,mpiPeer)] )
             dataSize += np.prod(dataPackage[prop].shape)
         
         if connList is not None:
@@ -1600,7 +1601,7 @@ class PAPI():
                         propertyList.remove('gID')
 
                     for prop in propertyList:
-                        self.world._graph.setNodeSeqAttr(label=prop, 
+                        self.world._graph.setNodeSeqAttr(attribute=prop, 
                                                     values=dataPackage[prop],
                                                     lnIDs=self.mpiRecvIDList[(agTypeID, mpiPeer)])                        
                     
@@ -1669,9 +1670,9 @@ class PAPI():
             # send requested global IDs
             lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
 
-            x = self.world._graph.getNodeSeqAttr(label=incRequest[1], lnIDs= lnIDList )
+            x = self.world._graph.getNodeSeqAttr(attribute=incRequest[1], lnIDs= lnIDList )
 
-            self._add2Buffer(mpiDest,self.world._graph.getNodeSeqAttr(label=incRequest[1], lnIDs=lnIDList))
+            self._add2Buffer(mpiDest,self.world._graph.getNodeSeqAttr(attribute=incRequest[1], lnIDs=lnIDList))
 
         requestRecv = self._all2allSync()
 
@@ -1681,7 +1682,7 @@ class PAPI():
             globIDList = requestRecv[mpiDest][0]
             
 
-            self.world._graph.setNodeSeqAttr(label='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
+            self.world._graph.setNodeSeqAttr(attribute='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
             
             
             lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
@@ -1732,13 +1733,17 @@ class PAPI():
                 IDsList = world.addNodes(agTypeID, nNodes)
                 # setting up ghostIn communicator
                 self.mpiRecvIDList[(agTypeID, mpiPeer)] = IDsList
-
-
+                
+                # setting new local IDsmp
+                self.world._graph.setNodeSeqAttr(attribute='ID', 
+                                                values=IDsList,
+                                                lnIDs=IDsList)
+                
                 propList = world._graph.getPropOfNodeType(agTypeID, kind='all')['names']
                 propList.append('gID')
 
                 for prop in propList:   
-                    self.world._graph.setNodeSeqAttr(label=prop, 
+                    self.world._graph.setNodeSeqAttr(attribute=prop, 
                                                 values=dataPackage[prop],
                                                 lnIDs=self.mpiRecvIDList[(agTypeID, mpiPeer)])                        
 
