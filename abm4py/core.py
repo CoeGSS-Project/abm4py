@@ -1454,8 +1454,7 @@ class IO():
     
 
     def writeAdjFile(self ,fileName, agTypeID, attrForWeight):
-        self._graph.to_undirected()
-        #edgeTypeID = world._graph.node2EdgeType[agTypeID, agTypeID]
+        
         adjList, nLinks = self._graph.getAdjList(agTypeID)
         fid = open(fileName,'w')
         fid.write('% Adjecency file created by gcfABM \n')

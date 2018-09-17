@@ -328,7 +328,7 @@ class BaseGraph():
             nType.freeRows = nType.freeRows[nNodes:]
         
         if max(dataIDs) >= self.nodes[nTypeID].currentSize:
-            extFactor = int(max(np.ceil(max(dataIDs)/nType.currentSize), 2))
+            extFactor = int(max(np.ceil((max(dataIDs) +1) / nType.currentSize), 2))
             self._extendNodeArray(nTypeID, extFactor)
             nType = self.nodes[nTypeID]
         nType['active'][dataIDs] = True
@@ -599,7 +599,7 @@ class BaseGraph():
             eType.freeRows = eType.freeRows[nEdges:]
         
         if max(dataIDs) >= eType.currentSize:
-            extFactor = int(max(np.ceil(max(dataIDs)+1/eType.currentSize), 2))
+            extFactor = int(max(np.ceil( (max(dataIDs)+1 )/eType.currentSize), 2))
             self._extendEdgeArray(eTypeID, extFactor)
             eType = self.edges[eTypeID]
             
