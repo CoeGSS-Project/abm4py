@@ -155,9 +155,12 @@ class BaseGraph():
         self.lnID2dataIdx   = dict()
         self.nodeGlob2Loc   = dict()
         self.nodeLoc2Glob   = dict()
-        ## im nodes dict stehen keine nodes sondern nodeArrays (stf)
+        
+        # self.nodes is a dictionary of node types, each containing an array of the 
+        # actual nodes of that type
         self.nodes          = dict()
-        ## auch im edges dict stehen keine edges (stf)
+        # self.edges is a dictionary of edge types, each containing an array of the 
+        # actual edges of that type
         self.edges          = dict()
         
         
@@ -253,26 +256,17 @@ class BaseGraph():
                 return lnIDs // self.maxNodes, lnIDs%self.maxNodes
             except:
                 # list is given
-#                try:
                 return getRefByList(self.maxNodes, lnIDs)
-#                except:
-#                    print(lnIDs)
-#                   
-#                    import pdb
-#                    pdb.set_trace()
-            
+   
 
 
     def get_lnID(self, nTypeID):
         return self.nodes[nTypeID].nodeList
 
 
-        
-    ## when I grep for "attributes =" I get the impression that this is never used
-    ## (as only Entity.__init__ calls addNode, beside some test methods)
-    ## also here the kwProps are dropped when attributes are given (stf)
     def addNode(self, nTypeID, attributes=None, **kwProp):
-        
+        #TODO attributes might be dropped in the future since is seems 
+        # the more complicated version of assigning attributes
         
          try:
              # use and old local node ID from the free row
@@ -287,9 +281,7 @@ class BaseGraph():
                  self._extendNodeArray(nTypeID, 2)
 
          dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
-#         if attributes is not None:
-#             dataview[:] = (True,) + attributes
-#         else:
+
          dataview['active'] = True
          dataview['ID'] = lnID
          if any(kwProp):

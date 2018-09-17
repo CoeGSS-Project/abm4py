@@ -198,7 +198,7 @@ class World:
 
         #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
         
-        # add properties we need for the framework (like gID) automatically (stf)
+        # adds and formats properties we need for the framework (like gID) automatically
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
                 

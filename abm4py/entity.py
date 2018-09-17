@@ -41,33 +41,12 @@ class _Entity(object):
             self.attr['instance'] = self
             self.__getNode = world.getAgent
 
-#            self.get = self.attr.__getitem__
-#            self.set = self.attr.__setitem__
-#            self.__getitem__ = self.attr.__getitem__
-#            self.__setitem__ = self.attr.__setitem__
-        # connects the agent to an existing node
         else:
             self.nID = nID
             self._setGraph(world._graph)
             self.attr, self.dataID = self._graph.getNodeView(nID)
             self.attr['instance'] = self
             
-
-#    def __getitem__(self, a):
-#        return self.attr.__getitem__(a)
-#
-#    def __setitem__(self, a, value):
-#        self.attr.__setitem__(a, value)
-
-
-#    def __getattr__(self, a):
-#        return self.attr[a][0]
-#    
-#    def __setattr__(self, a, value):
-#        try:
-#            self.attr[a] = value
-#        except:
-#            object.__setattr__(self, a, value)
             
         
     @classmethod

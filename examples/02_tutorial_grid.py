@@ -47,8 +47,8 @@ gridMask = np.random.randint(0,2,[10,10])
 plt.ion()
 fig= plt.figure('graph')
 plt.clf()
-for i in range(4):
-    ax = plt.subplot(2,2,1+i)
+for i in range(3):
+    ax = plt.subplot(1,3,1+i)
     connMask = world.grid.computeConnectionList(radius=1.5+i)
     world.grid.init(gridMask, connMask, Location)
     
