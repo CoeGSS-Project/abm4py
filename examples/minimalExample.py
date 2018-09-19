@@ -42,7 +42,7 @@ from copy import copy
 import csv
 from scipy import signal
 
-###### Enums ################
+######### Enums ########################
 #connections
 _cll = 1 # loc - loc
 _clh = 2 # loc - household
@@ -64,12 +64,12 @@ _year  = 2
 # Graph library
 #ig.Graph(directed=True)
 #
-## MPI4PY
+### MPI4PY
 #comm = MPI.COMM_WORLD
 #rank = comm.Get_rank()
 #size = comm.Get_size()
 #
-## parallel IO
+### parallel IO
 #h5File      = h5py.File('test.hdf5', 'w', driver='mpio', comm=comm)
 
 
@@ -142,7 +142,7 @@ def scenarioTestSmall(parameterInput, dirPath):
     
     lg.info( "Final setting of the parameters")
     lg.info( parameterInput)
-    lg.info( "####################################")
+    lg.info( "######################################################")
     
     return setup
 

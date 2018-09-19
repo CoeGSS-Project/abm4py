@@ -128,7 +128,7 @@ locDict = world.grid.getNodeDict()
 currIdx = 0
 
 
-##############################################
+#####################################################################
 # change the propertyToPreference funciton so 
 # that is relies on the properties
 
@@ -139,7 +139,7 @@ def propertyToPreference(age, gender, income, hhType):
     
     return inno, imit
 
-##############################################
+#####################################################################
 
 for xLoc, yLoc in list(locDict.keys()):  
     loc = world.getNodeBy.location(xLoc, yLoc)
@@ -178,7 +178,7 @@ agIDList  = world.getAgentIDs(AGENT)
 innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float64)
 
 for agent in world.getAgentsByType(AGENT):
-    ##############################################
+    #####################################################################
     # create a new creation rule 
     
     # spatial weight
@@ -193,7 +193,7 @@ for agent in world.getAgentsByType(AGENT):
     weig = weig1 * weig2
     weig = weig / np.sum(weig)
 
-    ##############################################
+    #####################################################################
     
     
     friendIDs = np.random.choice(agIDList, N_FRIENDS, replace=False, p=weig)
@@ -205,12 +205,12 @@ for agent in world.getAgentsByType(AGENT):
     
 positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
 
-##############################################
+#####################################################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
 
 #positions[:,0] = 
 
-##############################################
+#####################################################################
 
 #%%
 plt.figure('statistics')

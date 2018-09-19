@@ -122,7 +122,7 @@ for iAgent in range(N_AGENTS):
     inno = random.random() * INNOVATION
     imit = random.normalvariate(IMITATION,2 )
     
-    ##############################################
+    #####################################################################
     #create all agents with properties
     # - pos = x,y
     # - switch 
@@ -138,7 +138,7 @@ for iAgent in range(N_AGENTS):
                       color = BLUE,
                       imit = imit,
                       inno = inno)
-    ##############################################
+    #####################################################################
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures

@@ -58,7 +58,7 @@ for iAgent in range(N_AGENTS):
     agent.register(world)
 
 
-print(' ################ TESTING OF AGENT TYPE #####################')
+print(' ######################## TESTING OF AGENT TYPE ###############################')
 
 print('Reading write of attributes of type integer', end=' ')    
 timeReq = list()
@@ -92,7 +92,7 @@ for iTry in range(n_REPEAT):
     timeReq.append(time.time() -tt)
 print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
-print(' ################ TESTING LIST OF IDS #####################')
+print(' ######################## TESTING LIST OF IDS ###############################')
 
 #%%
 print('Reading attributes of type integer', end=' ')    

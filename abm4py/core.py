@@ -110,10 +110,10 @@ def setupSimulationEnvironment(mpiComm=None, simNo=None):
             
 
             print('A new environment was created usning the following template')
-            print('#################################################')
+            print('#########################################################################')
             print("0")
             print('output/')
-            print('#################################################')
+            print('#########################################################################')
             
     else:
         simNo    = None
@@ -454,7 +454,7 @@ class Grid():
         xMax = gridMask.shape[0]
         yMax = gridMask.shape[1]
         ghostLocationList = list()
-        lg.debug('rank array: ' + str(gridMask)) ##OPTPRODUCTION
+        lg.debug('rank array: ' + str(gridMask)) ###OPTPRODUCTION
         # tuple of idx array of cells that correspond of the spatial input maps 
         if mpiRankArray is not None:
             self.world.cellMapIds = np.where(mpiRankArray == self.world.mpiRank)
@@ -555,9 +555,9 @@ class Grid():
         # for parallel execution, share the grid between all neigboring processe
         if self.world.isParallel:   
             
-            lg.debug('starting initCommunicationViaLocations')##OPTPRODUCTION
-            self.world.papi.initCommunicationViaLocations(ghostLocationList, agTypeID)
-            lg.debug('finished initCommunicationViaLocations')##OPTPRODUCTION
+            lg.debug('starting initAgentCommunication')###OPTPRODUCTION
+            self.world.papi.initAgentCommunication(agTypeID)
+            lg.debug('finished initAgentCommunication')###OPTPRODUCTION
             
     def getNodeID(self, x,y):
         #get nID of the location
@@ -622,8 +622,8 @@ class Grid():
             lg.info( "nID: " + str(agent.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
             nContacts = min(np.sum(weightData>0)-1,nContacts)
 
-        if nContacts < 1:                                                       ##OPTPRODUCTION
-            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')      ##OPTPRODUCTION
+        if nContacts < 1:                                                       ###OPTPRODUCTION
+            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')      ###OPTPRODUCTION
             contactList = list()
             sourceList  = list()
             targetList   = list()
@@ -710,9 +710,7 @@ class Globals():
     """ This class manages global variables that are assigned on all processes
     and are synced via mpi. Global variables need to be registered together with
     the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
-
-    
-    #TODO
+    TODO
     - enforce the setting (and reading) of global stats
     - implement mean, deviation, std as reduce operators
     """
@@ -775,7 +773,7 @@ class Globals():
             for globName in self.reduceDict[redType]:
 
                 # enforce that data is updated
-                assert  self.updated[globName] is True    ##OPTPRODUCTION
+                assert  self.updated[globName] is True    ###OPTPRODUCTION
                 
                 # communication between all proceees
                 if comm is None:
@@ -783,13 +781,13 @@ class Globals():
                 else:
                     self.globalValue[globName] = self.comm.allreduce(self.localValues[globName],op)
                 self.updated[globName] = False
-                lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))##OPTPRODUCTION
-                lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self.globalValue[globName]))##OPTPRODUCTION
+                lg.debug('local value of ' + globName + ' : ' + str(self.localValues[globName]))###OPTPRODUCTION
+                lg.debug(str(redType) + ' of ' + globName + ' : ' + str(self.globalValue[globName]))###OPTPRODUCTION
 
     #%% statistical global reductions/aggregations
     def registerStat(self, globName, values, statType):
 
-        assert statType in ['mean', 'std', 'var']    ##OPTPRODUCTION
+        assert statType in ['mean', 'std', 'var']    ###OPTPRODUCTION
 
 
         if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
@@ -824,7 +822,7 @@ class Globals():
                 for globName in self.statsDict[redType]:
                     lg.debug(globName)
                     # enforce that data is updated
-                    assert  self.updated[globName] is True    ##OPTPRODUCTION
+                    assert  self.updated[globName] is True    ###OPTPRODUCTION
                     
                     # sending data list  of (local mean, size)
                     
@@ -837,21 +835,21 @@ class Globals():
                         # communication between all proceees
                         tmp = np.asarray(outComm)
     
-                        lg.debug('####### Mean of ' + globName + ' #######')       ##OPTPRODUCTION
+                        lg.debug('########## Mean of ' + globName + ' ##########')       ###OPTPRODUCTION
                         #lg.debug(outComm)
-                        lg.debug('loc mean: ' + str(tmp[:,0]))                     ##OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(tmp[:,0]))                     ###OPTPRODUCTION
                         # calculation of global mean
                         globValue = np.sum(np.prod(tmp,axis=1)) # means * size
                         globSize  = np.sum(tmp[:,1])             # sum(size)
                         self.globalValue[globName] = globValue/ globSize    # glob mean
-                    lg.debug('Global mean: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
+                    lg.debug('Global mean: ' + str( self.globalValue[globName] ))   ###OPTPRODUCTION
                     self.updated[globName] = False
                     
             elif redType == 'std':
                 for globName in self.statsDict[redType]:
                     lg.debug(globName)
                     # enforce that data is updated
-                    assert  self.updated[globName] is True    ##OPTPRODUCTION
+                    assert  self.updated[globName] is True    ###OPTPRODUCTION
                     
                     # local calulation
                     
@@ -864,8 +862,8 @@ class Globals():
                         outComm = self.comm.alltoall(locSTD)
                         lg.debug(outComm)
                         locSTD = np.asarray(outComm)
-                        lg.debug('####### STD of ' + globName + ' #######')              ##OPTPRODUCTION
-                        lg.debug('loc std: ' + str(locSTD))                       ##OPTPRODUCTION
+                        lg.debug('########## STD of ' + globName + ' ##########')              ###OPTPRODUCTION
+                        lg.debug('loc std: ' + str(locSTD))                       ###OPTPRODUCTION
     
                         # sending data list  of (local mean, size)
                         tmp = [(np.mean(self.localValues[globName]), self.nValues[globName])]* mpiSize 
@@ -877,13 +875,13 @@ class Globals():
                         # calculation of the global std
                         locMean = tmp[:,0]
                         
-                        lg.debug('loc mean: ' + str(locMean))                     ##OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(locMean))                     ###OPTPRODUCTION
     
                         locNVar = tmp[:,1]
-                        lg.debug('loc number of var: ' + str(locNVar))            ##OPTPRODUCTION
+                        lg.debug('loc number of var: ' + str(locNVar))            ###OPTPRODUCTION
     
                         globMean = np.sum(np.prod(tmp,axis=1)) / np.sum(locNVar)  
-                        lg.debug('global mean: ' + str( globMean ))               ##OPTPRODUCTION
+                        lg.debug('global mean: ' + str( globMean ))               ###OPTPRODUCTION
     
                         diffSqrMeans = (locMean - globMean)**2
     
@@ -892,14 +890,14 @@ class Globals():
                         globVariance = (np.sum( locNVar * locSTD**2) + deviationOfMeans) / np.sum(locNVar)
     
                         self.globalValue[globName] = np.sqrt(globVariance)
-                    lg.debug('Global STD: ' + str( self.globalValue[globName] ))   ##OPTPRODUCTION
+                    lg.debug('Global STD: ' + str( self.globalValue[globName] ))   ###OPTPRODUCTION
                     self.updated[globName] = False
                     
             elif redType == 'var':
                 for globName in self.statsDict[redType]:
                     lg.debug(globName)
                     # enforce that data is updated
-                    assert  self.updated[globName] is True    ##OPTPRODUCTION
+                    assert  self.updated[globName] is True    ###OPTPRODUCTION
                     
                     # calculation of local mean
                     
@@ -919,8 +917,8 @@ class Globals():
                         locMean = tmp[:,0]
                         #print 'loc mean: ', locMean
     
-                        lg.debug('####### Variance of ' + globName + ' #######')              ##OPTPRODUCTION
-                        lg.debug('loc mean: ' + str(locMean))               ##OPTPRODUCTION
+                        lg.debug('########## Variance of ' + globName + ' ##########')              ###OPTPRODUCTION
+                        lg.debug('loc mean: ' + str(locMean))               ###OPTPRODUCTION
                         locNVar = tmp[:,1]
                         #print 'loc number of var: ',locNVar
     
@@ -928,7 +926,7 @@ class Globals():
                         #print 'global mean: ', globMean
                         
                         diffSqrMeans = (locMean - globMean)**2
-                        lg.debug('global mean: ' + str( globMean )) ##OPTPRODUCTION
+                        lg.debug('global mean: ' + str( globMean )) ###OPTPRODUCTION
     
                         deviationOfMeans = np.sum(locNVar * diffSqrMeans)
     
@@ -937,7 +935,7 @@ class Globals():
                         self.globalValue[globName] = globVariance
                         
                         
-                    lg.debug('Global variance: ' + str( self.globalValue[globName] ))  ##OPTPRODUCTION
+                    lg.debug('Global variance: ' + str( self.globalValue[globName] ))  ###OPTPRODUCTION
                     self.updated[globName] = False
 
     def sync(self):
@@ -1612,7 +1610,7 @@ class PAPI():
                 ' unpack: ' + str(syncUnpackTime) + ' s , ')
         return messageSize
 
-    def initCommunicationViaLocations(self, ghostLocationList, locNodeType):
+    def initAgentCommunication(self, agTypeID):
         """
         Method to initialize the communication based on the spatial
         distribution
@@ -1622,19 +1620,20 @@ class PAPI():
         # acquire the global IDs for the ghostNodes
         mpiRequest = dict()
         
-
+        ghostLocationList = self.world.getAgentsByType(agTypeID=agTypeID, ghosts = True)
         
-        lg.debug('ID Array: ' + str(self.world._graph.IDArray))##OPTPRODUCTION
+        lg.debug('ID Array: ' + str(self.world._graph.IDArray))###OPTPRODUCTION
+
         for ghLoc in ghostLocationList:
             owner = ghLoc.mpiOwner
             x,y   = ghLoc.attr['coord']
             if owner not in mpiRequest:
                 mpiRequest[owner]   = (list(), 'gID')
-                self.mpiRecvIDList[(locNodeType, owner)] = list()
+                self.mpiRecvIDList[(agTypeID, owner)] = list()
 
             mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
-            self.mpiRecvIDList[(locNodeType, owner)].append(ghLoc.nID)
-        lg.debug('rank ' + str(self.rank) + ' mpiRecvIDList: ' + str(self.mpiRecvIDList))##OPTPRODUCTION
+            self.mpiRecvIDList[(agTypeID, owner)].append(ghLoc.nID)
+        lg.debug('rank ' + str(self.rank) + ' mpiRecvIDList: ' + str(self.mpiRecvIDList))###OPTPRODUCTION
 
         for mpiDest in list(mpiRequest.keys()):
 
@@ -1642,32 +1641,32 @@ class PAPI():
                 self.peers.append(mpiDest)
 
                 # send request of global IDs
-                lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))##OPTPRODUCTION
+                lg.debug( str(self.rank) + ' asks from ' + str(mpiDest) + ' - ' + str(mpiRequest[mpiDest]))###OPTPRODUCTION
                 self._add2Buffer(mpiDest, mpiRequest[mpiDest])
 
-        lg.debug( 'requestOut:' + str(self.a2aBuff))##OPTPRODUCTION
+        lg.debug( 'requestOut:' + str(self.a2aBuff))###OPTPRODUCTION
         requestIn = self._all2allSync()
-        lg.debug( 'requestIn:' +  str(requestIn))##OPTPRODUCTION
+        lg.debug( 'requestIn:' +  str(requestIn))###OPTPRODUCTION
 
 
         for mpiDest in list(mpiRequest.keys()):
 
 
             # receive request of global IDs
-            lg.debug('receive request of global IDs from:  ' + str(mpiDest))##OPTPRODUCTION
+            lg.debug('receive request of global IDs from:  ' + str(mpiDest))###OPTPRODUCTION
             incRequest = requestIn[mpiDest][0]
             
             lnIDList = [int(self.world._graph.IDArray[xx, yy]) for xx, yy in incRequest[0]]
-            lg.debug( str(self.rank) + ' -sendIDlist:' + str(lnIDList))##OPTPRODUCTION
-            self.mpiSendIDList[(locNodeType,mpiDest)] = lnIDList
+            lg.debug( str(self.rank) + ' -sendIDlist:' + str(lnIDList))###OPTPRODUCTION
+            self.mpiSendIDList[(agTypeID,mpiDest)] = lnIDList
  
-            lg.debug( str(self.rank) + ' - gIDs:' + str(self.world._graph.getNodeSeqAttr('gID', lnIDList)))##OPTPRODUCTION
+            lg.debug( str(self.rank) + ' - gIDs:' + str(self.world._graph.getNodeSeqAttr('gID', lnIDList)))###OPTPRODUCTION
 
             for entity in [self.world.getAgent(agentID=i) for i in lnIDList]:
                 entity.mpiGhostRanks.append(mpiDest)
 
             # send requested global IDs
-            lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(locNodeType,mpiDest)]))##OPTPRODUCTION
+            lg.debug( str(self.rank) + ' sends to ' + str(mpiDest) + ' - ' + str(self.mpiSendIDList[(agTypeID,mpiDest)]))###OPTPRODUCTION
 
             x = self.world._graph.getNodeSeqAttr(attribute=incRequest[1], lnIDs= lnIDList )
 
@@ -1676,17 +1675,17 @@ class PAPI():
         requestRecv = self._all2allSync()
 
         for mpiDest in list(mpiRequest.keys()):
-            #self.comm.send(self.ghostNodeOut[locNodeType, mpiDest][incRequest[1]], dest=mpiDest)
+            #self.comm.send(self.ghostNodeOut[agTypeID, mpiDest][incRequest[1]], dest=mpiDest)
             #receive requested global IDs
             globIDList = requestRecv[mpiDest][0]
             
 
-            self.world._graph.setNodeSeqAttr(attribute='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(locNodeType, mpiDest)])
+            self.world._graph.setNodeSeqAttr(attribute='gID', values=globIDList, lnIDs=self.mpiRecvIDList[(agTypeID, mpiDest)])
             
             
-            lg.debug( 'receiving globIDList:' + str(globIDList))##OPTPRODUCTION
-            lg.debug( 'localDList:' + str(self.mpiRecvIDList[(locNodeType, mpiDest)]))##OPTPRODUCTION
-            for nID, gID in zip(self.mpiRecvIDList[(locNodeType, mpiDest)], globIDList):
+            lg.debug( 'receiving globIDList:' + str(globIDList))###OPTPRODUCTION
+            lg.debug( 'localDList:' + str(self.mpiRecvIDList[(agTypeID, mpiDest)]))###OPTPRODUCTION
+            for nID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiDest)], globIDList):
 
                 self.world.setGlob2Loc(gID, nID)
                 self.world.setLoc2Glob(nID, gID)
@@ -1761,7 +1760,7 @@ class PAPI():
                     agent.register(world, parentEntity, liTypeID)
 
 
-        lg.info('################## Ratio of ghost agents ################################################')
+        lg.info('########################### Ratio of ghost agents ########################################################################')
         for agTypeIDIdx in list(world._graph.agTypeByID.keys()):
             agTypeID = world._graph.agTypeByID[agTypeIDIdx].typeStr
             nAgents = world.countAgents(agTypeIDIdx)
@@ -1769,7 +1768,7 @@ class PAPI():
                 nGhosts = float(world.countAgents(agTypeIDIdx, ghosts=True))
                 nGhostsRatio = nGhosts / nAgents
                 lg.info('Ratio of ghost agents for type "' + agTypeID + '" is: ' + str(nGhostsRatio))
-        lg.info('#########################################################################################')
+        lg.info('#####################################################################################################################################')
 
 
 
@@ -1791,10 +1790,10 @@ class PAPI():
             lg.info('Ghost update (of approx size ' +
                  str(messageSize * 24. / 1000. ) + ' KB)' +
                  ' required: ' + str(time.time()-tt) + ' seconds')
-        else:                                                           ##OPTPRODUCTION
-            lg.debug('Ghost update (of approx size ' +                  ##OPTPRODUCTION
-                     str(messageSize * 24. / 1000. ) + ' KB)' +         ##OPTPRODUCTION
-                     ' required: ' + str(time.time()-tt) + ' seconds')  ##OPTPRODUCTION
+        else:                                                           ###OPTPRODUCTION
+            lg.debug('Ghost update (of approx size ' +                  ###OPTPRODUCTION
+                     str(messageSize * 24. / 1000. ) + ' KB)' +         ###OPTPRODUCTION
+                     ' required: ' + str(time.time()-tt) + ' seconds')  ###OPTPRODUCTION
         
         if agTypeIDList == 'all':
             agTypeIDList = self.world._graph.agTypeByID

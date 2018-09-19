@@ -7,7 +7,7 @@ Created on Tue Feb 20 14:15:50 2018
 """
 
 
-# S E T U P #################################################
+# S E T U P #########################################################################
 
 minAgentPerCell = 5  # minimal number of agents per cell
 maxAgentPerCell = 15 # minimal number of agetns per cell
@@ -22,7 +22,7 @@ debug = True
 if weakScaling == False:
     layerShape = [8, 8]
 
-#############################################################
+###########################################################################################
 
 
 

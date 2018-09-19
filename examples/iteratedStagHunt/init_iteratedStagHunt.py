@@ -36,7 +36,7 @@ _village  = 1
 _hunter   = 2
 
 
-#%% ###################### Parameters ############################
+#%% ################################# Parameters ##########################################
 
 spatial    = True
 connRadius = 1.5
@@ -54,7 +54,7 @@ outputPath = "./" # core.createOutputDirectory(mpiComm, baseOutputPath, simNo)
 landLayer  = np.asarray([[1,1,0,0,0,0], [1,1,0,0,1,0], [0,0,1,0,0,1], [0,0,0,1,1,1],[1,1,1,0,0,0],[0,1,1,0,0,0]])
 
 
-#%% ######################### Initialisation ##########################   
+#%% ##################################### Initialisation #######################################   
     
 community = Community(nSteps, spatial, outputPath, vStag, vHare)
 connList= community.computeConnections(connRadius)
@@ -73,7 +73,7 @@ for hu in range(nHunters):
 #community.view()
 
 
-#%% ######################### Execution ##########################   
+#%% ##################################### Execution #######################################   
 #stagMeans = list()
 #hareMeans = list()
 nStagHunters = list()
@@ -87,7 +87,7 @@ for i in range(nSteps):
     nHareHunters.append(nH)
 
 
-#%% ######################### Plotting ##########################  
+#%% ##################################### Plotting #######################################  
 
 def plotHuntersResults(hunters):
     tEnd = len(hunters[0].results[1])    

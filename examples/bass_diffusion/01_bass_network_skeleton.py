@@ -108,12 +108,12 @@ def network_creation(agent, world):
     # standard network inverse to spatial distance
     weig = np.sum((positions - agent.attr['pos'])**2,axis=1)
     weig = np.divide(1.,weig, out=np.zeros_like(weig), where=weig!=0)
-    ##############################################
+    #####################################################################
     # create a new creation rule for a network with the slowest possible diffusion
     
     
     #weig = 
-    ##############################################
+    #####################################################################
     
     
     # normalizing
@@ -133,12 +133,12 @@ for agent in world.getAgentsByType(AGENT):
     
 positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
 
-##############################################
+#####################################################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
 
 #positions[:,0] = 
 
-##############################################
+#####################################################################
 
 #%% Scheduler
 iStep = 0

@@ -66,7 +66,7 @@ for iAgent in range(N_AGENTS):
     # randomly draw and x,y position within the defined spatial extend
     x,y = np.random.randint(0, MAX_EXTEND, 2)
 
-    ##############################################
+    #####################################################################
     #create all AGID with tree properties
     # - pos = x,y
     # - switch 
@@ -80,7 +80,7 @@ for iAgent in range(N_AGENTS):
                       pos=(x, y),
                       switch = 0,
                       color = BLUE)
-    ##############################################
+    #####################################################################
     
     # after the AGIDs is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures

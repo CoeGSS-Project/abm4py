@@ -106,6 +106,11 @@ if NUMBA:
     @njit
     def distance(x,y):
         return (x**2. +y**2.)**.5
+    @njit
+    def listFind(target, myList):
+        for i in range(len(myList)):
+            if myList[i] == target:
+                return i
 else:
     def weightingFunc(x,y):
         return 1./((x**2. +y**2.)**.5)
@@ -114,11 +119,10 @@ else:
     def distance(x,y):
         return (x**2. +y**2.)**.5
 
-@njit
-def listFind(target, myList):
-    for i in range(len(myList)):
-        if myList[i] == target:
-            return i
+    def listFind(target, myList):
+        for i in range(len(myList)):
+            if myList[i] == target:
+                return i
 
 
 def cartesian(arrays, out=None):

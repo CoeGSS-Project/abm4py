@@ -74,7 +74,7 @@ class World:
         # generator for IDs that are globally unique over all processe
         self.globIDGen = self._globIDGen()
         
-        lg.debug('Init MPI done')##OPTPRODUCTION
+        lg.debug('Init MPI done')###OPTPRODUCTION
                 
                 
           
@@ -114,11 +114,11 @@ class World:
         self.globalRecord = dict() 
         # Globally synced variables
         self._graph.glob     = core.Globals(self)
-        lg.debug('Init Globals done')##OPTPRODUCTION
+        lg.debug('Init Globals done')###OPTPRODUCTION
         
         # ======== IO ========
         self.io = core.IO(self, nSteps, self.para['outPath'])
-        lg.debug('Init IO done')##OPTPRODUCTION
+        lg.debug('Init IO done')###OPTPRODUCTION
         
         # ======== RANDOM ========
         self.random = core.Random(self, self.__agentIDsByType, self.__ghostIDsByType, self.__agentsByType)
@@ -132,6 +132,8 @@ class World:
 
         self.addNode     = self._graph.addNode
         self.addNodes    = self._graph.addNodes
+        
+        self.areConnected = self._graph.areConnected
       
         #self.getAgents  = core.AgentAccess(self)
 
@@ -196,7 +198,7 @@ class World:
         if dynamicProperties is None:
             dynamicProperties = descDict['dynamicProperties']
 
-        #assert 'type' and 'gID' in staticProperties              ##OPTPRODUCTION
+        #assert 'type' and 'gID' in staticProperties              ###OPTPRODUCTION
         
         # adds and formats properties we need for the framework (like gID) automatically
         staticProperties = core.formatPropertyDefinition(staticProperties)
@@ -250,7 +252,7 @@ class World:
                              
         staticProperties  = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
-        #assert 'type' in staticProperties # type is an required property             ##OPTPRODUCTION
+        #assert 'type' in staticProperties # type is an required property             ###OPTPRODUCTION
 
         
         liTypeIDIdx = self._graph.addEdgeType( agTypeStr, 

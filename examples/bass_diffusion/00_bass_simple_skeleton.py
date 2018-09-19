@@ -72,7 +72,7 @@ for iAgent in range(N_AGENTS):
     
     x,y = np.random.randint(0, MAX_EXTEND, 2)
     
-    ##############################################
+    #####################################################################
     #create all agent with tree properties
     # - pos = x,y
     # - switch 
@@ -81,7 +81,7 @@ for iAgent in range(N_AGENTS):
 
     agent =
     
-    ##############################################
+    #####################################################################
     agent.register(world)
     
 
@@ -89,12 +89,12 @@ for iAgent in range(N_AGENTS):
 iStep = 0
 fracList = list()
 
-##############################################
+#####################################################################
 # get position of all agents for plotting
 
 positions = 
 
-##############################################
+#####################################################################
 
 
 ploting = tools.PlotClass(positions, world,AGENT)
@@ -104,12 +104,12 @@ while True:
     iStep+=1
     
     
-    ##############################################
+    #####################################################################
     #calculate the fraction of agents that already switched
     
     switchFraction = 
     
-    ##############################################
+    #####################################################################
     
     fracList.append(switchFraction)
     
@@ -121,12 +121,12 @@ while True:
         
         if agent.attr['switch'] == 0:
             
-            ##############################################
+            #####################################################################
             # implemnent the condition of agents to switch
             
             condition = 
             
-            ##############################################
+            #####################################################################
             
             if randNum < condition:
                 agent.attr['switch'] = 1

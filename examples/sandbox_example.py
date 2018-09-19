@@ -28,7 +28,7 @@ from lib_abm4py import World, Agent
 import numpy as np
 
 
-#%% ########### Enum types #######################################
+#%% ################ Enum types ##########################################################
 
 if __name__ == '__main__':
     
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 ig.plot(earth._graph,**visual_style)    
             else:
                 ig.plot(earth._graph, filename, **visual_style)    
-    #%% #################### USER DEFINED FUNCTIONS ##################        
+    #%% ############################## USER DEFINED FUNCTIONS ###########################        
     def carAgeStep():
         for car in earth.iterNode('car'):
             print car.nID
@@ -196,10 +196,10 @@ if __name__ == '__main__':
                 loc.setValue('deltaCars',loc.getValue('deltaCars')-1)
     
     
-    ##################### END USER DEFINED FUNCTIONS ##################
+    ############################### END USER DEFINED FUNCTIONS ###########################
     
             
-    #%% ###################### Parameters: ############################
+    #%% ################################# Parameters: ##########################################
     flgSpatial = True
     connRadius = 1.5
     nAgents   = 30    
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     gdpArray    = np.asarray([[0, 0, .9,1.1], [0,.8,.9, 0],[.7,1.3,0,0], [0,0,0,0]])
     deltaCars = np.zeros(nCarsArray.shape)
      
-    #%% ######################### INITIALIZATION ##########################   
+    #%% ##################################### INITIALIZATION #######################################   
     earth = World(spatial=flgSpatial)
     _inactive = 0
     _location = 1
@@ -280,7 +280,7 @@ if __name__ == '__main__':
             car.addLink(agID,liTypeID=_agCarLink)
             car.setValue('age',np.random.randint(1,4))
     
-    #%%########################### Simulation step    ######################################
+    #%%######################################## Simulation step    #########################################################
     
     # step to age the cars
     computeCars()  

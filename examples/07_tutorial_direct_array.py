@@ -63,7 +63,7 @@ for _ in range(N_AGENTS):
     karma = random.random() * 20
     food = random.random() * N_STEPS + 1
     
-    ##############################################
+    #####################################################################
     # create all agents with properties
 
     # The init of LIB.Agent requires either the definition of all attributes 
@@ -73,7 +73,7 @@ for _ in range(N_AGENTS):
                   karma = karma,
                   heaven = False,
                   diedThisStep = False)
-    ##############################################
+    #####################################################################
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures

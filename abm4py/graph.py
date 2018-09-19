@@ -763,7 +763,7 @@ class BaseGraph():
             return self.edges[eTypeID][dataIDs]
         
     #%% General
-    def isConnected(self, sourceID, targetID, eTypeID):
+    def areConnected(self, sourceID, targetID, eTypeID):
         """ 
         Returns if source and target is connected by an eddge of the specified
         edge type

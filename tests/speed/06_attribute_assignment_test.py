@@ -56,7 +56,7 @@ for iAgent in range(N_AGENTS):
 
 
 #%% METHOD: agent.attr[]
-print('################### Assignment method: "agent.attr[]" ###################')        
+print('############################ Assignment method: "agent.attr[]" ############################')        
 print('Assigning single integer', end=' ')    
 timeReq = list()
 for iTry in range(n_REPEAT):
@@ -114,7 +114,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 #print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
 #%% METHOD: agent[]
-#print('################### Assignment method: "agent[]" ###################')        
+#print('############################ Assignment method: "agent[]" ############################')        
 #print('Assigning single integer', end=' ')    
 #timeReq = list()
 #for iTry in range(n_REPEAT):
@@ -172,7 +172,7 @@ print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(ti
 #print('Average: {:3.4f} s STD: {:3.4f} s'.format(np.mean(timeReq[1:]), np.std(timeReq[1:])))
 
 #%% METHOD: agent.set
-#print('################### Assignment method: "agent.set()" ###################')        
+#print('############################ Assignment method: "agent.set()" ############################')        
 #print('Assigning single integer', end=' ')    
 #timeReq = list()
 #for iTry in range(n_REPEAT):
