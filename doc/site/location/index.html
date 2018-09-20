@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>abm4py.location - My Docs</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "abm4py.location";
+    var mkdocs_page_input_path = "location.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> My Docs</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../world/">abm4py.world</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../agent/">abm4py.agent</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../core/">abm4py.core</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../traits/">abm4pu.traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../future_traits/">abm4py.future_traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../graph/">abm4py.graph</a>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="./">abm4py.location</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l2"><a href="#package-abm4pylocation-documentation">Package abm4py.location Documentation</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l3" href="#class-agent">Class Agent</a></li>
+        
+            <li><a class="toctree-l3" href="#class-ghostlocation">Class GhostLocation</a></li>
+        
+            <li><a class="toctree-l3" href="#class-gridnode">Class GridNode</a></li>
+        
+            <li><a class="toctree-l3" href="#class-location">Class Location</a></li>
+        
+            <li><a class="toctree-l3" href="#class-parallel">Class Parallel</a></li>
+        
+        </ul>
+    
+
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../misc/">abm4py.misc</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../about/">About</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">My Docs</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>abm4py.location</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="package-abm4pylocation-documentation">Package abm4py.location Documentation</h1>
+<h2 id="class-agent">Class Agent</h2>
+<p>The most common agent type derives from the BaseAgent and additionally
+receives the abilty to move</p>
+<h3 id="9595init9595">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, nID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattroflink">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getlinkids">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None, ghost=False)
+
+</code></pre>
+
+<h3 id="remlink">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-ghostlocation">Class GhostLocation</h2>
+<p>The most common agent type derives from the BaseAgent and additionally
+receives the abilty to move</p>
+<h3 id="9595init9595_1">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, mpiOwner, nID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink_1">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget_1">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers_1">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete_1">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattroflink_1">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers_1">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getglobid">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="getlinkids_1">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids_1">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers_1">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register_1">register</h3>
+<pre><code class="py">
+def register(self, world, parent_Entity=None, liTypeID=None)
+
+</code></pre>
+
+<h3 id="registerchild">registerChild</h3>
+<pre><code class="py">
+def registerChild(self, world, entity, liTypeID=None)
+
+</code></pre>
+
+<h3 id="remlink_1">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks_1">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink_1">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost_1">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-gridnode">Class GridNode</h2>
+<p>This enhancement identifies the agent as part of a grid. Currently, it only
+registers itself in the location dictionary, found in the world
+(see world.grid.registerNode())</p>
+<h3 id="9595init9595_2">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, nID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="getattrofgridpeers">getAttrOfGridPeers</h3>
+<pre><code class="py">
+def getAttrOfGridPeers(self, attribute)
+
+</code></pre>
+
+<h3 id="getgridpeers">getGridPeers</h3>
+<pre><code class="py">
+def getGridPeers(self)
+
+</code></pre>
+
+<h3 id="register_2">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None, ghost=False)
+
+</code></pre>
+
+<h2 id="class-location">Class Location</h2>
+<p>This enhancement identifies the agent as part of a grid. Currently, it only
+registers itself in the location dictionary, found in the world
+(see world.grid.registerNode())</p>
+<h3 id="9595init9595_3">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink_2">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget_2">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers_2">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete_2">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattrofgridpeers_1">getAttrOfGridPeers</h3>
+<pre><code class="py">
+def getAttrOfGridPeers(self, attribute)
+
+</code></pre>
+
+<h3 id="getattroflink_2">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers_2">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getglobid_1">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="getgridpeers_1">getGridPeers</h3>
+<pre><code class="py">
+def getGridPeers(self)
+
+</code></pre>
+
+<h3 id="getlinkids_2">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids_2">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers_2">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register_3">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None, ghost=False)
+
+</code></pre>
+
+<h3 id="remlink_2">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks_2">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink_2">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost_2">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-parallel">Class Parallel</h2>
+<p>This agent traits adds the required methods and variables to agents
+for parallel execution of the code.
+This contains:</p>
+<h3 id="9595init9595_4">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, nID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="getglobid_2">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="registerchild_1">registerChild</h3>
+<pre><code class="py">
+def registerChild(self, world, entity, liTypeID)
+
+</code></pre>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../misc/" class="btn btn-neutral float-right" title="abm4py.misc">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../graph/" class="btn btn-neutral" title="abm4py.graph"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../graph/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../misc/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+
+</body>
+</html>
