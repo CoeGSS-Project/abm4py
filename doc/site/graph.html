@@ -8,7 +8,7 @@
   
   
   <link rel="shortcut icon" href="img/favicon.ico">
-  <title>abm4py.graph - My Docs</title>
+  <title>abm4py.graph - ABM4py Documentation</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="css/theme.css" type="text/css" />
@@ -36,7 +36,7 @@
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
-        <a href="index.html" class="icon icon-home"> My Docs</a>
+        <a href="index.html" class="icon icon-home"> ABM4py Documentation</a>
         <div role="search">
   <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
@@ -50,7 +50,7 @@
           
             <li class="toctree-l1">
 		
-    <a class="" href="index.html">Home</a>
+    <a class="" href="index.html">abm4py</a>
 	    </li>
           
             <li class="toctree-l1">
@@ -128,7 +128,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="index.html">My Docs</a>
+        <a href="index.html">ABM4py Documentation</a>
       </nav>
 
       
@@ -152,7 +152,8 @@
               
                 <h1 id="package-abm4pygraph-documentation">Package abm4py.graph Documentation</h1>
 <h2 id="class-abmgraph">Class ABMGraph</h2>
-<p>World._graph NP is a high-level API to contrl BaseGraph</p>
+<p>ABMGraph is a numpy based graph library ot handle a directed multi-graph
+with different storage layouts for edges.</p>
 <h3 id="9595init9595">__init__</h3>
 <pre><code class="py">
 def __init__(self, world, maxNodesPerType, maxEdgesPerType)
@@ -269,9 +270,9 @@ def getAdjMatrix(self, agTypeID)
 
 </code></pre>
 
-<h3 id="getattroflinksidx">getAttrOfLinksIdx</h3>
+<h3 id="getattrofedgesbydataid">getAttrOfEdgesByDataID</h3>
 <pre><code class="py">
-def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs)
+def getAttrOfEdgesByDataID(self, attribute, eTypeID, dataIDs)
 
 </code></pre>
 
@@ -654,9 +655,9 @@ def eCount(self, eTypeID=None)
 </code></pre>
 
 <p>Returns the number of edges of all or a specific node type</p>
-<h3 id="getattroflinksidx_1">getAttrOfLinksIdx</h3>
+<h3 id="getattrofedgesbydataid_1">getAttrOfEdgesByDataID</h3>
 <pre><code class="py">
-def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs)
+def getAttrOfEdgesByDataID(self, attribute, eTypeID, dataIDs)
 
 </code></pre>
 
