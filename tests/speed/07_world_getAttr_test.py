@@ -42,7 +42,7 @@ world = World(agentOutput=False,
           maxNodes=100000,
           maxLinks=50000)
 
-AGENT = world.registerAgentType(AgentClass=Agent,
+AGENT = world.addAgentType(AgentClass=Agent,
                                  staticProperties  = [('float2', np.float64, 1),
                                                       ('float2', np.float64, 1)],
                                  dynamicProperties = [('integer', np.int64, 1),

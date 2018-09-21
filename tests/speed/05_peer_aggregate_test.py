@@ -83,13 +83,13 @@ world = World(agentOutput=False,
 
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
-PATCH = world.registerAgentType(AgentClass=Patch,
+PATCH = world.addAgentType(AgentClass=Patch,
                                 agTypeStr='patch',
                                 staticProperties  = [('coord', np.int16, 2)],
                                 dynamicProperties = [('sumGrass', np.float64, 1)])
 
 
-GRASS = world.registerAgentType(AgentClass=Grass,
+GRASS = world.addAgentType(AgentClass=Grass,
                                 agTypeStr='Grass',
                                 staticProperties  = [('coord', np.int16, 2)],
                                 dynamicProperties = [('height', np.float64, 1)])

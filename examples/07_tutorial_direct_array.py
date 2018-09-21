@@ -50,7 +50,7 @@ world = World(simNo,
               nSteps=N_STEPS)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerAgentType(AgentClass=Agent,
+AGENT = world.addAgentType(AgentClass=Agent,
                                 # staticProperties = [('gID', np.int32, 1)],
                                 dynamicProperties = [('food', np.int32, 1),
                                                     ('karma', np.int32, 1),
@@ -77,7 +77,7 @@ for _ in range(N_AGENTS):
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures
-    world.registerAgent(agent)
+    world.addAgent(agent)
 
 
     

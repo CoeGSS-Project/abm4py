@@ -111,7 +111,7 @@ else:
     print('non-parallel mode')
     
 world.setParameter('extend', EXTEND)
-GRASS = world.registerAgentType(AgentClass=Grass, GhostAgentClass=GhostGrass)
+GRASS = world.addAgentType(AgentClass=Grass, GhostAgentClass=GhostGrass)
                                 
 ROOTS = world.registerLinkType('roots',GRASS, GRASS, staticProperties=[('weig',np.float32,1)])
 

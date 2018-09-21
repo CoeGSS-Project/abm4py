@@ -65,7 +65,7 @@ world = LIB.World(simNo,
               maxLinks=1e5,
               debug=DEBUG)
 
-AGENT = world.registerAgentType('agent' , AgentClass=LIB.Agent,
+AGENT = world.addAgentType('agent' , AgentClass=LIB.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),

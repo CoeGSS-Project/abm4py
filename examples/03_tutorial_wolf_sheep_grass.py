@@ -182,7 +182,7 @@ class Sheep(Agent, Mobile):
         # this produces a new sheep which is registered to the world
         # and the old sheep is back to initial weight.
         if self.attr['weight'] > W_SHEEP and len(self.loc.getPeerIDs(LINK_SHEEP))>0:
-            world.registerAgent(Sheep(world,
+            world.addAgent(Sheep(world,
                                       coord=self.attr['coord'],
                                       weight=1.0))
             self.attr['weight'] = 1.0
@@ -196,7 +196,7 @@ class Wolf(Agent, Mobile):
     def __init__(self, world, **kwAttr):
         Agent.__init__(self, world, **kwAttr)
         Mobile.__init__(self, world, **kwAttr)
-        world.registerAgent(self)
+        world.addAgent(self)
         self.loc = locDict[(x,y)]
         world.addLink(LINK_WOLF, self.loc.nID, self.nID)
 
@@ -269,7 +269,7 @@ class Wolf(Agent, Mobile):
             newWolf = Wolf(world,
                            coord=self.attr['coord'],
                            weight=2.5)
-            world.registerAgent(newWolf)
+            world.addAgent(newWolf)
             wolfPack.join('wolfs',newWolf)
             self.attr['weight'] = 2.5
         
@@ -320,7 +320,7 @@ class WolfPack(Agent, Collective):
         
         newPack = WolfPack(world,
                            center=self.attr['center'])
-        world.registerAgent(newPack)
+        world.addAgent(newPack)
         
         for wolf in self.iterGroup('wolfs'):
             if random.random() > .5:
@@ -348,13 +348,13 @@ world.setParameter('extend', EXTEND)
 
 
 #%% register a new agent type with four attributes
-GRASS = world.registerAgentType(Grass)
+GRASS = world.addAgentType(Grass)
 
-SHEEP = world.registerAgentType(Sheep)
+SHEEP = world.addAgentType(Sheep)
 
-WOLF = world.registerAgentType(Wolf)
+WOLF = world.addAgentType(Wolf)
 
-WOLFPACK = world.registerAgentType(WolfPack)
+WOLFPACK = world.addAgentType(WolfPack)
 
 
 #%% register a link type to connect agents
@@ -393,14 +393,14 @@ locDict = world.grid.getNodeDict()
 for iSheep in range(N_SHEEPS):
     (x,y) = np.random.randint(0,EXTEND,2)
     
-    world.registerAgent(Sheep(world,
+    world.addAgent(Sheep(world,
                               coord=(x,y),
                               weight=1.0))
     
 for iPack in range(N_PACKS):
     wolfPack = WolfPack(world,
                         center=(50,50))
-    world.registerAgent(wolfPack)
+    world.addAgent(wolfPack)
     
     for iWolf in range(int(N_WOLFS/N_PACKS)):
         (x,y) = wolfPack.attr['center'][0] + np.random.randint(-1,2,2)
@@ -408,7 +408,7 @@ for iPack in range(N_PACKS):
         wolf = Wolf(world,
                       coord=(x,y),
                       weight=1.0)
-        world.registerAgent(wolf)
+        world.addAgent(wolf)
         wolfPack.join('wolfs',wolf)
 
 wolfPack.computeCenter()        

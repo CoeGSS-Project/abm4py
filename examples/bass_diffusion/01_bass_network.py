@@ -92,7 +92,7 @@ world = World(simNo,
               agentOutput=True)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerAgentType(AgentClass=Person,
+AGENT = world.addAgentType(AgentClass=Person,
                                staticProperties  = [('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('inno', np.float16,1)],
@@ -142,7 +142,7 @@ for iAgent in range(N_AGENTS):
     
     # after the agent is created, it needs to register itself to the world
     # in order to get listed within the iterators and other predefined structures
-    world.registerAgent(agent)
+    world.addAgent(agent)
 
 world.io.initAgentFile(world, [AGENT])
 #%% creation of spatial proximity network

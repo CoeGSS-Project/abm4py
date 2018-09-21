@@ -42,7 +42,7 @@ import tools_for_01 as tools
 #%%
 world = World(agentOutput=False)
 #%% register a new agent type with four attributes
-HUMANS = world.registerAgentType(Agent, 
+HUMANS = world.addAgentType(Agent, 
                                  agTypeStr = 'human',
                                  staticProperties  = [('pos', np.int16, 2)],
                                  dynamicProperties = [('age', np.int16, 1),

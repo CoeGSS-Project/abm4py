@@ -36,7 +36,7 @@ world = World(agentOutput=False,
                   maxNodes=MAX_AGENTS,
                   maxLinks=20000)
 
-GRIDNODE = world.registerAgentType(Location)
+GRIDNODE = world.addAgentType(Location)
 
 LINK = world.registerLinkType('ink',GRIDNODE, GRIDNODE)
 

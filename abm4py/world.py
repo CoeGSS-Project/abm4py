@@ -29,8 +29,10 @@ import types
 
 class World:
     """
-    The world class is the center for controlling accessing and structuring the
+    The world class is the core interface for controling and structuring the
     ABM-simulation. 
+    It functions as user interface and contains all other components and sub-
+    classes.
     """
 
     def __init__(self,
@@ -175,18 +177,11 @@ class World:
         exec(compile(source, "", "exec"))
         setattr(self, name, types.MethodType(locals()[name], self))
 
-    def registerAgentType(self, AgentClass, GhostAgentClass=None , agTypeStr = None, staticProperties=None, dynamicProperties=None):
+    def addAgentType(self, AgentClass, GhostAgentClass=None , agTypeStr = None, staticProperties=None, dynamicProperties=None):
         """
-        This function registers a node type:
-        - Registers the properties of each agTypeID for other purposes, e.g. I/O
-        of these properties
-        - update of convertions dicts:
-            - class2NodeType
-            - agTypeID2Class
-        - creations of access dictionaries
-            - nodeDict
-            - ghostNodeDict
-        - enumerations
+        This function registers a node type and the defined properties of
+        each agTypeID for other purposes, e.g. I/O
+        
         """
         descDict = AgentClass.__descriptor__()
         
@@ -198,8 +193,6 @@ class World:
         if dynamicProperties is None:
             dynamicProperties = descDict['dynamicProperties']
 
-        #assert 'type' and 'gID' in staticProperties              ###OPTPRODUCTION
-        
         # adds and formats properties we need for the framework (like gID) automatically
         staticProperties = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
@@ -237,13 +230,9 @@ class World:
 
     def registerLinkType(self, agTypeStr,  agTypeID1, agTypeID2, staticProperties = [], dynamicProperties=[]):
         """
-        Method to register a edge type:
-        - Registers the properties of each liTypeID for other purposes, e.g. I/O
-        of these properties
-        - update of convertions dicts:
-            - node2EdgeType
-            - edge2NodeType
-        - update of enumerations
+        Method to register a edge type and to the related properties of each 
+        liTypeID for other purposes, e.g. I/O
+    
         """
         if ('source', np.int32, 1) not in staticProperties:
             staticProperties.append(('source', np.int32, 1))
@@ -252,8 +241,6 @@ class World:
                              
         staticProperties  = core.formatPropertyDefinition(staticProperties)
         dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
-        #assert 'type' in staticProperties # type is an required property             ###OPTPRODUCTION
-
         
         liTypeIDIdx = self._graph.addEdgeType( agTypeStr, 
                                                staticProperties, 
@@ -261,12 +248,12 @@ class World:
                                                agTypeID1, 
                                                agTypeID2)
         
-
         return  liTypeIDIdx
 
-    def registerAgent(self, agent, ghost=False): 
+
+    def addAgent(self, agent, ghost=False): 
         """
-        This function registers a new instances of an agent
+        This function registers a new instances of an agent to the simulation.
         """
         self.__allAgentDict[agent.ID] = agent
         
@@ -287,14 +274,9 @@ class World:
 
 
             
-    def deRegisterAgent(self, agent, ghost):
+    def removeAgent(self, agent, ghost):
         """
-        Method to remove instances of agents
-        -> update of:
-            - entList
-            - endDict
-            - __glob2loc
-            - _loc2glob
+        Method to remove instances of agents from the environment
         """
         
         del self.__allAgentDict[agent.ID]

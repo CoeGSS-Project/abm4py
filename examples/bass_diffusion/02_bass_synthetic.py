@@ -109,7 +109,7 @@ world = World(simNo,
 
 
 # register the first AGENT typ and save the numeric type ID as constant
-CELL = world.registerAgentType(AgentClass=Location,
+CELL = world.addAgentType(AgentClass=Location,
                               staticProperties  = [('gID', np.int32,1),
                                                     ('coord', np.float32, 2),
                                                     ('imit', np.float16, 1),
@@ -117,7 +117,7 @@ CELL = world.registerAgentType(AgentClass=Location,
                               dynamicProperties = [('fraction', np.int16, 1)])
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.registerAgentType(AgentClass=Person,
+AGENT = world.addAgentType(AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.float32, 2),
                                                     ('age',  np.int16, 1),
