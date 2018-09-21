@@ -30,5 +30,5 @@ from . import misc
 from . import traits
 from . import future_traits
 
-__version__ = core.__version__
+__version__ = "0.7.1"
     

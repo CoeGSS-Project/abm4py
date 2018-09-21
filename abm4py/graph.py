@@ -52,7 +52,9 @@ class TypeDescription():
         
     
 class NodeArray(np.ndarray):
-    
+    """
+    Node array derived from numpy ndarray
+    """
     def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
           strides=None, order=None, startID = 0, nodeList=None):
 
@@ -84,7 +86,8 @@ class EdgeArray(np.ndarray):
     """    
     def __new__(subtype, maxEdges, eTypeID, dtype=float, buffer=None, offset=0,
           strides=None, order=None, startID = 0, edgeList=None, eDict=None,
-          edgesOut=None, edgesIn=None, nodesOut=None, nodesIn=None):
+          edgesOut=None, edgesIn=None, nodesOut=None, nodesIn=None,
+          freeRows=None):
 
         # It also triggers a call to InfoArray.__array_finalize__
         obj = np.ndarray.__new__(subtype, maxEdges, dtype, buffer, offset, strides,
@@ -98,7 +101,11 @@ class EdgeArray(np.ndarray):
         else:
             obj.edgeList   = edgeList
             
-        obj.freeRows       = []
+        if freeRows is None:
+            obj.freeRows   = list()
+        else:
+            obj.freeRows   = freeRows
+            
         if eDict is None:
             obj.eDict          = dict()
         else:
@@ -143,18 +150,14 @@ class EdgeArray(np.ndarray):
               
 
 class BaseGraph():
-    """
-    Graph class that is used to store data and connections of the ABM model
-    """   
-        
-    def __init__(self, maxNodesPerType, maxEdgesPerType):
         """
         This class provides the basic functions to contruct a directed._graph
         with different node and edge types. 
-        The max number of edges and nodes
-        cannot be exceeded during execution, since it is used for pre-assigning
-        storage space.
-        """
+        The max number of edges and nodesis extended dynamically.
+        """ 
+        
+    def __init__(self, maxNodesPerType, maxEdgesPerType):
+
         
         self.INIT_SIZE      = 100
         
@@ -471,7 +474,9 @@ class BaseGraph():
             tmp = EdgeArray(int(currentSize*factor), eTypeID, dtype=dt, 
                             startID = currentSize+1, edgeList=edges.edgeList, eDict = edges.eDict,
                             edgesOut= edges.edgesOut, edgesIn= edges.edgesIn,
-                            nodesOut= edges.nodesOut, nodesIn= edges.nodesIn)
+                            nodesOut= edges.nodesOut, nodesIn= edges.nodesIn,
+                            freeRows=edges.freeRows)
+            
             tmp['active'] = False
             tmp[:currentSize] = self.edges[eTypeID]
             self.edges[eTypeID] = tmp
@@ -734,7 +739,7 @@ class BaseGraph():
         
         self.edges[eTypeID][attribute][dataID] = value
 
-    def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs):
+    def getAttrOfEdgesByDataID(self, attribute, eTypeID, dataIDs):
         if attribute:
             return self.edges[eTypeID][attribute][dataIDs]
         else:
@@ -871,7 +876,8 @@ class BaseGraph():
         
 class ABMGraph(BaseGraph):
     """
-    World._graph NP is a high-level API to contrl BaseGraph
+    ABMGraph is a numpy based graph library ot handle a directed multi-graph
+    with different storage layouts for edges.
     
     """    
 

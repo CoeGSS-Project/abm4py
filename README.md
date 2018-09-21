@@ -2,7 +2,7 @@
 
 Agent-based modeling framework for python
 
-0.7.0 stable version
+0.7.1 stable version
 
 ## Getting Started
 

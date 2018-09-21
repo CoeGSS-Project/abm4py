@@ -21,7 +21,6 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
 #%% INIT
-__version__ = "0.7.0"
 
 import os
 import numpy as np
@@ -1352,7 +1351,7 @@ class IO():
                 #check if first property of first entity is string
                 try:
                      
-                    entProp = self._graph.getAttrOfLinksIdx(attribute=attr, eTypeID=liTypeID, dataIDs=staticRec.ag2FileIdx[0])
+                    entProp = self._graph.getAttrOfEdgesByDataID(attribute=attr, eTypeID=liTypeID, dataIDs=staticRec.ag2FileIdx[0])
                 except ValueError:
 
                     raise BaseException
@@ -1385,7 +1384,7 @@ class IO():
 
             for attr, nProp in zip(attributes, sizes):
                 #check if first property of first entity is string
-                entProp = self._graph.getAttrOfLinksIdx(attr, 
+                entProp = self._graph.getAttrOfEdgesByDataID(attr, 
                                                      eTypeID=liTypeID,
                                                      dataIDs=staticRec.ag2FileIdx[0])
                 if not isinstance(entProp,str):
