@@ -469,7 +469,7 @@ class Grid():
                 if gridMask[x,y] and (not(self.world.isParallel) or (mpiRankArray[x,y] == self.world.mpiRank)):
                     
                     loc = LocClassObject(self.world, coord = [x, y])
-                    IDArray[x,y] = loc.nID
+                    IDArray[x,y] = loc.ID
                     loc.register(self.world)
 
         if self.world.isParallel:
@@ -489,8 +489,8 @@ class Grid():
                         if np.isnan(IDArray[xDst,yDst]) and gridMask[xDst,yDst] and mpiRankArray[xDst,yDst] != mpiRank:  # location lives on another process
                             
                             loc = GhstLocClassObject(self.world, mpiOwner=mpiRankArray[xDst,yDst], coord= (xDst, yDst))
-                            #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.nID)
-                            IDArray[xDst,yDst] = loc.nID
+                            #print 'rank: ' +  str(mpiRank) + ' '  + str(loc.ID)
+                            IDArray[xDst,yDst] = loc.ID
                             
                             #self.world.registerAgent(loc, ghost=True) #so far ghost nodes are not in entDict, nodeDict, entList
                             loc.register(self.world)
@@ -515,7 +515,7 @@ class Grid():
         
         for (x,y), loc in list(self.gridNodeDict.items()):
 
-            srcID = loc.nID
+            srcID = loc.ID
             
             weigList = list()
             destList = list()
@@ -560,9 +560,9 @@ class Grid():
             lg.debug('finished initAgentCommunication')###OPTPRODUCTION
             
     def getNodeID(self, x,y):
-        #get nID of the location
-        nID = self.gridNodeDict[x,y].nID
-        return self.world.getAgent(agentID=nID)
+        #get ID of the location
+        ID = self.gridNodeDict[x,y].ID
+        return self.world.getAgent(agentID=ID)
     
     def getNodeDict(self):
         return self.gridNodeDict
@@ -586,9 +586,9 @@ class Grid():
             isInit=False
 
         if currentContacts is None:
-            currentContacts = [agent.nID]
+            currentContacts = [agent.ID]
         else:
-            currentContacts.append(agent.nID)
+            currentContacts.append(agent.ID)
 
         cellConnWeights, cellIds = agent.loc.getConnectedLocation()
         personIdsAll = list()
@@ -603,7 +603,7 @@ class Grid():
 
         # return nothing if too few candidates
         if not isInit and nPers > nContacts:
-            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')
+            lg.info('ID: ' + str(agent.ID) + ' failed to generate friend')
             return [],[],[]
 
         #setup of spatial weights
@@ -619,11 +619,11 @@ class Grid():
         weightData /= np.sum(weightData,axis=0)
 
         if np.sum(weightData>0) < nContacts:
-            lg.info( "nID: " + str(agent.nID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
+            lg.info( "nID: " + str(agent.ID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
             nContacts = min(np.sum(weightData>0)-1,nContacts)
 
         if nContacts < 1:                                                       ###OPTPRODUCTION
-            lg.info('ID: ' + str(agent.nID) + ' failed to generate friend')      ###OPTPRODUCTION
+            lg.info('ID: ' + str(agent.ID) + ' failed to generate friend')      ###OPTPRODUCTION
             contactList = list()
             sourceList  = list()
             targetList   = list()
@@ -632,13 +632,13 @@ class Grid():
             ids = np.random.choice(weightData.shape[0], nContacts, replace=False, p=weightData)
             contactList = [personIdsAll[idx] for idx in ids ]
             targetList  = [personIdsAll[idx] for idx in ids]
-            sourceList  = [agent.nID] * nContacts
+            sourceList  = [agent.ID] * nContacts
         
         if isInit and addYourself:
             #add yourself as a friend
-            contactList.append(agent.nID)
-            sourceList.append(agent.nID)
-            targetList.append(agent.nID)
+            contactList.append(agent.ID)
+            sourceList.append(agent.ID)
+            targetList.append(agent.ID)
             nContacts +=1
 
         weigList   = [1./nContacts]*nContacts
@@ -1632,7 +1632,7 @@ class PAPI():
                 self.mpiRecvIDList[(agTypeID, owner)] = list()
 
             mpiRequest[owner][0].append( (x,y) ) # send x,y-pairs for identification
-            self.mpiRecvIDList[(agTypeID, owner)].append(ghLoc.nID)
+            self.mpiRecvIDList[(agTypeID, owner)].append(ghLoc.ID)
         lg.debug('rank ' + str(self.rank) + ' mpiRecvIDList: ' + str(self.mpiRecvIDList))###OPTPRODUCTION
 
         for mpiDest in list(mpiRequest.keys()):
@@ -1748,11 +1748,11 @@ class PAPI():
                 gIDsParents = dataPackage['connectedNodes']
 
                 # creating entities with parentEntities from connList (last part of data package: dataPackage[-1])
-                for nID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiPeer)], gIDsParents):
+                for ID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiPeer)], gIDsParents):
 
                     GhostAgentClass = world._graph.agTypeID2Class(agTypeID)[1]
 
-                    agent = GhostAgentClass(world, mpiPeer, nID=nID)
+                    agent = GhostAgentClass(world, mpiPeer, ID=ID)
 
                     parentEntity = world.getAgent(world.glob2Loc(gID))
                     liTypeID = world._graph.node2EdgeType[parentEntity.agTypeID, agTypeID]
@@ -1816,7 +1816,7 @@ class PAPI():
             self.ghostNodeQueue[agTypeID, mpiPeer]['nIds'] = list()
             self.ghostNodeQueue[agTypeID, mpiPeer]['conn'] = list()
 
-        self.ghostNodeQueue[agTypeID, mpiPeer]['nIds'].append(entity.nID)
+        self.ghostNodeQueue[agTypeID, mpiPeer]['nIds'].append(entity.ID)
         self.ghostNodeQueue[agTypeID, mpiPeer]['conn'].append(parentEntity.gID)
 
 

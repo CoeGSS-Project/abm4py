@@ -48,12 +48,13 @@ class TypeDescription():
         self.typeIdx = agTypeIDIdx
         self.typeStr = typeStr
         
-
+    
+        
     
 class NodeArray(np.ndarray):
     
     def __new__(subtype, maxNodes, nTypeID, dtype=float, buffer=None, offset=0,
-          strides=None, order=None, startID = 0, nodeList=[]):
+          strides=None, order=None, startID = 0, nodeList=None):
 
         
         obj = np.ndarray.__new__(subtype, maxNodes, dtype, buffer, offset, strides,
@@ -61,7 +62,10 @@ class NodeArray(np.ndarray):
         obj.maxNodes       = maxNodes
         obj.nType          = nTypeID
         obj.getNewID       = itertools.count(startID).__next__
-        obj.nodeList       = nodeList
+        if nodeList is None:
+            obj.nodeList   = list()
+        else:
+            obj.nodeList   = nodeList
         obj.freeRows       = []
         return obj
 
@@ -79,7 +83,7 @@ class EdgeArray(np.ndarray):
     Data structure for edges and related informations based on a numpy array
     """    
     def __new__(subtype, maxEdges, eTypeID, dtype=float, buffer=None, offset=0,
-          strides=None, order=None, startID = 0, edgeList=[], eDict=None,
+          strides=None, order=None, startID = 0, edgeList=None, eDict=None,
           edgesOut=None, edgesIn=None, nodesOut=None, nodesIn=None):
 
         # It also triggers a call to InfoArray.__array_finalize__
@@ -88,7 +92,12 @@ class EdgeArray(np.ndarray):
         obj.maxEdges       = maxEdges
         obj.eTypeID        = eTypeID
         obj.getNewID       = itertools.count(startID).__next__
-        obj.edgeList       = edgeList
+
+        if edgeList is None:
+            obj.edgeList   = list()
+        else:
+            obj.edgeList   = edgeList
+            
         obj.freeRows       = []
         if eDict is None:
             obj.eDict          = dict()

@@ -28,9 +28,9 @@ class Agent(_Entity):
     The most common agent type derives from the BaseAgent and additionally
     receives the abilty to move
     """
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         self.__getNode = world.getAgent
-        _Entity.__init__(self, world, nID, **kwProperties)
+        _Entity.__init__(self, world, ID, **kwProperties)
 
     def __descriptor__():
         """
@@ -54,14 +54,14 @@ class Agent(_Entity):
     
     
     def countPeers(self, liTypeID):
-        return self._graph.countOutgoing(self.nID, liTypeID)
+        return self._graph.countOutgoing(self.ID, liTypeID)
         
     def getPeers(self, liTypeID):
         """
         This function returns all agents that are connected to the agents with 
         the specified link type
         """
-        return self._graph.getOutNodeValues(self.nID, liTypeID, attr='instance')
+        return self._graph.getOutNodeValues(self.ID, liTypeID, attr='instance')
     
     def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out'):
         """
@@ -77,9 +77,9 @@ class Agent(_Entity):
         
         
         if mode=='out':            
-            peerIDs  = self._graph.outgoingIDs(self.nID, liTypeID)
+            peerIDs  = self._graph.outgoingIDs(self.ID, liTypeID)
         elif mode == 'in':
-            peerIDs  = self._graph.incommingIDs(self.nID, liTypeID)
+            peerIDs  = self._graph.incommingIDs(self.ID, liTypeID)
         
         return peerIDs
 
@@ -88,7 +88,7 @@ class Agent(_Entity):
         This function changes returns the linkID of all outgoing links of a 
         specified type
         """
-        eList, _  = self._graph.outgoing(self.nID, liTypeID)
+        eList, _  = self._graph.outgoing(self.ID, liTypeID)
         return eList
     
         
@@ -97,23 +97,23 @@ class Agent(_Entity):
         This function returns the attributes of all connected nodes connected 
         by a specfic edge type.
         """
-        return self._graph.getOutNodeValues(self.nID, liTypeID, attr=attribute)
+        return self._graph.getOutNodeValues(self.ID, liTypeID, attr=attribute)
 
 
     def getAttrOfLink(self, attribute, liTypeID):
         """
         This function accesses the values of outgoing links
         """
-        return self._graph.getOutEdgeValues(self.nID, liTypeID, attribute)
+        return self._graph.getOutEdgeValues(self.ID, liTypeID, attribute)
         
     def setAttrOfLink(self, attribute, values, liTypeID):
         """
         This function changes the attributes of outgoing links
         """
-        self._graph.setOutEdgeValues(self.nID, liTypeID, attribute, values)
+        self._graph.setOutEdgeValues(self.ID, liTypeID, attribute, values)
         
     def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID):
-        self._graph._changeTargetOfEdge(liTypeID, self.nID, oldPeerID, newPeerID)
+        self._graph._changeTargetOfEdge(liTypeID, self.ID, oldPeerID, newPeerID)
         
     
     def addLink(self, peerID, liTypeID, **kwpropDict):
@@ -121,26 +121,26 @@ class Agent(_Entity):
         This function creates a new connection to another agent. Attributes of the connection must be 
         provided in the correct order and structure
         """
-        self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.ID, peerID, attributes = tuple(kwpropDict.values()))
 
     def remLink(self, peerID, liTypeID):
         """
         This function removes a link to another agent.
         """
-        self._graph.remEdge(sourceID=self.nID, targetID=peerID, eTypeID=liTypeID)
+        self._graph.remEdge(sourceID=self.ID, targetID=peerID, eTypeID=liTypeID)
 
     def remLinks(self, peerIDs, liTypeID):
         """
         This function removs mutiple links to other agents.
         """        
-        [self._graph.remEdge(sourceID=self.nID, targetID=peerID, eTypeID=liTypeID) for peerID in peerIDs]
+        [self._graph.remEdge(sourceID=self.ID, targetID=peerID, eTypeID=liTypeID) for peerID in peerIDs]
                 
 
     def toGhost(self, world):
         """
         This functions converts an agent into a ghost agent
         """
-        ghost = GhostAgent(world, self.mpiOwner, self.nID)
+        ghost = GhostAgent(world, self.mpiOwner, self.ID)
         world.agent2Ghost()
         return ghost
 
@@ -150,9 +150,9 @@ class GhostAgent(_Entity, Parallel):
     agents, but passive copies of the real agents. Thus they do not have 
     the methods to act themselves.
     """
-    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
+    def __init__(self, world, mpiOwner, ID=None, **kwProperties):
         
-        _Entity.__init__(self, world, nID, **kwProperties)
+        _Entity.__init__(self, world, ID, **kwProperties)
         self.mpiOwner = int(mpiOwner)       
         self.gID = self.attr['gID']
         
@@ -166,14 +166,14 @@ class GhostAgent(_Entity, Parallel):
         return None # global ID need to be acquired via MPI communication
 
     def registerChild(self, world, entity, liTypeID):
-        world.addLink(liTypeID, self.nID, entity.nID)
+        world.addLink(liTypeID, self.ID, entity.ID)
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""
-        world._graph.remNode(self.nID)
+        world._graph.remNode(self.ID)
         world.deRegisterAgent(self, ghost=True)
 
     def toAgent(self, world):
-        ghost = Agent(world, self.nID)
+        ghost = Agent(world, self.ID)
         world.ghost2Agent()
         return ghost

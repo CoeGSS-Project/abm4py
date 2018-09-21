@@ -25,7 +25,7 @@ class GridNode():
     This enhancement allows agents to iterate over neigboring instances and thus
     funtion as collectives of agents. 
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, ID = -1, **kwProperties):
         self.__getAgent = world.getAgent
         self.Neighborhood = dict()
         #self.register = GridNode.register
@@ -53,7 +53,7 @@ class Collective():
     funtion as collectives of agents. Examples could be a pack of wolf or 
     an household of persons.
     """
-    def __init__(self, world, nID = -1, **kwProperties):
+    def __init__(self, world, ID = -1, **kwProperties):
         self.__getAgent = world.getAgent
         self.groups = dict()
         
@@ -92,7 +92,7 @@ class Aggregator():
     
     """
     
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         self.aggegationDict = dict()
         self.__getAgent = world.getAgent
     
@@ -101,7 +101,7 @@ class Aggregator():
         This method adds a new connection to another node. Properties must be 
         provided in the correct order and structure, bt also 
         """
-        self._graph.addEdge(liTypeID, self.nID, peerID, attributes = tuple(kwpropDict.values()))
+        self._graph.addEdge(liTypeID, self.ID, peerID, attributes = tuple(kwpropDict.values()))
         try:
             self.aggegationDict[liTypeID].append(self.__getAgent(peerID).attr)
         except:
@@ -111,6 +111,6 @@ class Aggregator():
         """
         This method removes a link to another agent.
         """
-        self._graph.remEdge(source=self.nID, target=peerID, eTypeID=liTypeID)
+        self._graph.remEdge(source=self.ID, target=peerID, eTypeID=liTypeID)
         self.aggegationDict[liTypeID].remove(self.__getAgent(peerID).attr)
         

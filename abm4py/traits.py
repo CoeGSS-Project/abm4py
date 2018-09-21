@@ -26,7 +26,7 @@ class Parallel():
     for parallel execution of the code.
     This contains:
     """
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         
         # adding properties to the attributes
         if world.isParallel:
@@ -48,11 +48,11 @@ class Parallel():
         """
         # why is register child also adding a link?
         if liTypeID is not None:
-            world.addLink(liTypeID, self.nID, entity.nID)
+            world.addLink(liTypeID, self.ID, entity.ID)
 
         if len(self.mpiGhostRanks) > 0: # node has ghosts on other processes
             for mpiPeer in self.mpiGhostRanks:
-                #print 'adding node ' + str(entity.nID) + ' as ghost'
+                #print 'adding node ' + str(entity.ID) + ' as ghost'
                 agTypeID = world._graph.class2NodeType(entity.__class__)
                 world.papi.queueSendGhostAgent( mpiPeer, agTypeID, entity, self)
 
@@ -65,7 +65,7 @@ class GridNode():
     registers itself in the location dictionary, found in the world
     (see world.grid.registerNode())
     """
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         self.__getAgent = world.getAgent
         
         
@@ -91,7 +91,7 @@ class Mobile():
     this does not work in the parallel version
     """
  
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         """ assert that position is declared as an agent's attribute, since 
          moving relates to the 'coord' attribute """
         #TODO can be made more general"
@@ -108,15 +108,15 @@ class Mobile():
         # remove old link
         assert (newX, newY) in self.locDict.keys()
         self.attr['coord'] = [ newX, newY]
-        #self.loc.remLink(self.nID, liTypeID=spatialLinkTypeID)
+        #self.loc.remLink(self.ID, liTypeID=spatialLinkTypeID)
         
-        oldLocID = self.loc.nID
+        oldLocID = self.loc.ID
         self.loc = self.locDict[(newX, newY)]      
-        newLocID = self.loc.nID
-        self._graph._changeSourceOfEdge(eTypeID=spatialLinkTypeID, targetID=self.nID, oldSourceID=oldLocID, newSourceID=newLocID)
+        newLocID = self.loc.ID
+        self._graph._changeSourceOfEdge(eTypeID=spatialLinkTypeID, targetID=self.ID, oldSourceID=oldLocID, newSourceID=newLocID)
         # add new link and location
         #self.loc = self.locDict[(newX, newY)]      
-        #self.loc.addLink(self.nID, liTypeID=spatialLinkTypeID)
+        #self.loc.addLink(self.ID, liTypeID=spatialLinkTypeID)
 
     @classmethod
     def _setLocationDict(cls, locDict):
@@ -130,7 +130,7 @@ class SuperPowers():
     Use carefully and not in parallel mode.
     """
     
-    def __init__(self, world, nID = None, **kwProperties):
+    def __init__(self, world, ID = None, **kwProperties):
         # check that the framework is not parallelized since the writing of 
         # attributes from other agents violates the consistency of parallel
         # execution
@@ -141,7 +141,7 @@ class SuperPowers():
         Set the attributes of all connected nodes of an specified agTypeID
         or connected by a specfic edge type
         """
-        self._graph.setOutNodeValues(self.nID, liTypeID, prop, values)    
+        self._graph.setOutNodeValues(self.ID, liTypeID, prop, values)    
 
 
         

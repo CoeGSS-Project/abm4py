@@ -38,7 +38,7 @@ class World:
                  outPath='.',
                  nSteps=1,
                  maxNodes=1e6,
-                 maxLinks=1e5,
+                 maxLinks=1e6,
                  debug=False,
                  agentOutput=False,
                  linkOutput=False):
@@ -268,19 +268,19 @@ class World:
         """
         This function registers a new instances of an agent
         """
-        self.__allAgentDict[agent.nID] = agent
+        self.__allAgentDict[agent.ID] = agent
         
         if self.isParallel:
-            self.__glob2loc[agent.gID] = agent.nID
-            self.__loc2glob[agent.nID] = agent.gID
+            self.__glob2loc[agent.gID] = agent.ID
+            self.__loc2glob[agent.ID] = agent.gID
 
         if ghost:
-            self.__ghostIDsByType[agent.agTypeID].append(agent.nID)
+            self.__ghostIDsByType[agent.agTypeID].append(agent.ID)
             self.__ghostDataIDsByType[agent.agTypeID].append(agent.dataID)
             self.__ghostsByType[agent.agTypeID].append(agent)
             self.__nGhostsByType[agent.agTypeID] +=1
         else:
-            self.__agentIDsByType[agent.agTypeID].append(agent.nID)
+            self.__agentIDsByType[agent.agTypeID].append(agent.ID)
             self.__agendDataIDsList[agent.agTypeID].append(agent.dataID)
             self.__agentsByType[agent.agTypeID].append(agent)
             self.__nAgentsByType[agent.agTypeID] +=1
@@ -297,18 +297,18 @@ class World:
             - _loc2glob
         """
         
-        del self.__allAgentDict[agent.nID]
+        del self.__allAgentDict[agent.ID]
         if self.isParallel:
             del self.__glob2loc[agent.gID]
-            del self.__loc2glob[agent.nID]
+            del self.__loc2glob[agent.ID]
         agTypeID =  self._graph.class2NodeType(agent.__class__)
         self.__agentsByType[agTypeID].remove(agent)
         if ghost:
-            self.__ghostIDsByType[agTypeID].remove(agent.nID)
+            self.__ghostIDsByType[agTypeID].remove(agent.ID)
             self.__ghostDataIDsByType[agTypeID].remove(agent.dataID)
             self.__nGhostsByType[agTypeID] -=1
         else:
-            self.__agentIDsByType[agTypeID].remove(agent.nID)
+            self.__agentIDsByType[agTypeID].remove(agent.ID)
             self.__agendDataIDsList[agTypeID].remove(agent.dataID)
             self.__nAgentsByType[agTypeID] -=1
             #print(self.__agentIDsByType[agTypeID])
@@ -391,7 +391,13 @@ class World:
     def saveEnumerations(self, fileName= 'enumerations'):
         # saving enumerations
         misc.saveObj(self.__enums, self.para['outPath'] + '/' + fileName)
+        
+    def agentTypesIDs(self):
+        return list(self._graph.agTypeByID.keys())
 
+    def linkTypesIDs(self):
+        return list(self._graph.liTypeByID.keys())
+                
 #%% Agent access 
     def getAgent(self, agentID):
         """

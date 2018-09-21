@@ -28,14 +28,14 @@ class Location(GridNode, Agent):
 
 
     def __init__(self, world, **kwProperties):
-        if 'nID' not in list(kwProperties.keys()):
-            nID = None
+        if 'ID' not in list(kwProperties.keys()):
+            ID = None
         else:
-            nID = kwProperties['nID']
+            ID = kwProperties['ID']
 
 
-        Agent.__init__(self, world, nID, **kwProperties)
-        GridNode.__init__(self, world, nID, **kwProperties)
+        Agent.__init__(self, world, ID, **kwProperties)
+        GridNode.__init__(self, world, ID, **kwProperties)
 
     def __descriptor__():
         """
@@ -65,9 +65,9 @@ class GhostLocation(Agent, Parallel):
     
 
    
-    def __init__(self, world, mpiOwner, nID=None, **kwProperties):
+    def __init__(self, world, mpiOwner, ID=None, **kwProperties):
         
-        Agent.__init__(self, world, nID, **kwProperties)
+        Agent.__init__(self, world, ID, **kwProperties)
         
         self.mpiOwner = int(mpiOwner)       
         self.gID = self.attr['gID']
@@ -80,11 +80,11 @@ class GhostLocation(Agent, Parallel):
         Agent.register(self, world, parent_Entity, liTypeID, ghost= True)
 
     def registerChild(self, world, entity, liTypeID=None):
-        world.addLink(liTypeID, self.nID, entity.nID)
+        world.addLink(liTypeID, self.ID, entity.ID)
         
         #entity.loc = self
         
     def delete(self, world):
         """ method to delete the agent from the simulation"""
-        world._graph.remNode(self.nID)
+        world._graph.remNode(self.ID)
         world.deRegisterAgent(self, ghost=True)        
