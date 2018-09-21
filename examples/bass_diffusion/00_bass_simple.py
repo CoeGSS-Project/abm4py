@@ -52,7 +52,7 @@ RED  = [1,0,0,1]
 world = lib.World(agentOutput=False)
 
 # register the first AGID typ and save the numeric type ID as constant
-AGID = world.addAgentType(AgentClass=lib.Agent,
+AGID = world.registerAgentType(AgentClass=lib.Agent,
                                staticProperties  = [('gID', np.int32,1),
                                                     ('pos', np.int16, 2)],
                                dynamicProperties = [('switch', np.int16, 1),

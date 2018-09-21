@@ -92,7 +92,7 @@ world = World(simNo,
               agentOutput=True)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.addAgentType(AgentClass=Person,
+AGENT = world.registerAgentType(AgentClass=Person,
                                staticProperties  = [('pos', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('inno', np.float16,1)],

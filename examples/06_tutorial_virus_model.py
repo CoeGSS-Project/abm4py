@@ -173,11 +173,11 @@ world = World(agentOutput=False,
 world.setParameter('extend', EXTEND)
 #%% register a new agent type with four attributes
 
-PATCH = world.addAgentType(Location,
+PATCH = world.registerAgentType(Location,
                                staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [])
 
-PEOPLE = world.addAgentType(People)
+PEOPLE = world.registerAgentType(People)
                     
 
 

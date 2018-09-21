@@ -49,7 +49,7 @@ world = World(agentOutput=False,
 #%% register a new agent type with four attributes
 nodeMap = np.zeros([EXTEND, EXTEND]) +1
 
-NEIG = world.addAgentType(AgentClass=Neighbor, agTypeStr='neigborhood',
+NEIG = world.registerAgentType(AgentClass=Neighbor, agTypeStr='neigborhood',
                                staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [('property', np.float32, 1)])
 

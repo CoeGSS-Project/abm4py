@@ -50,7 +50,7 @@ world = World(simNo,
               nSteps=N_STEPS)
 
 # register the first AGENT typ and save the numeric type ID as constant
-AGENT = world.addAgentType(AgentClass=Agent,
+AGENT = world.registerAgentType(AgentClass=Agent,
                                 # staticProperties = [('gID', np.int32, 1)],
                                 dynamicProperties = [('food', np.int32, 1),
                                                     ('karma', np.int32, 1),

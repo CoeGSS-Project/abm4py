@@ -177,7 +177,7 @@ class World:
         exec(compile(source, "", "exec"))
         setattr(self, name, types.MethodType(locals()[name], self))
 
-    def addAgentType(self, AgentClass, GhostAgentClass=None , agTypeStr = None, staticProperties=None, dynamicProperties=None):
+    def registerAgentType(self, AgentClass, GhostAgentClass=None , agTypeStr = None, staticProperties=None, dynamicProperties=None):
         """
         This function registers a node type and the defined properties of
         each agTypeID for other purposes, e.g. I/O

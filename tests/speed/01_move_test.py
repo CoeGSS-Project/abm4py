@@ -75,14 +75,14 @@ world = World(agentOutput=False,
 #%% register a new agent type with four attributes
 nodeMap = np.zeros([EXTEND, EXTEND]) +1
 
-LOC = world.addAgentType(AgentClass=Location,
+LOC = world.registerAgentType(AgentClass=Location,
                                staticProperties  = [('coord', np.int16, 2)],
                                dynamicProperties = [('property', np.float32, 1)])
 
 LINK = world.registerLinkType('link',LOC, LOC, dynamicProperties = [('weig', np.float32, 1)])
 
 
-WKR = world.addAgentType(AgentClass=Walker,
+WKR = world.registerAgentType(AgentClass=Walker,
                                dynamicProperties =  [('coord', np.int16, 2)])
 
 ANCHOR  = world.registerLinkType('link',LOC, WKR)

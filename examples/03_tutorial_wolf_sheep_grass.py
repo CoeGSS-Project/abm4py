@@ -348,13 +348,13 @@ world.setParameter('extend', EXTEND)
 
 
 #%% register a new agent type with four attributes
-GRASS = world.addAgentType(Grass)
+GRASS = world.registerAgentType(Grass)
 
-SHEEP = world.addAgentType(Sheep)
+SHEEP = world.registerAgentType(Sheep)
 
-WOLF = world.addAgentType(Wolf)
+WOLF = world.registerAgentType(Wolf)
 
-WOLFPACK = world.addAgentType(WolfPack)
+WOLFPACK = world.registerAgentType(WolfPack)
 
 
 #%% register a link type to connect agents
