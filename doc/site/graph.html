@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <title>abm4py.graph - My Docs</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "abm4py.graph";
+    var mkdocs_page_input_path = "graph.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="js/jquery-2.1.1.min.js" defer></script>
+  <script src="js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="icon icon-home"> My Docs</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="index.html">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="world.html">abm4py.world</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="agent.html">abm4py.agent</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="core.html">abm4py.core</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="traits.html">abm4pu.traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="future_traits.html">abm4py.future_traits</a>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="graph.html">abm4py.graph</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l2"><a href="#package-abm4pygraph-documentation">Package abm4py.graph Documentation</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l3" href="#class-abmgraph">Class ABMGraph</a></li>
+        
+            <li><a class="toctree-l3" href="#class-basegraph">Class BaseGraph</a></li>
+        
+            <li><a class="toctree-l3" href="#class-edgearray">Class EdgeArray</a></li>
+        
+            <li><a class="toctree-l3" href="#class-nodearray">Class NodeArray</a></li>
+        
+            <li><a class="toctree-l3" href="#class-typedescription">Class TypeDescription</a></li>
+        
+        </ul>
+    
+
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="location.html">abm4py.location</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="misc.html">abm4py.misc</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="about.html">About</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">My Docs</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>abm4py.graph</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="package-abm4pygraph-documentation">Package abm4py.graph Documentation</h1>
+<h2 id="class-abmgraph">Class ABMGraph</h2>
+<p>World._graph NP is a high-level API to contrl BaseGraph</p>
+<h3 id="9595init9595">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, maxNodesPerType, maxEdgesPerType)
+
+</code></pre>
+
+<p>This class provides the basic functions to contruct a directed._graph
+with different node and edge types. 
+The max number of edges and nodes
+cannot be exceeded during execution, since it is used for pre-assigning
+storage space.</p>
+<h3 id="addedge">addEdge</h3>
+<pre><code class="py">
+def addEdge(self, eTypeID, sourceID, targetID, attributes=None)
+
+</code></pre>
+
+<p>Adding a new connecting edge between source and target of
+the specified type
+Attributes can be given optionally with the correct structured
+tuple</p>
+<h3 id="addedgetype">addEdgeType</h3>
+<pre><code class="py">
+def addEdgeType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2)
+
+</code></pre>
+
+<p>Create edge type description</p>
+<h3 id="addedges">addEdges</h3>
+<pre><code class="py">
+def addEdges(self, eTypeID, sourceIDs, targetIDs, **kwAttr)
+
+</code></pre>
+
+<p>Method to create serveral edges at once
+Attribures are given as list or array per key word</p>
+<h3 id="addnode">addNode</h3>
+<pre><code class="py">
+def addNode(self, nTypeID, attributes=None, **kwProp)
+
+</code></pre>
+
+<h3 id="addnodetype">addNodeType</h3>
+<pre><code class="py">
+def addNodeType(self, agTypeIDIdx, typeStr, AgentClass, GhostAgentClass, staticProperties, dynamicProperties)
+
+</code></pre>
+
+<p>Create node type description</p>
+<h3 id="addnodes">addNodes</h3>
+<pre><code class="py">
+def addNodes(self, nTypeID, nNodes, **kwAttr)
+
+</code></pre>
+
+<p>Method to create serveral nodes at once
+Attribures are given as list or array per key word</p>
+<h3 id="agtypeid2class">agTypeID2Class</h3>
+<pre><code class="py">
+def agTypeID2Class(self, agTypeIDID)
+
+</code></pre>
+
+<h3 id="areconnected">areConnected</h3>
+<pre><code class="py">
+def areConnected(self, sourceID, targetID, eTypeID)
+
+</code></pre>
+
+<p>Returns if source and target is connected by an eddge of the specified
+edge type</p>
+<h3 id="arenodes">areNodes</h3>
+<pre><code class="py">
+def areNodes(self, lnIDs)
+
+</code></pre>
+
+<p>Checks if nodes are active
+only one node type per time can be checked</p>
+<h3 id="class2nodetype">class2NodeType</h3>
+<pre><code class="py">
+def class2NodeType(self, agentClass)
+
+</code></pre>
+
+<h3 id="countincomming">countIncomming</h3>
+<pre><code class="py">
+def countIncomming(self, lnID, eTypeID)
+
+</code></pre>
+
+<h3 id="countoutgoing">countOutgoing</h3>
+<pre><code class="py">
+def countOutgoing(self, lnID, eTypeID)
+
+</code></pre>
+
+<h3 id="ecount">eCount</h3>
+<pre><code class="py">
+def eCount(self, eTypeID=None)
+
+</code></pre>
+
+<p>Returns the number of edges of all or a specific node type</p>
+<h3 id="getadjlist">getAdjList</h3>
+<pre><code class="py">
+def getAdjList(self, agTypeID)
+
+</code></pre>
+
+<h3 id="getadjmatrix">getAdjMatrix</h3>
+<pre><code class="py">
+def getAdjMatrix(self, agTypeID)
+
+</code></pre>
+
+<h3 id="getattroflinksidx">getAttrOfLinksIdx</h3>
+<pre><code class="py">
+def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs)
+
+</code></pre>
+
+<h3 id="getattrofnodetype">getAttrOfNodeType</h3>
+<pre><code class="py">
+def getAttrOfNodeType(self, attribute, nTypeID)
+
+</code></pre>
+
+<h3 id="getattrofnodesidx">getAttrOfNodesIdx</h3>
+<pre><code class="py">
+def getAttrOfNodesIdx(self, attribute, nTypeID, dataIDs)
+
+</code></pre>
+
+<h3 id="getattrofnodesseq">getAttrOfNodesSeq</h3>
+<pre><code class="py">
+def getAttrOfNodesSeq(self, attribute, lnID)
+
+</code></pre>
+
+<h3 id="getdtypeofedgetype">getDTypeOfEdgeType</h3>
+<pre><code class="py">
+def getDTypeOfEdgeType(self, liTypeID, kind)
+
+</code></pre>
+
+<h3 id="getdtypeofnodetype">getDTypeOfNodeType</h3>
+<pre><code class="py">
+def getDTypeOfNodeType(self, agTypeID, kind)
+
+</code></pre>
+
+<h3 id="getedgeattr">getEdgeAttr</h3>
+<pre><code class="py">
+def getEdgeAttr(self, leID, attribute=None, eTypeID=None)
+
+</code></pre>
+
+<h3 id="getedgedataref">getEdgeDataRef</h3>
+<pre><code class="py">
+def getEdgeDataRef(self, leID)
+
+</code></pre>
+
+<p>calculates the node type ID and dataID from local ID</p>
+<h3 id="getedgeseqattr">getEdgeSeqAttr</h3>
+<pre><code class="py">
+def getEdgeSeqAttr(self, attribute=None, leIDs=None, eTypeID=None, dataIDs=None)
+
+</code></pre>
+
+<h3 id="getinedgevalues">getInEdgeValues</h3>
+<pre><code class="py">
+def getInEdgeValues(self, leID, eTypeID, attr=None)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and inward direction</p>
+<h3 id="getinnodevalues">getInNodeValues</h3>
+<pre><code class="py">
+def getInNodeValues(self, lnID, eTypeID, attr=None)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and inward direction</p>
+<h3 id="getnodedataref">getNodeDataRef</h3>
+<pre><code class="py">
+def getNodeDataRef(self, lnIDs)
+
+</code></pre>
+
+<p>calculates the node type ID from local ID
+ONLY on node type per call</p>
+<p>returns: (nodeTypeID, dataID)</p>
+<h3 id="getnodeseqattr">getNodeSeqAttr</h3>
+<pre><code class="py">
+def getNodeSeqAttr(self, attribute, lnIDs)
+
+</code></pre>
+
+<p>Nodes are either identified by list of lnIDS or (nType and dataID)
+attribute is a either string or list of strings</p>
+<h3 id="getnodeview">getNodeView</h3>
+<pre><code class="py">
+def getNodeView(self, lnID)
+
+</code></pre>
+
+<h3 id="getoutedgevalues">getOutEdgeValues</h3>
+<pre><code class="py">
+def getOutEdgeValues(self, leID, eTypeID, attr=None)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and outward direction</p>
+<h3 id="getoutnodevalues">getOutNodeValues</h3>
+<pre><code class="py">
+def getOutNodeValues(self, lnID, eTypeID, attr=None)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and outward direction</p>
+<h3 id="getpropofedgetype">getPropOfEdgeType</h3>
+<pre><code class="py">
+def getPropOfEdgeType(self, liTypeID, kind)
+
+</code></pre>
+
+<h3 id="getpropofnodetype">getPropOfNodeType</h3>
+<pre><code class="py">
+def getPropOfNodeType(self, agTypeID, kind)
+
+</code></pre>
+
+<h3 id="get95leid">get_leID</h3>
+<pre><code class="py">
+def get_leID(self, source, target, eTypeID)
+
+</code></pre>
+
+<h3 id="get95lnid">get_lnID</h3>
+<pre><code class="py">
+def get_lnID(self, nTypeID)
+
+</code></pre>
+
+<h3 id="ghostofagentclass">ghostOfAgentClass</h3>
+<pre><code class="py">
+def ghostOfAgentClass(self, agentClass)
+
+</code></pre>
+
+<h3 id="incomming">incomming</h3>
+<pre><code class="py">
+def incomming(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all incoming edges of the specified type</p>
+<h3 id="incommingids">incommingIDs</h3>
+<pre><code class="py">
+def incommingIDs(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="incomminginstance">incommingInstance</h3>
+<pre><code class="py">
+def incommingInstance(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="isnode">isNode</h3>
+<pre><code class="py">
+def isNode(self, lnIDs)
+
+</code></pre>
+
+<p>Checks if node is active
+only one node type per time can be checked</p>
+<h3 id="ncount">nCount</h3>
+<pre><code class="py">
+def nCount(self, nTypeID=None)
+
+</code></pre>
+
+<p>Returns the number of nodes of all or a specific node type</p>
+<h3 id="outgoing">outgoing</h3>
+<pre><code class="py">
+def outgoing(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="outgoingids">outgoingIDs</h3>
+<pre><code class="py">
+def outgoingIDs(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="outgoinginstance">outgoingInstance</h3>
+<pre><code class="py">
+def outgoingInstance(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="remedge">remEdge</h3>
+<pre><code class="py">
+def remEdge(self, eTypeID, sourceID, targetID)
+
+</code></pre>
+
+<h3 id="remedges">remEdges</h3>
+<pre><code class="py">
+def remEdges(self, eTypeID, sourceIDs, targetIDs)
+
+</code></pre>
+
+<h3 id="remnode">remNode</h3>
+<pre><code class="py">
+def remNode(self, lnID)
+
+</code></pre>
+
+<h3 id="remoutgoingedges">remOutgoingEdges</h3>
+<pre><code class="py">
+def remOutgoingEdges(self, eTypeID, sourceID, targetIDs)
+
+</code></pre>
+
+<h3 id="selftest">selfTest</h3>
+<pre><code class="py">
+def selfTest(self)
+
+</code></pre>
+
+<p>This function is testing the base._graph class
+Not complete </p>
+<h3 id="setattrofnodetype">setAttrOfNodeType</h3>
+<pre><code class="py">
+def setAttrOfNodeType(self, attribute, values, nTypeID)
+
+</code></pre>
+
+<h3 id="setattrofnodesseq">setAttrOfNodesSeq</h3>
+<pre><code class="py">
+def setAttrOfNodesSeq(self, attribute, values, lnIDs)
+
+</code></pre>
+
+<h3 id="setedgeattr">setEdgeAttr</h3>
+<pre><code class="py">
+def setEdgeAttr(self, leID, attribute, value, eTypeID=None)
+
+</code></pre>
+
+<h3 id="setedgeseqattr">setEdgeSeqAttr</h3>
+<pre><code class="py">
+def setEdgeSeqAttr(self, attribute, values, leIDs=None, eTypeID=None, dataIDs=None)
+
+</code></pre>
+
+<h3 id="setedgestoragesize">setEdgeStorageSize</h3>
+<pre><code class="py">
+def setEdgeStorageSize(self, eTypeID, newSize)
+
+</code></pre>
+
+<h3 id="setinedgevalues">setInEdgeValues</h3>
+<pre><code class="py">
+def setInEdgeValues(self, leID, eTypeID, attr, values)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and inward direction</p>
+<h3 id="setinnodevalues">setInNodeValues</h3>
+<pre><code class="py">
+def setInNodeValues(self, lnID, eTypeID, attr, values)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and inward direction</p>
+<h3 id="setnodeseqattr">setNodeSeqAttr</h3>
+<pre><code class="py">
+def setNodeSeqAttr(self, attribute, values, lnIDs)
+
+</code></pre>
+
+<p>Nodes are either identified by list of lnIDS or (nType and dataID)
+Label is a either string or list of strings</p>
+<h3 id="setnodestoragesize">setNodeStorageSize</h3>
+<pre><code class="py">
+def setNodeStorageSize(self, nTypeID, newSize)
+
+</code></pre>
+
+<h3 id="setoutedgevalues">setOutEdgeValues</h3>
+<pre><code class="py">
+def setOutEdgeValues(self, leID, eTypeID, attr, values)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and outward direction</p>
+<h3 id="setoutnodevalues">setOutNodeValues</h3>
+<pre><code class="py">
+def setOutNodeValues(self, lnID, eTypeID, attr, values)
+
+</code></pre>
+
+<p>Method to read the attributes of connected nodes via a 
+specifice edge type and outward direction</p>
+<h2 id="class-basegraph">Class BaseGraph</h2>
+<p>Graph class that is used to store data and connections of the ABM model</p>
+<h3 id="9595init9595_1">__init__</h3>
+<pre><code class="py">
+def __init__(self, maxNodesPerType, maxEdgesPerType)
+
+</code></pre>
+
+<p>This class provides the basic functions to contruct a directed._graph
+with different node and edge types. 
+The max number of edges and nodes
+cannot be exceeded during execution, since it is used for pre-assigning
+storage space.</p>
+<h3 id="addedge_1">addEdge</h3>
+<pre><code class="py">
+def addEdge(self, eTypeID, sourceID, targetID, attributes=None)
+
+</code></pre>
+
+<p>Adding a new connecting edge between source and target of
+the specified type
+Attributes can be given optionally with the correct structured
+tuple</p>
+<h3 id="addedges_1">addEdges</h3>
+<pre><code class="py">
+def addEdges(self, eTypeID, sourceIDs, targetIDs, **kwAttr)
+
+</code></pre>
+
+<p>Method to create serveral edges at once
+Attribures are given as list or array per key word</p>
+<h3 id="addnode_1">addNode</h3>
+<pre><code class="py">
+def addNode(self, nTypeID, attributes=None, **kwProp)
+
+</code></pre>
+
+<h3 id="addnodes_1">addNodes</h3>
+<pre><code class="py">
+def addNodes(self, nTypeID, nNodes, **kwAttr)
+
+</code></pre>
+
+<p>Method to create serveral nodes at once
+Attribures are given as list or array per key word</p>
+<h3 id="areconnected_1">areConnected</h3>
+<pre><code class="py">
+def areConnected(self, sourceID, targetID, eTypeID)
+
+</code></pre>
+
+<p>Returns if source and target is connected by an eddge of the specified
+edge type</p>
+<h3 id="arenodes_1">areNodes</h3>
+<pre><code class="py">
+def areNodes(self, lnIDs)
+
+</code></pre>
+
+<p>Checks if nodes are active
+only one node type per time can be checked</p>
+<h3 id="countincomming_1">countIncomming</h3>
+<pre><code class="py">
+def countIncomming(self, lnID, eTypeID)
+
+</code></pre>
+
+<h3 id="countoutgoing_1">countOutgoing</h3>
+<pre><code class="py">
+def countOutgoing(self, lnID, eTypeID)
+
+</code></pre>
+
+<h3 id="ecount_1">eCount</h3>
+<pre><code class="py">
+def eCount(self, eTypeID=None)
+
+</code></pre>
+
+<p>Returns the number of edges of all or a specific node type</p>
+<h3 id="getattroflinksidx_1">getAttrOfLinksIdx</h3>
+<pre><code class="py">
+def getAttrOfLinksIdx(self, attribute, eTypeID, dataIDs)
+
+</code></pre>
+
+<h3 id="getattrofnodetype_1">getAttrOfNodeType</h3>
+<pre><code class="py">
+def getAttrOfNodeType(self, attribute, nTypeID)
+
+</code></pre>
+
+<h3 id="getattrofnodesidx_1">getAttrOfNodesIdx</h3>
+<pre><code class="py">
+def getAttrOfNodesIdx(self, attribute, nTypeID, dataIDs)
+
+</code></pre>
+
+<h3 id="getattrofnodesseq_1">getAttrOfNodesSeq</h3>
+<pre><code class="py">
+def getAttrOfNodesSeq(self, attribute, lnID)
+
+</code></pre>
+
+<h3 id="getedgeattr_1">getEdgeAttr</h3>
+<pre><code class="py">
+def getEdgeAttr(self, leID, attribute=None, eTypeID=None)
+
+</code></pre>
+
+<h3 id="getedgedataref_1">getEdgeDataRef</h3>
+<pre><code class="py">
+def getEdgeDataRef(self, leID)
+
+</code></pre>
+
+<p>calculates the node type ID and dataID from local ID</p>
+<h3 id="getedgeseqattr_1">getEdgeSeqAttr</h3>
+<pre><code class="py">
+def getEdgeSeqAttr(self, attribute=None, leIDs=None, eTypeID=None, dataIDs=None)
+
+</code></pre>
+
+<h3 id="getnodedataref_1">getNodeDataRef</h3>
+<pre><code class="py">
+def getNodeDataRef(self, lnIDs)
+
+</code></pre>
+
+<p>calculates the node type ID from local ID
+ONLY on node type per call</p>
+<p>returns: (nodeTypeID, dataID)</p>
+<h3 id="getnodeseqattr_1">getNodeSeqAttr</h3>
+<pre><code class="py">
+def getNodeSeqAttr(self, attribute, lnIDs)
+
+</code></pre>
+
+<p>Nodes are either identified by list of lnIDS or (nType and dataID)
+attribute is a either string or list of strings</p>
+<h3 id="get95leid_1">get_leID</h3>
+<pre><code class="py">
+def get_leID(self, source, target, eTypeID)
+
+</code></pre>
+
+<h3 id="get95lnid_1">get_lnID</h3>
+<pre><code class="py">
+def get_lnID(self, nTypeID)
+
+</code></pre>
+
+<h3 id="incomming_1">incomming</h3>
+<pre><code class="py">
+def incomming(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all incoming edges of the specified type</p>
+<h3 id="incommingids_1">incommingIDs</h3>
+<pre><code class="py">
+def incommingIDs(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="incomminginstance_1">incommingInstance</h3>
+<pre><code class="py">
+def incommingInstance(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="isnode_1">isNode</h3>
+<pre><code class="py">
+def isNode(self, lnIDs)
+
+</code></pre>
+
+<p>Checks if node is active
+only one node type per time can be checked</p>
+<h3 id="ncount_1">nCount</h3>
+<pre><code class="py">
+def nCount(self, nTypeID=None)
+
+</code></pre>
+
+<p>Returns the number of nodes of all or a specific node type</p>
+<h3 id="outgoing_1">outgoing</h3>
+<pre><code class="py">
+def outgoing(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="outgoingids_1">outgoingIDs</h3>
+<pre><code class="py">
+def outgoingIDs(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="outgoinginstance_1">outgoingInstance</h3>
+<pre><code class="py">
+def outgoingInstance(self, lnID, eTypeID)
+
+</code></pre>
+
+<p>Returns the dataIDs of all outgoing edges of the specified type</p>
+<h3 id="remedge_1">remEdge</h3>
+<pre><code class="py">
+def remEdge(self, eTypeID, sourceID, targetID)
+
+</code></pre>
+
+<h3 id="remedges_1">remEdges</h3>
+<pre><code class="py">
+def remEdges(self, eTypeID, sourceIDs, targetIDs)
+
+</code></pre>
+
+<h3 id="remnode_1">remNode</h3>
+<pre><code class="py">
+def remNode(self, lnID)
+
+</code></pre>
+
+<h3 id="remoutgoingedges_1">remOutgoingEdges</h3>
+<pre><code class="py">
+def remOutgoingEdges(self, eTypeID, sourceID, targetIDs)
+
+</code></pre>
+
+<h3 id="selftest_1">selfTest</h3>
+<pre><code class="py">
+def selfTest(self)
+
+</code></pre>
+
+<p>This function is testing the base._graph class
+Not complete </p>
+<h3 id="setattrofnodetype_1">setAttrOfNodeType</h3>
+<pre><code class="py">
+def setAttrOfNodeType(self, attribute, values, nTypeID)
+
+</code></pre>
+
+<h3 id="setattrofnodesseq_1">setAttrOfNodesSeq</h3>
+<pre><code class="py">
+def setAttrOfNodesSeq(self, attribute, values, lnIDs)
+
+</code></pre>
+
+<h3 id="setedgeattr_1">setEdgeAttr</h3>
+<pre><code class="py">
+def setEdgeAttr(self, leID, attribute, value, eTypeID=None)
+
+</code></pre>
+
+<h3 id="setedgeseqattr_1">setEdgeSeqAttr</h3>
+<pre><code class="py">
+def setEdgeSeqAttr(self, attribute, values, leIDs=None, eTypeID=None, dataIDs=None)
+
+</code></pre>
+
+<h3 id="setnodeseqattr_1">setNodeSeqAttr</h3>
+<pre><code class="py">
+def setNodeSeqAttr(self, attribute, values, lnIDs)
+
+</code></pre>
+
+<p>Nodes are either identified by list of lnIDS or (nType and dataID)
+Label is a either string or list of strings</p>
+<h2 id="class-edgearray">Class EdgeArray</h2>
+<p>Data structure for edges and related informations based on a numpy array</p>
+<h3 id="ecount_2">eCount</h3>
+<pre><code class="py">
+def eCount(self)
+
+</code></pre>
+
+<h3 id="indices">indices</h3>
+<pre><code class="py">
+def indices(self)
+
+</code></pre>
+
+<h2 id="class-nodearray">Class NodeArray</h2>
+<p>Node array derived from numpy ndarray</p>
+<h3 id="indices_1">indices</h3>
+<pre><code class="py">
+def indices(self)
+
+</code></pre>
+
+<h3 id="ncount_2">nCount</h3>
+<pre><code class="py">
+def nCount(self)
+
+</code></pre>
+
+<h2 id="class-typedescription">Class TypeDescription</h2>
+<p>None</p>
+<h3 id="9595init9595_2">__init__</h3>
+<pre><code class="py">
+def __init__(self, agTypeIDIdx, typeStr, staticProperties, dynamicProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="location.html" class="btn btn-neutral float-right" title="abm4py.location">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="future_traits.html" class="btn btn-neutral" title="abm4py.future_traits"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="future_traits.html" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="location.html" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '.';</script>
+    <script src="js/theme.js" defer></script>
+      <script src="search/main.js" defer></script>
+
+</body>
+</html>

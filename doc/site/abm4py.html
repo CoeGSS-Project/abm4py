@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <title>Package abm4py Documentation - My Docs</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "Package abm4py Documentation";
+    var mkdocs_page_input_path = "abm4py.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="js/jquery-2.1.1.min.js" defer></script>
+  <script src="js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="icon icon-home"> My Docs</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="index.html">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="world.html">abm4py.world</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="agent.html">abm4py.agent</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="core.html">abm4py.core</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="traits.html">abm4pu.traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="future_traits.html">abm4py.future_traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="graph.html">abm4py.graph</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="location.html">abm4py.location</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="misc.html">abm4py.misc</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="about.html">About</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">My Docs</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>Package abm4py Documentation</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="package-abm4py-documentation">Package abm4py Documentation</h1>
+<h2 id="class-agent">Class Agent</h2>
+<p>The most common agent type derives from the BaseAgent and additionally
+receives the abilty to move</p>
+<h3 id="9595init9595">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, ID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattroflink">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getlinkids">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None, ghost=False)
+
+</code></pre>
+
+<h3 id="remlink">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-ghostagent">Class GhostAgent</h2>
+<p>Ghost agents are only derived from Entities, since they are not full 
+agents, but passive copies of the real agents. Thus they do not have 
+the methods to act themselves.</p>
+<h3 id="9595init9595_1">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, mpiOwner, ID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="delete_1">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getglobid">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="register_1">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None)
+
+</code></pre>
+
+<h3 id="registerchild">registerChild</h3>
+<pre><code class="py">
+def registerChild(self, world, entity, liTypeID)
+
+</code></pre>
+
+<h3 id="toagent">toAgent</h3>
+<pre><code class="py">
+def toAgent(self, world)
+
+</code></pre>
+
+<h2 id="class-ghostlocation">Class GhostLocation</h2>
+<p>The most common agent type derives from the BaseAgent and additionally
+receives the abilty to move</p>
+<h3 id="9595init9595_2">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, mpiOwner, ID=None, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink_1">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget_1">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers_1">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete_2">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattroflink_1">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers_1">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getglobid_1">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="getlinkids_1">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids_1">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers_1">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register_2">register</h3>
+<pre><code class="py">
+def register(self, world, parent_Entity=None, liTypeID=None)
+
+</code></pre>
+
+<h3 id="registerchild_1">registerChild</h3>
+<pre><code class="py">
+def registerChild(self, world, entity, liTypeID=None)
+
+</code></pre>
+
+<h3 id="remlink_1">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks_1">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink_1">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost_1">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-location">Class Location</h2>
+<p>This enhancement identifies the agent as part of a grid. Currently, it only
+registers itself in the location dictionary, found in the world
+(see world.grid.registerNode())</p>
+<h3 id="9595init9595_3">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, **kwProperties)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addlink_2">addLink</h3>
+<pre><code class="py">
+def addLink(self, peerID, liTypeID, **kwpropDict)
+
+</code></pre>
+
+<p>This function creates a new connection to another agent. Attributes of the connection must be 
+provided in the correct order and structure</p>
+<h3 id="changelinktarget_2">changeLinkTarget</h3>
+<pre><code class="py">
+def changeLinkTarget(self, oldPeerID, newPeerID, liTypeID)
+
+</code></pre>
+
+<h3 id="countpeers_2">countPeers</h3>
+<pre><code class="py">
+def countPeers(self, liTypeID)
+
+</code></pre>
+
+<h3 id="delete_3">delete</h3>
+<pre><code class="py">
+def delete(self, world)
+
+</code></pre>
+
+<p>method to delete the agent from the simulation</p>
+<h3 id="getattrofgridpeers">getAttrOfGridPeers</h3>
+<pre><code class="py">
+def getAttrOfGridPeers(self, attribute)
+
+</code></pre>
+
+<h3 id="getattroflink_2">getAttrOfLink</h3>
+<pre><code class="py">
+def getAttrOfLink(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function accesses the values of outgoing links</p>
+<h3 id="getattrofpeers_2">getAttrOfPeers</h3>
+<pre><code class="py">
+def getAttrOfPeers(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>This function returns the attributes of all connected nodes connected 
+by a specfic edge type.</p>
+<h3 id="getglobid_2">getGlobID</h3>
+<pre><code class="py">
+def getGlobID(self, world)
+
+</code></pre>
+
+<h3 id="getgridpeers">getGridPeers</h3>
+<pre><code class="py">
+def getGridPeers(self)
+
+</code></pre>
+
+<h3 id="getlinkids_2">getLinkIDs</h3>
+<pre><code class="py">
+def getLinkIDs(self, liTypeID)
+
+</code></pre>
+
+<p>This function changes returns the linkID of all outgoing links of a 
+specified type</p>
+<h3 id="getpeerids_2">getPeerIDs</h3>
+<pre><code class="py">
+def getPeerIDs(self, liTypeID=None, agTypeID=None, mode='out')
+
+</code></pre>
+
+<p>This function returns the IDs of all agents that are connected with a 
+certain link type or of a specified nodeType
+As default, only outgoing connections are considered, but can be changed
+by setting mode ='in'.</p>
+<h3 id="getpeers_2">getPeers</h3>
+<pre><code class="py">
+def getPeers(self, liTypeID)
+
+</code></pre>
+
+<p>This function returns all agents that are connected to the agents with 
+the specified link type</p>
+<h3 id="register_3">register</h3>
+<pre><code class="py">
+def register(self, world, parentEntity=None, liTypeID=None, ghost=False)
+
+</code></pre>
+
+<h3 id="remlink_2">remLink</h3>
+<pre><code class="py">
+def remLink(self, peerID, liTypeID)
+
+</code></pre>
+
+<p>This function removes a link to another agent.</p>
+<h3 id="remlinks_2">remLinks</h3>
+<pre><code class="py">
+def remLinks(self, peerIDs, liTypeID)
+
+</code></pre>
+
+<p>This function removs mutiple links to other agents.</p>
+<h3 id="setattroflink_2">setAttrOfLink</h3>
+<pre><code class="py">
+def setAttrOfLink(self, attribute, values, liTypeID)
+
+</code></pre>
+
+<p>This function changes the attributes of outgoing links</p>
+<h3 id="toghost_2">toGhost</h3>
+<pre><code class="py">
+def toGhost(self, world)
+
+</code></pre>
+
+<p>This functions converts an agent into a ghost agent</p>
+<h2 id="class-world">Class World</h2>
+<p>The world class is the core interface for controling and structuring the
+ABM-simulation. 
+It functions as user interface and contains all other components and sub-
+classes.</p>
+<h3 id="9595init9595_4">__init__</h3>
+<pre><code class="py">
+def __init__(self, simNo=None, outPath='.', nSteps=1, maxNodes=1000000.0, maxLinks=1000000.0, debug=False, agentOutput=False, linkOutput=False)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addagent">addAgent</h3>
+<pre><code class="py">
+def addAgent(self, agent, ghost=False)
+
+</code></pre>
+
+<p>This function registers a new instances of an agent to the simulation.</p>
+<h3 id="agenttypesids">agentTypesIDs</h3>
+<pre><code class="py">
+def agentTypesIDs(self)
+
+</code></pre>
+
+<h3 id="countagents">countAgents</h3>
+<pre><code class="py">
+def countAgents(self, agTypeID, ghosts=False)
+
+</code></pre>
+
+<p>This function allows to count a sub-selection of links that is defined 
+by a filter function that act on links attribute.</p>
+<p>Use case:
+nAgents = world.countAgents(agTypeID)    </p>
+<h3 id="countfilteredagents">countFilteredAgents</h3>
+<pre><code class="py">
+def countFilteredAgents(self, func, agTypeID)
+
+</code></pre>
+
+<p>This function allows to coiunt a sub-selection of agents that is defined 
+by a filter function that act on agent attribute.</p>
+<p>Use case: Count  agents with a property below a certain treshold:
+nAgents = world.countFilteredAgents(lambda a: a['age'] &lt; 1, AGENT)</p>
+<h3 id="countfilteredlinks">countFilteredLinks</h3>
+<pre><code class="py">
+def countFilteredLinks(self, func, liTypeID)
+
+</code></pre>
+
+<p>This function allows to count a sub-selection of links that is defined 
+by a filter function that act on links attribute.</p>
+<p>Use case: Count over links with a property below a certain treshold:
+nLinks = world.countFilteredLinks(lambda a: a['wieight'] &lt; 01, linkTypeID)</p>
+<h3 id="countlinks">countLinks</h3>
+<pre><code class="py">
+def countLinks(self, liTypeID)
+
+</code></pre>
+
+<p>This function allows to count a sub-selection of links that is defined 
+by a filter function that act on links attribute.</p>
+<p>Use case:
+nLinks = world.countLinks(liTypeID) </p>
+<h3 id="deleteagentsif">deleteAgentsIf</h3>
+<pre><code class="py">
+def deleteAgentsIf(self, agTypeID, filterFunc)
+
+</code></pre>
+
+<p>This function allows to delete a sub-selection of agents that is defined 
+by a filter function that act on agent attribute.</p>
+<p>Use case: Iterate over agents with a property below a certain treshold:
+for agent in world.filterAgents(lambda a: a['age'] &lt; 1, AGENT)</p>
+<h3 id="finalize">finalize</h3>
+<pre><code class="py">
+def finalize(self)
+
+</code></pre>
+
+<p>Method to finalize records, I/O and reporter</p>
+<h3 id="getagent">getAgent</h3>
+<pre><code class="py">
+def getAgent(self, agentID)
+
+</code></pre>
+
+<p>Returns a single agent selcetd by its ID</p>
+<h3 id="getagentdataids">getAgentDataIDs</h3>
+<pre><code class="py">
+def getAgentDataIDs(self, agTypeID)
+
+</code></pre>
+
+<p>This function return the dataID of an agent. The dataID is the index in the
+numpy array, where the agents attributes are stored</p>
+<h3 id="getagentdict">getAgentDict</h3>
+<pre><code class="py">
+def getAgentDict(self)
+
+</code></pre>
+
+<p>The nodeDict contains all instances of different entity types</p>
+<h3 id="getagentids">getAgentIDs</h3>
+<pre><code class="py">
+def getAgentIDs(self, agTypeID, ghosts=False)
+
+</code></pre>
+
+<p>Method to return all local node IDs for a given nodeType</p>
+<h3 id="getagentlistsbytype">getAgentListsByType</h3>
+<pre><code class="py">
+def getAgentListsByType(self)
+
+</code></pre>
+
+<h3 id="getagentsbyfilteredtype">getAgentsByFilteredType</h3>
+<pre><code class="py">
+def getAgentsByFilteredType(self, func, agTypeID)
+
+</code></pre>
+
+<p>This function allows to access a sub-selection of agents that is defined 
+by a filter function that is action on agent properties.</p>
+<p>Use case: Iterate over agents with a property below a certain treshold:
+for agent in world.filterAgents(lambda a: a['age'] &lt; 1, AGENT)</p>
+<h3 id="getagentsbyglobalid">getAgentsByGlobalID</h3>
+<pre><code class="py">
+def getAgentsByGlobalID(self, globalIDs=None)
+
+</code></pre>
+
+<p>Returns agents defined by the global ID</p>
+<h3 id="getagentsbyids">getAgentsByIDs</h3>
+<pre><code class="py">
+def getAgentsByIDs(self, localIDs=None)
+
+</code></pre>
+
+<p>Returns agents defined by the ID</p>
+<h3 id="getagentsbytype">getAgentsByType</h3>
+<pre><code class="py">
+def getAgentsByType(self, agTypeID=None, ghosts=False)
+
+</code></pre>
+
+<p>Iteration over entities of specified type. Default returns
+non-ghosts in random order.</p>
+<h3 id="getallagentdict">getAllAgentDict</h3>
+<pre><code class="py">
+def getAllAgentDict(self)
+
+</code></pre>
+
+<h3 id="getattrofagenttype">getAttrOfAgentType</h3>
+<pre><code class="py">
+def getAttrOfAgentType(self, attribute, agTypeID)
+
+</code></pre>
+
+<p>Returns numpy array of the defined attribute of all agents of one type
+Example: 
+attrArray = world.getAttrOfAgentType('coord', agType=LOCATION_TYPE_ID)</p>
+<h3 id="getattrofagents">getAttrOfAgents</h3>
+<pre><code class="py">
+def getAttrOfAgents(self, attribute, localIDList)
+
+</code></pre>
+
+<p>Read attributes for a given sequence of agents
+Example: 
+attrArray = world.setAttrOfAgents('coord', [100000, 100001])</p>
+<h3 id="getattroffilteredagenttype">getAttrOfFilteredAgentType</h3>
+<pre><code class="py">
+def getAttrOfFilteredAgentType(self, attribute, func, agTypeID)
+
+</code></pre>
+
+<p>This function allows to access a sub-selection of agents that is defined 
+by a filter function that is action on agent properties.</p>
+<p>Use case: Get the pos of all agents with a property below a certain treshold:
+for agent in world.filterAgents('pos', lambda a: a['age'] &lt; 1, AGENT)</p>
+<h3 id="getattroflinktype">getAttrOfLinkType</h3>
+<pre><code class="py">
+def getAttrOfLinkType(self, attribute, liTypeID)
+
+</code></pre>
+
+<p>Read the specified attribute of all agents that are of the specified link type
+Example:
+coordinates = getAttrOfLinkType('coord', liTypeID)    </p>
+<h3 id="getattroflinks">getAttrOfLinks</h3>
+<pre><code class="py">
+def getAttrOfLinks(self, attribute, localLinkIDList)
+
+</code></pre>
+
+<p>Read the specified attribute the specified type of links
+Example:
+coordinates = world.getAttrOfAgentType('coord', [100000, 100001]) </p>
+<h3 id="getenums">getEnums</h3>
+<pre><code class="py">
+def getEnums(self)
+
+</code></pre>
+
+<p>Returns a specified enumeration dict</p>
+<h3 id="getglobtolocdict">getGlobToLocDIct</h3>
+<pre><code class="py">
+def getGlobToLocDIct(self)
+
+</code></pre>
+
+<h3 id="getglobalrecord">getGlobalRecord</h3>
+<pre><code class="py">
+def getGlobalRecord(self)
+
+</code></pre>
+
+<p>Returns global record class</p>
+<h3 id="getglobals">getGlobals</h3>
+<pre><code class="py">
+def getGlobals(self)
+
+</code></pre>
+
+<p>Returns the global variables defined in the._graph</p>
+<h3 id="getgraph">getGraph</h3>
+<pre><code class="py">
+def getGraph(self)
+
+</code></pre>
+
+<p>Returns the world._graph instance</p>
+<h3 id="getparallelcomminterface">getParallelCommInterface</h3>
+<pre><code class="py">
+def getParallelCommInterface(self)
+
+</code></pre>
+
+<p>returns the parallel agent passing interface (see core.py)</p>
+<h3 id="getparameter">getParameter</h3>
+<pre><code class="py">
+def getParameter(self, paraName)
+
+</code></pre>
+
+<p>Returns a single simulation parameter</p>
+<h3 id="getparameters">getParameters</h3>
+<pre><code class="py">
+def getParameters(self)
+
+</code></pre>
+
+<p>Returns a dictionary of all simulations parameters </p>
+<h3 id="glob2loc">glob2Loc</h3>
+<pre><code class="py">
+def glob2Loc(self, globIdx)
+
+</code></pre>
+
+<h3 id="linktypesids">linkTypesIDs</h3>
+<pre><code class="py">
+def linkTypesIDs(self)
+
+</code></pre>
+
+<h3 id="loc2glob">loc2Glob</h3>
+<pre><code class="py">
+def loc2Glob(self, locIdx)
+
+</code></pre>
+
+<h3 id="registeragenttype">registerAgentType</h3>
+<pre><code class="py">
+def registerAgentType(self, AgentClass, GhostAgentClass=None, agTypeStr=None, staticProperties=None, dynamicProperties=None)
+
+</code></pre>
+
+<p>This function registers a node type and the defined properties of
+each agTypeID for other purposes, e.g. I/O</p>
+<h3 id="registergrid">registerGrid</h3>
+<pre><code class="py">
+def registerGrid(self, GridNodeType, GridLinkType)
+
+</code></pre>
+
+<p>This functions registers a grid within the world. A grid consists of agents
+of the type GridNode and links that represent the spatial proximity</p>
+<h3 id="registerlinktype">registerLinkType</h3>
+<pre><code class="py">
+def registerLinkType(self, agTypeStr, agTypeID1, agTypeID2, staticProperties=[], dynamicProperties=[])
+
+</code></pre>
+
+<p>Method to register a edge type and to the related properties of each 
+liTypeID for other purposes, e.g. I/O</p>
+<h3 id="registerrecord">registerRecord</h3>
+<pre><code class="py">
+def registerRecord(self, name, title, colLables, style='plot', mpiReduce=None)
+
+</code></pre>
+
+<p>Creation of of a new record instance. 
+If mpiReduce is given, the record is connected with a global variable with the
+same name</p>
+<h3 id="removeagent">removeAgent</h3>
+<pre><code class="py">
+def removeAgent(self, agent, ghost)
+
+</code></pre>
+
+<p>Method to remove instances of agents from the environment</p>
+<h3 id="saveenumerations">saveEnumerations</h3>
+<pre><code class="py">
+def saveEnumerations(self, fileName='enumerations')
+
+</code></pre>
+
+<h3 id="saveparameters">saveParameters</h3>
+<pre><code class="py">
+def saveParameters(self, fileName='simulation_parameters')
+
+</code></pre>
+
+<h3 id="setattrofagenttype">setAttrOfAgentType</h3>
+<pre><code class="py">
+def setAttrOfAgentType(self, attribute, valueList, agTypeID)
+
+</code></pre>
+
+<p>Write attributes of all agents of type at once
+Example:
+world.setAttrOfAgentType('coord', (0,0), agTypeID)</p>
+<h3 id="setattrofagents">setAttrOfAgents</h3>
+<pre><code class="py">
+def setAttrOfAgents(self, attribute, valueList, localIDList)
+
+</code></pre>
+
+<p>Write attributes for a given sequence of agents
+Example: 
+world.setAttrOfAgents('coord', [(1,2), (0,1)], [100000, 100001])</p>
+<h3 id="setattroffilteredagenttype">setAttrOfFilteredAgentType</h3>
+<pre><code class="py">
+def setAttrOfFilteredAgentType(self, attribute, value, agTypeID, func)
+
+</code></pre>
+
+<p>This function allows to access the attributes of a sub-selection of agents 
+that is defined  by a filter function that is action on agent properties.</p>
+<p>Use case: Iterate over agents with a property below a certain treshold:
+for agent in world.filterAgents(AGENT, lambda a: a['age'] &lt; 1)</p>
+<h3 id="setattroflinktype">setAttrOfLinkType</h3>
+<pre><code class="py">
+def setAttrOfLinkType(self, attribute, valueList, liTypeID)
+
+</code></pre>
+
+<p>Write the specified attribute of all agents that are of the specified link type
+Example:
+getAttrOfLinkType('coord', coordinateList, liTypeID)   </p>
+<h3 id="setattroflinks">setAttrOfLinks</h3>
+<pre><code class="py">
+def setAttrOfLinks(self, attribute, valueList, localLinkIDList)
+
+</code></pre>
+
+<p>Write the specified attribute the specified list of links
+Example:
+world.setAttrOfAgentType('coord', [[0,0], [0,1]], [100000, 100001]) </p>
+<h3 id="setattrsforfilteredarray">setAttrsForFilteredArray</h3>
+<pre><code class="py">
+def setAttrsForFilteredArray(self, array, filterFunc, setFunc)
+
+</code></pre>
+
+<p>This function allows to manipulate a subset of a given np.array directly. The 
+subset is formed by the filterFunc. That the array is given to the function explicitly 
+allows to write nested filters, but for most use cases setFilteredAttrsForType should
+be good enough.</p>
+<p>filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+the same length.</p>
+<p>setFunc is a function that gets an array that contains the rows where the boolean array returned
+by the filterFunc is True, and must return an array with the same dimensions. </p>
+<p>Use case: All agents without food are dying, and only agents with a good karma goes to heaven:</p>
+<p>def goToHeaven(angels):
+    angels['heaven'] = True
+    return angels</p>
+<p>def heavenOrHell(deadAgents):
+    setAttrsForFilteredArray(deadAgents, lambda a: a['karma'] &gt; 10 , goToHeaven)
+    deadAgents['alive'] = False
+    return deadAgents</p>
+<p>setAttrsForFilteredType(AGENT, lambda a: a['food'] &lt;= 0, heavenOrHell)</p>
+<p>see also: setAttrForType and setAttrsForFilteredType</p>
+<h3 id="setattrsforfilteredtype">setAttrsForFilteredType</h3>
+<pre><code class="py">
+def setAttrsForFilteredType(self, agTypeID, filterFunc, setFunc)
+
+</code></pre>
+
+<p>This function allows to manipulate a subset of the underlaying np.array directly. The 
+subset is formed by the filterFunc.</p>
+<p>filterFunc is a function that gets an (structed) np.array and must return an boolean array with
+the same length. For performance reasons, the function gets the complete underlaying array, 
+which can contain unused rows (the 'active' column is set to False for those rows).</p>
+<p>setFunc is a function that gets an array that contains the rows where the boolean array returned
+by the filterFunc is True, and must return an array with the same dimensions. </p>
+<p>Use case: All agents without food are dying:</p>
+<p>def dieAgentDie(deadAgents):
+  deadAgents['alive'] = False
+  return deadAgents</p>
+<p>setAttrsForFilteredType(AGENT, lambda a: a['food'] &lt;= 0, dieAgentDie)</p>
+<p>see also: setAttrForType and setAttrsForFilteredArray</p>
+<h3 id="setattrsfortype">setAttrsForType</h3>
+<pre><code class="py">
+def setAttrsForType(self, agTypeID, func)
+
+</code></pre>
+
+<p>This function allows to manipulate the underlaying np.array directly, e.g.
+to change the attributes of all agents of a given type in a more performant way
+then with a python loop for comprehension.</p>
+<p>func is a function that gets an (structured) np.array, and must return an array with the 
+dimensions.</p>
+<p>Use case: Increase the age for all agents by one:
+def increaseAge(agents):
+    agents['age'] += 1
+    return agents</p>
+<p>setAttrsForType(agTypeID, increaseAge)</p>
+<p>def increaseXCoord(agents):
+    agents['coord'][:,0] +=1
+    return agents</p>
+<p>setAttrsForType(agTypeID, increaseXCoord)</p>
+<p>see also: setAttrsForFilteredType/Array</p>
+<h3 id="setattrsfortypevectorized">setAttrsForTypeVectorized</h3>
+<pre><code class="py">
+def setAttrsForTypeVectorized(self, agTypeID, attribute, vfunc, idx=None)
+
+</code></pre>
+
+<p>This function allows to alter the attributes of agents of a specified type
+based on the agents attribute.</p>
+<p>Use case: Iterate over agents with a property below a certain treshold:
+for agent in world.filterAgents(AGENT, lambda a: a['age'] &lt; 1)</p>
+<h3 id="setglob2loc">setGlob2Loc</h3>
+<pre><code class="py">
+def setGlob2Loc(self, globIdx, locIdx)
+
+</code></pre>
+
+<h3 id="setloc2glob">setLoc2Glob</h3>
+<pre><code class="py">
+def setLoc2Glob(self, globIdx, locIdx)
+
+</code></pre>
+
+<h3 id="setparameter">setParameter</h3>
+<pre><code class="py">
+def setParameter(self, paraName, paraValue)
+
+</code></pre>
+
+<p>This method is used to set parameters of the simulation</p>
+<h3 id="setparameters">setParameters</h3>
+<pre><code class="py">
+def setParameters(self, parameterDict)
+
+</code></pre>
+
+<p>This method allows to set multiple parameters at once</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+      
+    </span>
+</div>
+    <script>var base_url = '.';</script>
+    <script src="js/theme.js" defer></script>
+      <script src="search/main.js" defer></script>
+
+</body>
+</html>

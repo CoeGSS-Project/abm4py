@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <title>abm4py.core - My Docs</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "abm4py.core";
+    var mkdocs_page_input_path = "core.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="js/jquery-2.1.1.min.js" defer></script>
+  <script src="js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="icon icon-home"> My Docs</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="index.html">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="world.html">abm4py.world</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="agent.html">abm4py.agent</a>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="core.html">abm4py.core</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l2"><a href="#package-abm4pycore-documentation">Package abm4py.core Documentation</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l3" href="#class-attrdict">Class AttrDict</a></li>
+        
+            <li><a class="toctree-l3" href="#class-dakota">Class Dakota</a></li>
+        
+            <li><a class="toctree-l3" href="#class-enum">Class Enum</a></li>
+        
+            <li><a class="toctree-l3" href="#class-globalrecord">Class GlobalRecord</a></li>
+        
+            <li><a class="toctree-l3" href="#class-globalvariables">Class GlobalVariables</a></li>
+        
+            <li><a class="toctree-l3" href="#class-globals">Class Globals</a></li>
+        
+            <li><a class="toctree-l3" href="#class-grid">Class Grid</a></li>
+        
+            <li><a class="toctree-l3" href="#class-io">Class IO</a></li>
+        
+            <li><a class="toctree-l3" href="#class-memory">Class Memory</a></li>
+        
+            <li><a class="toctree-l3" href="#class-ordereddict">Class OrderedDict</a></li>
+        
+            <li><a class="toctree-l3" href="#class-papi">Class PAPI</a></li>
+        
+            <li><a class="toctree-l3" href="#class-random">Class Random</a></li>
+        
+            <li><a class="toctree-l3" href="#class-writer">Class Writer</a></li>
+        
+        </ul>
+    
+
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="traits.html">abm4pu.traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="future_traits.html">abm4py.future_traits</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="graph.html">abm4py.graph</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="location.html">abm4py.location</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="misc.html">abm4py.misc</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="about.html">About</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">My Docs</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>abm4py.core</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="package-abm4pycore-documentation">Package abm4py.core Documentation</h1>
+<h2 id="class-attrdict">Class AttrDict</h2>
+<p>dict() -&gt; new empty dictionary
+dict(mapping) -&gt; new dictionary initialized from a mapping object's
+    (key, value) pairs
+dict(iterable) -&gt; new dictionary initialized as if via:
+    d = {}
+    for k, v in iterable:
+        d[k] = v
+dict(**kwargs) -&gt; new dictionary initialized with the name=value pairs
+    in the keyword argument list.  For example:  dict(one=1, two=2)</p>
+<h3 id="9595init9595">__init__</h3>
+<pre><code class="py">
+def __init__(self, *args, **kwargs)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="todict">toDict</h3>
+<pre><code class="py">
+def toDict(self)
+
+</code></pre>
+
+<h2 id="class-dakota">Class Dakota</h2>
+<p>None</p>
+<h3 id="9595init9595_1">__init__</h3>
+<pre><code class="py">
+def __init__(self)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="overwriteparameters">overwriteParameters</h3>
+<pre><code class="py">
+def overwriteParameters(self, simNo, parameterDict)
+
+</code></pre>
+
+<h2 id="class-enum">Class Enum</h2>
+<p>This class allows to store global enumerations over mutiple files</p>
+<h2 id="class-globalrecord">Class GlobalRecord</h2>
+<p>Record to store global variables for each time step. The global record is 
+often connected with a global variable of the same name.
+TODO: Re-think the concept</p>
+<h3 id="9595init9595_2">__init__</h3>
+<pre><code class="py">
+def __init__(self, name, colLables, nSteps, title, style='plot')
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="add">add</h3>
+<pre><code class="py">
+def add(self, timeStep, data)
+
+</code></pre>
+
+<h3 id="addcalibrationdata">addCalibrationData</h3>
+<pre><code class="py">
+def addCalibrationData(self, timeIds, values)
+
+</code></pre>
+
+<h3 id="addidx">addIdx</h3>
+<pre><code class="py">
+def addIdx(self, timeStep, data, idx)
+
+</code></pre>
+
+<h3 id="div">div</h3>
+<pre><code class="py">
+def div(self, timeStep, data)
+
+</code></pre>
+
+<h3 id="dividx">divIdx</h3>
+<pre><code class="py">
+def divIdx(self, timeStep, data, idx)
+
+</code></pre>
+
+<h3 id="evaluateabsoluteerror">evaluateAbsoluteError</h3>
+<pre><code class="py">
+def evaluateAbsoluteError(self)
+
+</code></pre>
+
+<h3 id="evaluatenormalizederror">evaluateNormalizedError</h3>
+<pre><code class="py">
+def evaluateNormalizedError(self)
+
+</code></pre>
+
+<h3 id="evaluaterelativeerror">evaluateRelativeError</h3>
+<pre><code class="py">
+def evaluateRelativeError(self)
+
+</code></pre>
+
+<h3 id="gatherglobaldatatorec">gatherGlobalDataToRec</h3>
+<pre><code class="py">
+def gatherGlobalDataToRec(self, timeStep)
+
+</code></pre>
+
+<h3 id="plot">plot</h3>
+<pre><code class="py">
+def plot(self, path)
+
+</code></pre>
+
+<h3 id="save2hdf5">save2Hdf5</h3>
+<pre><code class="py">
+def save2Hdf5(self, filePath)
+
+</code></pre>
+
+<h3 id="savecsv">saveCSV</h3>
+<pre><code class="py">
+def saveCSV(self, path)
+
+</code></pre>
+
+<h3 id="set">set</h3>
+<pre><code class="py">
+def set(self, timeStep, data)
+
+</code></pre>
+
+<h3 id="setidx">setIdx</h3>
+<pre><code class="py">
+def setIdx(self, timeStep, data, idx)
+
+</code></pre>
+
+<h3 id="updatelocalvalues">updateLocalValues</h3>
+<pre><code class="py">
+def updateLocalValues(self, timeStep)
+
+</code></pre>
+
+<h2 id="class-globalvariables">Class GlobalVariables</h2>
+<p>This class allows to store global variables over mutiple files</p>
+<h2 id="class-globals">Class Globals</h2>
+<p>This class manages global variables that are assigned on all processes
+and are synced via mpi. Global variables need to be registered together with
+the aggregation method they ase synced with, .e.g. sum, mean, min, max,...
+TODO
+- enforce the setting (and reading) of global stats
+- implement mean, deviation, std as reduce operators</p>
+<h3 id="9595init9595_3">__init__</h3>
+<pre><code class="py">
+def __init__(self, world)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="registerstat">registerStat</h3>
+<pre><code class="py">
+def registerStat(self, globName, values, statType)
+
+</code></pre>
+
+<h3 id="registervalue">registerValue</h3>
+<pre><code class="py">
+def registerValue(self, globName, value, reduceType)
+
+</code></pre>
+
+<h3 id="sync">sync</h3>
+<pre><code class="py">
+def sync(self)
+
+</code></pre>
+
+<h3 id="syncreductions">syncReductions</h3>
+<pre><code class="py">
+def syncReductions(self)
+
+</code></pre>
+
+<h3 id="syncstats">syncStats</h3>
+<pre><code class="py">
+def syncStats(self)
+
+</code></pre>
+
+<h3 id="updatelocalvalues_1">updateLocalValues</h3>
+<pre><code class="py">
+def updateLocalValues(self, globName, values)
+
+</code></pre>
+
+<h2 id="class-grid">Class Grid</h2>
+<p>This class is an enhancement of the world class and represent the spatial 
+domain. The grid consists of agents with the trait "GridNode" (see: traits.py) 
+and links  between them resemble the spatial proximity.
+(see: examples/02_tutorial_grid.py)</p>
+<h3 id="9595init9595_4">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, nodeTypeID, linkTypeID)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="computeconnectionlist">computeConnectionList</h3>
+<pre><code class="py">
+def computeConnectionList(radius=1, weightingFunc=CPUDispatcher(&lt;function weightingFunc at 0x7f995caf9378&gt;), ownWeight=2, distance_func=CPUDispatcher(&lt;function distance at 0x7f99662192f0&gt;))
+
+</code></pre>
+
+<p>Method for computing a connections list of regular grids
+(see: examples/02_tutorial_grid.py)</p>
+<h3 id="connectnodes">connectNodes</h3>
+<pre><code class="py">
+def connectNodes(self, IDArray, connList, agTypeID, ghostLocationList=None)
+
+</code></pre>
+
+<h3 id="getncloseagents">getNCloseAgents</h3>
+<pre><code class="py">
+def getNCloseAgents(self, agent, nContacts, agTypeID, currentContacts=None, addYourself=True)
+
+</code></pre>
+
+<p>Method to generate a preliminary friend network that accounts for
+proximity in space</p>
+<h3 id="getnodedict">getNodeDict</h3>
+<pre><code class="py">
+def getNodeDict(self)
+
+</code></pre>
+
+<h3 id="getnodeid">getNodeID</h3>
+<pre><code class="py">
+def getNodeID(self, x, y)
+
+</code></pre>
+
+<h3 id="init">init</h3>
+<pre><code class="py">
+def init(self, gridMask, connList, LocClassObject, mpiRankArray=None)
+
+</code></pre>
+
+<p>Auxiliary function to contruct a simple connected layer of spatial locations.
+Use with  the previously generated connection list (see computeConnnectionList)</p>
+<h3 id="registernode">registerNode</h3>
+<pre><code class="py">
+def registerNode(self, gridNode, x, y)
+
+</code></pre>
+
+<h2 id="class-io">Class IO</h2>
+<p>This class helps to write automatically the agents attributes or edge attributes
+of all requrested types.</p>
+<h3 id="9595init9595_5">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, nSteps, outputPath='.', inputPath='.')
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="finalizeagentfile">finalizeAgentFile</h3>
+<pre><code class="py">
+def finalizeAgentFile(self)
+
+</code></pre>
+
+<p>Finalizing the node file - closes the file and saves the
+attribute files. This incluses closing the Hdf5 file.</p>
+<h3 id="finalizelinkfile">finalizeLinkFile</h3>
+<pre><code class="py">
+def finalizeLinkFile(self)
+
+</code></pre>
+
+<p>Finalizing the link file - closes the file and saves the
+attribute files. This incluses closing the Hdf5 file.</p>
+<h3 id="initagentfile">initAgentFile</h3>
+<pre><code class="py">
+def initAgentFile(self, world, agTypeIDs)
+
+</code></pre>
+
+<p>Initializes the internal data structure for later I/O</p>
+<h3 id="initlinkfile">initLinkFile</h3>
+<pre><code class="py">
+def initLinkFile(self, world, liTypeIDs)
+
+</code></pre>
+
+<p>Initializes the internal data structure for later I/O</p>
+<h3 id="writeadjfile">writeAdjFile</h3>
+<pre><code class="py">
+def writeAdjFile(self, fileName, agTypeID, attrForWeight)
+
+</code></pre>
+
+<h3 id="writeagentdatatofile">writeAgentDataToFile</h3>
+<pre><code class="py">
+def writeAgentDataToFile(self, timeStep, agTypeIDs, static=False)
+
+</code></pre>
+
+<p>Transfers data from the._graph to record for the I/O
+and writing data to hdf5 file</p>
+<h3 id="writelinkdatatofile">writeLinkDataToFile</h3>
+<pre><code class="py">
+def writeLinkDataToFile(self, timeStep, liTypeIDs, static=False)
+
+</code></pre>
+
+<p>Transfers data from the._graph to record for the I/O
+and writing data to hdf5 file</p>
+<h2 id="class-memory">Class Memory</h2>
+<p>deprecated</p>
+<h3 id="9595init9595_6">__init__</h3>
+<pre><code class="py">
+def __init__(self, memeLabels)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="addmeme">addMeme</h3>
+<pre><code class="py">
+def addMeme(self, meme)
+
+</code></pre>
+
+<p>add meme to memory</p>
+<h3 id="getmeme">getMeme</h3>
+<pre><code class="py">
+def getMeme(self, memeID, columns)
+
+</code></pre>
+
+<p>used the memeID to identfy the row and returns the meme</p>
+<h3 id="remmeme">remMeme</h3>
+<pre><code class="py">
+def remMeme(self, memeID)
+
+</code></pre>
+
+<p>remove meme to memory</p>
+<h2 id="class-ordereddict">Class OrderedDict</h2>
+<p>Dictionary that remembers insertion order</p>
+<h2 id="class-papi">Class PAPI</h2>
+<p>Parallel Agent Passing Interface
+MPI-based communication module that controles all communcation between
+different processes.
+ToDo: change to communication using numpy</p>
+<h3 id="9595init9595_7">__init__</h3>
+<pre><code class="py">
+def __init__(self, world)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="all2all">all2all</h3>
+<pre><code class="py">
+def all2all(self, value)
+
+</code></pre>
+
+<p>This method is a quick communication implementation that allows +
+sharing data between all processes</p>
+<h3 id="initagentcommunication">initAgentCommunication</h3>
+<pre><code class="py">
+def initAgentCommunication(self, agTypeID)
+
+</code></pre>
+
+<p>Method to initialize the communication based on the spatial
+distribution</p>
+<h3 id="queuesendghostagent">queueSendGhostAgent</h3>
+<pre><code class="py">
+def queueSendGhostAgent(self, mpiPeer, agTypeID, entity, parentEntity)
+
+</code></pre>
+
+<h3 id="transferghostagents">transferGhostAgents</h3>
+<pre><code class="py">
+def transferGhostAgents(self, world)
+
+</code></pre>
+
+<p>Privat method to initially transfer the data between processes and to create
+ghost nodes from the received data</p>
+<h3 id="updateghostagents">updateGhostAgents</h3>
+<pre><code class="py">
+def updateGhostAgents(self, agTypeIDList='all', propertyList='all')
+
+</code></pre>
+
+<p>Method to update ghost node data on all processes</p>
+<h2 id="class-random">Class Random</h2>
+<p>None</p>
+<h3 id="9595init9595_8">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, _Random__agentIDsByType, _Random__ghostIDsByType, _Random__agentsByType)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="locations">locations</h3>
+<pre><code class="py">
+def locations(self, nChoice)
+
+</code></pre>
+
+<h3 id="nchoiceoftype">nChoiceOfType</h3>
+<pre><code class="py">
+def nChoiceOfType(self, nChoice, agTypeID)
+
+</code></pre>
+
+<h3 id="shuffleagentsoftype">shuffleAgentsOfType</h3>
+<pre><code class="py">
+def shuffleAgentsOfType(self, agTypeID, ghosts=False)
+
+</code></pre>
+
+<h2 id="class-writer">Class Writer</h2>
+<p>deprecated</p>
+<h3 id="9595init9595_9">__init__</h3>
+<pre><code class="py">
+def __init__(self, world, filename)
+
+</code></pre>
+
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<h3 id="close">close</h3>
+<pre><code class="py">
+def close(self)
+
+</code></pre>
+
+<h3 id="write">write</h3>
+<pre><code class="py">
+def write(self, outStr)
+
+</code></pre>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="traits.html" class="btn btn-neutral float-right" title="abm4pu.traits">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="agent.html" class="btn btn-neutral" title="abm4py.agent"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="agent.html" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="traits.html" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '.';</script>
+    <script src="js/theme.js" defer></script>
+      <script src="search/main.js" defer></script>
+
+</body>
+</html>

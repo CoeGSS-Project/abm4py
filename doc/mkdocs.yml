@@ -1,0 +1,13 @@
+site_name: ABM4py Documentation
+nav:
+    - abm4py: index.md
+    - abm4py.world: world.md
+    - abm4py.agent: agent.md
+    - abm4py.core: core.md
+    - abm4pu.traits: traits.md
+    - abm4py.future_traits: future_traits.md
+    - abm4py.graph: graph.md
+    - abm4py.location: location.md
+    - abm4py.misc: misc.md
+    - About: about.md
+theme: readthedocs
