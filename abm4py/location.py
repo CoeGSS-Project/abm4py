@@ -87,4 +87,4 @@ class GhostLocation(Agent, Parallel):
     def delete(self, world):
         """ method to delete the agent from the simulation"""
         world._graph.remNode(self.ID)
-        world.deRegisterAgent(self, ghost=True)        
+        world.removeAgent(self, ghost=True)        

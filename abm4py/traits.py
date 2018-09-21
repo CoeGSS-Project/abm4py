@@ -71,7 +71,7 @@ class GridNode():
         
     def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
-        world.registerAgent(self, ghost=ghost)
+        world.addAgent(self, ghost=ghost)
         world.grid.registerNode(self, *self.attr['coord'])
         self.gridPeers  = world._graph._addNoneEdge(self.attr['ID'])
         

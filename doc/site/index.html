@@ -8,7 +8,7 @@
   <meta name="description" content="None">
   
   <link rel="shortcut icon" href="img/favicon.ico">
-  <title>Home - My Docs</title>
+  <title>abm4py - ABM4py Documentation</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="css/theme.css" type="text/css" />
@@ -17,7 +17,7 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Home";
+    var mkdocs_page_name = "abm4py";
     var mkdocs_page_input_path = "index.md";
     var mkdocs_page_url = null;
   </script>
@@ -36,7 +36,7 @@
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
-        <a href="index.html" class="icon icon-home"> My Docs</a>
+        <a href="index.html" class="icon icon-home"> ABM4py Documentation</a>
         <div role="search">
   <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
@@ -50,16 +50,22 @@
           
             <li class="toctree-l1 current">
 		
-    <a class="current" href="index.html">Home</a>
+    <a class="current" href="index.html">abm4py</a>
     <ul class="subnav">
             
-    <li class="toctree-l2"><a href="#welcome-to-mkdocs">Welcome to MkDocs</a></li>
+    <li class="toctree-l2"><a href="#welcome-to-abm4py">Welcome to ABM4py</a></li>
     
         <ul>
         
-            <li><a class="toctree-l3" href="#commands">Commands</a></li>
+            <li><a class="toctree-l3" href="#approach">Approach</a></li>
         
-            <li><a class="toctree-l3" href="#project-layout">Project layout</a></li>
+            <li><a class="toctree-l3" href="#world-environment">World (Environment)</a></li>
+        
+            <li><a class="toctree-l3" href="#agent-classes">Agent classes</a></li>
+        
+            <li><a class="toctree-l3" href="#traits">Traits</a></li>
+        
+            <li><a class="toctree-l3" href="#parallel-execution">Parallel execution</a></li>
         
         </ul>
     
@@ -122,7 +128,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="index.html">My Docs</a>
+        <a href="index.html">ABM4py Documentation</a>
       </nav>
 
       
@@ -134,7 +140,7 @@
     
       
     
-    <li>Home</li>
+    <li>abm4py</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -144,21 +150,40 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="welcome-to-mkdocs">Welcome to MkDocs</h1>
-<p>For full documentation visit <a href="https://mkdocs.org">mkdocs.org</a>.</p>
-<h2 id="commands">Commands</h2>
-<ul>
-<li><code>mkdocs new [dir-name]</code> - Create a new project.</li>
-<li><code>mkdocs serve</code> - Start the live-reloading docs server.</li>
-<li><code>mkdocs build</code> - Build the documentation site.</li>
-<li><code>mkdocs help</code> - Print this help message.</li>
-</ul>
-<h2 id="project-layout">Project layout</h2>
-<pre><code>mkdocs.yml    # The configuration file.
-docs/
-    index.md  # The documentation homepage.
-    ...       # Other markdown pages, images and other files.
-</code></pre>
+                <h1 id="welcome-to-abm4py">Welcome to ABM4py</h1>
+<p>The purpose of this ABM framework is to provide a tool/toolbox/toolkit for prototyping ABM that 
+are able to grow to bigger scale due to parallel executeion. Modelers who are not experts in 
+parallel programming, should nevertheless be able to implement parallel prototypes of large-scale ABM for the purpose of testing and refining them in an iterative process</p>
+<h2 id="approach">Approach</h2>
+<p>ABM4py is not a traditional framework in a sense that the model code is not executed inside the 
+framework. As mentioned above, it is rather a toolbox, providing pre-defined classes, functions and a 
+dynamic and efficient data structure. All classes serve as templates to derive more complex classes, 
+which extend the base functionalities. In this way, ABM4py provides basic functionalities, but does 
+not restrict the flexibility of the ABM approach.</p>
+<h2 id="world-environment">World (Environment)</h2>
+<p>The World class is the overarching structure of the framework and provides the ABM environment. It 
+provides the necessary functions to set up the different components of the simulation, manages 
+registers of agents, grants global access to all agents, edges and their attributes and schedules the 
+simulation. In case of parallel execution “all” refers only to the agents existing on the process and 
+copies of agents from other processes.  Multiple subclasses structure the functionalities of the 
+environment like parallel communication, data storage (graph), spatial grid, input / output (IO), 
+random module and a distributed statistics module. Section 3.2 provides more details of the world as 
+an environment and control structure.</p>
+<h2 id="agent-classes">Agent classes</h2>
+<p>The Agent class is a template class for more complex agent types and provides the basic methods to 
+implement micro-dynamics or transition functions. The available methods of the agent are in line with 
+scope of the agents (see Section 3.1). The basic agent is described in detail in Section 3.3.</p>
+<h2 id="traits">Traits</h2>
+<p>Additional traits for adding additional functionalities can be used when deriving new agent classes. 
+Examples for such higher-class agents is a Traveler that is an agent with the additional trait Mobile 
+or a Location, which is an agent with the trait Gridnode that provides it with spatial relationship 
+functions to its grid neighbors. The currently implemented traits are introduced in section 3.5.</p>
+<h2 id="parallel-execution">Parallel execution</h2>
+<p>Currently parallel distribution of the simulation is implemented by partitioning the spatial dimension 
+of the graph only. This is the case because local conditions play an important role in the type of 
+models for which ABM4py was developed. Extensions to general graph partitioning are possible and we 
+invite users to extend this open source tool with further more general partitioning as needed to fit 
+their models.</p>
               
             </div>
           </div>
@@ -207,5 +232,5 @@ docs/
 
 <!--
 MkDocs version : 1.0.4
-Build Date UTC : 2018-09-21 18:27:44
+Build Date UTC : 2018-09-21 21:46:15
 -->

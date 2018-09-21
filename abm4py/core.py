@@ -618,7 +618,7 @@ class Grid():
         weightData /= np.sum(weightData,axis=0)
 
         if np.sum(weightData>0) < nContacts:
-            lg.info( "nID: " + str(agent.ID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
+            lg.info( "ID: " + str(agent.ID) + ": Reducting the number of friends at " + str(self.loc.get('pos')))
             nContacts = min(np.sum(weightData>0)-1,nContacts)
 
         if nContacts < 1:                                                       ###OPTPRODUCTION
@@ -1684,10 +1684,10 @@ class PAPI():
             
             lg.debug( 'receiving globIDList:' + str(globIDList))###OPTPRODUCTION
             lg.debug( 'localDList:' + str(self.mpiRecvIDList[(agTypeID, mpiDest)]))###OPTPRODUCTION
-            for nID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiDest)], globIDList):
+            for ID, gID in zip(self.mpiRecvIDList[(agTypeID, mpiDest)], globIDList):
 
-                self.world.setGlob2Loc(gID, nID)
-                self.world.setLoc2Glob(nID, gID)
+                self.world.setGlob2Loc(gID, ID)
+                self.world.setLoc2Glob(ID, gID)
 
         lg.info( 'Mpi commmunication required: ' + str(time.time()-tt) + ' seconds')
 
