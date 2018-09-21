@@ -26,25 +26,25 @@ class _Entity(object):
     Enitity is the storage structure of all agents and contains the basic 
     methods to create and delete itself.
     """
-    __slots__ = ['nID', 'dataID', 'attr']
+    __slots__ = ['ID', 'dataID', 'attr']
     
-    def __init__(self, world, nID=None, **kwProperties):
+    def __init__(self, world, ID=None, **kwProperties):
         
         #  the agTypeID is derived from the agent class and stored        
         self.agTypeID =  world._graph.class2NodeType(self.__class__)
 
         # create new node in the._graph
-        if nID == None:
-            self.nID, self.dataID, self.attr = world.addNode(self.agTypeID, **kwProperties)    
+        if ID == None:
+            self.ID, self.dataID, self.attr = world.addNode(self.agTypeID, **kwProperties)    
             
             self._setGraph(world._graph)
             self.attr['instance'] = self
             self.__getNode = world.getAgent
 
         else:
-            self.nID = nID
+            self.ID = ID
             self._setGraph(world._graph)
-            self.attr, self.dataID = self._graph.getNodeView(nID)
+            self.attr, self.dataID = self._graph.getNodeView(ID)
             self.attr['instance'] = self
             
             
@@ -56,12 +56,12 @@ class _Entity(object):
 
     def register(self, world, parentEntity=None, liTypeID=None, ghost=False):
         
-        world.registerAgent(self, ghost=ghost)
+        world.addAgent(self, ghost=ghost)
 
         if parentEntity is not None:
             self.mpiGhostRanks = parentEntity.registerChild(world, self, liTypeID)
 
     def delete(self, world):
         """ method to delete the agent from the simulation"""
-        world._graph.remNode(self.nID)
-        world.deRegisterAgent(self, ghost=False)
+        world._graph.remNode(self.ID)
+        world.removeAgent(self, ghost=False)

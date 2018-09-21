@@ -150,11 +150,11 @@ class EdgeArray(np.ndarray):
               
 
 class BaseGraph():
-        """
-        This class provides the basic functions to contruct a directed._graph
-        with different node and edge types. 
-        The max number of edges and nodesis extended dynamically.
-        """ 
+    """
+    This class provides the basic functions to contruct a directed._graph
+    with different node and edge types. 
+    The max number of edges and nodesis extended dynamically.
+    """ 
         
     def __init__(self, maxNodesPerType, maxEdgesPerType):
 
