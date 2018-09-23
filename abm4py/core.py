@@ -41,7 +41,8 @@ import random
 from . import misc
 from collections import OrderedDict
 
-
+# inport configuration
+from . import config
 
 # Evaluation if mpi4py is installed and workding
 try:
@@ -69,8 +70,7 @@ import h5py
 import logging as lg
 
 
-# This compound typtes are allowed as agent attributes
-ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
+
 
 #%% FUNCTION DEFINITION
 
@@ -169,98 +169,6 @@ def configureSTD(outputPath, out2File=True, err2File=True):
         err_file   =  open(outputPath + '/err' + str(mpiRank) + '.txt', 'w')
         sys.stderr = err_file
 
-def formatPropertyDefinition(propertyList):
-    """
-    Checks and completes the property definition for entities and edges
-    """
-    for iProp in range(len(propertyList)):
-        if not isinstance(propertyList[iProp], tuple):
-            propertyList[iProp] = (propertyList[iProp], np.float64, 1) 
-        else:
-            if len(propertyList[iProp]) == 3:
-                pass
-                
-            elif len(propertyList[iProp]) == 2:
-                propertyList[iProp] = (propertyList[iProp] + (1,))
-                print('Assuming a single number for ' + str(propertyList[iProp][1]))
-            elif len(propertyList[iProp]) == 1:
-                propertyList[iProp] = (propertyList[iProp] + (np.float64, 1,))
-                print('Assuming a single float number for ' + str(propertyList[iProp][1]))
-            else:
-                raise(BaseException('Property format of ' + str(propertyList[iProp]) + ' not understood'))    
-                
-        assert isinstance(propertyList[iProp][0],str)
-        assert isinstance(propertyList[iProp][1],type)
-        assert isinstance(propertyList[iProp][2],int)
-        
-    return propertyList
-
-
-
-
-
-#def cartesian2(arrays):
-#    arrays = [np.asarray(a) for a in arrays]
-#    shape = (len(x) for x in arrays)
-#
-#    ix = np.indices(shape, dtype=int)
-#    ix = ix.reshape(len(arrays), -1).T
-#
-#    for n, arr in enumerate(arrays):
-#        ix[:, n] = arrays[n][ix[:, n]]
-#
-#    return ix
-
-#from sklearn.utils.extmath import cartesian
-#cartesian = cartesian
-
-def cartesian(arrays, out=None):
-    """Generate a cartesian product of input arrays.
-
-    Parameters
-    ----------
-    arrays : list of array-like
-        1-D arrays to form the cartesian product of.
-    out : ndarray
-        Array to place the cartesian product in.
-
-    Returns
-    -------
-    out : ndarray
-        2-D array of shape (M, len(arrays)) containing cartesian products
-        formed of input arrays.
-
-    Examples
-    --------
-    >>> cartesian(([1, 2, 3], [4, 5], [6, 7]))
-    array([[1, 4, 6],
-           [1, 4, 7],
-           [1, 5, 6],
-           [1, 5, 7],
-           [2, 4, 6],
-           [2, 4, 7],
-           [2, 5, 6],
-           [2, 5, 7],
-           [3, 4, 6],
-           [3, 4, 7],
-           [3, 5, 6],
-           [3, 5, 7]])
-
-    """
-    arrays = [np.asarray(x) for x in arrays]
-    shape = (len(x) for x in arrays)
-    dtype = arrays[0].dtype
-
-    ix = np.indices(shape)
-    ix = ix.reshape(len(arrays), -1).T
-
-    if out is None:
-        out = np.empty_like(ix, dtype=dtype)
-
-    for n, arr in enumerate(arrays):
-        out[:, n] = arrays[n][ix[:, n]]
-
-    return out
 
 def readParametersFromFile(paraDict, fileName):
     import csv
@@ -270,17 +178,7 @@ def readParametersFromFile(paraDict, fileName):
     return paraDict
 
         
-def convertStr(string):
-    """
-    Returns integer, float or string dependent on the input
-    """
-    if str.isdigit(string):
-        return int(string)
-    else:
-        try:
-            return np.float(string)
-        except:
-            return string
+
 
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None, ax=None):
     import matplotlib.pyplot as plt
@@ -789,7 +687,7 @@ class Globals():
         assert statType in ['mean', 'std', 'var']    ###OPTPRODUCTION
 
 
-        if not isinstance(values, ALLOWED_MULTI_VALUE_TYPES):
+        if not isinstance(values, config.ALLOWED_MULTI_VALUE_TYPES):
             values = [values]
         values = np.asarray(values)
 

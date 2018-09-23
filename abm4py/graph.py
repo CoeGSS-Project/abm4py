@@ -23,6 +23,34 @@ GNU Lesser General Public License version 3 (see the file LICENSE).
 import numpy as np
 import itertools
 from abm4py import misc
+from abm4py import core
+
+
+def formatPropertyDefinition(propertyList):
+    """
+    Checks and completes the property definition for entities and edges
+    """
+    for iProp in range(len(propertyList)):
+        if not isinstance(propertyList[iProp], tuple):
+            propertyList[iProp] = (propertyList[iProp], np.float64, 1) 
+        else:
+            if len(propertyList[iProp]) == 3:
+                pass
+                
+            elif len(propertyList[iProp]) == 2:
+                propertyList[iProp] = (propertyList[iProp] + (1,))
+                print('Assuming a single number for ' + str(propertyList[iProp][1]))
+            elif len(propertyList[iProp]) == 1:
+                propertyList[iProp] = (propertyList[iProp] + (np.float64, 1,))
+                print('Assuming a single float number for ' + str(propertyList[iProp][1]))
+            else:
+                raise(BaseException('Property format of ' + str(propertyList[iProp]) + ' not understood'))    
+                
+        assert isinstance(propertyList[iProp][0],str)
+        assert isinstance(propertyList[iProp][1],type)
+        assert isinstance(propertyList[iProp][2],int)
+        
+    return propertyList
 
 try:
     from numba import njit
@@ -107,39 +135,35 @@ class EdgeArray(np.ndarray):
             obj.freeRows   = freeRows
             
         if eDict is None:
-            obj.eDict          = dict()
+            obj.eDict = dict()
         else:
-            obj.eDict          = eDict
+            obj.eDict = eDict
         
         if eDict is None:
-            obj.eDict          = dict()
+            obj.eDict = dict()
         else:
-            obj.eDict          = eDict
+            obj.eDict = eDict
             
         if edgesOut is None:
-            obj.edgesOut          = dict()
+            obj.edgesOut = dict()
         else:
-            obj.edgesOut          = edgesOut
+            obj.edgesOut = edgesOut
         
         if edgesIn is None:
-                    obj.edgesIn          = dict()
+            obj.edgesIn = dict()
         else:
-            obj.edgesIn          = edgesIn
+            obj.edgesIn = edgesIn
         
         if nodesOut is None:
-                    obj.nodesOut          = dict()
+            obj.nodesOut = dict()
         else:
-            obj.nodesOut          = nodesOut     
+            obj.nodesOut = nodesOut     
 
         if nodesIn is None:
-                    obj.nodesIn          = dict()
+            obj.nodesIn  = dict()
         else:
-            obj.nodesIn          = nodesIn  
+            obj.nodesIn = nodesIn  
                     
-#        obj.edgesOut       = dict() # (source -> leID)
-#        obj.edgesIn        = dict() # (target -> leID)
-#        obj.nodesOut       = dict() # (source -> target)
-#        obj.nodesIn        = dict() # (target -> source)
         return obj
                 
     def eCount(self):
@@ -159,7 +183,7 @@ class BaseGraph():
     def __init__(self, maxNodesPerType, maxEdgesPerType):
 
         
-        self.INIT_SIZE      = 100
+        self.INIT_SIZE      = core.config.GRAPH_ARRAY_INIT_SIZE
         
         self.maxNodes       = np.int64(maxNodesPerType)
         self.maxEdges       = np.int64(maxEdgesPerType)
@@ -290,7 +314,7 @@ class BaseGraph():
              lnID = dataID + nTypeID * self.maxNodes
              
              if dataID >= self.nodes[nTypeID].currentSize:
-                 self._extendNodeArray(nTypeID, 2)
+                 self._extendNodeArray(nTypeID, core.EXTENTION_FACTOR)
 
          dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
 
@@ -332,7 +356,7 @@ class BaseGraph():
             nType.freeRows = nType.freeRows[nNodes:]
         
         if max(dataIDs) >= self.nodes[nTypeID].currentSize:
-            extFactor = int(max(np.ceil((max(dataIDs) +1) / nType.currentSize), 2))
+            extFactor = int(max(np.ceil((max(dataIDs) +1) / nType.currentSize), core.EXTENTION_FACTOR))
             self._extendNodeArray(nTypeID, extFactor)
             nType = self.nodes[nTypeID]
         nType['active'][dataIDs] = True
@@ -549,10 +573,10 @@ class BaseGraph():
             dataID   = eType.getNewID()
             leID = dataID + eTypeID * self.maxEdges
             if dataID >= self.edges[eTypeID].currentSize:
-                 self._extendEdgeArray(eTypeID, 2)
+                 self._extendEdgeArray(eTypeID, core.EXTENTION_FACTOR)
                  eType = self.edges[eTypeID]
-        dataview = eType[dataID:dataID+1].view() 
-         
+        
+        dataview = eType[dataID:dataID+1].view()          
         #updating edge dictionaries
         eType.eDict[(sourceID, targetID)] = dataID
         eType.edgeList.append(leID)
@@ -605,7 +629,7 @@ class BaseGraph():
             eType.freeRows = eType.freeRows[nEdges:]
         
         if max(dataIDs) >= eType.currentSize:
-            extFactor = int(max(np.ceil( (max(dataIDs)+1 )/eType.currentSize), 2))
+            extFactor = int(max(np.ceil( (max(dataIDs)+1 )/eType.currentSize), core.config.EXTENTION_FACTOR))
             self._extendEdgeArray(eTypeID, extFactor)
             eType = self.edges[eTypeID]
             
@@ -904,16 +928,16 @@ class ABMGraph(BaseGraph):
         #self.defaultNodeValues     = (False, None, -2, -2)
         self.persNodeAttr = [('active', np.bool_,1),
                              ('instance', np.object,1),
-                             ('gID', np.int32,1),
-                             ('ID', np.int32,1)]
+                             ('gID', core.config.GID_TYPE,1),
+                             ('ID', core.config.ID_TYPE,1)]
 
 
         
         
         #persistent edge attributes
         self.persEdgeAttr = [('active', np.bool_, 1),
-                             ('source', np.int32, 1), 
-                             ('target', np.int32, 1)]
+                             ('source', core.config.ID_TYPE, 1), 
+                             ('target', core.config.ID_TYPE, 1)]
     
     def _addNoneEdge(self, source):
         """
@@ -936,6 +960,11 @@ class ABMGraph(BaseGraph):
                     staticProperties, 
                     dynamicProperties):
         """ Create node type description"""
+
+        # adds and formats properties we need for the framework (like gID) automatically
+        staticProperties  = formatPropertyDefinition(staticProperties)
+        dynamicProperties = formatPropertyDefinition(dynamicProperties)
+        
         
         agTypeID = TypeDescription(agTypeIDIdx, typeStr, staticProperties, dynamicProperties)
         self.agTypeByID[agTypeIDIdx] = agTypeID
@@ -953,6 +982,10 @@ class ABMGraph(BaseGraph):
 
     def addEdgeType(self, typeStr, staticProperties, dynamicProperties, agTypeID1, agTypeID2):
         """ Create edge type description"""
+        # adds and formats properties we need for the framework (like gID) automatically
+        staticProperties  = formatPropertyDefinition(staticProperties)
+        dynamicProperties = formatPropertyDefinition(dynamicProperties)
+
         liTypeIDIdx = len(self.liTypeByID)+1
         liTypeID = TypeDescription(liTypeIDIdx, typeStr, staticProperties, dynamicProperties)
         self.liTypeByID[liTypeIDIdx] = liTypeID
