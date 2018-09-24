@@ -43,8 +43,8 @@ class Walker(Agent, Mobile):
     def register(self,world):
         Agent.register(self, world)
         self.loc = world.grid.getNodeDict()[tuple(self.attr['coord'])]
-        #world.addLink(ANCHOR, self.nID, self.loc.nID)
-        world.addLink(ANCHOR, self.loc.nID, self.nID)
+        #world.addLink(ANCHOR, self.ID, self.loc.ID)
+        world.addLink(ANCHOR, self.loc.ID, self.ID)
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)
@@ -54,11 +54,11 @@ class Walker(Agent, Mobile):
         newY = min(max(0,newY), EXTEND-1)
         
 #        self.attr['pos'] = [ newX, newY]
-#        world.delLinks(LINK_SHEEP, self.nID, self.loc.nID)
-#        world.delLinks(LINK_SHEEP, self.loc.nID, self.nID)
+#        world.delLinks(LINK_SHEEP, self.ID, self.loc.ID)
+#        world.delLinks(LINK_SHEEP, self.loc.ID, self.ID)
 #        self.loc =  locDict[( newX, newY)]
-#        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
-#        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
+#        world.addLink(LINK_SHEEP, self.ID, self.loc.ID)
+#        world.addLink(LINK_SHEEP, self.loc.ID, self.ID)
         
         Mobile.move(self, newX, newY, ANCHOR)
        

@@ -39,8 +39,8 @@ class World:
                  simNo=None,
                  outPath='.',
                  nSteps=1,
-                 maxNodes=1e6,
-                 maxLinks=1e6,
+                 maxNodes=core.config.MAX_NODES,
+                 maxLinks=core.config.MAX_LINKS,
                  debug=False,
                  agentOutput=False,
                  linkOutput=False):
@@ -193,10 +193,7 @@ class World:
         if dynamicProperties is None:
             dynamicProperties = descDict['dynamicProperties']
 
-        # adds and formats properties we need for the framework (like gID) automatically
-        staticProperties = core.formatPropertyDefinition(staticProperties)
-        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)
-                
+        
         agTypeIDIdx = len(self._graph.agTypeByID)+1
                 
         self._graph.addNodeType(agTypeIDIdx, 
@@ -234,13 +231,10 @@ class World:
         liTypeID for other purposes, e.g. I/O
     
         """
-        if ('source', np.int32, 1) not in staticProperties:
-            staticProperties.append(('source', np.int32, 1))
-        if ('target', np.int32, 1) not in staticProperties:
-            staticProperties.append(('target', np.int32, 1))
-                             
-        staticProperties  = core.formatPropertyDefinition(staticProperties)
-        dynamicProperties = core.formatPropertyDefinition(dynamicProperties)        
+        if ('source', core.config.ID_TYPE, 1) not in staticProperties:
+            staticProperties.append(('source', core.config.ID_TYPE, 1))
+        if ('target', core.config.ID_TYPE, 1) not in staticProperties:
+            staticProperties.append(('target', core.config.ID_TYPE, 1))
         
         liTypeIDIdx = self._graph.addEdgeType( agTypeStr, 
                                                staticProperties, 

@@ -29,7 +29,7 @@ import time
 import random
 
 from abm4py import World, Agent, Location #, GhostAgent, World,  h5py, MPI
-from abm4py.traits import Aggregator
+from abm4py.future_traits import Aggregator
 
 
 #import tools_for_02 as tools
@@ -111,14 +111,14 @@ for x in range(EXTEND):
                       sumGrass=0)
         patch.register(world)
         
-        IDArray[x,y] = patch.nID
+        IDArray[x,y] = patch.ID
         
         for i in range(GRASS_PER_PATCH):
             grass = Grass(world,
                           coord= (x,y),
                           height = random.random())
             grass.register(world)
-            patch.addLink(grass.nID, ROOTS)
+            patch.addLink(grass.ID, ROOTS)
         
      
 connBluePrint = world.grid.computeConnectionList(radius=4.5)

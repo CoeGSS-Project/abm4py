@@ -175,7 +175,7 @@ for cell in earth.random.iterAgents(CELL, ghosts=True):
 # creation of agents
 locDict = earth.grid.getNodeDict()
 for x, y in list(locDict.keys()):
-    loc         = earth.getAgent(locDict[x, y].nID)
+    loc         = earth.getAgent(locDict[x, y].ID)
     nAgentsCell = loc.get('agentsPerCell')
     
     for iAgent in range(nAgentsCell):
@@ -184,7 +184,7 @@ for x, y in list(locDict.keys()):
                           prop_A = float(iAgent),
                           prop_B = np.random.random())
         agent.register(earth, parentEntity=loc, liTypeID=CON_AC)
-#        agent.loc.peList.append(agent.nID)
+#        agent.loc.peList.append(agent.ID)
 
 
 earth.papi.transferGhostAgents(earth) 

@@ -179,3 +179,18 @@ def loadObj(name):
     """
     with open(name + '.pkl', 'rb') as f:
         return pickle.load(f)    
+    
+
+def convertStr(string):
+    """
+    Returns integer, float or string dependent on the input
+    """
+    if str.isdigit(string):
+        return int(string)
+    else:
+        try:
+            return np.float(string)
+        except:
+            return string    
+        
+        

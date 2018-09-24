@@ -108,8 +108,8 @@ class Sheep(Agent, Mobile):
         Mobile.__init__(self, world, **kwAttr)
         
         self.loc = locDict[(x,y)]
-        #world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
-        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
+        #world.addLink(LINK_SHEEP, self.ID, self.loc.ID)
+        world.addLink(LINK_SHEEP, self.loc.ID, self.ID)
     
     def __descriptor__():
         """
@@ -163,11 +163,11 @@ class Sheep(Agent, Mobile):
         newY = min(max(0,newY), EXTEND-1)
         
 #        self.attr['coord'] = [ newX, newY]
-#        world.delLinks(LINK_SHEEP, self.nID, self.loc.nID)
-#        world.delLinks(LINK_SHEEP, self.loc.nID, self.nID)
+#        world.delLinks(LINK_SHEEP, self.ID, self.loc.ID)
+#        world.delLinks(LINK_SHEEP, self.loc.ID, self.ID)
 #        self.loc =  locDict[( newX, newY)]
-#        world.addLink(LINK_SHEEP, self.nID, self.loc.nID)
-#        world.addLink(LINK_SHEEP, self.loc.nID, self.nID)
+#        world.addLink(LINK_SHEEP, self.ID, self.loc.ID)
+#        world.addLink(LINK_SHEEP, self.loc.ID, self.ID)
         
         Mobile.move(self, newX, newY, LINK_SHEEP)
         self.attr['weight'] -= .1
@@ -198,7 +198,7 @@ class Wolf(Agent, Mobile):
         Mobile.__init__(self, world, **kwAttr)
         world.addAgent(self)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_WOLF, self.loc.nID, self.nID)
+        world.addLink(LINK_WOLF, self.loc.ID, self.ID)
 
     def __descriptor__():
         """
@@ -379,7 +379,7 @@ for x in range(EXTEND):
                       height=random.random())
         grass.register(world)
         
-        IDArray[x,y] = grass.nID
+        IDArray[x,y] = grass.ID
 timePerAgent = (time.time() -tt ) / world.countAgents(GRASS)
 print(timePerAgent)
 

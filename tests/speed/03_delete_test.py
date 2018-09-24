@@ -40,7 +40,7 @@ class Walker(Agent, Mobile):
     def register(self,world):
         Agent.register(self, world)
         self.loc = world.grid.getNodeDict()[tuple(self.attr['coord'])]
-        world.addLink(ANCHOR, self.loc.nID, self.nID)
+        world.addLink(ANCHOR, self.loc.ID, self.ID)
         
     def randomWalk(self):
         (dx,dy) = np.random.randint(-2,3,2)

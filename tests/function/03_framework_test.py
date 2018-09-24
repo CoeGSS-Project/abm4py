@@ -105,13 +105,13 @@ for cell in earth.random.shuffleAgentsOfType(CELL):
     if cell.attr['coord'][0] == 0:
         x,y = cell.attr['coord']
         agent = Agent(earth, value3=np.random.randn(), coord=(x,  y))
-        #print 'agent.nID' + str(agent.nID)
+        #print 'agent.ID' + str(agent.ID)
         agent.register(earth, cell, C_LOAG)
         #cell.registerEntityAtLocation(earth, agent,_cLocAg)
 
 #earth.queue.dequeueVertices(earth)
 #earth.queue.dequeueEdges(earth)
-#            if agent.node['nID'] == 10:
+#            if agent.node['ID'] == 10:
 #                agent.addLink(8,_cAgAg)
 
 #earth.papi.syncNodes(CELL,['value', 'value2'])
@@ -137,8 +137,8 @@ print(str(earth.papi.rank) + ' ' + str(earth._graph.nodes[AG].indices()))
 print(str(earth.papi.rank) + ' ' + str(earth._graph.nodes[AG]['value3']))
 
 for agent in earth.random.shuffleAgentsOfType(AG):
-    agent.attr['value3'] = earth.papi.rank+ agent.nID
-    assert agent.attr['value3'] == earth.papi.rank+ agent.nID
+    agent.attr['value3'] = earth.papi.rank+ agent.ID
+    assert agent.attr['value3'] == earth.papi.rank+ agent.ID
 #
 earth.papi.updateGhostAgents([AG])
 #
@@ -169,18 +169,18 @@ print('Edge values write/read successful')
 
 friendID = earth.getAgentDict()[AG][0]
 agent.addLink(friendID, C_AGAG, weig=.51)
-assert earth._graph.isConnected(agent.nID, friendID, C_AGAG)
+assert earth._graph.areConnected(agent.ID, friendID, C_AGAG)
 readValue = agent.getAttrOfLink('weig',C_AGAG)
 assert readValue[0] == np.float32(0.51)
 
 agent.remLink(friendID, C_AGAG)
-assert not(earth._graph.isConnected(agent.nID, friendID, C_AGAG))
+assert not(earth._graph.areConnected(agent.ID, friendID, C_AGAG))
 print('Adding/removing connection successfull')
 
 value = agent.attr['value3'].copy()
 agent.attr['value3'] +=1
 assert agent.attr['value3'] == value +1
-assert earth.getAttrOfAgents('value3', agent.nID) == value +1
+assert earth.getAttrOfAgents('value3', agent.ID) == value +1
 print('Value access and increment sucessful')
 
 #%%
@@ -192,7 +192,7 @@ print(cell40)
 print(agentID)
 print(earth._graph.nodes[2][earth._graph.nodes[2]['active']])
 agent = cell40.getPeers(liTypeID=C_LOAG)
-print(agent[0].nID)
+print(agent[0].ID)
 print(agent[0].gID)
 
 connAgent = earth.getAgent(agentID[0])
