@@ -160,11 +160,7 @@ def __init__(self, world, maxNodesPerType, maxEdgesPerType)
 
 </code></pre>
 
-<p>This class provides the basic functions to contruct a directed._graph
-with different node and edge types. 
-The max number of edges and nodes
-cannot be exceeded during execution, since it is used for pre-assigning
-storage space.</p>
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
 <h3 id="addedge">addEdge</h3>
 <pre><code class="py">
 def addEdge(self, eTypeID, sourceID, targetID, attributes=None)
@@ -576,18 +572,16 @@ def setOutNodeValues(self, lnID, eTypeID, attr, values)
 <p>Method to read the attributes of connected nodes via a 
 specifice edge type and outward direction</p>
 <h2 id="class-basegraph">Class BaseGraph</h2>
-<p>Graph class that is used to store data and connections of the ABM model</p>
+<p>This class provides the basic functions to contruct a directed._graph
+with different node and edge types. 
+The max number of edges and nodesis extended dynamically.</p>
 <h3 id="9595init9595_1">__init__</h3>
 <pre><code class="py">
 def __init__(self, maxNodesPerType, maxEdgesPerType)
 
 </code></pre>
 
-<p>This class provides the basic functions to contruct a directed._graph
-with different node and edge types. 
-The max number of edges and nodes
-cannot be exceeded during execution, since it is used for pre-assigning
-storage space.</p>
+<p>Initialize self.  See help(type(self)) for accurate signature.</p>
 <h3 id="addedge_1">addEdge</h3>
 <pre><code class="py">
 def addEdge(self, eTypeID, sourceID, targetID, attributes=None)
