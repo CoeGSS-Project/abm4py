@@ -98,7 +98,7 @@ class Community(World):
         huntersGraph.es['weight']=1
         
         for hunter in self.iterNode(2):           
-            hID = hunter.nID
+            hID = hunter.ID
             huntersGraph.add_vertices(str(hID))
             nei, wei = hunter.neighboursWithWeights(self)
             for j in range(len(nei)):
@@ -112,11 +112,11 @@ class Community(World):
         
         destDict = {}
         for village in self.iterNode(1):
-            vID = village.nID
+            vID = village.ID
             destDict[vID] = []            
         for hunter in self.iterNode(2):
             destID = hunter.chooseHuntingDest()
-            destDict[destID].append(hunter.nID)
+            destDict[destID].append(hunter.ID)
             
         return destDict
 
@@ -127,7 +127,7 @@ class Community(World):
         hunterPairs = []
         
         for village in self.iterNode(1):
-            hunterList = destDict[village.nID]
+            hunterList = destDict[village.ID]
             localList = self.chooseHunterPairs(hunterList)
             for n in range(len(localList)):
                 hunterPairs.append(localList[n])
@@ -259,7 +259,7 @@ class Hunter(Agent):
         
     def village(self):
         village = self.loc
-        return village.nID, village
+        return village.ID, village
 
         
     def chooseHuntingDest(self):        
@@ -270,8 +270,8 @@ class Hunter(Agent):
         i = 0            
         while cumWeights[i]<r:
             i+=1
-        destinationID = connectedVs[i]        
-        return destinationID
+        destinatioID = connectedVs[i]        
+        return destinatioID
 
         
     """    
@@ -279,7 +279,7 @@ class Hunter(Agent):
         myVillageID, myVillage = self.village()
         otherVillageID, otherVillage = hunter.villageID()
         weight = 0
-        if hunter.nID in self.neighbouringHunters(community):
+        if hunter.ID in self.neighbouringHunters(community):
             wei, edg, con = myVillage.getConnectedVillages()
             idx = con.index(otherVillageID)
             weight = wei[idx]
@@ -291,7 +291,7 @@ class Hunter(Agent):
         #nWeights = list()
         nei, ids = self.getNeigbourhood(3)
         for i in iter(community.nodeList[2]):
-            if i in ids and (i is not self.nID):
+            if i in ids and (i is not self.ID):
                 nIds.append(i)
         return nIds    
     
@@ -303,7 +303,7 @@ class Hunter(Agent):
         nei, ids = self.getNeigbourhood(3)
         
         for i in iter(community.nodeList[2]):
-            if i in ids and (i is not self.nID):
+            if i in ids and (i is not self.ID):
                 neiIds.append(i)                
                 neighbour = community.entDict[i]
                 otherVillageID, otherVillage = neighbour.village()

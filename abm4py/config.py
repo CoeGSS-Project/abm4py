@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: UTF-8-*-
+# -*- coding: utf-8 -*-
 """
 Copyright (c) 2018, Global Climate Forun e.V. (GCF)
 http://www.globalclimateforum.org
@@ -20,16 +20,23 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 GNU Lesser General Public License version 3 (see the file LICENSE).
 """
 
-from __future__ import absolute_import
 
-from .world import World
-from .agent import Agent, GhostAgent
-from .location import Location, GhostLocation
-from . import core
-from . import misc
-from . import traits
-from . import future_traits
-#from . import config
+import numpy as np
 
-__version__ = "0.7.2"
-    
+################################### CONFIG ###################################
+
+# This compound typtes are allowed as agent attributes (agent state)
+ALLOWED_MULTI_VALUE_TYPES = (list, tuple, np.ndarray)
+
+# This defines the type if intergers that IDs and global IDs are of.
+GID_TYPE = np.int64
+ID_TYPE = np.int32
+
+# this is the inital size of hte node and edge attribute array (see graph.py)
+GRAPH_ARRAY_INIT_SIZE = 100
+
+# Defaulf factor for exending arrays:
+EXTENTION_FACTOR = 2
+
+MAX_NODES = int(1e6)
+MAX_LINKS = int(1e6)

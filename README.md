@@ -2,7 +2,7 @@
 
 Agent-based modeling framework for python
 
-0.7.1 stable version
+0.7.2 stable version
 
 ## Getting Started
 
@@ -24,6 +24,7 @@ matplotlib
 
 OPTIONAL:
 mpi4py for parallel execution
+h5py compiled in parallel mode
 numba for optinal compiled function execution
 ```
 

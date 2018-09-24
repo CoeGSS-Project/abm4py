@@ -311,10 +311,11 @@ class BaseGraph():
          except:
              # generate a new local ID
              dataID   = self.nodes[nTypeID].getNewID()
+             assert dataID < self.maxNodes 
              lnID = dataID + nTypeID * self.maxNodes
              
              if dataID >= self.nodes[nTypeID].currentSize:
-                 self._extendNodeArray(nTypeID, core.EXTENTION_FACTOR)
+                 self._extendNodeArray(nTypeID, core.config.EXTENTION_FACTOR)
 
          dataview = self.nodes[nTypeID][dataID:dataID+1].view() 
 
@@ -355,8 +356,9 @@ class BaseGraph():
             dataIDs[:] = nType.freeRows[:nNodes]
             nType.freeRows = nType.freeRows[nNodes:]
         
+        assert max(dataIDs) < self.maxNodes
         if max(dataIDs) >= self.nodes[nTypeID].currentSize:
-            extFactor = int(max(np.ceil((max(dataIDs) +1) / nType.currentSize), core.EXTENTION_FACTOR))
+            extFactor = int(max(np.ceil((max(dataIDs) +1) / nType.currentSize), core.config.EXTENTION_FACTOR))
             self._extendNodeArray(nTypeID, extFactor)
             nType = self.nodes[nTypeID]
         nType['active'][dataIDs] = True
@@ -572,8 +574,9 @@ class BaseGraph():
             # generate a new local ID
             dataID   = eType.getNewID()
             leID = dataID + eTypeID * self.maxEdges
+            assert dataID < self.maxEdges
             if dataID >= self.edges[eTypeID].currentSize:
-                 self._extendEdgeArray(eTypeID, core.EXTENTION_FACTOR)
+                 self._extendEdgeArray(eTypeID, core.config.EXTENTION_FACTOR)
                  eType = self.edges[eTypeID]
         
         dataview = eType[dataID:dataID+1].view()          
@@ -627,6 +630,8 @@ class BaseGraph():
         else:
             dataIDs[:] = eType.freeRows[:nEdges]
             eType.freeRows = eType.freeRows[nEdges:]
+        
+        assert max(dataIDs) < self.maxEdges
         
         if max(dataIDs) >= eType.currentSize:
             extFactor = int(max(np.ceil( (max(dataIDs)+1 )/eType.currentSize), core.config.EXTENTION_FACTOR))

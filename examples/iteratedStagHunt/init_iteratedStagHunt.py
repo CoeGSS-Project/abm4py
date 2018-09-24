@@ -120,7 +120,7 @@ plt.legend(['# hare hunters','# stag hunters'],loc=0)
 """
 
 for village in community.iterNode(1):
-    v = village.nID
+    v = village.ID
     cols = 3
     rows = int((nPlots+1)/cols)
     inhabitants = community.getInhabitants(village)

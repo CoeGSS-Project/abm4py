@@ -106,7 +106,7 @@ for x in range(populationMap.shape[0]):
                           nAgents=max(1,np.int(populationMap[x,y])))
             cell.register(world)
             world.registerLocation(cell, x, y)
-            IDArray[x,y] = cell.nID
+            IDArray[x,y] = cell.ID
 
 # %%create location network
 connBluePrint = world.spatial.computeConnectionList(radius=2.5)

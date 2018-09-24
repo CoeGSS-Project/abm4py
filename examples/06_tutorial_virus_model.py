@@ -84,7 +84,7 @@ class People(Agent, Mobile):
 
         Agent.register(self, world)
         self.loc = locDict[(x,y)]
-        world.addLink(LINK_PEOPLE, self.loc.nID, self.nID)
+        world.addLink(LINK_PEOPLE, self.loc.ID, self.ID)
         
     def getSick(self):
         """
@@ -138,7 +138,7 @@ class People(Agent, Mobile):
         
         newX = min(max(0,newX), EXTEND-1)
         newY = min(max(0,newY), EXTEND-1)
-        #print(self.nID)
+        #print(self.ID)
         Mobile.move(self, newX, newY, LINK_PEOPLE)
         
     def infect(self):
@@ -198,7 +198,7 @@ for x in range(EXTEND):
         patch = Location(world, 
                       coord=(x,y))
         patch.register(world)
-        IDArray[x,y] = patch.nID
+        IDArray[x,y] = patch.ID
         
 
 connBluePrint = world.grid.computeConnectionList(radius=2.5)

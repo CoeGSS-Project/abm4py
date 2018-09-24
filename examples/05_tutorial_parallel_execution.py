@@ -88,7 +88,6 @@ class GhostGrass(GhostLocation):
     
 #%% Init of world and register of agents and links
 world = World(agentOutput=False,
-              mpiComm=core.comm,
               maxNodes=100000,
               maxLinks=200000)
 print(world.isParallel)

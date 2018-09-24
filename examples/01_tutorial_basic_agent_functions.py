@@ -79,7 +79,7 @@ joana.register(world)
 tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')
 
 # make new connection from clara to joana
-clara.addLink(joana.nID,LINK)
+clara.addLink(joana.ID,LINK)
 #%%
 tools.plotGraph(world, HUMANS, LINK, attrLabel= 'age')
 
@@ -93,11 +93,11 @@ ages = world.getAttrOfAgentType('age',agTypeID=HUMANS)
 
 # get all canditates:
 # stf: ages ist ein np.array, aber die IDs sind eine python Liste :-(
-# candidateIDs != joana.nID ergibt dann nämlich True, anstatt [True, True, False]
+# candidateIDs != joana.ID ergibt dann nämlich True, anstatt [True, True, False]
 # stf: ausserdem existiert zwar gID in dem np array, aber ist nicht gesetzt 
 candidateIDs = world.getAgentIDs(HUMANS)
 
-candidateIsJoana = [id == joana.nID for id in candidateIDs]
+candidateIsJoana = [id == joana.ID for id in candidateIDs]
 
 # compute probability to connect for all other agents
 differenceInAge = np.abs(ages - joana.attr['age'])
