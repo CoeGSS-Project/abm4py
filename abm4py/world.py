@@ -355,8 +355,16 @@ class World:
             self.setParameter(key, parameterDict[key])
 
     # saving enumerations
-    def saveParameters(self, fileName= 'simulation_parameters'):
-        misc.saveObj(self.para, self.para['outPath'] + '/' + fileName)
+    def saveParameters(self, path = None, fileName= 'simulation_parameters'):
+        
+        if path is None:
+            path = self.para['outPath']
+        
+        import os
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        
+        misc.saveObj(self.para, path + '/' + fileName)
        
     def getEnums(self):
         """ 

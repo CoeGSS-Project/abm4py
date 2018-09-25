@@ -111,7 +111,7 @@ world = World(simNo,
 # register the first AGENT typ and save the numeric type ID as constant
 CELL = world.registerAgentType(AgentClass=Location,
                               staticProperties  = [('gID', np.int32,1),
-                                                    ('coord', np.float32, 2),
+                                                    ('coord', np.int16, 2),
                                                     ('imit', np.float16, 1),
                                                     ('nAgents', np.int16,1)],
                               dynamicProperties = [('fraction', np.int16, 1)])
@@ -119,7 +119,7 @@ CELL = world.registerAgentType(AgentClass=Location,
 # register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerAgentType(AgentClass=Person,
                                staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.float32, 2),
+                                                    ('coord', np.float32, 2),
                                                     ('age',  np.int16, 1),
                                                     ('gender',  np.int16, 1),
                                                     ('income',  np.int32, 1),
@@ -133,32 +133,34 @@ LI_CC = world.registerLinkType('ce-ce', CELL, CELL, staticProperties =['weig'])
 LI_CA = world.registerLinkType('ce-ag', CELL,AGENT)
 LI_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
 
-
+world.registerGrid(CELL, LI_CC)
 #%% creating locations
 populationMap = np.load('coarse_pop_count.npy')
 populationMap = np.flipud(populationMap /REDUCTION_FACTOR).transpose()
 populationMap.shape
 
-IDArray = populationMap * 0
-IDArray[np.isnan(IDArray)] = 0
-for x in range(populationMap.shape[0]):
-    for y in range(populationMap.shape[1]):
-        
-        if not np.isnan(populationMap[x,y]):
-            cell = Location(world,
-                          coord=(x, y),
-                          fraction=0,
-                          nAgents=max(1,np.int(populationMap[x,y])))
-            cell.register(world)
-            world.registerLocation(cell, x, y)
-            IDArray[x,y] = cell.ID
+#IDArray = populationMap * 0
+#IDArray[np.isnan(IDArray)] = 0
+#for x in range(populationMap.shape[0]):
+#    for y in range(populationMap.shape[1]):
+#        
+#        if not np.isnan(populationMap[x,y]):
+#            cell = Location(world,
+#                          coord=(x, y),
+#                          fraction=0,
+#                          nAgents=max(1,np.int(populationMap[x,y])))
+#            cell.register(world)
+#            IDArray[x,y] = cell.ID
 
 # %%create location network
-world.registerGrid(CELL, LI_CC)
 connBluePrint = world.grid.computeConnectionList(radius=2.5)
 
+IDArray = populationMap > 0
 world.grid.init(np.clip(IDArray,0,1).astype(int), connBluePrint, Location)
-
+#world.grid.connectNodes(IDArray, connBluePrint, CELL)
+for cell in world.getAgentsByType(CELL):
+    cell.attr['nAgents'] = max(1,np.int(populationMap[tuple(cell.attr['coord'])]))
+    cell.attr['fraction'] = 0
 if True:
     #%%
     tools.plotGraph(world, CELL, LI_CC, 'nAgents')
@@ -181,9 +183,9 @@ currIdx = 0
 
 for xLoc, yLoc in list(locDict.keys()):  
     loc = locDict[xLoc, yLoc]
+    print(loc.attr['nAgents'])
     
-    
-    for iAgent in range(loc.get('nAgents')):
+    for iAgent in range(loc.attr['nAgents']):
         x = random.normalvariate(xLoc,.25)
         y = random.normalvariate(yLoc,.25)
         
@@ -210,22 +212,23 @@ for xLoc, yLoc in list(locDict.keys()):
         # The init of LIB.Agent requires either the definition of all attributes 
         # that are registered (above) or none.
         agent = Person(world,
-                          coord=(x, y),
-                          switch = 0,
-                          color = BLUE,
-                          imit = np.nan,
-                          inno = np.nan,
-                          nPers =nPers,
-                          age = age,
-                          income = income,
-                          gender = gender)
-        
+                      coord=(x, y),
+                      switch = 0,
+                      color = BLUE,
+                      imit = np.nan,
+                      inno = np.nan,
+                      nPers =nPers,
+                      age = age,
+                      income = income,
+                      gender = gender)
+        #print(agent)
         agent.propertyToPreference(age, gender, income, hhType)
         #####################################################################
     
         # after the agent is created, it needs to register itself to the world
         # in order to get listed within the iterators and other predefined structures
         agent.register(world)
+
         currIdx +=1
 
 #%% creation of spatial proximity network
@@ -269,7 +272,7 @@ for agent in world.getAgentsByType(AGENT):
 
         
     
-positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('coord',agTypeID=AGENT)
 
 #####################################################################
 # exchange the position of spatial space (x,y) with the properties (inno, imit)
@@ -339,7 +342,7 @@ while True:
     
     # for a bit of speed up, we draw the required random numbers before 
     # the actual loop over agents.
-    agentsToIter = world.filterAgents(lambda a: a['switch'] == 0, AGENT)
+    agentsToIter = world.getAgentsByFilteredType(lambda a: a['switch'] == 0, AGENT)
     randValues  = np.random.random(len(agentsToIter))*1000
     
     # instead of looping only over agents, we loop over packages of an agents
@@ -348,7 +351,7 @@ while True:
         
         # dynamic of the agent
         switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
-        inno, imit = agent[['inno','imit']]
+        inno, imit = agent.attr[['inno','imit']]
         
         # if the condition for an agent to switch is met, the agent attributes
         # "switch" and "color" are altered

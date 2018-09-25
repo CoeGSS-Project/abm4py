@@ -54,7 +54,7 @@ world = lib.World(agentOutput=False)
 # register the first AGID typ and save the numeric type ID as constant
 AGID = world.registerAgentType(AgentClass=lib.Agent,
                                staticProperties  = [('gID', np.int32,1),
-                                                    ('pos', np.int16, 2)],
+                                                    ('coord', np.int16, 2)],
                                dynamicProperties = [('switch', np.int16, 1),
                                                     ('color', np.float16,4)])
 
@@ -77,7 +77,7 @@ for iAgent in range(N_AGENTS):
     # The init of LIB.AGIDs requires either the definition of all attributes 
     # that are registered (above) or none.
     agent = lib.Agent(world,
-                      pos=(x, y),
+                      coord=(x, y),
                       switch = 0,
                       color = BLUE)
     #####################################################################
@@ -93,7 +93,7 @@ fracList = list()
 # world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGID attribute and the agTypeID
 # specifies the type of AGID.
-positions = world.getAttrOfAgentType(attribute='pos',agTypeID=AGID)
+positions = world.getAttrOfAgentType(attribute='coord',agTypeID=AGID)
 
 # this class is only implemented for a convenient interactive visualization of 
 # the example

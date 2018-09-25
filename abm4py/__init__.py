@@ -31,5 +31,5 @@ from . import traits
 from . import future_traits
 #from . import config
 
-__version__ = "0.7.2"
+__version__ = "0.7.3"
     

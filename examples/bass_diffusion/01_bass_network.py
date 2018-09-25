@@ -59,14 +59,14 @@ RED  = [1,0,0,1]
 class Person(Agent):
 
     def __init__(self, world, **kwAttr):
-        #print(kwAttr['pos'])
+        #print(kwAttr['coord'])
         Agent.__init__(self, world, **kwAttr)
 
 
     def createSocialNetwork(self, world):
         
         #opt1
-        #distance = np.sum((positions - self.attr['pos'])**2,axis=1)
+        #distance = np.sum((positions - self.attr['coord'])**2,axis=1)
         
         #opt2
         distance = np.abs((innovationVal - self.attr['inno'])**4)
@@ -93,7 +93,7 @@ world = World(simNo,
 
 # register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerAgentType(AgentClass=Person,
-                               staticProperties  = [('pos', np.float32, 2),
+                               staticProperties  = [('coord', np.float32, 2),
                                                     ('imit', np.float16, 1),
                                                     ('inno', np.float16,1)],
                                dynamicProperties = [('switch', np.int16, 1),
@@ -133,7 +133,7 @@ for iAgent in range(N_AGENTS):
     # The init of LIB.Agent requires either the definition of all attributes 
     # that are registered (above) or none.
     agent = Person(world,
-                      pos=(x, y),
+                      coord=(x, y),
                       switch = 0,
                       color = BLUE,
                       imit = imit,
@@ -150,7 +150,7 @@ world.io.initAgentFile(world, [AGENT])
 # world.getAttrOfAgentType is used to receive the position of all agents 
 # for plotting. The label specifies the AGENT attribute and the agTypeID
 # specifies the type of AGENT.
-positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
+positions = world.getAttrOfAgentType('coord', agTypeID=AGENT)
 
 # This produces a list of all agents by their IDs
 agIDList  = world.getAgentIDs(AGENT)
@@ -175,7 +175,7 @@ innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float
 # Here one can choose the positions of the agents in the plot by putting all 
 # options but the favoured one into comments.
     
-positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('coord',agTypeID=AGENT)
 #positions[:,0] = world.getAttrOfAgentType('inno',agTypeID=AGENT)
 #positions[:,1] = world.getAttrOfAgentType('imit',agTypeID=AGENT)
 #%% Scheduler

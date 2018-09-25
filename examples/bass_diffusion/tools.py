@@ -65,7 +65,7 @@ class PlotClass():
             linesToDraw = list()
             plt.cla()
             for agent in world.getAgentsByType(AGENT):
-                pos = agent.attr['pos'][0]
+                pos = agent.attr['coord']
                 pos = positions[agent.dataID]
                 
                 peerDataIDs     = np.asarray(agent.getPeerIDs(LI_AA)) - (world.maxNodes * AGENT)
@@ -116,14 +116,14 @@ def printfractionExceed(switchFraction, iStep):
         
 def plotGraph(world, agentTypeID, liTypeID=None, attrLabel=None):
     linesToDraw = list()
-    positions = world.getAttrOfAgentType('pos', agTypeID=agentTypeID)
+    positions = world.getAttrOfAgentType('coord', agTypeID=agentTypeID)
     
     #print(nAgents)
     plt.figure('graph')
     plt.clf()
     ax = plt.subplot(111)
     for agent in world.getAgentsByType(agentTypeID):
-        pos = agent.attr['pos'][0]
+        pos = agent.attr['coord']
         
         
         
