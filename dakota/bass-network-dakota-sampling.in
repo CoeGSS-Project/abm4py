@@ -1,0 +1,33 @@
+environment
+    tabular_data
+
+method
+    sampling
+        sample_type random
+        samples = 8
+        seed = 1
+
+variables
+    uniform_uncertain = 2
+        descriptor      'imitation' 'innovation' 
+        lower_bounds    0.0 10            
+        upper_bounds    0.5 20            
+    discrete_state_set 
+        string = 2
+            descriptors 'calcResponsesScript' 'modelFileName' 
+            elements './response-scripts/bass-sampling.py' '../examples/bass_diffusion/01_bass_network_dakota.py' 
+
+interface
+    system asynchronous evaluation_concurrency = 8
+        analysis_drivers = 'python3 ../examples/bass_diffusion/01_bass_network_dakota.py'
+        parameters_file = 'd-params.in'
+        results_file = 'd-results.out'
+        file_tag
+        file_save
+
+responses
+    response_functions = 2
+    descriptors 'runNo' 'o_switchFraction' 
+    no_gradients
+    no_hessians
+

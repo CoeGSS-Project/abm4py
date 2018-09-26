@@ -1,0 +1,33 @@
+environment
+    tabular_data
+
+method
+    sampling
+        sample_type random
+        samples = 8
+        seed = 1
+
+variables
+    uniform_uncertain = %NUM_UNIFORM%
+        descriptor      %UNIFORM_DESCRIPTORS%
+        lower_bounds    %UNIFORM_LOWERBOUNDS%           
+        upper_bounds    %UNIFORM_UPPERBOUNDS%           
+    discrete_state_set 
+        string = %NUM_STATIC_STRINGS%
+            descriptors %STATIC_STRING_DESCRIPTORS%
+            elements %STATIC_STRING_ELEMENTS%
+
+interface
+    system asynchronous evaluation_concurrency = 8
+        analysis_drivers = 'python3 %MODEL_FILENAME%'
+        parameters_file = 'd-params.in'
+        results_file = 'd-results.out'
+        file_tag
+        file_save
+
+responses
+    response_functions = %NUM_RESPONSES%
+    descriptors %RESPONSE_DESCRIPTORS%
+    no_gradients
+    no_hessians
+

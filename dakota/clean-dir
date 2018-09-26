@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm *.out
+rm *.in.*
+rm *.out.*
