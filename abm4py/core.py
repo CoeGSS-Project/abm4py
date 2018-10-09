@@ -26,6 +26,7 @@ import os
 import numpy as np
 import itertools
 import pandas as pd
+import sys
 
 try:
     from numba import njit
@@ -283,15 +284,67 @@ glVar = GlobalVariables()
 
 
 class Dakota():
+    """
+    This class simplifies the integration of Dakota (a optimiaztion and much more toolkot, 
+    see https://dakota.sandia.gov/) to a model. If the instance 'dakota' is activated, 
+    a random simNo is used and World.setParameter ignores parameteres which are in the 
+    Dakota.params dict.
+
+    For details about the integration please check the 'how to' document in the 
+    dakota subfolder.
+    """
     def __init__(self):
         self.isActive = False
 
-    def overwriteParameters(self, simNo, parameterDict):
-        self.isActive = True
-        self.simNo  = simNo
-        self.params = parameterDict
+    def activate(self):
+        """
+        activate should be only called, when the model was started via the Dakota interface.
+      
+        For details about the integration please check the 'how to' document in the 
+        dakota subfolder.
+        """
+        # if this package is not found, you must add Dakota's python folder to the PYTHONPATH
+        # environment
+        import dakota.interfacing as di
         
-    
+        dakotaParams, self.dakotaResults = di.read_parameters_file(sys.argv[1], sys.argv[2])
+        # before the results are written it's necessary to go back to the initial folder
+        self.dakotaDir = os.getcwd()
+        self.responseScript = dakotaParams['calcResponsesScript']
+        modelFileName = dakotaParams['modelFileName']
+        self.modelDir, _ = os.path.split(modelFileName)
+        os.chdir(self.modelDir)
+        
+        self.params = dict()
+        for d in dakotaParams.descriptors:
+            self.params[d] = dakotaParams[d]
+            
+        self.simNo = int(random.randrange(2 ** 63))
+        self.isActive = True
+
+    def reportResponse(self, attr, value):
+        """
+        call this function from the responseScript
+        """
+        if self.isActive:
+            self.dakotaResults['o_' + attr].function = value
+
+    def finish(self, paramNS):
+        """
+        paramNS is the namespace that is used as global namespace when the responseScript
+        is evaluated. You can use global() in most cases.
+        """
+        if self.isActive and (comm is not None) and (mpiRank == 0):
+            paramNS['reportResponse'] = self.reportResponse
+            os.chdir(self.dakotaDir)
+            theScript = open(self.responseScript).read()
+            os.chdir(self.modelDir)
+            exec(theScript, paramNS)
+            self.dakotaResults['runNo'].function = self.simNo
+            os.chdir(self.dakotaDir)
+            self.dakotaResults.write()
+
+
 dakota = Dakota()
 
 

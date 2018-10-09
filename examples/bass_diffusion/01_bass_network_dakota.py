@@ -38,8 +38,6 @@ from abm4py import Agent, World # basic interface
 from abm4py import core
 import tools
 
-DAKOTA = True
-
 #%% CONFIG
 N_AGENTS   = 500    # number of AGID that will be gernerated
 N_STEPS    = 200   # number of steps performed
@@ -48,15 +46,14 @@ MAX_EXTEND = 50     # spatial extend
 N_FRIENDS  = 10     # number of friends/connections an agent will have
 
 DEBUG = True
-DO_PLOT  = True     # decides whether to lateron plot the results or not
+DO_PLOT  = False     # decides whether to lateron plot the results or not
 
 
-BLUE = [0,0,1,1]
-RED  = [1,0,0,1]
+BLUE = [0, 0, 1, 1]
+RED = [1, 0, 0, 1]
 
-if DAKOTA:
-    DO_PLOT = False
-    exec(open("dakota-init.py").read(), globals())
+# if you want do run the model without dakota, just uncomment this line
+core.dakota.activate()
 
 
 #%% NEW AGENT CLASS DEFINTION
@@ -66,9 +63,7 @@ class Person(Agent):
         #print(kwAttr['pos'])
         Agent.__init__(self, world, **kwAttr)
 
-
     def createSocialNetwork(self, world):
-        
         #opt1
         #distance = np.sum((positions - self.attr['pos'])**2,axis=1)
         
@@ -76,7 +71,7 @@ class Person(Agent):
         distance = np.abs((innovationVal - self.attr['inno'])**4)
         
         # normalizing
-        weights = np.divide(1.,distance, out=np.zeros_like(distance), where=distance!=0)
+        weights = np.divide(1., distance, out=np.zeros_like(distance), where = distance!=0)
         weights = weights / np.sum(weights)
         
         
@@ -102,30 +97,30 @@ world.setParameter('innovation', 0.2)
 
 # register the first AGENT typ and save the numeric type ID as constant
 AGENT = world.registerAgentType(AgentClass=Person,
-                               staticProperties  = [('pos', np.float32, 2),
-                                                    ('imit', np.float16, 1),
-                                                    ('inno', np.float16,1)],
-                               dynamicProperties = [('switch', np.int16, 1),
-                                                    ('color', np.float16,4)])
+                                staticProperties  = [('pos', np.float32, 2),
+                                                     ('imit', np.float16, 1),
+                                                     ('inno', np.float16, 1)],
+                                dynamicProperties = [('switch', np.int16, 1),
+                                                     ('color', np.float16, 4)])
 #%% Init of edge types
-LI_AA = world.registerLinkType('ag-ag', AGENT,AGENT)
+LI_AA = world.registerLinkType('ag-ag', AGENT, AGENT)
 #%% Agent creation
 
 # set position of the agents into four sector centres:
 origins = [np.asarray(x) for x in [[25,25], [75,25], [25,75], [75,75]]]
 # normal distribution around centres:
-individualDeltas  = np.clip(np.random.randn(2, N_AGENTS)*10, -25, 25)
+individualDeltas = np.clip(np.random.randn(2, N_AGENTS) * 10, -25, 25)
 
 
 # looping over the number of AGENTs set up
 for iAgent in range(N_AGENTS): 
     
     # agent chooses one of the sectors in the spatial extend    
-    sector = random.choice([0,1,2,3])
+    sector = random.choice([0, 1, 2, 3])
     
     # agent is assigned a position around the centre of the choosen sector
     origin = origins[sector]
-    x,y = origin + individualDeltas[:,iAgent]
+    x, y = origin + individualDeltas[:, iAgent]
     
     # agent is assigned personal innovation and imitation levels
     inno = random.random() * world.getParameter('innovation')
@@ -142,11 +137,11 @@ for iAgent in range(N_AGENTS):
     # The init of LIB.Agent requires either the definition of all attributes 
     # that are registered (above) or none.
     agent = Person(world,
-                      pos=(x, y),
-                      switch = 0,
-                      color = BLUE,
-                      imit = imit,
-                      inno = inno)
+                   pos=(x, y),
+                   switch = 0,
+                   color = BLUE,
+                   imit = imit,
+                   inno = inno)
     #####################################################################
     
     # after the agent is created, it needs to register itself to the world
@@ -184,15 +179,15 @@ innovationVal = world.getAttrOfAgentType('inno', agTypeID=AGENT).astype(np.float
 # Here one can choose the positions of the agents in the plot by putting all 
 # options but the favoured one into comments.
     
-positions = world.getAttrOfAgentType('pos',agTypeID=AGENT)
+positions = world.getAttrOfAgentType('pos', agTypeID=AGENT)
 #positions[:,0] = world.getAttrOfAgentType('inno',agTypeID=AGENT)
 #positions[:,1] = world.getAttrOfAgentType('imit',agTypeID=AGENT)
 #%% Scheduler
 iStep = 0
 fracList = list()
-fracPerSector = {1:[], 2:[], 3:[],4:[]}
+fracPerSector = {1:[], 2:[], 3:[], 4:[]}
 
-switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
+switched = world.getAttrOfAgentType('switch', agTypeID=AGENT)
 
 
 # If results shall be plotted:
@@ -201,11 +196,11 @@ if DO_PLOT:
     
 # The loop runs until one of the end-conditions below is fulfilled  
 while True:
-    tt =time.time()
-    iStep+=1
+    tt = time.time()
+    iStep += 1
     
     # world.getAttrOfAgentType is used to retrieve the attribute "switch" of all AGIDs
-    switched = world.getAttrOfAgentType('switch',agTypeID=AGENT)
+    switched = world.getAttrOfAgentType('switch', agTypeID=AGENT)
     
     # the sum of all agents that switched, devided by the total number of agents
     # calculates the fraction of agents that already switched
@@ -225,29 +220,29 @@ while True:
     # the actual loop over agents.
     #nodesToIter = world.filterAgents(AGENT, 'switch', 'eq', 0)
     agentsToIter = world.getAgentsByFilteredType(lambda a: a['switch'] == 0, AGENT, )
-    randValues  = np.random.random(len(agentsToIter))*1000
+    randValues = np.random.random(len(agentsToIter)) * 1000
     
     # instead of looping only over agents, we loop over packages of an agents
     # and it dedicated random number that the agent will use.    
-    for agent, randNum in zip(agentsToIter,randValues) :
+    for agent, randNum in zip(agentsToIter, randValues):
         
         # switchFraction is recalculated for every agent as the sum of all its
         # friends that switched devided by its total number of friends
-        switchFraction = np.sum(agent.getAttrOfPeers('switch',LI_AA)) / N_FRIENDS
+        switchFraction = np.sum(agent.getAttrOfPeers('switch', LI_AA)) / N_FRIENDS
         inno = agent.attr['inno']
         imit = agent.attr['imit']
         
         # if the condition for an agent to switch is met, the agent attributes
         # "switch" and "color" are altered
-        if randNum < inno + ( imit * ( switchFraction)):
+        if randNum < inno + (imit * switchFraction):
             agent.attr['switch'] = 1
-            agent.attr['color']  = RED
+            agent.attr['color'] = RED
             if DO_PLOT:
-                plotting.add(iStep,inno)
+                plotting.add(iStep, inno)
     
     # each 50 steps, the visualization is updated       
-    if DO_PLOT and iStep%50 == 0:
-        plotting.update(iStep, fracList, world.getAttrOfAgentType('color',agTypeID=AGENT))
+    if DO_PLOT and iStep % 50 == 0:
+        plotting.update(iStep, fracList, world.getAttrOfAgentType('color', agTypeID=AGENT))
     
     world.io.writeAgentDataToFile(iStep, [AGENT])
     #time.sleep(.1)
@@ -255,5 +250,4 @@ while True:
 
 world.io.finalizeAgentFile()
 
-if DAKOTA:
-    finishDakota()
+core.dakota.finish(globals())

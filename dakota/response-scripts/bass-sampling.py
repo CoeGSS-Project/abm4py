@@ -1,2 +1,1 @@
-def calcResponses():
-    reportResponse('switchFraction', switchFraction)
+reportResponse('switchFraction', globals()['switchFraction'])

@@ -20,36 +20,14 @@
 shinyUI( 
     navbarPage(
         "Dakota Visualization",
-        ## tabPanel(
-        ##     "Crosstalk",
-        ##     d3scatterOutput("scatter1"),
-        ##     d3scatterOutput("scatter2")
-        ## ),
         tabPanel(
-            "Time Series",
-            plotlyOutput("splom"),
-            ## plotlyOutput("scatter3"),
-            parcoordsOutput("bar"),
-            parcoordsOutput("bar2"),
-            verbatimTextOutput("summary"),
-            plotlyOutput("timeSeriesComb"),
-            plotlyOutput("timeSeriesElec")
+            "Combined",
+            parcoordsOutput("all")
         ),
-        tabPanel( #//{ TimeSeries
-            "Parallal Coordinates",
-            fluidRow(
-                column(6,
-                       selectInput("errorCrit", "Error Criterion", names(ct %>% select(starts_with("c_"))))),
-                column(6,
-                       selectInput("foo", "Colorscale", c("None", names(ct))))
-                ),
-            plotlyOutput("paramParcoords"),
-            plotlyOutput("errorParcoords")
-                    ## plotlyOutput("timeSeries"),
-                    ## h3("GDP modifier:"),
-                    ## DT::dataTableOutput("gdpModifier")
-            ##     )
-            ## )
-        ) #//}
+        tabPanel(
+            "Seperated",
+            parcoordsOutput("params"),
+            parcoordsOutput("errors")
+        )
     )
 )

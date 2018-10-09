@@ -341,9 +341,8 @@ class World:
         """
         This method is used to set parameters of the simulation
         """
-        if core.dakota.isActive:
-            if core.dakota.params.get(paraName):
-                self.para[paraName] = core.dakota.params[paraName]
+        if core.dakota.isActive and core.dakota.params.get(paraName):
+            self.para[paraName] = core.dakota.params[paraName]
         else:
             self.para[paraName] = paraValue
 
